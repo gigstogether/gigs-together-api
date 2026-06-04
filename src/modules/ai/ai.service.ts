@@ -4,7 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
+import OpenAI from 'openai';
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
@@ -111,9 +111,9 @@ export class AiService {
       );
     }
 
-    const aiUrl =
+    const aiBaseUrl =
       this.configService.get<string>('AI_URL') ?? process.env.AI_URL;
-    if (!aiUrl) {
+    if (!aiBaseUrl) {
       throw new InternalServerErrorException('AI_URL is not set on the server');
     }
 
@@ -123,29 +123,27 @@ export class AiService {
       mode: 'structured',
     });
 
-    const requestBody: Record<string, unknown> = {
-      model,
-      tools: [{ type: 'web_search' }],
-      input: prompt,
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'gig_lookup',
-          strict: true,
-          schema: GIG_LOOKUP_OPENAI_JSON_SCHEMA,
-        },
-      },
-    };
+    const client = new OpenAI({
+      apiKey,
+      baseURL: aiBaseUrl,
+    });
 
     try {
-      const response = await axios.post(aiUrl, requestBody, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
+      const response = await client.responses.create({
+        model,
+        tools: [{ type: 'web_search' }],
+        input: prompt,
+        text: {
+          format: {
+            type: 'json_schema',
+            name: 'gig_lookup',
+            strict: true,
+            schema: GIG_LOOKUP_OPENAI_JSON_SCHEMA,
+          },
         },
       });
 
-      const text: unknown = response.data?.output_text;
+      const text: unknown = response.output_text;
 
       if (this.isAiLookupDebugEnabled()) {
         const contentForLog =
@@ -160,7 +158,7 @@ export class AiService {
             ? `${contentForLog.slice(0, maxLen)}…(truncated)`
             : contentForLog;
         this.logger.log(
-          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(aiUrl)} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
+          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(aiBaseUrl)} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
         );
       }
 
@@ -227,10 +225,9 @@ export class AiService {
 
       return gig;
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        const status = err.response?.status;
-        const nested =
-          this.getAxiosNestedErrorMessage(err.response?.data) ?? undefined;
+      if (err instanceof OpenAI.APIError) {
+        const status = err.status;
+        const nested = this.getAxiosNestedErrorMessage(err.error) ?? undefined;
         const message = nested ?? err.message ?? 'AI request failed';
         throw new InternalServerErrorException(
           `AI request failed${status ? ` (HTTP ${status})` : ''}: ${message}`,

@@ -42,6 +42,7 @@
     "googleapis": "^144.0.0",
     "mongoose": "^9.4.1",
     "multer": "^2.0.2",
+    "openai": "^6.42.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1"
   },
