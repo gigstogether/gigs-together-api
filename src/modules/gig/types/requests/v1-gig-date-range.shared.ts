@@ -11,6 +11,19 @@ export function startOfTodayMs(): number {
 }
 
 /**
+ * Published gigs visible in the feed on and after `fromMs`:
+ * - single-day (no `endDate`): `date` is on or after `fromMs`;
+ * - multi-day: still listed while `endDate` is on or after `fromMs` (last day inclusive).
+ */
+export function buildFeedVisibleDateClause(
+  fromMs: number,
+): Record<string, unknown> {
+  return {
+    $or: [{ date: { $gte: fromMs } }, { endDate: { $gte: fromMs } }],
+  };
+}
+
+/**
  * Parses "YYYY-MM-DD" into local-day bounds.
  * - for "from": start of day (00:00:00.000)
  * - for "to": end of day (23:59:59.999)
