@@ -7,12 +7,9 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
-import {
-  applyPerplexityStructuredGigLookupToRequestBody,
-  isPerplexityStructuredGigLookupEnabled,
-} from './perplexity/perplexity-gig-lookup.request';
 import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
 import { isRecord } from '../../shared/utils/is-record';
+import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai/openai-gig-lookup.request';
 
 @Injectable()
 export class AiService {
@@ -47,7 +44,7 @@ export class AiService {
     return typeof msg === 'string' && msg.trim() ? msg.trim() : undefined;
   }
 
-  private normalizeLookUpedGig(
+  private normalizeLookedUpGig(
     raw: unknown,
   ): V1ReceiverCreateGigRequestBodyGig {
     if (!isRecord(raw)) {
@@ -114,49 +111,41 @@ export class AiService {
       );
     }
 
-    const url = this.configService.get<string>('AI_URL') ?? process.env.AI_URL;
-    if (!url) {
+    const aiUrl =
+      this.configService.get<string>('AI_URL') ?? process.env.AI_URL;
+    if (!aiUrl) {
       throw new InternalServerErrorException('AI_URL is not set on the server');
     }
 
-    const perplexityPlainEnv =
-      this.configService.get<string>('AI_LOOKUP_PERPLEXITY_PLAIN') ??
-      process.env.AI_LOOKUP_PERPLEXITY_PLAIN;
-    const usePerplexityStructured = isPerplexityStructuredGigLookupEnabled(
-      url,
-      perplexityPlainEnv,
-    );
     const prompt = buildV1FutureGigLookupPrompt({
       name: params.name,
       place: params.location,
-      mode: usePerplexityStructured ? 'structured' : 'plain-json',
+      mode: 'structured',
     });
 
     const requestBody: Record<string, unknown> = {
       model,
-      messages: [{ role: 'user', content: prompt }],
+      tools: [{ type: 'web_search' }],
+      input: prompt,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'gig_lookup',
+          strict: true,
+          schema: GIG_LOOKUP_OPENAI_JSON_SCHEMA,
+        },
+      },
     };
 
-    if (usePerplexityStructured) {
-      applyPerplexityStructuredGigLookupToRequestBody(requestBody);
-    }
-
     try {
-      const response = await axios.post(url, requestBody, {
+      const response = await axios.post(aiUrl, requestBody, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
       });
 
-      const choice0Unknown: unknown = response.data?.choices?.[0];
-      const finishReason =
-        isRecord(choice0Unknown) &&
-        typeof choice0Unknown.finish_reason === 'string'
-          ? choice0Unknown.finish_reason
-          : undefined;
-
-      const text: unknown = response.data?.choices?.[0]?.message?.content;
+      const text: unknown = response.data?.output_text;
 
       if (this.isAiLookupDebugEnabled()) {
         const contentForLog =
@@ -171,7 +160,7 @@ export class AiService {
             ? `${contentForLog.slice(0, maxLen)}…(truncated)`
             : contentForLog;
         this.logger.log(
-          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(url)} perplexity_structured=${usePerplexityStructured} finish_reason=${finishReason ?? '(none)'} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
+          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(aiUrl)} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
         );
       }
 
@@ -214,7 +203,7 @@ export class AiService {
         return null;
       }
 
-      const gig = this.normalizeLookUpedGig(parsed);
+      const gig = this.normalizeLookedUpGig(parsed);
 
       const dateRaw = (gig.date ?? '').trim();
       if (!dateRaw) {

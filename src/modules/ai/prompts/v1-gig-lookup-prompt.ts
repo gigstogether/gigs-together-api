@@ -44,6 +44,7 @@ export function buildV1FutureGigLookupPrompt(params: {
   }
 
   // Prompt for extracting a future gig draft (plain JSON body: object or null).
+  // Deprecated
   return [
     'You are an assistant helping to create a gig draft for an app.',
     'Your task: find gig details for the query using current information (e.g. web search when available).',
