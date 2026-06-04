@@ -31,7 +31,10 @@ import type {
   V1GigByPublicIdGetInput,
   V1GigByPublicIdGetResponseBody,
 } from './types/requests/v1-gig-by-public-id-get-request';
-import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
+import {
+  buildFeedVisibleDateClause,
+  startOfTodayMs,
+} from './types/requests/v1-gig-date-range.shared';
 import type {
   V1GigLookupFields,
   V1GigLookupResponseBody,
@@ -516,6 +519,29 @@ export class GigService {
     return baseFilter;
   }
 
+  /** Feed list: include today and multi-day gigs until `endDate` (inclusive). */
+  private buildFeedPublishedGigsBaseFilter(
+    params: GigPublishedBaseFilterParams,
+  ): Record<string, unknown> {
+    const { from, to, city, country } = params;
+
+    const and: Record<string, unknown>[] = [buildFeedVisibleDateClause(from)];
+    if (to !== undefined) {
+      and.push({ date: { $lte: to } });
+    }
+
+    const baseFilter: Record<string, unknown> = {
+      status: Status.Published,
+      ...(and.length === 1 ? and[0] : { $and: and }),
+    };
+    if (city && country) {
+      baseFilter.city = city;
+      baseFilter.country = country;
+    }
+
+    return baseFilter;
+  }
+
   /**
    * Published gigs in `[fromMs, toMs]` by gig `date`, ascending, same filter rules as v1 list (no cursor).
    */
@@ -557,7 +583,7 @@ export class GigService {
       );
     }
 
-    const baseFilter = this.buildPublishedGigsBaseFilter({
+    const baseFilter = this.buildFeedPublishedGigsBaseFilter({
       from,
       to,
       city,
