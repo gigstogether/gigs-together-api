@@ -4,9 +4,9 @@ import { PostType } from '../gig/types/postType.enum';
 import type { V1AdminGigListItem } from './types/requests/v1-admin-gigs-list-response';
 import { msToYmd } from '../../shared/utils/date-formatter';
 
-function hasTelegramModerationPost(gig: GigDocument): boolean {
+function hasModerationPost(posts: GigDocument['posts'] | undefined) {
   return (
-    gig.posts?.some(
+    posts?.some(
       (post) =>
         post.to === Messenger.Telegram &&
         post.type === PostType.Moderation &&
@@ -14,6 +14,29 @@ function hasTelegramModerationPost(gig: GigDocument): boolean {
         post.id != null,
     ) ?? false
   );
+}
+
+function pickPublishTelegramPost(posts: GigDocument['posts'] | undefined) {
+  return posts?.find(
+    (post) =>
+      post.to === Messenger.Telegram &&
+      post.type === PostType.Publish &&
+      post.chatId != null &&
+      post.id != null,
+  );
+}
+
+function pickMainPostDateMs(
+  posts: GigDocument['posts'] | undefined,
+): number | undefined {
+  const post = pickPublishTelegramPost(posts);
+  if (!post) {
+    return undefined;
+  }
+  if (typeof post.date === 'number' && Number.isFinite(post.date)) {
+    return post.date;
+  }
+  return undefined;
 }
 
 export interface MapGigToAdminListItemParams {
@@ -52,6 +75,7 @@ export function mapGigToAdminListItem(
     },
     ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
     postUrl,
-    hasTelegramModerationPost: hasTelegramModerationPost(gig),
+    hasModerationPost: hasModerationPost(gig.posts),
+    mainPostPostedAt: pickMainPostDateMs(gig.posts),
   };
 }

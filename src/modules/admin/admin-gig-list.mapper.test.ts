@@ -24,6 +24,7 @@ function buildGigDoc(overrides: Partial<GigDocument> = {}): GigDocument {
         type: PostType.Moderation,
         chatId: -100123,
         id: 42,
+        date: new Date('2026-05-30T14:22:00.000Z').getTime(),
       },
     ],
     suggestedBy: { userId: 9001 },
@@ -54,8 +55,49 @@ describe('mapGigToAdminListItem', () => {
       suggestedBy: { userId: '9001' },
       ticketsUrl: 'https://example.com/tickets',
       postUrl: 'https://t.me/channel/1',
-      hasTelegramModerationPost: true,
+      hasModerationPost: true,
     });
+  });
+
+  it('should map mainPostPostedAt from publish post date for published gigs', () => {
+    const publishedAt = new Date('2026-06-01T10:00:00.000Z').getTime();
+    const gig = buildGigDoc({
+      status: Status.Published,
+      posts: [
+        {
+          to: Messenger.Telegram,
+          type: PostType.Moderation,
+          chatId: -100123,
+          id: 42,
+          date: new Date('2026-05-30T14:22:00.000Z').getTime(),
+        },
+        {
+          to: Messenger.Telegram,
+          type: PostType.Publish,
+          chatId: -100456,
+          id: 99,
+          date: publishedAt,
+        },
+      ],
+    });
+
+    expect(mapGigToAdminListItem({ gig }).mainPostPostedAt).toBe(publishedAt);
+  });
+
+  it('should omit mainPostPostedAt when publish post has no date', () => {
+    const gig = buildGigDoc({
+      status: Status.Published,
+      posts: [
+        {
+          to: Messenger.Telegram,
+          type: PostType.Publish,
+          chatId: -100456,
+          id: 99,
+        } as never,
+      ],
+    });
+
+    expect(mapGigToAdminListItem({ gig }).mainPostPostedAt).toBeUndefined();
   });
 
   it('should omit empty ticketsUrl', () => {

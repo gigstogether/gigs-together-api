@@ -21,7 +21,9 @@ export interface V1AdminGigListItem {
   readonly suggestedBy: V1AdminGigSuggestedBy;
   readonly ticketsUrl?: string;
   readonly postUrl?: string;
-  readonly hasTelegramModerationPost: boolean;
+  readonly hasModerationPost: boolean;
+  // TODO: backfill
+  readonly mainPostPostedAt?: number;
 }
 
 export interface V1AdminGigsListResponseBody {

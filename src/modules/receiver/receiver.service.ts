@@ -213,27 +213,30 @@ export class ReceiverService {
     posterFile: Express.Multer.File | undefined,
   ): Promise<void> {
     const savedGig = await this.gigService.saveGig({ body, user, posterFile });
-    let res: TGMessage | undefined;
+    let tgModerationPost: TGMessage | undefined;
     try {
-      res = await this.telegramService.sendToModeration(savedGig);
+      tgModerationPost = await this.telegramService.sendToModeration(savedGig);
     } catch (e) {
       // Publishing to Telegram shouldn't block gig creation.
       this.logger.warn(
         `publishDraft failed: ${JSON.stringify(e?.response?.data ?? e?.message ?? e)}`,
       );
-      res = undefined;
+      tgModerationPost = undefined;
     }
 
-    const biggestTgPhotoFileId = getBiggestTgPhotoFileId(res?.photo);
+    const biggestTgPhotoFileId = getBiggestTgPhotoFileId(
+      tgModerationPost?.photo,
+    );
 
-    const moderationChatId = res?.sender_chat?.id ?? res?.chat?.id;
-    const moderationMessageId = res?.message_id;
+    const moderationChatId =
+      tgModerationPost?.sender_chat?.id ?? tgModerationPost?.chat?.id;
+    const moderationMessageId = tgModerationPost?.message_id;
 
     const updateGigPayload: UpdateQuery<Gig> = {
       status: Status.Pending,
     };
 
-    if (moderationChatId && moderationMessageId) {
+    if (tgModerationPost && moderationChatId && moderationMessageId) {
       updateGigPayload.$push = {
         posts: {
           id: moderationMessageId,
@@ -241,6 +244,7 @@ export class ReceiverService {
           fileId: biggestTgPhotoFileId,
           to: Messenger.Telegram,
           type: PostType.Moderation,
+          date: tgModerationPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
         },
       };
     }
@@ -386,7 +390,7 @@ export class ReceiverService {
       status: Status.Published,
     };
 
-    if (publishedChatId && publishedMessageId) {
+    if (tgPublishPost && publishedChatId && publishedMessageId) {
       updateGigPayload.$push = {
         posts: {
           id: publishedMessageId,
@@ -394,6 +398,7 @@ export class ReceiverService {
           fileId: publishedFileId,
           to: Messenger.Telegram,
           type: PostType.Publish,
+          date: tgPublishPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
         },
       };
     }
