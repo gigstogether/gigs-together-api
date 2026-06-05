@@ -44,9 +44,13 @@ export class GigPosterService {
           timeout: 15_000,
         }),
       );
-      const contentType =
-        res.headers['content-type'] || res.headers['Content-Type'];
-      const ct = Array.isArray(contentType) ? contentType[0] : contentType;
+      const raw = res.headers['content-type'] ?? res.headers['Content-Type'];
+      const ct =
+        typeof raw === 'string'
+          ? raw
+          : Array.isArray(raw) && typeof raw[0] === 'string'
+            ? raw[0]
+            : undefined;
 
       if (ct && !ct.toLowerCase().startsWith('image/')) {
         throw new BadRequestException(
