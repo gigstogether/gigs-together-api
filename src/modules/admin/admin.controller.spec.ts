@@ -1,17 +1,21 @@
 import { AdminController } from './admin.controller';
-import type { AdminService } from './admin.service';
+import type { AdminDashboardService } from './admin-dashboard.service';
+import type { AdminGigService } from './admin-gig.service';
 import type { LanguageService } from '../language/language.service';
 
 describe('AdminController', () => {
-  const adminService = {
+  const adminDashboardService = {
     getDashboard: vi.fn().mockResolvedValue({
       summary: {
         pendingGigsCount: 3,
         publishedGigsCount: 12,
       },
     }),
+  } satisfies Pick<AdminDashboardService, 'getDashboard'>;
+
+  const adminGigService = {
     getGigsList: vi.fn().mockResolvedValue({ gigs: [] }),
-  } satisfies Pick<AdminService, 'getDashboard' | 'getGigsList'>;
+  } satisfies Pick<AdminGigService, 'getGigsList'>;
 
   const languageService = {
     getAllLanguagesOrdered: vi
@@ -43,14 +47,15 @@ describe('AdminController', () => {
   };
 
   const controller = new AdminController(
-    adminService as unknown as AdminService,
+    adminDashboardService as unknown as AdminDashboardService,
+    adminGigService as unknown as AdminGigService,
     authorizationService as never,
     configService as never,
     languageService as unknown as LanguageService,
   );
 
   describe('getDashboard', () => {
-    it('should return dashboard summary counts from admin service', async () => {
+    it('should return dashboard summary counts from admin dashboard service', async () => {
       await expect(controller.getDashboard()).resolves.toEqual({
         summary: {
           pendingGigsCount: 3,
@@ -61,12 +66,12 @@ describe('AdminController', () => {
   });
 
   describe('getGigs', () => {
-    it('should return gigs list from admin service', async () => {
+    it('should return gigs list from admin gig service', async () => {
       await expect(
         controller.getGigs({ status: 'pending', limit: 20 }),
       ).resolves.toEqual({ gigs: [] });
 
-      expect(adminService.getGigsList).toHaveBeenCalledWith({
+      expect(adminGigService.getGigsList).toHaveBeenCalledWith({
         status: 'pending',
         limit: 20,
       });

@@ -16,7 +16,8 @@ import { ConfigService } from '@nestjs/config';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { AuthorizationService } from '../auth/authorization.service';
-import { AdminService } from './admin.service';
+import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminGigService } from './admin-gig.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-dashboard-response';
 import { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
@@ -35,7 +36,8 @@ import type { SupportedLanguage } from '../language/types/language.types';
 @Controller('admin')
 export class AdminController {
   constructor(
-    private readonly adminService: AdminService,
+    private readonly adminDashboardService: AdminDashboardService,
+    private readonly adminGigService: AdminGigService,
     private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
     private readonly languageService: LanguageService,
@@ -45,7 +47,7 @@ export class AdminController {
   @Get('dashboard')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getDashboard(): Promise<V1AdminDashboardResponseBody> {
-    return this.adminService.getDashboard();
+    return this.adminDashboardService.getDashboard();
   }
 
   @Version('1')
@@ -54,7 +56,7 @@ export class AdminController {
   getGigs(
     @Query() query: V1AdminGigsGetQueryDto,
   ): Promise<V1AdminGigsListResponseBody> {
-    return this.adminService.getGigsList(query);
+    return this.adminGigService.getGigsList(query);
   }
 
   @Version('1')

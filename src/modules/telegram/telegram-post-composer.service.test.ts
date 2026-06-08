@@ -40,6 +40,7 @@ describe('TelegramPostComposer', () => {
         type: PostType.Publish,
         id: 7,
         chatId: -1001 as const,
+        date: 1_700_000_000_000,
       };
 
       const result = composer.pickTgPost([post], PostType.Publish);
@@ -198,6 +199,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 1,
             fileId: 'fid',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;
@@ -232,6 +234,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 5,
             fileId: 'file-id-abc',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;
@@ -334,6 +337,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 3,
             fileId: 'file-feedback',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;
