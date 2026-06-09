@@ -36,7 +36,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.spec.ts', 'src/**/*.test.ts', 'test/**/*.e2e-spec.ts'],
+    include: [
+      'src/**/*.spec.ts',
+      'src/**/*.test.ts',
+      'migrations/**/*.test.ts',
+      'test/**/*.e2e-spec.ts',
+    ],
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',

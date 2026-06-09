@@ -1,7 +1,14 @@
+/**
+ * Backfill gig post `date` from raw Telegram result.json exports.
+ *
+ * Set GIG_POST_DATE_EXPORT_PATH to comma-separated paths (main + moderation exports),
+ * then: npm run migrate:up:dry → npm run migrate:up
+ */
 import fs from 'node:fs/promises';
 import type { Types } from 'mongoose';
 import mongoose from 'mongoose';
 import * as dotenv from 'dotenv';
+import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
 
 dotenv.config();
 
@@ -37,37 +44,11 @@ interface NotUpdatedGigRef {
 
 const MS_PER_SECOND = 1_000;
 
-function readAllCliFlags(flag: string): string[] {
-  const values: string[] = [];
-  const eqPrefix = `${flag}=`;
-
-  for (const arg of process.argv) {
-    if (arg.startsWith(eqPrefix)) {
-      values.push(arg.slice(eqPrefix.length));
-    }
-  }
-
-  for (let index = 0; index < process.argv.length; index += 1) {
-    if (process.argv[index] !== flag) {
-      continue;
-    }
-    const value = process.argv[index + 1];
-    if (value && !value.startsWith('-')) {
-      values.push(value);
-    }
-  }
-
-  return values;
-}
-
 function resolveExportInputPaths(): string[] {
-  const fromCli = readAllCliFlags('--input');
-  const fromEnv = (process.env.GIG_POST_DATE_EXPORT_PATH ?? '')
+  return (process.env.GIG_POST_DATE_EXPORT_PATH ?? '')
     .split(',')
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
-
-  return [...fromCli, ...fromEnv];
 }
 
 function normalizeTelegramChatId(
@@ -210,9 +191,11 @@ export async function up(): Promise<void> {
   const inputPaths = resolveExportInputPaths();
   if (inputPaths.length === 0) {
     throw new Error(
-      'Telegram export path is required. Pass --input "<path-to-result.json>" (repeat for multiple chats) or set GIG_POST_DATE_EXPORT_PATH (comma-separated).',
+      'Telegram export path is required. Set GIG_POST_DATE_EXPORT_PATH (comma-separated) in .env or the shell, then run npm run migrate:up or npm run migrate:up:dry.',
     );
   }
+
+  const dryRun = isMigrationDryRun();
 
   const { index: messageDateIndex, exports: exportStats } =
     await loadMessageDateIndex(inputPaths);
@@ -282,7 +265,9 @@ export async function up(): Promise<void> {
       continue;
     }
 
-    await collection.updateOne({ _id: gig._id }, { $set: { posts } });
+    if (!dryRun) {
+      await collection.updateOne({ _id: gig._id }, { $set: { posts } });
+    }
     gigsUpdated += 1;
   }
 
@@ -290,6 +275,7 @@ export async function up(): Promise<void> {
     JSON.stringify(
       {
         migration: '1762200000000-backfill-gig-post-date-from-telegram-export',
+        dryRun,
         inputPaths,
         exports: exportStats,
         gigsScanned,
@@ -310,4 +296,13 @@ export async function up(): Promise<void> {
   );
 
   await mongoose.disconnect();
+
+  finishMigrationDryRun(
+    dryRun,
+    'Dry run complete: stats were logged, no gig documents were updated. Re-run with npm run migrate:up to apply.',
+  );
+}
+
+export async function down(): Promise<void> {
+  // Data backfill is not reverted; this only resets migration state.
 }
