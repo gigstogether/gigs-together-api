@@ -76,7 +76,6 @@ describe('AdminGigService', () => {
       ).resolves.toEqual({
         gigs: [
           {
-            id: String(gig._id),
             publicId: 'radiohead-barcelona-2026-06-12',
             title: 'Radiohead',
             status: Status.Pending,

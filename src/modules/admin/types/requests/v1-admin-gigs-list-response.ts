@@ -8,7 +8,6 @@ interface V1AdminGigSuggestedBy {
 
 /** Admin gigs list / preview card (GET v1/admin/gigs). */
 export interface V1AdminGigListItem {
-  readonly id: string;
   readonly publicId: string;
   readonly title: string;
   readonly status: Status;

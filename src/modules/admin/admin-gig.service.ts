@@ -66,7 +66,6 @@ export class AdminGigService {
     const ticketsUrl = (gig.ticketsUrl ?? '').trim();
 
     return {
-      id: String(gig._id),
       publicId: gig.publicId,
       title: gig.title,
       status: gig.status,
