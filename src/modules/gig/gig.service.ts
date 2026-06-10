@@ -48,7 +48,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
-import type { User } from '../../shared/types/user.types';
+import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
 import { msToYmd } from '../../shared/utils/date-formatter';
 

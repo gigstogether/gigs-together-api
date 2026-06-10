@@ -7,11 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Admin, AdminDocument } from '../../shared/schemas/admin.schema';
+import { Admin, AdminDocument } from './schemas/admin.schema';
 import type {
   AccessTokenIdentityPayload,
   VerifiedAccessToken,
-} from '../../shared/types/access-token-identity.types';
+} from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 
 /**

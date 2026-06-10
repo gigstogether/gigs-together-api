@@ -3,7 +3,7 @@ import { AuthenticationService } from '../auth/authentication.service';
 import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
 import type { TGUser } from './types/user.types';
 import type { V1TelegramAccessTokenExchangeResult } from './types/requests/v1-telegram-exchange-response';
-import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
+import { authClientProfileFromAccessTokenIdentity } from '../auth/mappers/auth-client-profile-from-identity';
 
 /**
  * Builds the access + refresh token exchange for Telegram Web App and Login Widget flows.

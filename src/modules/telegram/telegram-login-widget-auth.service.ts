@@ -4,7 +4,7 @@ import {
   TelegramInitDataAuthExpiredError,
 } from './telegram-init-data.errors';
 import { TelegramService } from './telegram.service';
-import type { User } from '../../shared/types/user.types';
+import type { User } from '../auth/types/user.types';
 import type { TGUser } from './types/user.types';
 import type { V1TelegramLoginWidgetBodyDto } from './types/requests/v1-telegram-login-widget-body';
 import { AuthorizationService } from '../auth/authorization.service';

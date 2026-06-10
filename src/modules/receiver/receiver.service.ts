@@ -7,7 +7,7 @@ import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import type { User } from '../../shared/types/user.types';
+import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';

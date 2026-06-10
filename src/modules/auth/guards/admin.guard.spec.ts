@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { ForbiddenException } from '@nestjs/common';
-import type { User } from '../../../shared/types/user.types';
+import type { User } from '../types/user.types';
 import { AdminGuard } from './admin.guard';
 
 function ctxWithUser(user: User | undefined): ExecutionContext {

@@ -13,7 +13,6 @@ export class GigPost {
   @Prop({ type: String, enum: PostType, required: true })
   type: PostType;
 
-  /** Messenger message time (Unix ms, same unit as gig `date`). */
   @Prop({ type: Number, required: true })
   date: number;
 

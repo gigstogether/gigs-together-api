@@ -3,8 +3,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
-import { Admin } from '../../shared/schemas/admin.schema';
-import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
+import { Admin } from './schemas/admin.schema';
+import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
 

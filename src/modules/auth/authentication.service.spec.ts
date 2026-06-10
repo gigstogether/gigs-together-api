@@ -2,7 +2,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
-import type { AccessTokenIdentityPayload } from '../../shared/types/access-token-identity.types';
+import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 
 const ACCESS_SECRET = 'test-access-secret-at-least-32-chars!!';

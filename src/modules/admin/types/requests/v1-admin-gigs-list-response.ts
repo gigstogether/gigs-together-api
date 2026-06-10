@@ -22,7 +22,6 @@ export interface V1AdminGigListItem {
   readonly ticketsUrl?: string;
   readonly postUrl?: string;
   readonly hasModerationPost: boolean;
-  // TODO: backfill
   readonly mainPostPostedAt?: number;
 }
 

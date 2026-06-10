@@ -5,7 +5,7 @@ import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
-} from '../../shared/types/access-token-identity.types';
+} from './types/access-token-identity.types';
 
 /** Payload shape returned by `verifyAsync` before narrowing to {@link AccessTokenPayload}. */
 interface AccessTokenPayloadShape {
