@@ -47,13 +47,11 @@ import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
-import type {
-  AdminGigListSortBy,
-  AdminGigListSortOrder,
-} from './types/admin-gig-list-sort.types';
 import {
   ADMIN_GIG_LIST_DEFAULT_SORT_BY,
   ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
+  AdminGigListSortBy,
+  AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import type { User } from '../auth/types/user.types';
@@ -100,6 +98,12 @@ export interface GetGigsByStatusParams {
   readonly limit: number;
   readonly sortBy?: AdminGigListSortBy;
   readonly sortOrder?: AdminGigListSortOrder;
+}
+
+interface GetGigsByStatusSortedByPostDateParams {
+  readonly status: Status;
+  readonly limit: number;
+  readonly sortDirection: 1 | -1;
 }
 
 // TODO: add allowing only specific status transitions
@@ -333,49 +337,76 @@ export class GigService {
     const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
     const sortBy = params.sortBy ?? ADMIN_GIG_LIST_DEFAULT_SORT_BY;
     const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
-    const sortDirection: 1 | -1 = sortOrder === 'asc' ? 1 : -1;
+    const sortDirection: 1 | -1 =
+      sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
 
-    if (sortBy === 'post_date') {
-      const postType = this.resolveAdminListPostTypeForSort(params.status);
+    switch (sortBy) {
+      case AdminGigListSortBy.PostDate:
+        return this.getGigsByStatusSortedByPostDate({
+          status: params.status,
+          limit,
+          sortDirection,
+        });
+      case AdminGigListSortBy.CreatedAt:
+        return this.gigModel
+          .find({ status: params.status })
+          .sort({ _id: sortDirection })
+          .limit(limit)
+          .exec();
+      case AdminGigListSortBy.EventDate:
+        return this.gigModel
+          .find({ status: params.status })
+          .sort({ date: sortDirection, _id: sortDirection })
+          .limit(limit)
+          .exec();
+      default:
+        throw new BadRequestException(
+          `Unsupported admin gig list sortBy: ${sortBy}`,
+        );
+    }
+  }
 
-      return this.gigModel
-        .aggregate<GigDocument>([
-          { $match: { status: params.status } },
-          {
-            $addFields: {
-              __adminSortPostDate: {
-                $max: {
-                  $map: {
-                    input: {
-                      $filter: {
-                        input: { $ifNull: ['$posts', []] },
-                        as: 'post',
-                        cond: {
-                          $and: [
-                            { $eq: ['$$post.to', Messenger.Telegram] },
-                            { $eq: ['$$post.type', postType] },
-                          ],
-                        },
+  private getGigsByStatusSortedByPostDate(
+    params: GetGigsByStatusSortedByPostDateParams,
+  ): Promise<GigDocument[]> {
+    const postType = this.resolveAdminListPostTypeForSort(params.status);
+
+    return this.gigModel
+      .aggregate<GigDocument>([
+        { $match: { status: params.status } },
+        {
+          $addFields: {
+            __adminSortPostDate: {
+              $max: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: { $ifNull: ['$posts', []] },
+                      as: 'post',
+                      cond: {
+                        $and: [
+                          { $eq: ['$$post.to', Messenger.Telegram] },
+                          { $eq: ['$$post.type', postType] },
+                        ],
                       },
                     },
-                    as: 'matchedPost',
-                    in: '$$matchedPost.date',
                   },
+                  as: 'matchedPost',
+                  in: '$$matchedPost.date',
                 },
               },
             },
           },
-          { $sort: { __adminSortPostDate: sortDirection, _id: sortDirection } },
-          { $limit: limit },
-          { $project: { __adminSortPostDate: 0 } },
-        ])
-        .exec();
-    }
-
-    return this.gigModel
-      .find({ status: params.status })
-      .sort({ _id: 1 })
-      .limit(limit)
+        },
+        {
+          $sort: {
+            __adminSortPostDate: params.sortDirection,
+            _id: params.sortDirection,
+          },
+        },
+        { $limit: params.limit },
+        { $project: { __adminSortPostDate: 0 } },
+      ])
       .exec();
   }
 

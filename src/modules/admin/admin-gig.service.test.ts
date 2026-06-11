@@ -2,6 +2,10 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
+import {
+  AdminGigListSortBy,
+  AdminGigListSortOrder,
+} from '../gig/types/admin-gig-list-sort.types';
 import { AdminGigService } from './admin-gig.service';
 import type { GigDocument } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
@@ -95,8 +99,8 @@ describe('AdminGigService', () => {
       expect(gigServiceMock.getGigsByStatus).toHaveBeenCalledWith({
         status: Status.Pending,
         limit: 50,
-        sortBy: 'post_date',
-        sortOrder: 'desc',
+        sortBy: AdminGigListSortBy.PostDate,
+        sortOrder: AdminGigListSortOrder.Desc,
       });
     });
 

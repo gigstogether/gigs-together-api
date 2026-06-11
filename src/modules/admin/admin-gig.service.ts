@@ -6,6 +6,7 @@ import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { msToYmd } from '../../shared/utils/date-formatter';
 import {
+  ADMIN_GIG_LIST_DEFAULT_LIMIT,
   ADMIN_GIG_LIST_DEFAULT_SORT_BY,
   ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
 } from '../gig/types/admin-gig-list-sort.types';
@@ -40,7 +41,7 @@ export class AdminGigService {
     const status = STATUS_BY_QUERY[query.status];
     const docs = await this.gigService.getGigsByStatus({
       status,
-      limit: query.limit ?? 100,
+      limit: query.limit ?? ADMIN_GIG_LIST_DEFAULT_LIMIT,
       sortBy: query.sortBy ?? ADMIN_GIG_LIST_DEFAULT_SORT_BY,
       sortOrder: query.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
     });

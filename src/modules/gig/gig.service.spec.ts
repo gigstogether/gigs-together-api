@@ -13,6 +13,10 @@ import { Types } from 'mongoose';
 import { Status } from './types/status.enum';
 import { Messenger } from './types/messenger.enum';
 import { PostType } from './types/postType.enum';
+import {
+  AdminGigListSortBy,
+  AdminGigListSortOrder,
+} from './types/admin-gig-list-sort.types';
 
 describe('GigService', () => {
   let service: GigService;
@@ -96,8 +100,8 @@ describe('GigService', () => {
       const result = await service.getGigsByStatus({
         status: Status.Pending,
         limit: 25,
-        sortBy: 'post_date',
-        sortOrder: 'asc',
+        sortBy: AdminGigListSortBy.PostDate,
+        sortOrder: AdminGigListSortOrder.Asc,
       });
 
       expect(aggregateMock).toHaveBeenCalledWith([
@@ -140,8 +144,8 @@ describe('GigService', () => {
       await service.getGigsByStatus({
         status: Status.Published,
         limit: 10,
-        sortBy: 'post_date',
-        sortOrder: 'desc',
+        sortBy: AdminGigListSortBy.PostDate,
+        sortOrder: AdminGigListSortOrder.Desc,
       });
 
       expect(aggregateMock).toHaveBeenCalledWith([
@@ -174,6 +178,38 @@ describe('GigService', () => {
         { $limit: 10 },
         { $project: { __adminSortPostDate: 0 } },
       ]);
+    });
+
+    it('should query gigs by mongo id when sort is createdAt', async () => {
+      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+
+      await service.getGigsByStatus({
+        status: Status.Pending,
+        limit: 15,
+        sortBy: AdminGigListSortBy.CreatedAt,
+        sortOrder: AdminGigListSortOrder.Desc,
+      });
+
+      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
+      expect(sortForLimitMock).toHaveBeenCalledWith({ _id: -1 });
+      expect(limitMock).toHaveBeenCalledWith(15);
+      expect(aggregateMock).not.toHaveBeenCalled();
+    });
+
+    it('should query gigs by event date when sort is eventDate', async () => {
+      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+
+      await service.getGigsByStatus({
+        status: Status.Published,
+        limit: 20,
+        sortBy: AdminGigListSortBy.EventDate,
+        sortOrder: AdminGigListSortOrder.Asc,
+      });
+
+      expect(findMock).toHaveBeenCalledWith({ status: Status.Published });
+      expect(sortForLimitMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+      expect(limitMock).toHaveBeenCalledWith(20);
+      expect(aggregateMock).not.toHaveBeenCalled();
     });
   });
 
