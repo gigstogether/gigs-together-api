@@ -48,7 +48,6 @@ import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
 import {
-  ADMIN_GIG_LIST_DEFAULT_SORT_BY,
   ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
   AdminGigListSortBy,
   AdminGigListSortOrder,
@@ -335,12 +334,16 @@ export class GigService {
   // TODO: limit|infinite scroll
   getGigsByStatus(params: GetGigsByStatusParams): Promise<GigDocument[]> {
     const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
-    const sortBy = params.sortBy ?? ADMIN_GIG_LIST_DEFAULT_SORT_BY;
+
+    if (params.sortBy === undefined) {
+      return this.gigModel.find({ status: params.status }).limit(limit).exec();
+    }
+
     const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
     const sortDirection: 1 | -1 =
       sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
 
-    switch (sortBy) {
+    switch (params.sortBy) {
       case AdminGigListSortBy.PostDate:
         return this.getGigsByStatusSortedByPostDate({
           status: params.status,
@@ -361,7 +364,7 @@ export class GigService {
           .exec();
       default:
         throw new BadRequestException(
-          `Unsupported admin gig list sortBy: ${sortBy}`,
+          `Unsupported admin gig list sortBy: ${params.sortBy}`,
         );
     }
   }

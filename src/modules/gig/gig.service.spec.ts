@@ -1,4 +1,5 @@
 import type { TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { GigService } from './gig.service';
@@ -31,6 +32,7 @@ describe('GigService', () => {
   const findMock = vi.fn().mockReturnValue({
     sort: sortForLimitMock,
     collation: collationMock,
+    limit: limitMock,
   });
   const countDocumentsMock = vi.fn();
 
@@ -94,6 +96,32 @@ describe('GigService', () => {
   });
 
   describe('getGigsByStatus', () => {
+    it('should query gigs without sort when sortBy is omitted', async () => {
+      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+
+      await service.getGigsByStatus({
+        status: Status.Pending,
+        limit: 10,
+      });
+
+      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
+      expect(limitMock).toHaveBeenCalledWith(10);
+      expect(sortForLimitMock).not.toHaveBeenCalled();
+      expect(aggregateMock).not.toHaveBeenCalled();
+    });
+
+    it('should throw when sortBy is unsupported', () => {
+      const invalidSortBy = 'invalid' as AdminGigListSortBy;
+
+      expect(() =>
+        service.getGigsByStatus({
+          status: Status.Pending,
+          limit: 10,
+          sortBy: invalidSortBy,
+        }),
+      ).toThrow(BadRequestException);
+    });
+
     it('should query gigs by moderation post date when status is pending', async () => {
       aggregateExecMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
 
