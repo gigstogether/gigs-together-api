@@ -87,7 +87,7 @@ describe('AdminGigService', () => {
             suggestedBy: { userId: '9001' },
             ticketsUrl: 'https://example.com/tickets',
             postUrl: 'https://t.me/channel/1',
-            hasModerationPost: true,
+            moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
           },
         ],
       });
@@ -100,8 +100,9 @@ describe('AdminGigService', () => {
       });
     });
 
-    it('should map mainPostPostedAt from publish post date for published gigs', async () => {
+    it('should map publishPostDate and moderationPostDate from telegram posts', async () => {
       const publishedAt = new Date('2026-06-01T10:00:00.000Z').getTime();
+      const moderationAt = new Date('2026-05-30T14:22:00.000Z').getTime();
       const gig = buildGigDoc({
         status: Status.Published,
         posts: [
@@ -110,7 +111,7 @@ describe('AdminGigService', () => {
             type: PostType.Moderation,
             chatId: -100123,
             id: 42,
-            date: new Date('2026-05-30T14:22:00.000Z').getTime(),
+            date: moderationAt,
           },
           {
             to: Messenger.Telegram,
@@ -129,11 +130,16 @@ describe('AdminGigService', () => {
       await expect(
         service.getGigsList({ status: 'published', limit: 20 }),
       ).resolves.toEqual({
-        gigs: [expect.objectContaining({ mainPostPostedAt: publishedAt })],
+        gigs: [
+          expect.objectContaining({
+            publishPostDate: publishedAt,
+            moderationPostDate: moderationAt,
+          }),
+        ],
       });
     });
 
-    it('should omit mainPostPostedAt when publish post has no date', async () => {
+    it('should omit publishPostDate when publish post has no date', async () => {
       const gig = buildGigDoc({
         status: Status.Published,
         posts: [
@@ -155,7 +161,7 @@ describe('AdminGigService', () => {
         limit: 20,
       });
 
-      expect(result.gigs[0]?.mainPostPostedAt).toBeUndefined();
+      expect(result.gigs[0]?.publishPostDate).toBeUndefined();
     });
 
     it('should omit empty ticketsUrl', async () => {

@@ -20,8 +20,8 @@ export interface V1AdminGigListItem {
   readonly suggestedBy: V1AdminGigSuggestedBy;
   readonly ticketsUrl?: string;
   readonly postUrl?: string;
-  readonly hasModerationPost: boolean;
-  readonly mainPostPostedAt?: number;
+  readonly publishPostDate?: number;
+  readonly moderationPostDate?: number;
 }
 
 export interface V1AdminGigsListResponseBody {

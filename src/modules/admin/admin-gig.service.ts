@@ -88,37 +88,25 @@ export class AdminGigService {
       },
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
       postUrl,
-      hasModerationPost: this.hasModerationPost(gig.posts),
-      mainPostPostedAt: this.pickMainPostDateMs(gig.posts),
+      publishPostDate: this.pickTelegramPostDateMs(gig.posts, PostType.Publish),
+      moderationPostDate: this.pickTelegramPostDateMs(
+        gig.posts,
+        PostType.Moderation,
+      ),
     };
   }
 
-  private hasModerationPost(posts: GigDocument['posts'] | undefined): boolean {
-    return (
-      posts?.some(
-        (post) =>
-          post.to === Messenger.Telegram &&
-          post.type === PostType.Moderation &&
-          post.chatId != null &&
-          post.id != null,
-      ) ?? false
-    );
-  }
-
-  private pickPublishTelegramPost(posts: GigDocument['posts'] | undefined) {
-    return posts?.find(
-      (post) =>
-        post.to === Messenger.Telegram &&
-        post.type === PostType.Publish &&
-        post.chatId != null &&
-        post.id != null,
-    );
-  }
-
-  private pickMainPostDateMs(
+  private pickTelegramPostDateMs(
     posts: GigDocument['posts'] | undefined,
+    postType: PostType,
   ): number | undefined {
-    const post = this.pickPublishTelegramPost(posts);
+    const post = posts?.find(
+      (entry) =>
+        entry.to === Messenger.Telegram &&
+        entry.type === postType &&
+        entry.chatId != null &&
+        entry.id != null,
+    );
     if (!post) {
       return undefined;
     }
