@@ -95,6 +95,8 @@ describe('AdminGigService', () => {
       expect(gigServiceMock.getGigsByStatus).toHaveBeenCalledWith({
         status: Status.Pending,
         limit: 50,
+        sortBy: 'post_date',
+        sortOrder: 'desc',
       });
     });
 

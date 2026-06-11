@@ -47,6 +47,14 @@ import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
+import type {
+  AdminGigListSortBy,
+  AdminGigListSortOrder,
+} from './types/admin-gig-list-sort.types';
+import {
+  ADMIN_GIG_LIST_DEFAULT_SORT_BY,
+  ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
+} from './types/admin-gig-list-sort.types';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
@@ -90,6 +98,8 @@ interface GigPublishedInclusiveMsRangeParams {
 export interface GetGigsByStatusParams {
   readonly status: Status;
   readonly limit: number;
+  readonly sortBy?: AdminGigListSortBy;
+  readonly sortOrder?: AdminGigListSortOrder;
 }
 
 // TODO: add allowing only specific status transitions
@@ -321,13 +331,56 @@ export class GigService {
   // TODO: limit|infinite scroll
   getGigsByStatus(params: GetGigsByStatusParams): Promise<GigDocument[]> {
     const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
+    const sortBy = params.sortBy ?? ADMIN_GIG_LIST_DEFAULT_SORT_BY;
+    const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
+    const sortDirection: 1 | -1 = sortOrder === 'asc' ? 1 : -1;
 
-    // oldest submissions first (`_id` asc)
+    if (sortBy === 'post_date') {
+      const postType = this.resolveAdminListPostTypeForSort(params.status);
+
+      return this.gigModel
+        .aggregate<GigDocument>([
+          { $match: { status: params.status } },
+          {
+            $addFields: {
+              __adminSortPostDate: {
+                $max: {
+                  $map: {
+                    input: {
+                      $filter: {
+                        input: { $ifNull: ['$posts', []] },
+                        as: 'post',
+                        cond: {
+                          $and: [
+                            { $eq: ['$$post.to', Messenger.Telegram] },
+                            { $eq: ['$$post.type', postType] },
+                          ],
+                        },
+                      },
+                    },
+                    as: 'matchedPost',
+                    in: '$$matchedPost.date',
+                  },
+                },
+              },
+            },
+          },
+          { $sort: { __adminSortPostDate: sortDirection, _id: sortDirection } },
+          { $limit: limit },
+          { $project: { __adminSortPostDate: 0 } },
+        ])
+        .exec();
+    }
+
     return this.gigModel
       .find({ status: params.status })
       .sort({ _id: 1 })
       .limit(limit)
       .exec();
+  }
+
+  private resolveAdminListPostTypeForSort(status: Status): PostType {
+    return status === Status.Published ? PostType.Publish : PostType.Moderation;
   }
 
   resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {

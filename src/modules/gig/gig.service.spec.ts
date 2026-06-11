@@ -11,6 +11,8 @@ import { BucketService } from '../bucket/bucket.service';
 import { Types } from 'mongoose';
 
 import { Status } from './types/status.enum';
+import { Messenger } from './types/messenger.enum';
+import { PostType } from './types/postType.enum';
 
 describe('GigService', () => {
   let service: GigService;
@@ -20,6 +22,8 @@ describe('GigService', () => {
   const sortForLimitMock = vi.fn().mockReturnValue({ limit: limitMock });
   const sortForCollationMock = vi.fn().mockReturnValue({ exec: execMock });
   const collationMock = vi.fn().mockReturnValue({ sort: sortForCollationMock });
+  const aggregateExecMock = vi.fn();
+  const aggregateMock = vi.fn().mockReturnValue({ exec: aggregateExecMock });
   const findMock = vi.fn().mockReturnValue({
     sort: sortForLimitMock,
     collation: collationMock,
@@ -29,6 +33,7 @@ describe('GigService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     execMock.mockResolvedValue([]);
+    aggregateExecMock.mockResolvedValue([]);
     countDocumentsMock.mockReturnValue({ exec: vi.fn().mockResolvedValue(0) });
 
     const module: TestingModule = await Test.createTestingModule({
@@ -38,6 +43,7 @@ describe('GigService', () => {
           provide: getModelToken(Gig.name),
           useValue: {
             find: findMock,
+            aggregate: aggregateMock,
             countDocuments: countDocumentsMock,
           },
         },
@@ -84,18 +90,90 @@ describe('GigService', () => {
   });
 
   describe('getGigsByStatus', () => {
-    it('should query gigs by status sorted by _id ascending with limit', async () => {
-      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+    it('should query gigs by moderation post date when status is pending', async () => {
+      aggregateExecMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
 
       const result = await service.getGigsByStatus({
         status: Status.Pending,
         limit: 25,
+        sortBy: 'post_date',
+        sortOrder: 'asc',
       });
 
-      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
-      expect(sortForLimitMock).toHaveBeenCalledWith({ _id: 1 });
-      expect(limitMock).toHaveBeenCalledWith(25);
+      expect(aggregateMock).toHaveBeenCalledWith([
+        { $match: { status: Status.Pending } },
+        {
+          $addFields: {
+            __adminSortPostDate: {
+              $max: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: { $ifNull: ['$posts', []] },
+                      as: 'post',
+                      cond: {
+                        $and: [
+                          { $eq: ['$$post.to', Messenger.Telegram] },
+                          { $eq: ['$$post.type', PostType.Moderation] },
+                        ],
+                      },
+                    },
+                  },
+                  as: 'matchedPost',
+                  in: '$$matchedPost.date',
+                },
+              },
+            },
+          },
+        },
+        { $sort: { __adminSortPostDate: 1, _id: 1 } },
+        { $limit: 25 },
+        { $project: { __adminSortPostDate: 0 } },
+      ]);
+      expect(findMock).not.toHaveBeenCalled();
       expect(result).toHaveLength(1);
+    });
+
+    it('should query gigs by publish post date when status is published', async () => {
+      aggregateExecMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+
+      await service.getGigsByStatus({
+        status: Status.Published,
+        limit: 10,
+        sortBy: 'post_date',
+        sortOrder: 'desc',
+      });
+
+      expect(aggregateMock).toHaveBeenCalledWith([
+        { $match: { status: Status.Published } },
+        {
+          $addFields: {
+            __adminSortPostDate: {
+              $max: {
+                $map: {
+                  input: {
+                    $filter: {
+                      input: { $ifNull: ['$posts', []] },
+                      as: 'post',
+                      cond: {
+                        $and: [
+                          { $eq: ['$$post.to', Messenger.Telegram] },
+                          { $eq: ['$$post.type', PostType.Publish] },
+                        ],
+                      },
+                    },
+                  },
+                  as: 'matchedPost',
+                  in: '$$matchedPost.date',
+                },
+              },
+            },
+          },
+        },
+        { $sort: { __adminSortPostDate: -1, _id: -1 } },
+        { $limit: 10 },
+        { $project: { __adminSortPostDate: 0 } },
+      ]);
     });
   });
 
