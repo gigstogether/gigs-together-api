@@ -99,12 +99,6 @@ export interface GetGigsByStatusParams {
   readonly sortOrder?: AdminGigListSortOrder;
 }
 
-interface GetGigsByStatusSortedByPostDateParams {
-  readonly status: Status;
-  readonly limit: number;
-  readonly sortDirection: 1 | -1;
-}
-
 // TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
@@ -344,12 +338,6 @@ export class GigService {
       sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
 
     switch (params.sortBy) {
-      case AdminGigListSortBy.PostDate:
-        return this.getGigsByStatusSortedByPostDate({
-          status: params.status,
-          limit,
-          sortDirection,
-        });
       case AdminGigListSortBy.CreatedAt:
         return this.gigModel
           .find({ status: params.status })
@@ -367,54 +355,6 @@ export class GigService {
           `Unsupported admin gig list sortBy: ${params.sortBy}`,
         );
     }
-  }
-
-  private getGigsByStatusSortedByPostDate(
-    params: GetGigsByStatusSortedByPostDateParams,
-  ): Promise<GigDocument[]> {
-    const postType = this.resolveAdminListPostTypeForSort(params.status);
-
-    return this.gigModel
-      .aggregate<GigDocument>([
-        { $match: { status: params.status } },
-        {
-          $addFields: {
-            __adminSortPostDate: {
-              $max: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: { $ifNull: ['$posts', []] },
-                      as: 'post',
-                      cond: {
-                        $and: [
-                          { $eq: ['$$post.to', Messenger.Telegram] },
-                          { $eq: ['$$post.type', postType] },
-                        ],
-                      },
-                    },
-                  },
-                  as: 'matchedPost',
-                  in: '$$matchedPost.date',
-                },
-              },
-            },
-          },
-        },
-        {
-          $sort: {
-            __adminSortPostDate: params.sortDirection,
-            _id: params.sortDirection,
-          },
-        },
-        { $limit: params.limit },
-        { $project: { __adminSortPostDate: 0 } },
-      ])
-      .exec();
-  }
-
-  private resolveAdminListPostTypeForSort(status: Status): PostType {
-    return status === Status.Published ? PostType.Publish : PostType.Moderation;
   }
 
   resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {

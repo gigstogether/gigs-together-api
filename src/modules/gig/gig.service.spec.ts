@@ -12,8 +12,6 @@ import { BucketService } from '../bucket/bucket.service';
 import { Types } from 'mongoose';
 
 import { Status } from './types/status.enum';
-import { Messenger } from './types/messenger.enum';
-import { PostType } from './types/postType.enum';
 import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
@@ -120,92 +118,6 @@ describe('GigService', () => {
           sortBy: invalidSortBy,
         }),
       ).toThrow(BadRequestException);
-    });
-
-    it('should query gigs by moderation post date when status is pending', async () => {
-      aggregateExecMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
-
-      const result = await service.getGigsByStatus({
-        status: Status.Pending,
-        limit: 25,
-        sortBy: AdminGigListSortBy.PostDate,
-        sortOrder: AdminGigListSortOrder.Asc,
-      });
-
-      expect(aggregateMock).toHaveBeenCalledWith([
-        { $match: { status: Status.Pending } },
-        {
-          $addFields: {
-            __adminSortPostDate: {
-              $max: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: { $ifNull: ['$posts', []] },
-                      as: 'post',
-                      cond: {
-                        $and: [
-                          { $eq: ['$$post.to', Messenger.Telegram] },
-                          { $eq: ['$$post.type', PostType.Moderation] },
-                        ],
-                      },
-                    },
-                  },
-                  as: 'matchedPost',
-                  in: '$$matchedPost.date',
-                },
-              },
-            },
-          },
-        },
-        { $sort: { __adminSortPostDate: 1, _id: 1 } },
-        { $limit: 25 },
-        { $project: { __adminSortPostDate: 0 } },
-      ]);
-      expect(findMock).not.toHaveBeenCalled();
-      expect(result).toHaveLength(1);
-    });
-
-    it('should query gigs by publish post date when status is published', async () => {
-      aggregateExecMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
-
-      await service.getGigsByStatus({
-        status: Status.Published,
-        limit: 10,
-        sortBy: AdminGigListSortBy.PostDate,
-        sortOrder: AdminGigListSortOrder.Desc,
-      });
-
-      expect(aggregateMock).toHaveBeenCalledWith([
-        { $match: { status: Status.Published } },
-        {
-          $addFields: {
-            __adminSortPostDate: {
-              $max: {
-                $map: {
-                  input: {
-                    $filter: {
-                      input: { $ifNull: ['$posts', []] },
-                      as: 'post',
-                      cond: {
-                        $and: [
-                          { $eq: ['$$post.to', Messenger.Telegram] },
-                          { $eq: ['$$post.type', PostType.Publish] },
-                        ],
-                      },
-                    },
-                  },
-                  as: 'matchedPost',
-                  in: '$$matchedPost.date',
-                },
-              },
-            },
-          },
-        },
-        { $sort: { __adminSortPostDate: -1, _id: -1 } },
-        { $limit: 10 },
-        { $project: { __adminSortPostDate: 0 } },
-      ]);
     });
 
     it('should query gigs by mongo id when sort is createdAt', async () => {

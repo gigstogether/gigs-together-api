@@ -1,5 +1,4 @@
 export enum AdminGigListSortBy {
-  PostDate = 'postDate',
   CreatedAt = 'createdAt',
   EventDate = 'eventDate',
 }
@@ -10,7 +9,6 @@ export enum AdminGigListSortOrder {
 }
 
 export const ADMIN_GIG_LIST_SORT_BY_VALUES = [
-  AdminGigListSortBy.PostDate,
   AdminGigListSortBy.CreatedAt,
   AdminGigListSortBy.EventDate,
 ] as const;
