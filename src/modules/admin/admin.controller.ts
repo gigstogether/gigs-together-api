@@ -28,6 +28,8 @@ import {
 } from './types/requests/v1-admin-language-patch-body';
 import { LanguageService } from '../language/language.service';
 import type { SupportedLanguage } from '../language/types/language.types';
+import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
+import type { GigFormDataByPublicId } from '../gig/types/gig.types';
 
 /**
  * Manual admin-list cache refresh (e.g. after DB migration).
@@ -57,6 +59,15 @@ export class AdminController {
     @Query() query: V1AdminGigsGetQueryDto,
   ): Promise<V1AdminGigsListResponseBody> {
     return this.adminGigService.getGigsList(query);
+  }
+
+  @Version('1')
+  @Get('gig/:publicId')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getGigByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+  ): Promise<GigFormDataByPublicId> {
+    return this.adminGigService.getGigByPublicId(params.publicId);
   }
 
   @Version('1')

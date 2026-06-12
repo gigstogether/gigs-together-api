@@ -6,12 +6,8 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
-import type {
-  CreateGigInput,
-  GigFormDataByPublicId,
-  GigId,
-} from './types/gig.types';
-import { Gig, GigPoster } from './gig.schema';
+import type { CreateGigInput, GigId, PlainGig } from './types/gig.types';
+import { Gig, GigPost, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -55,7 +51,6 @@ import {
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
-import { msToYmd } from '../../shared/utils/date-formatter';
 
 interface GetPostUrlPayload {
   postId?: number;
@@ -312,49 +307,35 @@ export class GigService {
     );
   }
 
-  async getGigByPublicIdOrThrow(publicId: string): Promise<GigDocument> {
-    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
-    const gig = await this.gigModel.findOne({ publicId: id });
-    if (!gig) {
-      throw new NotFoundException(`Gig with publicId "${id}" not found`);
-    }
-    return gig;
-  }
-
   getGigCountByStatus(status: Status): Promise<number> {
     return this.gigModel.countDocuments({ status }).exec();
   }
 
   // TODO: limit|infinite scroll
-  getGigsByStatus(params: GetGigsByStatusParams): Promise<GigDocument[]> {
+  getGigsByStatus(params: GetGigsByStatusParams): Promise<PlainGig[]> {
     const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
+    let query = this.gigModel.find({ status: params.status });
 
-    if (params.sortBy === undefined) {
-      return this.gigModel.find({ status: params.status }).limit(limit).exec();
+    if (params.sortBy !== undefined) {
+      const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
+      const sortDirection: 1 | -1 =
+        sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
+
+      switch (params.sortBy) {
+        case AdminGigListSortBy.CreatedAt:
+          query = query.sort({ _id: sortDirection });
+          break;
+        case AdminGigListSortBy.EventDate:
+          query = query.sort({ date: sortDirection, _id: sortDirection });
+          break;
+        default:
+          throw new BadRequestException(
+            `Unsupported admin gig list sortBy: ${params.sortBy}`,
+          );
+      }
     }
 
-    const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
-    const sortDirection: 1 | -1 =
-      sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
-
-    switch (params.sortBy) {
-      case AdminGigListSortBy.CreatedAt:
-        return this.gigModel
-          .find({ status: params.status })
-          .sort({ _id: sortDirection })
-          .limit(limit)
-          .exec();
-      case AdminGigListSortBy.EventDate:
-        return this.gigModel
-          .find({ status: params.status })
-          .sort({ date: sortDirection, _id: sortDirection })
-          .limit(limit)
-          .exec();
-      default:
-        throw new BadRequestException(
-          `Unsupported admin gig list sortBy: ${params.sortBy}`,
-        );
-    }
+    return query.limit(limit).lean().exec();
   }
 
   resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {
@@ -371,9 +352,7 @@ export class GigService {
     );
   }
 
-  resolvePublishedPostUrl(
-    posts: GigDocument['posts'],
-  ): Promise<string | undefined> {
+  resolvePublishedPostUrl(posts: GigPost[]): Promise<string | undefined> {
     const publishedPost = this.telegramService.pickTgPost(
       posts,
       PostType.Publish,
@@ -441,22 +420,13 @@ export class GigService {
   }
 
   /** Full gig form fields by public id (any status). */
-  async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
-    const gig = await this.getGigByPublicIdOrThrow(publicId);
-
-    const posterUrl = this.resolveGigPosterPublicUrl(gig.poster);
-
-    return {
-      publicId: gig.publicId,
-      title: gig.title,
-      date: msToYmd(gig.date) ?? '',
-      endDate: msToYmd(gig.endDate),
-      city: gig.city,
-      country: gig.country,
-      venue: gig.venue,
-      ticketsUrl: gig.ticketsUrl,
-      posterUrl,
-    };
+  async getGigByPublicId(publicId: string): Promise<PlainGig> {
+    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    const gig = await this.gigModel.findOne({ publicId: id }).lean().exec();
+    if (!gig) {
+      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+    }
+    return gig;
   }
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {

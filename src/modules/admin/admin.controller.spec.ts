@@ -15,7 +15,11 @@ describe('AdminController', () => {
 
   const adminGigService = {
     getGigsList: vi.fn().mockResolvedValue({ gigs: [] }),
-  } satisfies Pick<AdminGigService, 'getGigsList'>;
+    getGigByPublicId: vi.fn().mockResolvedValue({
+      publicId: 'gig-42',
+      title: 'Radiohead',
+    }),
+  } satisfies Pick<AdminGigService, 'getGigsList' | 'getGigByPublicId'>;
 
   const languageService = {
     getAllLanguagesOrdered: vi
@@ -75,6 +79,19 @@ describe('AdminController', () => {
         status: 'pending',
         limit: 20,
       });
+    });
+  });
+
+  describe('getGigByPublicId', () => {
+    it('should return gig by public id from admin gig service', async () => {
+      await expect(
+        controller.getGigByPublicId({ publicId: 'gig-42' }),
+      ).resolves.toEqual({
+        publicId: 'gig-42',
+        title: 'Radiohead',
+      });
+
+      expect(adminGigService.getGigByPublicId).toHaveBeenCalledWith('gig-42');
     });
   });
 

@@ -14,7 +14,7 @@ export interface V1AdminGigListItem {
   readonly date: string;
   readonly endDate?: string;
   readonly city: string;
-  readonly countryCode: string;
+  readonly country: string;
   readonly venue: string;
   readonly posterUrl?: string;
   readonly suggestedBy: V1AdminGigSuggestedBy;

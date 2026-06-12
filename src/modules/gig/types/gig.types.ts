@@ -1,8 +1,27 @@
 import type { Types } from 'mongoose';
 import type { TGUser } from '../../telegram/types/user.types';
 import type { TGMessage } from '../../telegram/types/message.types';
+import type { Status } from './status.enum';
+import type { GigPost, GigPoster } from '../gig.schema';
 
 export type GigId = string | Types.ObjectId;
+
+/** Plain gig payload from MongoDB. */
+export interface PlainGig {
+  readonly _id: Types.ObjectId;
+  readonly publicId: string;
+  readonly title: string;
+  readonly date: number;
+  readonly endDate?: number;
+  readonly city: string;
+  readonly country: string;
+  readonly venue: string;
+  readonly ticketsUrl: string;
+  readonly poster?: GigPoster;
+  readonly status: Status;
+  readonly posts: GigPost[];
+  readonly suggestedBy: GigSuggestedBy;
+}
 
 export interface V1GetGigsResponseBodyGig {
   id: string;
@@ -41,9 +60,12 @@ export interface GigSuggestedBy {
   feedbackMessageId?: TGMessage['message_id'];
 }
 
-/**
- * Shape used to prefill gig edit form in the mini-app.
- */
+export interface GigFormDataSuggestedBy {
+  userId: string;
+  name?: string;
+  username?: string;
+}
+
 export interface GigFormDataByPublicId {
   publicId: string;
   title: string;
@@ -54,4 +76,9 @@ export interface GigFormDataByPublicId {
   venue: string;
   ticketsUrl: string;
   posterUrl?: string;
+  status: Status;
+  suggestedBy: GigFormDataSuggestedBy;
+  publishPostUrl?: string;
+  publishPostDate?: number;
+  moderationPostDate?: number;
 }

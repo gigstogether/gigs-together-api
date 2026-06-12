@@ -1,5 +1,4 @@
 import type { TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { GigService } from './gig.service';
@@ -21,7 +20,8 @@ describe('GigService', () => {
   let service: GigService;
 
   const execMock = vi.fn();
-  const limitMock = vi.fn().mockReturnValue({ exec: execMock });
+  const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+  const limitMock = vi.fn().mockReturnValue({ lean: leanMock });
   const sortForLimitMock = vi.fn().mockReturnValue({ limit: limitMock });
   const sortForCollationMock = vi.fn().mockReturnValue({ exec: execMock });
   const collationMock = vi.fn().mockReturnValue({ sort: sortForCollationMock });
@@ -94,16 +94,20 @@ describe('GigService', () => {
   });
 
   describe('getGigsByStatus', () => {
-    it('should query gigs without sort when sortBy is omitted', async () => {
-      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+    it('should return plain gigs without sort when sortBy is omitted', async () => {
+      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-1' };
+      execMock.mockResolvedValue([plainGig]);
 
-      await service.getGigsByStatus({
-        status: Status.Pending,
-        limit: 10,
-      });
+      await expect(
+        service.getGigsByStatus({
+          status: Status.Pending,
+          limit: 10,
+        }),
+      ).resolves.toEqual([plainGig]);
 
       expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
       expect(limitMock).toHaveBeenCalledWith(10);
+      expect(leanMock).toHaveBeenCalled();
       expect(sortForLimitMock).not.toHaveBeenCalled();
       expect(aggregateMock).not.toHaveBeenCalled();
     });
@@ -117,18 +121,21 @@ describe('GigService', () => {
           limit: 10,
           sortBy: invalidSortBy,
         }),
-      ).toThrow(BadRequestException);
+      ).toThrow('Unsupported admin gig list sortBy: invalid');
     });
 
-    it('should query gigs by mongo id when sort is createdAt', async () => {
-      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+    it('should return plain gigs when sort is createdAt', async () => {
+      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-2' };
+      execMock.mockResolvedValue([plainGig]);
 
-      await service.getGigsByStatus({
-        status: Status.Pending,
-        limit: 15,
-        sortBy: AdminGigListSortBy.CreatedAt,
-        sortOrder: AdminGigListSortOrder.Desc,
-      });
+      await expect(
+        service.getGigsByStatus({
+          status: Status.Pending,
+          limit: 15,
+          sortBy: AdminGigListSortBy.CreatedAt,
+          sortOrder: AdminGigListSortOrder.Desc,
+        }),
+      ).resolves.toEqual([plainGig]);
 
       expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
       expect(sortForLimitMock).toHaveBeenCalledWith({ _id: -1 });
@@ -136,15 +143,18 @@ describe('GigService', () => {
       expect(aggregateMock).not.toHaveBeenCalled();
     });
 
-    it('should query gigs by event date when sort is eventDate', async () => {
-      execMock.mockResolvedValue([{ _id: new Types.ObjectId() }]);
+    it('should return plain gigs when sort is eventDate', async () => {
+      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-3' };
+      execMock.mockResolvedValue([plainGig]);
 
-      await service.getGigsByStatus({
-        status: Status.Published,
-        limit: 20,
-        sortBy: AdminGigListSortBy.EventDate,
-        sortOrder: AdminGigListSortOrder.Asc,
-      });
+      await expect(
+        service.getGigsByStatus({
+          status: Status.Published,
+          limit: 20,
+          sortBy: AdminGigListSortBy.EventDate,
+          sortOrder: AdminGigListSortOrder.Asc,
+        }),
+      ).resolves.toEqual([plainGig]);
 
       expect(findMock).toHaveBeenCalledWith({ status: Status.Published });
       expect(sortForLimitMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
