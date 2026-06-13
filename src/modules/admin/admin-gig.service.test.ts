@@ -87,7 +87,7 @@ describe('AdminGigService', () => {
             posterUrl: 'https://cdn.example/poster.jpg',
             suggestedBy: { userId: '9001' },
             ticketsUrl: 'https://example.com/tickets',
-            postUrl: 'https://t.me/channel/1',
+            publishPostUrl: 'https://t.me/channel/1',
             moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
           },
         ],

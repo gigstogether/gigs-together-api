@@ -84,7 +84,7 @@ export class AdminGigService {
       posterUrl: formData.posterUrl,
       suggestedBy: formData.suggestedBy,
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
-      postUrl: formData.publishPostUrl,
+      publishPostUrl: formData.publishPostUrl,
       publishPostDate: formData.publishPostDate,
       moderationPostDate: formData.moderationPostDate,
     };

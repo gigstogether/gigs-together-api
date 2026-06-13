@@ -19,7 +19,7 @@ export interface V1AdminGigListItem {
   readonly posterUrl?: string;
   readonly suggestedBy: V1AdminGigSuggestedBy;
   readonly ticketsUrl?: string;
-  readonly postUrl?: string;
+  readonly publishPostUrl?: string;
   readonly publishPostDate?: number;
   readonly moderationPostDate?: number;
 }
