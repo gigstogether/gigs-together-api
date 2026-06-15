@@ -17,6 +17,8 @@ describe('ReceiverService', () => {
     publishMain: vi.fn(),
     publishToChat: vi.fn(),
     buildGigStatusReplyMarkup: vi.fn(),
+    sendToModeration: vi.fn(),
+    sendSubmissionFeedback: vi.fn(),
   };
 
   const mockGigService = {
@@ -122,6 +124,41 @@ describe('ReceiverService', () => {
       await service.handleMessage({} as TGMessage);
 
       expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleGigSubmit', () => {
+    it('should return publicId when gig is saved', async () => {
+      mockGigService.saveGig.mockResolvedValueOnce({
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      });
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+
+      const result = await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'admin',
+            firstName: 'Admin',
+            lastName: 'User',
+          },
+        },
+        undefined,
+      );
+
+      expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
     });
   });
 });

@@ -27,7 +27,10 @@ import { GigBodyPipe } from './pipes/gig-body.pipe';
 import { AuthenticatedUser } from '../auth/decorators/authenticated-user.decorator';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
-import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
+import type {
+  V1ReceiverCreateGigResponseBody,
+  V1ReceiverUpdateGigByPublicIdResponseBody,
+} from './types/requests/v1-receiver-gig-by-public-id-request';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
@@ -80,7 +83,7 @@ export class ReceiverController {
     @UploadedFile() posterFile: Express.Multer.File | undefined,
     @AuthenticatedUser() user: User,
     @Body(GigBodyPipe) body: V1ReceiverCreateGigRequestBody,
-  ): Promise<void> {
+  ): Promise<V1ReceiverCreateGigResponseBody> {
     return this.receiverService.handleGigSubmit(body, user, posterFile);
   }
 

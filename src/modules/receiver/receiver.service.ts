@@ -8,6 +8,7 @@ import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
+import type { V1ReceiverCreateGigResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
@@ -198,7 +199,7 @@ export class ReceiverService {
     body: V1ReceiverCreateGigRequestBody,
     user: User,
     posterFile: Express.Multer.File | undefined,
-  ): Promise<void> {
+  ): Promise<V1ReceiverCreateGigResponseBody> {
     const savedGig = await this.gigService.saveGig({ body, user, posterFile });
     let tgModerationPost: TGMessage | undefined;
     try {
@@ -265,6 +266,8 @@ export class ReceiverService {
         e instanceof Error ? e.stack : undefined,
       );
     }
+
+    return { publicId: savedGig.publicId };
   }
 
   async updateGigByPublicId(
