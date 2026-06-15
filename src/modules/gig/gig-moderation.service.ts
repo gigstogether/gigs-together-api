@@ -16,8 +16,9 @@ import { Status } from './types/status.enum';
 import type { GigId, PlainGig } from './types/gig.types';
 
 interface GigModerationData {
-  gigStatus: Status;
   gigId: GigId;
+  gigPublicId: string;
+  gigStatus: Status;
   moderationPost: GigModerationPostRef | undefined;
 }
 
@@ -40,11 +41,16 @@ export class GigModerationService {
     const gigId = gig._id.toString();
     const moderationPost =
       params.moderationPost ?? this.resolveModerationPostRef(gig.posts);
-    return { gigStatus: gig.status, gigId, moderationPost };
+    return {
+      gigId,
+      gigPublicId: gig.publicId,
+      gigStatus: gig.status,
+      moderationPost,
+    };
   }
 
   async approveGig(params: ModerateGigParams): Promise<void> {
-    const { gigId, gigStatus, moderationPost } =
+    const { gigId, gigPublicId, gigStatus, moderationPost } =
       await this.buildGigModerationData(params);
 
     this.assertCanApprove(gigStatus);
@@ -78,7 +84,7 @@ export class GigModerationService {
     }
 
     await this.gigService.updateGig(gigId, updateGigPayload);
-    this.logger.log(`Gig #${gigId} approved`);
+    this.logger.log(`Gig #${gigPublicId} (${gigId}) approved`);
 
     // Optional: update the feed cache on the frontend (ISR on-demand).
     await this.feedRevalidateService.revalidateFeed({
@@ -113,7 +119,7 @@ export class GigModerationService {
   }
 
   async rejectGig(params: ModerateGigParams): Promise<void> {
-    const { gigId, gigStatus, moderationPost } =
+    const { gigId, gigPublicId, gigStatus, moderationPost } =
       await this.buildGigModerationData(params);
 
     this.assertCanReject(gigStatus);
@@ -122,7 +128,7 @@ export class GigModerationService {
       gigId,
       Status.Rejected,
     );
-    this.logger.log(`Gig #${gigId} rejected`);
+    this.logger.log(`Gig #${gigPublicId} (${gigId}) rejected`);
 
     if (moderationPost) {
       await this.telegramService.handlePostReject({
