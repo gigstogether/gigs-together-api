@@ -1,6 +1,7 @@
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
+import type { GigModerationService } from '../gig/gig-moderation.service';
 import type { LanguageService } from '../language/language.service';
 
 describe('AdminController', () => {
@@ -20,6 +21,11 @@ describe('AdminController', () => {
       title: 'Radiohead',
     }),
   } satisfies Pick<AdminGigService, 'getGigsList' | 'getGigByPublicId'>;
+
+  const gigModerationService = {
+    approveGig: vi.fn().mockResolvedValue(undefined),
+    rejectGig: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<GigModerationService, 'approveGig' | 'rejectGig'>;
 
   const languageService = {
     getAllLanguagesOrdered: vi
@@ -56,6 +62,7 @@ describe('AdminController', () => {
     authorizationService as never,
     configService as never,
     languageService as unknown as LanguageService,
+    gigModerationService as unknown as GigModerationService,
   );
 
   describe('getDashboard', () => {
@@ -92,6 +99,30 @@ describe('AdminController', () => {
       });
 
       expect(adminGigService.getGigByPublicId).toHaveBeenCalledWith('gig-42');
+    });
+  });
+
+  describe('approveGigByPublicId', () => {
+    it('should approve gig via gig moderation service', async () => {
+      await expect(
+        controller.approveGigByPublicId({ publicId: 'gig-42' }),
+      ).resolves.toBeUndefined();
+
+      expect(gigModerationService.approveGig).toHaveBeenCalledWith({
+        publicId: 'gig-42',
+      });
+    });
+  });
+
+  describe('rejectGigByPublicId', () => {
+    it('should reject gig via gig moderation service', async () => {
+      await expect(
+        controller.rejectGigByPublicId({ publicId: 'gig-42' }),
+      ).resolves.toBeUndefined();
+
+      expect(gigModerationService.rejectGig).toHaveBeenCalledWith({
+        publicId: 'gig-42',
+      });
     });
   });
 

@@ -10,6 +10,7 @@ export interface MapGigToFormDataByPublicIdParams {
   readonly publishPostUrl?: string;
 }
 
+// TODO: use pickTgPost?
 function pickTelegramPostDateMs(
   posts: GigPost[] | undefined,
   postType: PostType,
