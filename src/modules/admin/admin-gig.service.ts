@@ -1,23 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { GigService } from '../gig/gig.service';
 import { mapGigToFormDataByPublicId } from './admin-gig.mapper';
-import { Status } from '../gig/types/status.enum';
 import { ADMIN_GIG_LIST_DEFAULT_LIMIT } from '../gig/types/admin-gig-list-sort.types';
-import type {
-  AdminGigListStatusQuery,
-  V1AdminGigsGetQueryDto,
-} from './types/requests/v1-admin-gigs-get-query';
+import type { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
+import { mapAdminGigListStatusQueryToGigStatuses } from './types/requests/v1-admin-gigs-get-query';
 import type {
   V1AdminGigListItem,
   V1AdminGigsListResponseBody,
 } from './types/requests/v1-admin-gigs-list-response';
 import type { GigFormDataByPublicId } from '../gig/types/gig.types';
-
-const STATUS_BY_QUERY: Record<AdminGigListStatusQuery, Status> = {
-  pending: Status.Pending,
-  published: Status.Published,
-  rejected: Status.Rejected,
-};
 
 @Injectable()
 export class AdminGigService {
@@ -26,9 +17,9 @@ export class AdminGigService {
   async getGigsList(
     query: V1AdminGigsGetQueryDto,
   ): Promise<V1AdminGigsListResponseBody> {
-    const status = STATUS_BY_QUERY[query.status];
+    const statuses = mapAdminGigListStatusQueryToGigStatuses(query.status);
     const plainGigs = await this.gigService.getGigsByStatus({
-      status,
+      statuses,
       limit: query.limit ?? ADMIN_GIG_LIST_DEFAULT_LIMIT,
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,

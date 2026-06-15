@@ -100,7 +100,7 @@ describe('GigService', () => {
 
       await expect(
         service.getGigsByStatus({
-          status: Status.Pending,
+          statuses: [Status.Pending],
           limit: 10,
         }),
       ).resolves.toEqual([plainGig]);
@@ -117,7 +117,7 @@ describe('GigService', () => {
 
       expect(() =>
         service.getGigsByStatus({
-          status: Status.Pending,
+          statuses: [Status.Pending],
           limit: 10,
           sortBy: invalidSortBy,
         }),
@@ -130,7 +130,7 @@ describe('GigService', () => {
 
       await expect(
         service.getGigsByStatus({
-          status: Status.Pending,
+          statuses: [Status.Pending],
           limit: 15,
           sortBy: AdminGigListSortBy.CreatedAt,
           sortOrder: AdminGigListSortOrder.Desc,
@@ -149,7 +149,7 @@ describe('GigService', () => {
 
       await expect(
         service.getGigsByStatus({
-          status: Status.Published,
+          statuses: [Status.Published],
           limit: 20,
           sortBy: AdminGigListSortBy.EventDate,
           sortOrder: AdminGigListSortOrder.Asc,
@@ -160,6 +160,22 @@ describe('GigService', () => {
       expect(sortForLimitMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
       expect(limitMock).toHaveBeenCalledWith(20);
       expect(aggregateMock).not.toHaveBeenCalled();
+    });
+
+    it('should query multiple statuses with $in when more than one status is given', async () => {
+      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-4' };
+      execMock.mockResolvedValue([plainGig]);
+
+      await expect(
+        service.getGigsByStatus({
+          statuses: [Status.Approved, Status.Published],
+          limit: 20,
+        }),
+      ).resolves.toEqual([plainGig]);
+
+      expect(findMock).toHaveBeenCalledWith({
+        status: { $in: [Status.Approved, Status.Published] },
+      });
     });
   });
 

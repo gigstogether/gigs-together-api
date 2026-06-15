@@ -94,7 +94,7 @@ describe('AdminGigService', () => {
       });
 
       expect(gigServiceMock.getGigsByStatus).toHaveBeenCalledWith({
-        status: Status.Pending,
+        statuses: [Status.Pending, Status.New],
         limit: 50,
         sortBy: undefined,
         sortOrder: undefined,
@@ -105,7 +105,7 @@ describe('AdminGigService', () => {
       const publishedAt = new Date('2026-06-01T10:00:00.000Z').getTime();
       const moderationAt = new Date('2026-05-30T14:22:00.000Z').getTime();
       const gig = buildPlainGig({
-        status: Status.Published,
+        status: Status.Approved,
         posts: [
           {
             to: Messenger.Telegram,
@@ -129,7 +129,7 @@ describe('AdminGigService', () => {
       gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(undefined);
 
       await expect(
-        service.getGigsList({ status: 'published', limit: 20 }),
+        service.getGigsList({ status: 'approved', limit: 20 }),
       ).resolves.toEqual({
         gigs: [
           expect.objectContaining({
@@ -138,11 +138,18 @@ describe('AdminGigService', () => {
           }),
         ],
       });
+
+      expect(gigServiceMock.getGigsByStatus).toHaveBeenCalledWith({
+        statuses: [Status.Approved, Status.Published],
+        limit: 20,
+        sortBy: undefined,
+        sortOrder: undefined,
+      });
     });
 
     it('should omit publishPostDate when publish post has no date', async () => {
       const gig = buildPlainGig({
-        status: Status.Published,
+        status: Status.Approved,
         posts: [
           {
             to: Messenger.Telegram,
@@ -158,7 +165,7 @@ describe('AdminGigService', () => {
       gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(undefined);
 
       const result = await service.getGigsList({
-        status: 'published',
+        status: 'approved',
         limit: 20,
       });
 

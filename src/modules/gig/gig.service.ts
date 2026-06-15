@@ -88,7 +88,7 @@ interface GigPublishedInclusiveMsRangeParams {
 }
 
 export interface GetGigsByStatusParams {
-  readonly status: Status;
+  readonly statuses: readonly Status[];
   readonly limit: number;
   readonly sortBy?: AdminGigListSortBy;
   readonly sortOrder?: AdminGigListSortOrder;
@@ -314,7 +314,11 @@ export class GigService {
   // TODO: limit|infinite scroll
   getGigsByStatus(params: GetGigsByStatusParams): Promise<PlainGig[]> {
     const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
-    let query = this.gigModel.find({ status: params.status });
+    const statusFilter =
+      params.statuses.length === 1
+        ? { status: params.statuses[0] }
+        : { status: { $in: [...params.statuses] } };
+    let query = this.gigModel.find(statusFilter);
 
     if (params.sortBy !== undefined) {
       const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
