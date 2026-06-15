@@ -4,7 +4,7 @@ import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
-import { CalendarService } from '../calendar/calendar.service';
+import { GigModerationService } from '../gig/gig-moderation.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -25,8 +25,9 @@ describe('ReceiverService', () => {
     updateGigStatus: vi.fn(),
   };
 
-  const mockCalendarService = {
-    addEvent: vi.fn(),
+  const mockGigModerationService = {
+    approveGig: vi.fn(),
+    rejectGig: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -42,8 +43,8 @@ describe('ReceiverService', () => {
           useValue: mockGigService,
         },
         {
-          provide: CalendarService,
-          useValue: mockCalendarService,
+          provide: GigModerationService,
+          useValue: mockGigModerationService,
         },
       ],
     }).compile();

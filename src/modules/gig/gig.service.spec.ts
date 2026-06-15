@@ -33,12 +33,20 @@ describe('GigService', () => {
     limit: limitMock,
   });
   const countDocumentsMock = vi.fn();
+  const findByIdExecMock = vi.fn();
+  const findByIdLeanMock = vi.fn().mockReturnValue({ exec: findByIdExecMock });
+  const findByIdMock = vi.fn().mockReturnValue({ lean: findByIdLeanMock });
+  const findOneExecMock = vi.fn();
+  const findOneLeanMock = vi.fn().mockReturnValue({ exec: findOneExecMock });
+  const findOneMock = vi.fn().mockReturnValue({ lean: findOneLeanMock });
 
   beforeEach(async () => {
     vi.clearAllMocks();
     execMock.mockResolvedValue([]);
     aggregateExecMock.mockResolvedValue([]);
     countDocumentsMock.mockReturnValue({ exec: vi.fn().mockResolvedValue(0) });
+    findByIdExecMock.mockResolvedValue(null);
+    findOneExecMock.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -47,6 +55,8 @@ describe('GigService', () => {
           provide: getModelToken(Gig.name),
           useValue: {
             find: findMock,
+            findById: findByIdMock,
+            findOne: findOneMock,
             aggregate: aggregateMock,
             countDocuments: countDocumentsMock,
           },
@@ -192,6 +202,69 @@ describe('GigService', () => {
         status: Status.Pending,
       });
       expect(countExecMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('getGigById', () => {
+    it('should return plain gig when id is valid', async () => {
+      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+      const plainGig = { _id: gigId, publicId: 'gig-1' };
+      findByIdExecMock.mockResolvedValue(plainGig);
+
+      await expect(service.getGigById(gigId.toString())).resolves.toBe(
+        plainGig,
+      );
+
+      expect(findByIdMock).toHaveBeenCalledWith(gigId.toString());
+      expect(findByIdLeanMock).toHaveBeenCalledTimes(1);
+      expect(findByIdExecMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw BadRequestException when id is invalid', async () => {
+      await expect(
+        service.getGigById('not-an-object-id'),
+      ).rejects.toMatchObject({
+        message: 'Invalid MongoDB ID: not-an-object-id',
+      });
+    });
+
+    it('should throw NotFoundException when gig is missing', async () => {
+      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+      findByIdExecMock.mockResolvedValue(null);
+
+      await expect(service.getGigById(gigId.toString())).rejects.toMatchObject({
+        message: `Gig with ID ${gigId.toString()} not found`,
+      });
+    });
+  });
+
+  describe('getGigByPublicId', () => {
+    it('should return plain gig when publicId is valid', async () => {
+      const plainGig = {
+        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+        publicId: 'radiohead-barcelona-2026-06-12',
+      };
+      findOneExecMock.mockResolvedValue(plainGig);
+
+      await expect(
+        service.getGigByPublicId('radiohead-barcelona-2026-06-12'),
+      ).resolves.toBe(plainGig);
+
+      expect(findOneMock).toHaveBeenCalledWith({
+        publicId: 'radiohead-barcelona-2026-06-12',
+      });
+      expect(findOneLeanMock).toHaveBeenCalledTimes(1);
+      expect(findOneExecMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw NotFoundException when gig is missing', async () => {
+      findOneExecMock.mockResolvedValue(null);
+
+      await expect(
+        service.getGigByPublicId('missing-gig'),
+      ).rejects.toMatchObject({
+        message: 'Gig with publicId "missing-gig" not found',
+      });
     });
   });
 });

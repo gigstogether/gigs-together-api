@@ -94,7 +94,6 @@ export interface GetGigsByStatusParams {
   readonly sortOrder?: AdminGigListSortOrder;
 }
 
-// TODO: add allowing only specific status transitions
 @Injectable()
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
@@ -429,6 +428,17 @@ export class GigService {
     const gig = await this.gigModel.findOne({ publicId: id }).lean().exec();
     if (!gig) {
       throw new NotFoundException(`Gig with publicId "${id}" not found`);
+    }
+    return gig;
+  }
+
+  async getGigById(gigId: GigId): Promise<PlainGig> {
+    if (!Types.ObjectId.isValid(gigId)) {
+      throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
+    }
+    const gig = await this.gigModel.findById(gigId).lean().exec();
+    if (!gig) {
+      throw new NotFoundException(`Gig with ID ${gigId} not found`);
     }
     return gig;
   }

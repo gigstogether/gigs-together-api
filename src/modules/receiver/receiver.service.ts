@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import type { TGChatId, TGMessage } from '../telegram/types/message.types';
+import type { TGMessage } from '../telegram/types/message.types';
 import { GigService } from '../gig/gig.service';
-import { GigId } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
@@ -9,24 +8,16 @@ import { Action } from '../telegram/types/action.enum';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
-import { CalendarService } from '../calendar/calendar.service';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
+import { GigModerationService } from '../gig/gig-moderation.service';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
   Start = 'start',
-}
-
-interface HandleGigApprovePayload {
-  gigId: GigId;
-  moderationPost: {
-    chatId: TGChatId;
-    messageId: TGMessage['message_id'];
-  };
 }
 
 interface UpdateGigByPublicIdPayload {
@@ -35,18 +26,12 @@ interface UpdateGigByPublicIdPayload {
   posterFile: Express.Multer.File | undefined;
 }
 
-interface HandleGigRejectPayload {
-  gigId: GigId;
-  chatId: TGChatId;
-  messageId: TGMessage['message_id'];
-}
-
 @Injectable()
 export class ReceiverService {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly gigService: GigService,
-    private readonly calendarService: CalendarService,
+    private readonly gigModerationService: GigModerationService,
   ) {}
 
   private readonly logger = new Logger(ReceiverService.name);
@@ -139,7 +124,7 @@ export class ReceiverService {
     // TODO: some more security?
     switch (action) {
       case Action.Approve: {
-        await this.handleGigApprove({
+        await this.gigModerationService.approveGig({
           gigId: callbackPayload,
           moderationPost: {
             messageId: message.message_id,
@@ -149,10 +134,12 @@ export class ReceiverService {
         break;
       }
       case Action.Reject: {
-        await this.handleGigReject({
+        await this.gigModerationService.rejectGig({
           gigId: callbackPayload,
-          messageId: message.message_id,
-          chatId: message.chat.id,
+          moderationPost: {
+            messageId: message.message_id,
+            chatId: message.chat.id,
+          },
         });
         break;
       }
@@ -371,145 +358,5 @@ export class ReceiverService {
       }
     }
     return { publicId };
-  }
-
-  async handleGigApprove(payload: HandleGigApprovePayload): Promise<void> {
-    const { gigId, moderationPost } = payload;
-    const updatedGig = await this.gigService.updateGigStatus(
-      gigId,
-      Status.Approved,
-    );
-    const tgPublishPost = await this.telegramService.publishMain(updatedGig);
-
-    const publishedChatId =
-      tgPublishPost?.sender_chat?.id ?? tgPublishPost?.chat?.id;
-    const publishedMessageId = tgPublishPost?.message_id;
-    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost?.photo); // but should be the same as in moderation one
-
-    const updateGigPayload: UpdateQuery<Gig> = {
-      status: Status.Published,
-    };
-
-    if (tgPublishPost && publishedChatId && publishedMessageId) {
-      updateGigPayload.$push = {
-        posts: {
-          id: publishedMessageId,
-          chatId: publishedChatId,
-          fileId: publishedFileId,
-          to: Messenger.Telegram,
-          type: PostType.Publish,
-          date: tgPublishPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
-        },
-      };
-    }
-
-    await this.gigService.updateGig(gigId, updateGigPayload);
-    this.logger.log(`Gig #${gigId} approved`);
-
-    // Optional: update the feed cache on the frontend (ISR on-demand).
-    await this.revalidateFrontendFeed({
-      country: updatedGig.country,
-      city: updatedGig.city,
-    });
-
-    if (tgPublishPost) {
-      await this.telegramService.handleAfterPublish({
-        title: updatedGig.title,
-        publicId: updatedGig.publicId,
-        suggestedBy: updatedGig.suggestedBy,
-        moderationPost,
-        publishPost: {
-          username: tgPublishPost.chat.username,
-          chatId: tgPublishPost.chat.id,
-          messageId: tgPublishPost.message_id,
-        },
-      });
-    } else {
-      this.logger.warn(
-        `publishMain returned no Telegram message for gig ${gigId}; skipping handleAfterPublish`,
-      );
-    }
-
-    const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
-    await this.calendarService.addEvent(calendarGig);
-  }
-
-  private buildFeedPath(input: { country: string; city: string }): string {
-    const country = (input.country ?? '').trim().toLowerCase();
-    const city = (input.city ?? '').trim().toLowerCase();
-    if (!country || !city) {
-      throw new Error('Missing country/city for feed path');
-    }
-    return `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`;
-  }
-
-  private async revalidateFrontendFeed(input: {
-    readonly country?: string;
-    readonly city?: string;
-  }): Promise<void> {
-    // TODO: extract?
-    const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
-    if (!baseUrl || !secret) return;
-
-    if (!/^https?:\/\//i.test(baseUrl)) {
-      this.logger.warn(
-        `APP_BASE_URL must be an absolute http(s) URL for revalidation (got "${baseUrl}")`,
-      );
-      return;
-    }
-
-    const url = new URL('/api/revalidate/feed', baseUrl).toString();
-    let path: string | undefined;
-    try {
-      if (input.country && input.city) {
-        path = this.buildFeedPath({ country: input.country, city: input.city });
-      }
-    } catch (e) {
-      this.logger.warn(
-        `Failed to build feed path for revalidation: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-      path = undefined;
-    }
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-revalidate-secret': secret,
-        },
-        body: JSON.stringify(path ? { paths: [path] } : {}),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        this.logger.warn(
-          `Frontend revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
-        );
-      }
-    } catch (e) {
-      this.logger.warn(
-        `Frontend revalidate request failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-  }
-
-  async handleGigReject(payload: HandleGigRejectPayload): Promise<void> {
-    const { gigId, chatId, messageId } = payload;
-    const updatedGig = await this.gigService.updateGigStatus(
-      gigId,
-      Status.Rejected,
-    );
-    this.logger.log(`Gig #${gigId} rejected`);
-
-    await this.telegramService.handlePostReject({
-      suggestedBy: updatedGig.suggestedBy,
-      moderationMessage: { chatId, messageId },
-      gigId,
-      title: updatedGig.title,
-    });
   }
 }
