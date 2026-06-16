@@ -271,6 +271,7 @@ export class TelegramPostComposer {
       year: DATE_FORMAT.year,
       month: DATE_FORMAT.month,
       day: DATE_FORMAT.day,
+      weekday: DATE_FORMAT.weekday,
     });
     const date = dateFormatter.format(new Date(payload.date));
     const endDate = payload.endDate
