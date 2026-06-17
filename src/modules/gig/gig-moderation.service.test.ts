@@ -41,8 +41,8 @@ describe('GigModerationService', () => {
   let service: GigModerationService;
 
   const gigServiceMock = {
-    getGigDocumentById: vi.fn(),
-    getGigDocumentByPublicId: vi.fn(),
+    getGigById: vi.fn(),
+    getGigByPublicId: vi.fn(),
     updateGigStatus: vi.fn(),
     updateGig: vi.fn(),
     gigToCalendarPayload: vi.fn(),
@@ -93,7 +93,7 @@ describe('GigModerationService', () => {
         date: 1_748_697_600,
       };
 
-      gigServiceMock.getGigDocumentById.mockResolvedValue(gigBeforeUpdate);
+      gigServiceMock.getGigById.mockResolvedValue(gigBeforeUpdate);
       telegramServiceMock.pickTgPost.mockReturnValue(gigBeforeUpdate.posts[0]);
       gigServiceMock.updateGigStatus.mockResolvedValue(approvedGig);
       telegramServiceMock.publishMain.mockResolvedValue(publishPost);
@@ -103,8 +103,8 @@ describe('GigModerationService', () => {
 
       await service.approveGig({ gigId });
 
-      expect(gigServiceMock.getGigDocumentById).toHaveBeenCalledWith(gigId);
-      expect(gigServiceMock.getGigDocumentByPublicId).not.toHaveBeenCalled();
+      expect(gigServiceMock.getGigById).toHaveBeenCalledWith(gigId);
+      expect(gigServiceMock.getGigByPublicId).not.toHaveBeenCalled();
       expect(gigServiceMock.updateGigStatus).toHaveBeenCalledWith(
         gigId,
         Status.Approved,
@@ -132,9 +132,7 @@ describe('GigModerationService', () => {
       const gigBeforeUpdate = buildGigDocument();
       const approvedGig = buildGigDocument({ status: Status.Approved });
 
-      gigServiceMock.getGigDocumentByPublicId.mockResolvedValue(
-        gigBeforeUpdate,
-      );
+      gigServiceMock.getGigByPublicId.mockResolvedValue(gigBeforeUpdate);
       telegramServiceMock.pickTgPost.mockReturnValue(undefined);
       gigServiceMock.updateGigStatus.mockResolvedValue(approvedGig);
       telegramServiceMock.publishMain.mockResolvedValue(undefined);
@@ -144,10 +142,10 @@ describe('GigModerationService', () => {
 
       await service.approveGig({ publicId: 'radiohead-barcelona-2026-06-12' });
 
-      expect(gigServiceMock.getGigDocumentByPublicId).toHaveBeenCalledWith(
+      expect(gigServiceMock.getGigByPublicId).toHaveBeenCalledWith(
         'radiohead-barcelona-2026-06-12',
       );
-      expect(gigServiceMock.getGigDocumentById).not.toHaveBeenCalled();
+      expect(gigServiceMock.getGigById).not.toHaveBeenCalled();
       expect(gigServiceMock.updateGigStatus).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         Status.Approved,
@@ -155,7 +153,7 @@ describe('GigModerationService', () => {
     });
 
     it('should throw when gig is already published', async () => {
-      gigServiceMock.getGigDocumentById.mockResolvedValue(
+      gigServiceMock.getGigById.mockResolvedValue(
         buildGigDocument({ status: Status.Published }),
       );
 
@@ -173,7 +171,7 @@ describe('GigModerationService', () => {
       const gigBeforeUpdate = buildGigDocument();
       const rejectedGig = buildGigDocument({ status: Status.Rejected });
 
-      gigServiceMock.getGigDocumentById.mockResolvedValue(gigBeforeUpdate);
+      gigServiceMock.getGigById.mockResolvedValue(gigBeforeUpdate);
       telegramServiceMock.pickTgPost.mockReturnValue(gigBeforeUpdate.posts[0]);
       gigServiceMock.updateGigStatus.mockResolvedValue(rejectedGig);
 
@@ -191,7 +189,7 @@ describe('GigModerationService', () => {
     });
 
     it('should throw when gig is already published', async () => {
-      gigServiceMock.getGigDocumentById.mockResolvedValue(
+      gigServiceMock.getGigById.mockResolvedValue(
         buildGigDocument({ status: Status.Published }),
       );
 
