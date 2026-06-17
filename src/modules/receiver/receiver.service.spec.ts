@@ -154,11 +154,47 @@ describe('ReceiverService', () => {
             firstName: 'Admin',
             lastName: 'User',
           },
+          isAdmin: false,
         },
         undefined,
       );
 
       expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
+    });
+
+    it('should skip submission feedback when user is admin', async () => {
+      mockGigService.saveGig.mockResolvedValueOnce({
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      });
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+
+      const result = await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'admin',
+            firstName: 'Admin',
+            lastName: 'User',
+          },
+          isAdmin: true,
+        },
+        undefined,
+      );
+
+      expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
+      expect(mockTelegramService.sendSubmissionFeedback).not.toHaveBeenCalled();
     });
   });
 });
