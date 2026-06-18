@@ -1,11 +1,14 @@
 {
   "name": "gigs-together-api",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "NestJS API for Gigs Together with Telegram, MongoDB, and media integrations.",
   "private": false,
   "author": "Arina M",
   "license": "UNLICENSED",
   "packageManager": "npm@11.10.1",
+  "engines": {
+    "node": "22.22.3"
+  },
   "scripts": {
     "start:dev": "cross-env NODE_ENV=dev nest start --watch",
     "start:debug": "nest start --debug --watch",
