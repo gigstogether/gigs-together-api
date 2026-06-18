@@ -4,7 +4,7 @@ import type {
   VerifiedAccessToken,
 } from '../types/access-token-identity.types';
 import type { User } from '../types/user.types';
-import type { TGUser } from '../../modules/telegram/types/user.types';
+import type { TGUser } from '../../telegram/types/user.types';
 
 function telegramAccessIdentityToTgUser(
   identity: TelegramAccessTokenIdentity,

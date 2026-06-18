@@ -1,18 +1,18 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { getJwtAccessExpiresInSeconds } from './auth-jwt-expires';
-import { AccessJwtService } from './access-jwt.service';
-import { RefreshJwtService } from './refresh-jwt.service';
+import { Admin, AdminSchema } from './schemas/admin.schema';
+import { AuthenticationService } from './authentication.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
-import { RequireAuthenticatedUserGuard } from './guards/require-authenticated-user.guard';
-import { AuthCookiesService } from './auth-cookies.service';
+import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { AuthController } from './auth.controller';
-import { AdminModule } from '../admin/admin.module';
+import { AuthorizationService } from './authorization.service';
 
 @Module({
   imports: [
-    AdminModule,
+    MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -21,7 +21,8 @@ import { AdminModule } from '../admin/admin.module';
         if (!secret?.trim()) {
           throw new Error('JWT_SECRET is required');
         }
-        const expiresIn = getJwtAccessExpiresInSeconds(configService);
+        const expiresIn =
+          AuthenticationService.resolveAccessExpiresInSeconds(configService);
         return {
           secret,
           signOptions: {
@@ -34,19 +35,18 @@ import { AdminModule } from '../admin/admin.module';
   ],
   controllers: [AuthController],
   providers: [
-    AccessJwtService,
-    RefreshJwtService,
-    AuthCookiesService,
+    AuthenticationService,
+    AuthorizationService,
     AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
+    AuthenticatedUserGuard,
+    AdminGuard,
   ],
   exports: [
-    AdminModule,
-    AccessJwtService,
-    RefreshJwtService,
-    AuthCookiesService,
+    AuthorizationService,
+    AuthenticationService,
     AccessJwtAuthGuard,
-    RequireAuthenticatedUserGuard,
+    AuthenticatedUserGuard,
+    AdminGuard,
     JwtModule,
   ],
 })

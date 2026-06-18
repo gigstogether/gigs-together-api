@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { AdminSchema } from '../src/shared/schemas/admin.schema';
+import { AdminSchema } from '../src/modules/auth/schemas/admin.schema';
 import * as dotenv from 'dotenv';
 
 dotenv.config();

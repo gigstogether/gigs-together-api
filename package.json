@@ -7,11 +7,11 @@
   "license": "UNLICENSED",
   "scripts": {
     "start:dev": "cross-env NODE_ENV=dev nest start --watch",
+    "start:debug": "nest start --debug --watch",
     "lint:format:fix": "npm run lint:fix && npm run format:write",
     "lint:fix": "eslint \"{src,apps,libs,test,spec}/**/*.ts\" --fix",
     "format:write": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "node dist/src/main.js",
-    "start:debug": "nest start --debug --watch",
     "start:prod": "cross-env NODE_ENV=prod node dist/src/main.js",
     "build": "nest build",
     "test": "vitest run",
@@ -19,7 +19,8 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "node --inspect-brk ./node_modules/vitest/vitest.mjs run",
     "test:e2e": "vitest run test/app.e2e-spec.ts",
-    "migrate": "npx ts-migrate-mongoose up",
+    "migrate:up": "npx ts-migrate-mongoose up",
+    "migrate:up:dry": "cross-env DRY_RUN=true npx ts-migrate-mongoose up",
     "prepare": "husky"
   },
   "dependencies": {
@@ -52,6 +53,7 @@
     "@nestjs/cli": "^11.0.12",
     "@nestjs/schematics": "^11.0.9",
     "@nestjs/testing": "^11.1.9",
+    "@swc/cli": "^0.8.1",
     "@swc/core": "^1.15.24",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
@@ -61,6 +63,7 @@
     "@typescript-eslint/eslint-plugin": "^8.47.0",
     "@typescript-eslint/parser": "^8.47.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "chokidar": "^5.0.0",
     "cross-env": "^10.1.0",
     "eslint": "^9.35.0",
     "eslint-config-prettier": "^10.1.8",

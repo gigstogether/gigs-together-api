@@ -4,7 +4,7 @@ import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
-import { CalendarService } from '../calendar/calendar.service';
+import { GigModerationService } from '../gig/gig-moderation.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -17,6 +17,8 @@ describe('ReceiverService', () => {
     publishMain: vi.fn(),
     publishToChat: vi.fn(),
     buildGigStatusReplyMarkup: vi.fn(),
+    sendToModeration: vi.fn(),
+    sendSubmissionFeedback: vi.fn(),
   };
 
   const mockGigService = {
@@ -25,8 +27,9 @@ describe('ReceiverService', () => {
     updateGigStatus: vi.fn(),
   };
 
-  const mockCalendarService = {
-    addEvent: vi.fn(),
+  const mockGigModerationService = {
+    approveGig: vi.fn(),
+    rejectGig: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -42,8 +45,8 @@ describe('ReceiverService', () => {
           useValue: mockGigService,
         },
         {
-          provide: CalendarService,
-          useValue: mockCalendarService,
+          provide: GigModerationService,
+          useValue: mockGigModerationService,
         },
       ],
     }).compile();
@@ -121,6 +124,77 @@ describe('ReceiverService', () => {
       await service.handleMessage({} as TGMessage);
 
       expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleGigSubmit', () => {
+    it('should return publicId when gig is saved', async () => {
+      mockGigService.saveGig.mockResolvedValueOnce({
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      });
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+
+      const result = await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'admin',
+            firstName: 'Admin',
+            lastName: 'User',
+          },
+          isAdmin: false,
+        },
+        undefined,
+      );
+
+      expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
+    });
+
+    it('should skip submission feedback when user is admin', async () => {
+      mockGigService.saveGig.mockResolvedValueOnce({
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      });
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+
+      const result = await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'admin',
+            firstName: 'Admin',
+            lastName: 'User',
+          },
+          isAdmin: true,
+        },
+        undefined,
+      );
+
+      expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
+      expect(mockTelegramService.sendSubmissionFeedback).not.toHaveBeenCalled();
     });
   });
 });

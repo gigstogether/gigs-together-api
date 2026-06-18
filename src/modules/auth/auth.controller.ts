@@ -1,29 +1,46 @@
 import {
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
   Version,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AdminService } from '../admin/admin.service';
-import { authClientProfileFromAccessTokenIdentity } from '../../shared/mappers/auth-client-profile-from-identity';
-import type { AuthClientProfileResponseBody } from '../../shared/types/auth-client-profile.types';
-import { AccessJwtService } from './access-jwt.service';
-import { AuthCookiesService } from './auth-cookies.service';
-import { RefreshJwtService } from './refresh-jwt.service';
+import { AuthenticatedUser } from './decorators/authenticated-user.decorator';
+import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
+import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
+import { authClientProfileFromAccessTokenIdentity } from './mappers/auth-client-profile-from-identity';
+import type { AuthClientProfileResponseBody } from './types/auth-client-profile.types';
+import type { User } from './types/user.types';
+import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token-user.mapper';
+import { AuthenticationService } from './authentication.service';
+import { AuthorizationService } from './authorization.service';
 
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly adminService: AdminService,
-    private readonly accessJwtService: AccessJwtService,
-    private readonly authCookiesService: AuthCookiesService,
-    private readonly refreshJwtService: RefreshJwtService,
+    private readonly authorizationService: AuthorizationService,
+    private readonly authenticationService: AuthenticationService,
   ) {}
+
+  /**
+   * Returns the current session profile from the access JWT cookie (for client gates and UI bootstrap).
+   * TODO: do we need to check from server cache - not just from JWT, cause it can be unactual.
+   */
+  @Version('1')
+  @Get('me')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard)
+  me(@AuthenticatedUser() user: User): AuthClientProfileResponseBody {
+    const identity = tgUserToTelegramAccessIdentity(user.tgUser);
+    return {
+      profile: authClientProfileFromAccessTokenIdentity(identity, user.isAdmin),
+    };
+  }
 
   /**
    * Issues new access + refresh cookies from a valid refresh cookie (rotation).
@@ -35,30 +52,33 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthClientProfileResponseBody> {
-    const refreshName = this.authCookiesService.getRefreshCookieName();
+    const refreshName = this.authenticationService.getRefreshCookieName();
     const token = req.cookies?.[refreshName]?.trim();
     if (!token) {
       throw new UnauthorizedException('Missing refresh token');
     }
-    const identity = await this.refreshJwtService.verifyRefreshToken(token);
-    const accessToken = await this.accessJwtService.signAccessToken(identity);
-    const newRefresh = await this.refreshJwtService.signRefreshToken(identity);
-    this.authCookiesService.setAccessTokenCookie(
+    const verified = await this.authorizationService.verifyRefreshToken(token);
+    const accessToken = await this.authenticationService.signAccessToken(
+      verified.identity,
+    );
+    const newRefresh = await this.authenticationService.signRefreshToken(
+      verified.identity,
+    );
+    this.authenticationService.setAccessTokenCookie(
       res,
       accessToken,
-      this.accessJwtService.getExpiresInSeconds(),
+      this.authenticationService.getAccessExpiresInSeconds(),
     );
-    this.authCookiesService.setRefreshTokenCookie(
+    this.authenticationService.setRefreshTokenCookie(
       res,
       newRefresh,
-      this.refreshJwtService.getExpiresInSeconds(),
+      this.authenticationService.getRefreshExpiresInSeconds(),
     );
-    const isAdmin =
-      identity.kind === 'telegram'
-        ? await this.adminService.isAdmin(identity.telegramUserId)
-        : false;
     return {
-      profile: authClientProfileFromAccessTokenIdentity(identity, isAdmin),
+      profile: authClientProfileFromAccessTokenIdentity(
+        verified.identity,
+        verified.isAdmin,
+      ),
     };
   }
 
@@ -69,6 +89,6 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   logout(@Res({ passthrough: true }) res: Response): void {
-    this.authCookiesService.clearAllAuthCookies(res);
+    this.authenticationService.clearAllAuthCookies(res);
   }
 }

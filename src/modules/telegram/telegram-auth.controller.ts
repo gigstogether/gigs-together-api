@@ -8,7 +8,7 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AuthCookiesService } from '../auth/auth-cookies.service';
+import { AuthenticationService } from '../auth/authentication.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
@@ -19,7 +19,7 @@ import { V1TelegramWebAppBodyDto } from './types/requests/v1-telegram-web-app-bo
 @Controller('auth')
 export class TelegramAuthController {
   constructor(
-    private readonly authCookiesService: AuthCookiesService,
+    private readonly authenticationService: AuthenticationService,
     private readonly telegramAccessExchangeService: TelegramAccessExchangeService,
     private readonly telegramInitDataAuthService: TelegramInitDataAuthService,
     private readonly telegramLoginWidgetAuthService: TelegramLoginWidgetAuthService,
@@ -41,12 +41,12 @@ export class TelegramAuthController {
       );
     const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(user);
-    this.authCookiesService.setAccessTokenCookie(
+    this.authenticationService.setAccessTokenCookie(
       res,
       exchange.accessToken,
       exchange.accessExpiresIn,
     );
-    this.authCookiesService.setRefreshTokenCookie(
+    this.authenticationService.setRefreshTokenCookie(
       res,
       exchange.refreshToken,
       exchange.refreshExpiresIn,
@@ -70,12 +70,12 @@ export class TelegramAuthController {
       );
     const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(user);
-    this.authCookiesService.setAccessTokenCookie(
+    this.authenticationService.setAccessTokenCookie(
       res,
       exchange.accessToken,
       exchange.accessExpiresIn,
     );
-    this.authCookiesService.setRefreshTokenCookie(
+    this.authenticationService.setRefreshTokenCookie(
       res,
       exchange.refreshToken,
       exchange.refreshExpiresIn,

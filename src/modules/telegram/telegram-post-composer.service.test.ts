@@ -40,6 +40,7 @@ describe('TelegramPostComposer', () => {
         type: PostType.Publish,
         id: 7,
         chatId: -1001 as const,
+        date: 1_700_000_000_000,
       };
 
       const result = composer.pickTgPost([post], PostType.Publish);
@@ -171,6 +172,18 @@ describe('TelegramPostComposer', () => {
       expect(caption).toContain('📍 Hall');
       expect(caption).toContain('🎫 https://tickets.example/x');
     });
+
+    it('should include weekday in the date line', () => {
+      const caption = composer.buildCaption({
+        title: 'Concert',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: new Date('2026-06-01T12:00:00.000Z'),
+      });
+
+      expect(caption).toContain('Mon');
+      expect(caption).toContain('1 Jun 2026');
+    });
   });
 
   describe('composeMainPost', () => {
@@ -198,6 +211,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 1,
             fileId: 'fid',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;
@@ -232,6 +246,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 5,
             fileId: 'file-id-abc',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;
@@ -334,6 +349,7 @@ describe('TelegramPostComposer', () => {
             chatId: -100,
             id: 3,
             fileId: 'file-feedback',
+            date: 86_400_000,
           },
         ],
       } as unknown as GigDocument;

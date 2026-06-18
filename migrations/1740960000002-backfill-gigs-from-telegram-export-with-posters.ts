@@ -3,7 +3,8 @@ import * as dotenv from 'dotenv';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { AnyBulkWriteOperation } from 'mongoose';
-import { GigSchema, type Gig } from '../src/modules/gig/gig.schema';
+import { GigSchema } from '../src/modules/gig/gig.schema';
+import type { Gig } from '../src/modules/gig/gig.schema';
 import { Messenger } from '../src/modules/gig/types/messenger.enum';
 import { PostType } from '../src/modules/gig/types/postType.enum';
 import { Status } from '../src/modules/gig/types/status.enum';
@@ -287,6 +288,7 @@ export async function up(): Promise<void> {
                 type: PostType.Publish,
                 id: m.id,
                 chatId,
+                date: dateMs,
               },
             ],
             suggestedBy: { userId: suggestedByUserId },
@@ -301,7 +303,6 @@ export async function up(): Promise<void> {
     await GigModel.bulkWrite(operations, { ordered: false });
   }
 
-  // eslint-disable-next-line no-console
   console.log(
     JSON.stringify(
       {

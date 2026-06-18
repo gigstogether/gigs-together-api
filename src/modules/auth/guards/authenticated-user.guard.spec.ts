@@ -1,7 +1,7 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
-import type { User } from '../../../shared/types/user.types';
-import { RequireAuthenticatedUserGuard } from './require-authenticated-user.guard';
+import type { User } from '../types/user.types';
+import { AuthenticatedUserGuard } from './authenticated-user.guard';
 
 function ctxWithUser(user: User | undefined): ExecutionContext {
   return {
@@ -9,16 +9,16 @@ function ctxWithUser(user: User | undefined): ExecutionContext {
   } as ExecutionContext;
 }
 
-describe('RequireAuthenticatedUserGuard', () => {
+describe('AuthenticatedUserGuard', () => {
   it('throws UnauthorizedException when req.user is missing', () => {
-    const guard = new RequireAuthenticatedUserGuard();
+    const guard = new AuthenticatedUserGuard();
     expect(() => guard.canActivate(ctxWithUser(undefined))).toThrow(
       UnauthorizedException,
     );
   });
 
   it('returns true when req.user is set', () => {
-    const guard = new RequireAuthenticatedUserGuard();
+    const guard = new AuthenticatedUserGuard();
     const user: User = {
       tgUser: { id: 1, first_name: 'X' },
       isAdmin: false,

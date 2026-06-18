@@ -5,7 +5,7 @@ function usage() {
   const scriptName = path.basename(
     process.argv[1] ?? '1740960000002-tg-export-result-to-structured.js',
   );
-  // eslint-disable-next-line no-console
+   
   console.log(
     [
       `Usage: node ${scriptName} <input_result.json> [output.json]`,
@@ -342,7 +342,7 @@ async function main() {
 
   await fs.writeFile(outputPath, JSON.stringify(out, null, 2), 'utf8');
 
-  // eslint-disable-next-line no-console
+   
   console.log(
     JSON.stringify(
       {
@@ -363,7 +363,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  // eslint-disable-next-line no-console
+   
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
 });

@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ReceiverController } from './receiver.controller';
 import { ReceiverService } from './receiver.service';
-import { AdminModule } from '../admin/admin.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
@@ -10,10 +9,9 @@ import { ConsoleLogger } from '@nestjs/common';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
-import { CalendarModule } from '../calendar/calendar.module';
 
 @Module({
-  imports: [GigModule, TelegramModule, AdminModule, AuthModule, CalendarModule],
+  imports: [GigModule, TelegramModule, AuthModule],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,

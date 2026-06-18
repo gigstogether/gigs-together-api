@@ -161,7 +161,7 @@ Main files:
 Responsibilities:
 
 - loads active admins from MongoDB (cached) and answers `isAdmin(telegramId)`
-- provides `RequireAdminGuard` for routes that require admin privileges
+- provides AdminGuard` for routes that require admin privileges
 
 Main files:
 
@@ -175,7 +175,7 @@ Responsibilities:
 - access and refresh JWT signing and verification
 - HttpOnly cookie helpers for browser sessions
 - `POST /v1/auth/refresh` and `POST /v1/auth/logout`
-- guards: optional access JWT (`AccessJwtAuthGuard`), authenticated user required (`RequireAuthenticatedUserGuard`)
+- guards: optional access JWT (`AccessJwtAuthGuard`), authenticated user required (`AuthenticatedUserGuard`)
 - re-exports `AdminModule` so modules that only import `AuthModule` still receive admin checks where JWT services need them
 
 Main files:

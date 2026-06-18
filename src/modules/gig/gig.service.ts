@@ -6,12 +6,8 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
-import type {
-  CreateGigInput,
-  GigFormDataByPublicId,
-  GigId,
-} from './types/gig.types';
-import { Gig, GigPoster } from './gig.schema';
+import type { CreateGigInput, GigId, PlainGig } from './types/gig.types';
+import { Gig, GigPost, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -47,8 +43,13 @@ import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from './types/postType.enum';
 import { Messenger } from './types/messenger.enum';
+import {
+  ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,
+  AdminGigListSortBy,
+  AdminGigListSortOrder,
+} from './types/admin-gig-list-sort.types';
 import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
-import type { User } from '../../shared/types/user.types';
+import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
 interface GetPostUrlPayload {
@@ -86,7 +87,13 @@ interface GigPublishedInclusiveMsRangeParams {
   readonly toMs: number;
 }
 
-// TODO: add allowing only specific status transitions
+export interface GetGigsByStatusParams {
+  readonly statuses: readonly Status[];
+  readonly limit: number;
+  readonly sortBy?: AdminGigListSortBy;
+  readonly sortOrder?: AdminGigListSortOrder;
+}
+
 @Injectable()
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
@@ -227,7 +234,13 @@ export class GigService {
       venue: body.gig.venue,
       ticketsUrl: body.gig.ticketsUrl,
       poster,
-      suggestedBy: { userId: user.tgUser.id },
+      suggestedBy: {
+        userId: user.tgUser.id,
+        username: user.tgUser.username,
+        name: [user.tgUser.firstName, user.tgUser.lastName]
+          .filter(Boolean)
+          .join(' '),
+      },
     };
 
     if (body.gig.endDate && body.gig.endDate !== body.gig.date) {
@@ -293,13 +306,65 @@ export class GigService {
     );
   }
 
-  async getGigByPublicIdOrThrow(publicId: string): Promise<GigDocument> {
-    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
-    const gig = await this.gigModel.findOne({ publicId: id });
-    if (!gig) {
-      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+  getGigCountByStatus(status: Status): Promise<number> {
+    return this.gigModel.countDocuments({ status }).exec();
+  }
+
+  // TODO: limit|infinite scroll
+  getGigsByStatus(params: GetGigsByStatusParams): Promise<PlainGig[]> {
+    const limit = Math.min(Math.max(1, params.limit), GigService.MAX_LIMIT);
+    const statusFilter =
+      params.statuses.length === 1
+        ? { status: params.statuses[0] }
+        : { status: { $in: [...params.statuses] } };
+    let query = this.gigModel.find(statusFilter);
+
+    if (params.sortBy !== undefined) {
+      const sortOrder = params.sortOrder ?? ADMIN_GIG_LIST_DEFAULT_SORT_ORDER;
+      const sortDirection: 1 | -1 =
+        sortOrder === AdminGigListSortOrder.Asc ? 1 : -1;
+
+      switch (params.sortBy) {
+        case AdminGigListSortBy.CreatedAt:
+          query = query.sort({ _id: sortDirection });
+          break;
+        case AdminGigListSortBy.EventDate:
+          query = query.sort({ date: sortDirection, _id: sortDirection });
+          break;
+        default:
+          throw new BadRequestException(
+            `Unsupported admin gig list sortBy: ${params.sortBy}`,
+          );
+      }
     }
-    return gig;
+
+    return query.limit(limit).lean().exec();
+  }
+
+  resolveGigPosterPublicUrl(poster: GigDocument['poster']): string | undefined {
+    const externalFallbackEnabled = envBool(
+      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
+      true,
+    );
+
+    return (
+      (poster?.bucketPath
+        ? this.bucketService.getPublicFileUrl(poster.bucketPath)
+        : undefined) ??
+      (externalFallbackEnabled ? poster?.externalUrl : undefined)
+    );
+  }
+
+  resolvePublishedPostUrl(posts: GigPost[]): Promise<string | undefined> {
+    const publishedPost = this.telegramService.pickTgPost(
+      posts,
+      PostType.Publish,
+    );
+
+    return this.getPostUrl({
+      postId: publishedPost?.id,
+      chatId: publishedPost?.chatId,
+    });
   }
 
   async updateGigByPublicId(
@@ -358,38 +423,24 @@ export class GigService {
   }
 
   /** Full gig form fields by public id (any status). */
-  async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
-    const gig = await this.getGigByPublicIdOrThrow(publicId);
+  async getGigByPublicId(publicId: string): Promise<PlainGig> {
+    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    const gig = await this.gigModel.findOne({ publicId: id }).lean().exec();
+    if (!gig) {
+      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+    }
+    return gig;
+  }
 
-    const externalFallbackEnabled = envBool(
-      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
-      true,
-    );
-
-    const msToYmd = (ms?: number): string | undefined => {
-      if (!ms) return undefined;
-      const d = new Date(ms);
-      if (Number.isNaN(d.getTime())) return undefined;
-      return d.toISOString().slice(0, 10);
-    };
-
-    const posterUrl =
-      (gig.poster?.bucketPath
-        ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
-        : undefined) ??
-      (externalFallbackEnabled ? gig.poster?.externalUrl : undefined);
-
-    return {
-      publicId: gig.publicId,
-      title: gig.title,
-      date: msToYmd(gig.date) ?? '',
-      endDate: msToYmd(gig.endDate),
-      city: gig.city,
-      country: gig.country,
-      venue: gig.venue,
-      ticketsUrl: gig.ticketsUrl,
-      posterUrl,
-    };
+  async getGigById(gigId: GigId): Promise<PlainGig> {
+    if (!Types.ObjectId.isValid(gigId)) {
+      throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
+    }
+    const gig = await this.gigModel.findById(gigId).lean().exec();
+    if (!gig) {
+      throw new NotFoundException(`Gig with ID ${gigId} not found`);
+    }
+    return gig;
   }
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
@@ -431,15 +482,7 @@ export class GigService {
 
     const mapped: V1GetGigsResponseBody['gigs'] = [];
     for (const gig of gigs) {
-      const publishedPost = this.telegramService.pickTgPost(
-        gig.posts,
-        PostType.Publish,
-      );
-
-      const postUrl = await this.getPostUrl({
-        postId: publishedPost?.id,
-        chatId: publishedPost?.chatId,
-      });
+      const postUrl = await this.resolvePublishedPostUrl(gig.posts);
 
       const calendarPayload = this.gigToCalendarPayload(gig);
       const calendarUrl =

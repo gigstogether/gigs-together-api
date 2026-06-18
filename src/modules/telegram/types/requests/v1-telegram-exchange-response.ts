@@ -1,7 +1,7 @@
 import type {
   AuthClientProfile,
   AuthClientProfileResponseBody,
-} from '../../../../shared/types/auth-client-profile.types';
+} from '../../../auth/types/auth-client-profile.types';
 
 /**
  * Same shape as {@link AuthClientProfile}; kept for Telegram route naming in API docs.
