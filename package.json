@@ -6,6 +6,9 @@
   "author": "Arina M",
   "license": "UNLICENSED",
   "packageManager": "npm@11.10.1",
+  "engines": {
+    "node": "22.22.3"
+  },
   "scripts": {
     "start:dev": "cross-env NODE_ENV=dev nest start --watch",
     "start:debug": "nest start --debug --watch",
