@@ -25,19 +25,26 @@ interface EditSubmissionFeedbackPayload {
   url?: string;
 }
 
-interface HandleAfterPublishPayload {
-  suggestedBy: PlainGig['suggestedBy'];
+interface UpdateModerationPostAfterGigPublishedPayload {
   moderationPost: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };
-  publishPost: {
+  title: string;
+  publicId?: string;
+  publishPost?: {
     chatId: TGChatId;
     username: TGChat['username'];
     messageId: TGMessage['message_id'];
   };
+}
+
+interface UpdatePublishedSubmissionFeedbackPayload {
+  suggestedBy: PlainGig['suggestedBy'];
   title: string;
-  publicId?: string;
+  publicId: string;
+  country: string;
+  city: string;
 }
 
 interface WeeklyDigestMainChannelPublishResult {
@@ -235,17 +242,20 @@ export class TelegramService {
     );
   }
 
-  async handleAfterPublish(payload: HandleAfterPublishPayload): Promise<void> {
-    const { suggestedBy, moderationPost, publishPost, title, publicId } =
-      payload;
+  async updateModerationPostAfterGigPublished(
+    payload: UpdateModerationPostAfterGigPublishedPayload,
+  ): Promise<void> {
+    const { moderationPost, publishPost, title, publicId } = payload;
     const editGigUrl = publicId
       ? this.telegramPostComposer.buildEditGigUrl(publicId)
       : undefined;
 
-    const publishPostChatIdUrl = this.telegramPostComposer.getPostUrl({
-      messageId: publishPost.messageId,
-      chatId: publishPost.chatId,
-    });
+    const publishPostChatIdUrl = publishPost
+      ? this.telegramPostComposer.getPostUrl({
+          messageId: publishPost.messageId,
+          chatId: publishPost.chatId,
+        })
+      : undefined;
 
     const replyMarkup =
       this.telegramPostComposer.buildAfterPublishModerationReplyMarkup({
@@ -253,9 +263,8 @@ export class TelegramService {
         editGigUrl,
       });
 
-    // Clean moderation post caption; optional 🔗 Post / ✏️ Edit row comes from composer markup.
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
-    // so the poster will remain, but the caption/text will be cleaned.
+    // so the poster will remain, but the caption/text will be edited.
     await this.telegramBotClient.editMessageCaption({
       chatId: moderationPost.chatId,
       messageId: moderationPost.messageId,
@@ -264,21 +273,32 @@ export class TelegramService {
       disableWebPagePreview: true,
       replyMarkup,
     });
+  }
 
-    const publishPostUsernameUrl = this.telegramPostComposer.getPostUrl({
-      chatUsername: publishPost.username,
-      messageId: publishPost.messageId,
+  async updatePublishedSubmissionFeedback(
+    payload: UpdatePublishedSubmissionFeedbackPayload,
+  ): Promise<void> {
+    const { suggestedBy, title, publicId, country, city } = payload;
+
+    if (suggestedBy.feedbackMessageId == null) {
+      return;
+    }
+
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const gigUrl = this.telegramPostComposer.buildGigPermalink({
+      baseUrl: appBaseUrl,
+      publicId,
+      country,
+      city,
     });
 
-    if (suggestedBy.feedbackMessageId != null) {
-      await this.editSubmissionFeedback({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        title,
-        status: 'Published',
-        url: publishPostUsernameUrl,
-      });
-    }
+    await this.editSubmissionFeedback({
+      chatId: suggestedBy.userId,
+      messageId: suggestedBy.feedbackMessageId,
+      title,
+      status: 'Published',
+      url: gigUrl,
+    });
   }
 
   async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
@@ -303,18 +323,20 @@ export class TelegramService {
     payload: EditSubmissionFeedbackPayload,
   ): Promise<TGMessage | undefined> {
     const { chatId, messageId, title, status, url } = payload;
+
     if (!chatId || messageId == null) {
       return Promise.resolve(undefined);
     }
+
+    const replyMarkup = url
+      ? { inline_keyboard: [[{ text: '🔗 Gig', url }]] }
+      : undefined;
 
     return this.telegramBotClient.editMessageCaption({
       chatId,
       messageId,
       caption: `${title} is ${status}`,
-      replyMarkup:
-        this.telegramPostComposer.buildSubmissionFeedbackPostLinkReplyMarkup(
-          url,
-        ),
+      replyMarkup,
     });
   }
 

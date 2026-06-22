@@ -620,18 +620,6 @@ export class TelegramPostComposer {
     };
   }
 
-  buildSubmissionFeedbackPostLinkReplyMarkup(
-    postUrl?: string,
-  ): TGInlineKeyboardMarkup | undefined {
-    if (!postUrl) {
-      return undefined;
-    }
-
-    return {
-      inline_keyboard: [[{ text: '🔗 Post', url: postUrl }]],
-    };
-  }
-
   composeSubmissionFeedbackPost(gig: PlainGig, chatId: TGChatId): TGSendPhoto {
     const statusForUser = 'Pending';
 

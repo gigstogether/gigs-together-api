@@ -57,21 +57,62 @@ export class GigModerationService {
 
     const updatedGig = await this.gigService.updateGigStatus(
       gigId,
-      Status.Approved,
+      Status.Published,
     );
-    const tgPublishPost = await this.telegramService.publishMain(updatedGig);
+    this.logger.log(`Gig #${gigPublicId} (${gigId}) approved and published`);
 
+    await this.feedRevalidateService.revalidateFeed({
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+
+    if (moderationPost) {
+      await this.telegramService.updateModerationPostAfterGigPublished({
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        moderationPost,
+      });
+    } else {
+      this.logger.warn(
+        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
+      );
+    }
+
+    await this.telegramService.updatePublishedSubmissionFeedback({
+      suggestedBy: updatedGig.suggestedBy,
+      title: updatedGig.title,
+      publicId: updatedGig.publicId,
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+
+    const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
+    await this.calendarService.addEvent(calendarGig);
+  }
+
+  async publishGigPost(params: ModerateGigParams): Promise<void> {
+    const gig = await this.getGig(params);
+    const gigId = gig._id.toString();
+    const moderationPost =
+      params.moderationPost ?? this.resolveModerationPostRef(gig.posts);
+
+    this.assertCanPublishPost(gig.status, gig.posts);
+
+    const tgPublishPost = await this.telegramService.publishMain(gig);
     const publishedChatId =
       tgPublishPost?.sender_chat?.id ?? tgPublishPost?.chat?.id;
     const publishedMessageId = tgPublishPost?.message_id;
-    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost?.photo); // but should be the same as in moderation one
+
+    if (!tgPublishPost || !publishedChatId || !publishedMessageId) {
+      throw new BadRequestException(
+        `publishMain returned no Telegram message for gig ${gigId}`,
+      );
+    }
+
+    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost.photo); // but should be the same as in moderation one
 
     const updateGigPayload: UpdateQuery<Gig> = {
-      status: Status.Published,
-    };
-
-    if (tgPublishPost && publishedChatId && publishedMessageId) {
-      updateGigPayload.$push = {
+      $push: {
         posts: {
           id: publishedMessageId,
           chatId: publishedChatId,
@@ -80,23 +121,15 @@ export class GigModerationService {
           type: PostType.Publish,
           date: tgPublishPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
         },
-      };
-    }
+      },
+    };
 
     await this.gigService.updateGig(gigId, updateGigPayload);
-    this.logger.log(`Gig #${gigPublicId} (${gigId}) approved`);
 
-    // Optional: update the feed cache on the frontend (ISR on-demand).
-    await this.feedRevalidateService.revalidateFeed({
-      country: updatedGig.country,
-      city: updatedGig.city,
-    });
-
-    if (tgPublishPost && moderationPost) {
-      await this.telegramService.handleAfterPublish({
-        title: updatedGig.title,
-        publicId: updatedGig.publicId,
-        suggestedBy: updatedGig.suggestedBy,
+    if (moderationPost) {
+      await this.telegramService.updateModerationPostAfterGigPublished({
+        title: gig.title,
+        publicId: gig.publicId,
         moderationPost,
         publishPost: {
           username: tgPublishPost.chat.username,
@@ -104,18 +137,11 @@ export class GigModerationService {
           messageId: tgPublishPost.message_id,
         },
       });
-    } else if (tgPublishPost && !moderationPost) {
-      this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping handleAfterPublish`,
-      );
     } else {
       this.logger.warn(
-        `publishMain returned no Telegram message for gig ${gigId}; skipping handleAfterPublish`,
+        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
       );
     }
-
-    const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
-    await this.calendarService.addEvent(calendarGig);
   }
 
   async rejectGig(params: ModerateGigParams): Promise<void> {
@@ -173,6 +199,22 @@ export class GigModerationService {
   private assertCanApprove(status: Status): void {
     if (status === Status.Published) {
       throw new BadRequestException('Gig is already published');
+    }
+  }
+
+  private assertCanPublishPost(
+    status: Status,
+    posts: GigPost[] | undefined,
+  ): void {
+    // TODO: naming is confusing, consider changing either Published status or "publish" post
+    if (status !== Status.Published) {
+      throw new BadRequestException(
+        'Gig must be published before publishing main post',
+      );
+    }
+
+    if (this.telegramService.pickTgPost(posts, PostType.Publish)) {
+      throw new BadRequestException('Gig main post is already published');
     }
   }
 

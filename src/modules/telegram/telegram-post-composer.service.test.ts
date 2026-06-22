@@ -122,24 +122,6 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('buildSubmissionFeedbackPostLinkReplyMarkup', () => {
-    it('should return undefined when post URL is missing', () => {
-      expect(
-        composer.buildSubmissionFeedbackPostLinkReplyMarkup(undefined),
-      ).toBeUndefined();
-    });
-
-    it('should build Post url button when post URL is provided', () => {
-      expect(
-        composer.buildSubmissionFeedbackPostLinkReplyMarkup(
-          'https://t.me/ch/77',
-        ),
-      ).toEqual({
-        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/ch/77' }]],
-      });
-    });
-  });
-
   describe('buildGigPermalink', () => {
     it('should build feed URL with lowercased country and city and hash publicId', () => {
       const input: BuildGigPermalinkPayload = {

@@ -51,7 +51,8 @@ describe('GigModerationService', () => {
   const telegramServiceMock = {
     pickTgPost: vi.fn(),
     publishMain: vi.fn(),
-    handleAfterPublish: vi.fn(),
+    updateModerationPostAfterGigPublished: vi.fn(),
+    updatePublishedSubmissionFeedback: vi.fn(),
     handlePostReject: vi.fn(),
   };
 
@@ -65,6 +66,16 @@ describe('GigModerationService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    telegramServiceMock.pickTgPost.mockImplementation((posts, type) =>
+      posts?.find((post) => {
+        return (
+          post.to === Messenger.Telegram &&
+          post.type === type &&
+          post.chatId != null &&
+          post.id != null
+        );
+      }),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -83,20 +94,13 @@ describe('GigModerationService', () => {
   });
 
   describe('approveGig', () => {
-    it('should publish gig and update telegram moderation post when moderation post is linked', async () => {
+    it('should mark gig as published and update moderation side effects when moderation post is linked', async () => {
       const gigId = '507f1f77bcf86cd799439011';
       const gigBeforeUpdate = buildGigDocument();
-      const approvedGig = buildGigDocument({ status: Status.Approved });
-      const publishPost = {
-        message_id: 99,
-        chat: { id: -100456, username: 'gigschannel' },
-        date: 1_748_697_600,
-      };
+      const publishedGig = buildGigDocument({ status: Status.Published });
 
       gigServiceMock.getGigById.mockResolvedValue(gigBeforeUpdate);
-      telegramServiceMock.pickTgPost.mockReturnValue(gigBeforeUpdate.posts[0]);
-      gigServiceMock.updateGigStatus.mockResolvedValue(approvedGig);
-      telegramServiceMock.publishMain.mockResolvedValue(publishPost);
+      gigServiceMock.updateGigStatus.mockResolvedValue(publishedGig);
       gigServiceMock.gigToCalendarPayload.mockReturnValue({
         title: 'Radiohead',
       });
@@ -107,22 +111,24 @@ describe('GigModerationService', () => {
       expect(gigServiceMock.getGigByPublicId).not.toHaveBeenCalled();
       expect(gigServiceMock.updateGigStatus).toHaveBeenCalledWith(
         gigId,
-        Status.Approved,
+        Status.Published,
       );
-      expect(telegramServiceMock.publishMain).toHaveBeenCalledWith(approvedGig);
-      expect(gigServiceMock.updateGig).toHaveBeenCalledWith(
-        gigId,
-        expect.objectContaining({ status: Status.Published }),
-      );
+      expect(telegramServiceMock.publishMain).not.toHaveBeenCalled();
+      expect(gigServiceMock.updateGig).not.toHaveBeenCalled();
       expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
         country: 'ES',
         city: 'barcelona',
       });
-      expect(telegramServiceMock.handleAfterPublish).toHaveBeenCalledWith(
+      expect(
+        telegramServiceMock.updateModerationPostAfterGigPublished,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
           moderationPost: { chatId: -100123, messageId: 42 },
         }),
       );
+      expect(
+        telegramServiceMock.updatePublishedSubmissionFeedback,
+      ).not.toHaveBeenCalled();
       expect(calendarServiceMock.addEvent).toHaveBeenCalledWith({
         title: 'Radiohead',
       });
@@ -130,12 +136,10 @@ describe('GigModerationService', () => {
 
     it('should load gig by publicId when admin path is used', async () => {
       const gigBeforeUpdate = buildGigDocument();
-      const approvedGig = buildGigDocument({ status: Status.Approved });
+      const publishedGig = buildGigDocument({ status: Status.Published });
 
       gigServiceMock.getGigByPublicId.mockResolvedValue(gigBeforeUpdate);
-      telegramServiceMock.pickTgPost.mockReturnValue(undefined);
-      gigServiceMock.updateGigStatus.mockResolvedValue(approvedGig);
-      telegramServiceMock.publishMain.mockResolvedValue(undefined);
+      gigServiceMock.updateGigStatus.mockResolvedValue(publishedGig);
       gigServiceMock.gigToCalendarPayload.mockReturnValue({
         title: 'Radiohead',
       });
@@ -148,7 +152,7 @@ describe('GigModerationService', () => {
       expect(gigServiceMock.getGigById).not.toHaveBeenCalled();
       expect(gigServiceMock.updateGigStatus).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
-        Status.Approved,
+        Status.Published,
       );
     });
 
@@ -161,6 +165,99 @@ describe('GigModerationService', () => {
         service.approveGig({ gigId: '507f1f77bcf86cd799439011' }),
       ).rejects.toMatchObject({
         message: 'Gig is already published',
+      });
+    });
+  });
+
+  describe('publishGigPost', () => {
+    it('should publish main telegram post and persist publish post metadata', async () => {
+      const gigId = '507f1f77bcf86cd799439011';
+      const publishedGig = buildGigDocument({ status: Status.Published });
+      const publishPost = {
+        message_id: 99,
+        chat: { id: -100456, username: 'gigschannel' },
+        date: 1_748_697_600,
+      };
+
+      gigServiceMock.getGigById.mockResolvedValue(publishedGig);
+      telegramServiceMock.publishMain.mockResolvedValue(publishPost);
+      gigServiceMock.updateGig.mockResolvedValue(publishedGig);
+
+      await service.publishGigPost({ gigId });
+
+      expect(gigServiceMock.getGigById).toHaveBeenCalledWith(gigId);
+      expect(telegramServiceMock.publishMain).toHaveBeenCalledWith(
+        publishedGig,
+      );
+      expect(gigServiceMock.updateGig).toHaveBeenCalledWith(
+        gigId,
+        expect.objectContaining({
+          $push: expect.objectContaining({
+            posts: expect.objectContaining({
+              id: 99,
+              chatId: -100456,
+              to: Messenger.Telegram,
+              type: PostType.Publish,
+            }),
+          }),
+        }),
+      );
+      expect(
+        telegramServiceMock.updateModerationPostAfterGigPublished,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          moderationPost: { chatId: -100123, messageId: 42 },
+          publishPost: {
+            chatId: -100456,
+            messageId: 99,
+            username: 'gigschannel',
+          },
+        }),
+      );
+      expect(
+        telegramServiceMock.updatePublishedSubmissionFeedback,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Radiohead',
+          publicId: 'radiohead-barcelona-2026-06-12',
+          country: 'ES',
+          city: 'barcelona',
+        }),
+      );
+    });
+
+    it('should throw when gig is not yet published in feed', async () => {
+      gigServiceMock.getGigById.mockResolvedValue(
+        buildGigDocument({ status: Status.Pending }),
+      );
+
+      await expect(
+        service.publishGigPost({ gigId: '507f1f77bcf86cd799439011' }),
+      ).rejects.toMatchObject({
+        message: 'Gig must be published before publishing main post',
+      });
+    });
+
+    it('should throw when main telegram post already exists', async () => {
+      const publishPost = {
+        to: Messenger.Telegram,
+        type: PostType.Publish,
+        chatId: -100456,
+        id: 99,
+        date: new Date('2026-06-01T10:00:00.000Z').getTime(),
+      };
+
+      gigServiceMock.getGigById.mockResolvedValue(
+        buildGigDocument({
+          status: Status.Published,
+          posts: [publishPost],
+        }),
+      );
+
+      await expect(
+        service.publishGigPost({ gigId: '507f1f77bcf86cd799439011' }),
+      ).rejects.toMatchObject({
+        message: 'Gig main post is already published',
       });
     });
   });
