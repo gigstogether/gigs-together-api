@@ -1,7 +1,7 @@
 import type {
   TelegramAccessTokenIdentity,
   TelegramIdentitySnapshot,
-} from '../../../shared/types/access-token-identity.types';
+} from '../../auth/types/access-token-identity.types';
 import type { TGUser } from '../types/user.types';
 
 /**

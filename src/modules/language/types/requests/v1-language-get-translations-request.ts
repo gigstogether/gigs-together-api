@@ -1,4 +1,3 @@
-import type { LanguageIso } from '../language.types';
 import type { TranslationFormat } from '../../translation.schema';
 
 export interface V1LanguageGetTranslationsRequest {
@@ -20,7 +19,7 @@ export interface V1LanguageGetTranslationsResponseBody {
    * Effective locale used for the response.
    * May differ from the requested `accept-language` if it's unsupported/inactive.
    */
-  readonly locale: LanguageIso;
+  readonly locale: string;
   /**
    * Grouped by namespace.
    * Translations without an explicit namespace are placed under "default".

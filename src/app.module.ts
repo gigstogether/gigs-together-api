@@ -15,6 +15,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { LocationModule } from './modules/location/location.module';
 import { LanguageModule } from './modules/language/language.module';
 import { DigestModule } from './modules/digest/digest.module';
+import { AdminModule } from './modules/admin/admin.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
@@ -47,6 +48,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     LocationModule,
     LanguageModule,
     DigestModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [

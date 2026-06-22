@@ -1,8 +1,8 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
-import { AccessJwtService } from '../access-jwt.service';
-import { AuthCookiesService } from '../auth-cookies.service';
-import { verifiedAccessTokenToUser } from '../../../shared/mappers/verified-access-token-to-user.mapper';
+import { AuthenticationService } from '../authentication.service';
+import { AuthorizationService } from '../authorization.service';
+import { verifiedAccessTokenToUser } from '../mappers/verified-access-token-to-user.mapper';
 
 /**
  * If an access JWT is present in the HttpOnly cookie, verifies it and sets `req.user`. When absent,
@@ -12,20 +12,20 @@ import { verifiedAccessTokenToUser } from '../../../shared/mappers/verified-acce
 @Injectable()
 export class AccessJwtAuthGuard implements CanActivate {
   constructor(
-    private readonly accessJwtService: AccessJwtService,
-    private readonly authCookiesService: AuthCookiesService,
+    private readonly authenticationService: AuthenticationService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context
       .switchToHttp()
       .getRequest<Request & { cookies?: Record<string, string | undefined> }>();
-    const cookieName = this.authCookiesService.getAccessCookieName();
+    const cookieName = this.authenticationService.getAccessCookieName();
     const token = req.cookies?.[cookieName]?.trim() ?? '';
     if (!token) {
       return true;
     }
-    const verified = await this.accessJwtService.verifyAccessToken(token);
+    const verified = await this.authorizationService.verifyAccessToken(token);
     req.user = verifiedAccessTokenToUser(verified);
     return true;
   }

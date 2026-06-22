@@ -1,23 +1,32 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { Status } from './types/status.enum';
-import { TGMessage } from '../telegram/types/message.types';
-import { TGChat } from '../telegram/types/chat.types';
 import { Messenger } from './types/messenger.enum';
 import { GigSuggestedBy } from './types/gig.types';
 import { PostType } from './types/postType.enum';
 
-interface GigTGPost {
-  id: TGMessage['message_id'];
-  chatId: TGChat['id'];
+@Schema({ _id: false })
+export class GigPost {
+  @Prop({ type: String, enum: Messenger, required: true })
+  to: Messenger;
+
+  @Prop({ type: String, enum: PostType, required: true })
+  type: PostType;
+
+  @Prop({ type: Number, required: true })
+  date: number;
+
+  @Prop({ type: Number, required: true })
+  id: number;
+
+  @Prop({ type: Number, required: true })
+  chatId: number;
+
+  @Prop({ type: String, required: false })
   fileId?: string;
-  to: Messenger.Telegram;
 }
 
-export type GigPost = {
-  to: Messenger;
-  type: PostType;
-} & GigTGPost;
+export const GigPostSchema = SchemaFactory.createForClass(GigPost);
 
 @Schema({ _id: false })
 export class GigPoster {
@@ -83,7 +92,7 @@ export class Gig {
   @Prop({ type: String, enum: Status, default: Status.New })
   status: Status;
 
-  @Prop({ type: Array, required: false, default: [] })
+  @Prop({ type: [GigPostSchema], required: false, default: [] })
   posts: GigPost[];
 
   @Prop({ type: Object, required: true })

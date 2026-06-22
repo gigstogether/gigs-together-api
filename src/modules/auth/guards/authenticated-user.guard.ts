@@ -10,7 +10,7 @@ import {
  * must not be anonymous.
  */
 @Injectable()
-export class RequireAuthenticatedUserGuard implements CanActivate {
+export class AuthenticatedUserGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     if (!req.user) {

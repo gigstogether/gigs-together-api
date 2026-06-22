@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
-import { Admin, AdminSchema } from '../../shared/schemas/admin.schema';
+import { AuthModule } from '../auth/auth.module';
+import { GigModule } from '../gig/gig.module';
+import { LanguageModule } from '../language/language.module';
 import { AdminController } from './admin.controller';
-import { AdminService } from './admin.service';
-import { RequireAdminGuard } from './guards/require-admin.guard';
+import { AdminDashboardService } from './admin-dashboard.service';
+import { AdminGigService } from './admin-gig.service';
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
-  ],
+  imports: [AuthModule, GigModule, LanguageModule],
   controllers: [AdminController],
-  providers: [AdminService, RequireAdminGuard],
-  exports: [AdminService, RequireAdminGuard],
+  providers: [AdminDashboardService, AdminGigService],
+  exports: [AdminDashboardService, AdminGigService],
 })
 export class AdminModule {}

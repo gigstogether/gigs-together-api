@@ -1,6 +1,6 @@
 import type { AccessTokenIdentityPayload } from '../types/access-token-identity.types';
 import type { AuthClientProfile } from '../types/auth-client-profile.types';
-import { isRecord } from '../utils/is-record';
+import { isRecord } from '../../../shared/utils/is-record';
 
 /**
  * Builds {@link AuthClientProfile} from a verified access/refresh identity (e.g. after JWT verify).

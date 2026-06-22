@@ -1,13 +1,13 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
-import { AdminService } from '../admin/admin.service';
 import {
   TELEGRAM_INIT_DATA_EXPIRED_CODE,
   TelegramInitDataAuthExpiredError,
 } from './telegram-init-data.errors';
 import { TelegramService } from './telegram.service';
-import type { User } from '../../shared/types/user.types';
+import type { User } from '../auth/types/user.types';
 import type { TGUser } from './types/user.types';
 import type { V1TelegramLoginWidgetBodyDto } from './types/requests/v1-telegram-login-widget-body';
+import { AuthorizationService } from '../auth/authorization.service';
 
 /**
  * Validates Telegram Login Widget callback data and builds a {@link User}.
@@ -16,7 +16,7 @@ import type { V1TelegramLoginWidgetBodyDto } from './types/requests/v1-telegram-
 export class TelegramLoginWidgetAuthService {
   constructor(
     private readonly telegramService: TelegramService,
-    private readonly adminService: AdminService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async resolveUserFromLoginWidget(
@@ -35,7 +35,7 @@ export class TelegramLoginWidgetAuthService {
         ...(dto.photo_url !== undefined ? { photo_url: dto.photo_url } : {}),
       };
 
-      const isAdmin = await this.adminService.isAdmin(tgUser.id);
+      const isAdmin = await this.authorizationService.isAdmin(tgUser.id);
       return { tgUser, isAdmin };
     } catch (e) {
       if (e instanceof TelegramInitDataAuthExpiredError) {

@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
-import type { User } from '../../../shared/types/user.types';
+import type { User } from '../types/user.types';
 import { getAuthenticatedUserFromContext } from './authenticated-user.decorator';
 
 describe('getAuthenticatedUserFromContext', () => {
