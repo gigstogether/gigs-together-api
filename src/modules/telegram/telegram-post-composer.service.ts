@@ -13,7 +13,8 @@ import type {
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import { GigPost, GigPoster } from '../gig/gig.schema';
-import type { GigId, PlainGig } from '../gig/types/gig.types';
+import type { GigId } from '../gig/types/gig.types';
+import type { PlainGig } from '../gig/types/gig.types';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
@@ -85,8 +86,15 @@ export interface GetPostUrlPayload {
 }
 
 export interface BuildAfterPublishModerationReplyMarkupParams {
+  readonly gigId?: GigId;
   readonly publishPostUrl?: string;
   readonly editGigUrl?: string;
+}
+
+export interface BuildPublishedModerationCaptionPayload {
+  readonly title: string;
+  readonly gigUrl?: string;
+  readonly publishPostUrl?: string;
 }
 
 interface ComposedText {
@@ -587,11 +595,17 @@ export class TelegramPostComposer {
   buildAfterPublishModerationReplyMarkup(
     params: BuildAfterPublishModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup | undefined {
-    const { publishPostUrl, editGigUrl } = params;
-    const row: { text: string; url: string }[] = [];
+    const { gigId, publishPostUrl, editGigUrl } = params;
 
-    if (publishPostUrl) {
-      row.push({ text: '🔗 Post', url: publishPostUrl });
+    const row: Array<
+      { text: string; url: string } | { text: string; callback_data: string }
+    > = [];
+
+    if (!publishPostUrl && gigId !== undefined) {
+      row.push({
+        text: 'Post',
+        callback_data: `${Action.Post}:${String(gigId)}`,
+      });
     }
     if (editGigUrl) {
       row.push({ text: '✏️ Edit', url: editGigUrl });
@@ -602,6 +616,23 @@ export class TelegramPostComposer {
     }
 
     return { inline_keyboard: [row] };
+  }
+
+  buildPublishedModerationCaption(
+    payload: BuildPublishedModerationCaptionPayload,
+  ): string {
+    const linkLines = [
+      payload.gigUrl ? `<a href="${payload.gigUrl}">Feed</a>` : undefined,
+      payload.publishPostUrl
+        ? `<a href="${payload.publishPostUrl}">Post</a>`
+        : undefined,
+    ].filter((line): line is string => line !== undefined);
+
+    if (linkLines.length === 0) {
+      return payload.title;
+    }
+
+    return [payload.title, '', ...linkLines].join('\n');
   }
 
   buildRejectedModerationReplyMarkup(gigId: GigId): TGInlineKeyboardMarkup {

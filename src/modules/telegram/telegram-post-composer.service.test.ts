@@ -74,36 +74,62 @@ describe('TelegramPostComposer', () => {
   });
 
   describe('buildAfterPublishModerationReplyMarkup', () => {
-    it('should return undefined when neither publish nor edit URL is provided', () => {
-      expect(
-        composer.buildAfterPublishModerationReplyMarkup({}),
-      ).toBeUndefined();
-    });
-
-    it('should return one-row keyboard with Post and Edit when both URLs are provided', () => {
+    it('should return publish callback and edit URL when main post is not published yet', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
-          publishPostUrl: 'https://t.me/c/1/9',
+          gigId: 'gig-a',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
         inline_keyboard: [
           [
-            { text: '🔗 Post', url: 'https://t.me/c/1/9' },
+            {
+              text: 'Post',
+              callback_data: `${Action.Post}:gig-a`,
+            },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
           ],
         ],
       });
     });
 
-    it('should include only Post button when edit URL is missing', () => {
+    it('should remove publish button after main post is published', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
+          gigId: 'gig-a',
           publishPostUrl: 'https://t.me/x/1',
+          editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
-        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/x/1' }]],
+        inline_keyboard: [
+          [{ text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' }],
+        ],
       });
+    });
+  });
+
+  describe('buildPublishedModerationCaption', () => {
+    it('should include feed link after gig is published', () => {
+      expect(
+        composer.buildPublishedModerationCaption({
+          title: 'Concert',
+          gigUrl: 'https://app.example/feed/es/bcn#concert',
+        }),
+      ).toBe(
+        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Gig in feed</a>',
+      );
+    });
+
+    it('should include Telegram post link when main post is published', () => {
+      expect(
+        composer.buildPublishedModerationCaption({
+          title: 'Concert',
+          gigUrl: 'https://app.example/feed/es/bcn#concert',
+          publishPostUrl: 'https://t.me/gigs/42',
+        }),
+      ).toBe(
+        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Gig in feed</a>\n<a href="https://t.me/gigs/42">Telegram post</a>',
+      );
     });
   });
 

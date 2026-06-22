@@ -68,8 +68,11 @@ export class GigModerationService {
 
     if (moderationPost) {
       await this.telegramService.updateModerationPostAfterGigPublished({
+        gigId,
         title: updatedGig.title,
         publicId: updatedGig.publicId,
+        country: updatedGig.country,
+        city: updatedGig.city,
         moderationPost,
       });
     } else {
@@ -128,11 +131,13 @@ export class GigModerationService {
 
     if (moderationPost) {
       await this.telegramService.updateModerationPostAfterGigPublished({
+        gigId,
         title: gig.title,
         publicId: gig.publicId,
+        country: gig.country,
+        city: gig.city,
         moderationPost,
         publishPost: {
-          username: tgPublishPost.chat.username,
           chatId: tgPublishPost.chat.id,
           messageId: tgPublishPost.message_id,
         },

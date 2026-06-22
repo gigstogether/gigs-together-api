@@ -7,6 +7,7 @@ import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
+import type { GigId } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
 import {
   TelegramPostComposer,
@@ -30,11 +31,13 @@ interface UpdateModerationPostAfterGigPublishedPayload {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };
+  gigId: GigId;
   title: string;
-  publicId?: string;
+  publicId: string;
+  country: string;
+  city: string;
   publishPost?: {
     chatId: TGChatId;
-    username: TGChat['username'];
     messageId: TGMessage['message_id'];
   };
 }
@@ -245,10 +248,24 @@ export class TelegramService {
   async updateModerationPostAfterGigPublished(
     payload: UpdateModerationPostAfterGigPublishedPayload,
   ): Promise<void> {
-    const { moderationPost, publishPost, title, publicId } = payload;
-    const editGigUrl = publicId
-      ? this.telegramPostComposer.buildEditGigUrl(publicId)
-      : undefined;
+    const {
+      moderationPost,
+      publishPost,
+      title,
+      publicId,
+      country,
+      city,
+      gigId,
+    } = payload;
+
+    const editGigUrl = this.telegramPostComposer.buildEditGigUrl(publicId);
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const gigUrl = this.telegramPostComposer.buildGigPermalink({
+      baseUrl: appBaseUrl,
+      publicId,
+      country,
+      city,
+    });
 
     const publishPostChatIdUrl = publishPost
       ? this.telegramPostComposer.getPostUrl({
@@ -259,16 +276,23 @@ export class TelegramService {
 
     const replyMarkup =
       this.telegramPostComposer.buildAfterPublishModerationReplyMarkup({
+        gigId,
         publishPostUrl: publishPostChatIdUrl,
         editGigUrl,
       });
+
+    const caption = this.telegramPostComposer.buildPublishedModerationCaption({
+      title,
+      gigUrl,
+      publishPostUrl: publishPostChatIdUrl,
+    });
 
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
     // so the poster will remain, but the caption/text will be edited.
     await this.telegramBotClient.editMessageCaption({
       chatId: moderationPost.chatId,
       messageId: moderationPost.messageId,
-      caption: title,
+      caption,
       parseMode: TGParseMode.HTML,
       disableWebPagePreview: true,
       replyMarkup,

@@ -134,6 +134,16 @@ export class ReceiverService {
         });
         break;
       }
+      case Action.Post: {
+        await this.gigModerationService.publishGigPost({
+          gigId: callbackPayload,
+          moderationPost: {
+            messageId: message.message_id,
+            chatId: message.chat.id,
+          },
+        });
+        break;
+      }
       case Action.Reject: {
         await this.gigModerationService.rejectGig({
           gigId: callbackPayload,
