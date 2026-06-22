@@ -12,8 +12,8 @@ import type {
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import type { TGChat } from './types/chat.types';
-import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
-import type { GigId } from '../gig/types/gig.types';
+import { GigPost, GigPoster } from '../gig/gig.schema';
+import type { GigId, PlainGig } from '../gig/types/gig.types';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
@@ -40,7 +40,7 @@ export enum WeeklyDigestMainChannelSendKind {
 
 export interface ComposeWeeklyDigestParams {
   readonly chatId: TGChatId;
-  readonly gigs: readonly GigDocument[];
+  readonly gigs: readonly PlainGig[];
 }
 
 export type WeeklyDigestMainChannelSendPlan =
@@ -127,7 +127,7 @@ export class TelegramPostComposer {
   }
 
   composeModerationPostEdit(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): TelegramGigPostEditComposition | undefined {
     const post = this.pickTgPost(gig.posts, PostType.Moderation);
@@ -193,7 +193,7 @@ export class TelegramPostComposer {
   }
 
   composeMainPostEdit(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): TelegramGigPostEditComposition | undefined {
     const post = this.pickTgPost(gig.posts, PostType.Publish);
@@ -247,7 +247,7 @@ export class TelegramPostComposer {
     };
   }
 
-  private buildMainPostCaption(gig: GigDocument): string {
+  private buildMainPostCaption(gig: PlainGig): string {
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const url = this.buildGigPermalink({
       baseUrl: appBaseUrl,
@@ -305,9 +305,7 @@ export class TelegramPostComposer {
     });
   }
 
-  formatWeeklyDigestCaptionLines(
-    gigDocs: readonly GigDocument[],
-  ): ComposedText {
+  formatWeeklyDigestCaptionLines(gigDocs: readonly PlainGig[]): ComposedText {
     const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
       weekday: DATE_FORMAT.weekday,
       month: DATE_FORMAT.month,
@@ -322,7 +320,7 @@ export class TelegramPostComposer {
     const GIG_INFO_ITEMS_SEPARATOR = ' • ';
     const TICKETS = 'Tickets';
 
-    const gigs = gigDocs.map((gig: GigDocument) => {
+    const gigs = gigDocs.map((gig: PlainGig) => {
       const dateLabel = formatter.format(new Date(gig.date));
       const endDateLabel = gig.endDate
         ? formatter.format(new Date(gig.endDate))
@@ -376,7 +374,7 @@ export class TelegramPostComposer {
     return { plain: plainText, html: htmlText };
   }
 
-  composeWeeklyDigestCaption(gigs: readonly GigDocument[]): string {
+  composeWeeklyDigestCaption(gigs: readonly PlainGig[]): string {
     const { plain, html } = this.formatWeeklyDigestCaptionLines(gigs);
 
     if (plain.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
@@ -471,7 +469,7 @@ export class TelegramPostComposer {
     };
   }
 
-  getPosterReferenceForDigestAlbum(gig: GigDocument): string | undefined {
+  getPosterReferenceForDigestAlbum(gig: PlainGig): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     return moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
   }
@@ -486,7 +484,7 @@ export class TelegramPostComposer {
     return externalUrl;
   }
 
-  composeMainPost(gig: GigDocument): TGSendPhoto {
+  composeMainPost(gig: PlainGig): TGSendPhoto {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -518,7 +516,7 @@ export class TelegramPostComposer {
     };
   }
 
-  composeModerationPost(gig: GigDocument): TGSendPhoto {
+  composeModerationPost(gig: PlainGig): TGSendPhoto {
     const chatIdRaw = process.env.MODERATION_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -558,7 +556,7 @@ export class TelegramPostComposer {
   }
 
   private buildModerationPostReplyMarkup(
-    gig: GigDocument,
+    gig: PlainGig,
   ): TGInlineKeyboardMarkup {
     const editGigUrl = this.buildEditGigUrl(gig.publicId);
 
@@ -634,10 +632,7 @@ export class TelegramPostComposer {
     };
   }
 
-  composeSubmissionFeedbackPost(
-    gig: GigDocument,
-    chatId: TGChatId,
-  ): TGSendPhoto {
+  composeSubmissionFeedbackPost(gig: PlainGig, chatId: TGChatId): TGSendPhoto {
     const statusForUser = 'Pending';
 
     const replyMarkup = {

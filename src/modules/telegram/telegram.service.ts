@@ -1,13 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { TGMessage, TGSendPhoto, TGChatId } from './types/message.types';
 import { TGParseMode } from './types/message.types';
-import type { GigDocument } from '../gig/gig.schema';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
+import type { PlainGig } from '../gig/types/gig.types';
 import {
   TelegramPostComposer,
   PostEditKind,
@@ -26,7 +26,7 @@ interface EditSubmissionFeedbackPayload {
 }
 
 interface HandleAfterPublishPayload {
-  suggestedBy: GigDocument['suggestedBy'];
+  suggestedBy: PlainGig['suggestedBy'];
   moderationPost: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
@@ -98,7 +98,7 @@ export class TelegramService {
     this.telegramPostComposer.getPostUrl.bind(this.telegramPostComposer);
 
   async editModerationPost(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): Promise<TGMessage | undefined> {
     const composed = this.telegramPostComposer.composeModerationPostEdit(
@@ -124,7 +124,7 @@ export class TelegramService {
    * NOTE: Can optionally update the media (poster) via editMessageMedia.
    */
   async editMainPost(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): Promise<TGMessage | undefined> {
     const composed = this.telegramPostComposer.composeMainPostEdit(gig, opts);
@@ -141,7 +141,7 @@ export class TelegramService {
   }
 
   async publishWeeklyDigestToMainChannel(
-    gigs: readonly GigDocument[],
+    gigs: readonly PlainGig[],
   ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
@@ -220,13 +220,13 @@ export class TelegramService {
     return { postUrl };
   }
 
-  publishMain(gig: GigDocument): Promise<TGMessage | undefined> {
+  publishMain(gig: PlainGig): Promise<TGMessage | undefined> {
     const composedMainPost: TGSendPhoto =
       this.telegramPostComposer.composeMainPost(gig);
     return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
   }
 
-  async sendToModeration(gig: GigDocument): Promise<TGMessage | undefined> {
+  async sendToModeration(gig: PlainGig): Promise<TGMessage | undefined> {
     const composedModerationPost: TGSendPhoto =
       this.telegramPostComposer.composeModerationPost(gig);
     return this.telegramBotClient.sendPhoto(
@@ -319,7 +319,7 @@ export class TelegramService {
   }
 
   async sendSubmissionFeedback(
-    gig: GigDocument,
+    gig: PlainGig,
     chatId: TGChatId,
   ): Promise<TGMessage | undefined> {
     const composedSubmissionFeedbackPost: TGSendPhoto =
