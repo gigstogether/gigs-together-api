@@ -237,7 +237,7 @@ export class GigService {
       suggestedBy: {
         userId: user.tgUser.id,
         username: user.tgUser.username,
-        name: [user.tgUser.firstName, user.tgUser.lastName]
+        name: [user.tgUser.first_name, user.tgUser.last_name]
           .filter(Boolean)
           .join(' '),
       },

@@ -4,7 +4,12 @@ import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
+import type { TGCallbackQuery } from '../telegram/types/update.types';
+import { Action } from '../telegram/types/action.enum';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { Messenger } from '../gig/types/messenger.enum';
+import { PostType } from '../gig/types/postType.enum';
+import { Status } from '../gig/types/status.enum';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -13,22 +18,28 @@ describe('ReceiverService', () => {
     sendMessage: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
+    editMainPost: vi.fn(),
     publishDraft: vi.fn(),
     publishMain: vi.fn(),
     publishToChat: vi.fn(),
     buildGigStatusReplyMarkup: vi.fn(),
+    pickTgPost: vi.fn(),
     sendToModeration: vi.fn(),
     sendSubmissionFeedback: vi.fn(),
+    updateModerationPostAfterGigPublished: vi.fn(),
   };
 
   const mockGigService = {
     saveGig: vi.fn(),
     updateGig: vi.fn(),
+    updateGigByPublicId: vi.fn(),
+    updateTelegramPostFileId: vi.fn(),
     updateGigStatus: vi.fn(),
   };
 
   const mockGigModerationService = {
     approveGig: vi.fn(),
+    publishGigPost: vi.fn(),
     rejectGig: vi.fn(),
   };
 
@@ -56,6 +67,19 @@ describe('ReceiverService', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  beforeEach(() => {
+    mockTelegramService.pickTgPost.mockImplementation((posts, type) =>
+      posts?.find((post) => {
+        return (
+          post.to === Messenger.Telegram &&
+          post.type === type &&
+          post.chatId != null &&
+          post.id != null
+        );
+      }),
+    );
   });
 
   it('should be defined', () => {
@@ -151,8 +175,8 @@ describe('ReceiverService', () => {
           tgUser: {
             id: 12345,
             username: 'admin',
-            firstName: 'Admin',
-            lastName: 'User',
+            first_name: 'Admin',
+            last_name: 'User',
           },
           isAdmin: false,
         },
@@ -185,8 +209,8 @@ describe('ReceiverService', () => {
           tgUser: {
             id: 12345,
             username: 'admin',
-            firstName: 'Admin',
-            lastName: 'User',
+            first_name: 'Admin',
+            last_name: 'User',
           },
           isAdmin: true,
         },
@@ -195,6 +219,93 @@ describe('ReceiverService', () => {
 
       expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
       expect(mockTelegramService.sendSubmissionFeedback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleCallbackQuery', () => {
+    it('should publish main Telegram post when publish callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-1',
+        data: `${Action.Post}:507f1f77bcf86cd799439011`,
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      mockGigModerationService.publishGigPost.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigModerationService.publishGigPost).toHaveBeenCalledWith({
+        gigId: '507f1f77bcf86cd799439011',
+        moderationPost: {
+          messageId: 42,
+          chatId: -100123,
+        },
+      });
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-1',
+        text: 'Done!',
+        show_alert: false,
+      });
+    });
+  });
+
+  describe('updateGigByPublicId', () => {
+    it('should edit main post for published gig before updating publish fileId', async () => {
+      const updatedGig = {
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'radiohead-barcelona-2026-06-12',
+        title: 'Radiohead',
+        date: '2026-06-12',
+        city: 'barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+        status: Status.Published,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: -100123,
+            id: 42,
+            date: 1_780_000_000_000,
+          },
+        ],
+      };
+
+      mockGigService.updateGigByPublicId.mockResolvedValue(updatedGig);
+      mockTelegramService.editMainPost.mockResolvedValue(undefined);
+
+      await service.updateGigByPublicId({
+        publicId: 'radiohead-barcelona-2026-06-12',
+        body: {
+          gig: {
+            title: 'Radiohead',
+            date: '2026-06-12',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Palau Sant Jordi',
+            ticketsUrl: 'https://tickets.example/radiohead',
+          },
+        },
+        posterFile: undefined,
+      });
+
+      expect(mockTelegramService.editMainPost).toHaveBeenCalledWith(
+        updatedGig,
+        {
+          updateMedia: false,
+        },
+      );
     });
   });
 });

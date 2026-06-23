@@ -116,7 +116,7 @@ describe('TelegramPostComposer', () => {
           gigUrl: 'https://app.example/feed/es/bcn#concert',
         }),
       ).toBe(
-        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Gig in feed</a>',
+        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Feed</a>',
       );
     });
 
@@ -128,7 +128,7 @@ describe('TelegramPostComposer', () => {
           publishPostUrl: 'https://t.me/gigs/42',
         }),
       ).toBe(
-        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Gig in feed</a>\n<a href="https://t.me/gigs/42">Telegram post</a>',
+        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Feed</a>\n<a href="https://t.me/gigs/42">Post</a>',
       );
     });
   });
