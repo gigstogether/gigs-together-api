@@ -159,6 +159,7 @@ describe('ReceiverService', () => {
       });
       mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
       mockGigService.updateGig.mockResolvedValueOnce(undefined);
+      mockTelegramService.sendSubmissionFeedback.mockClear();
 
       const result = await service.handleGigSubmit(
         {

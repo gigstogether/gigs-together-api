@@ -134,10 +134,7 @@ describe('GigModerationService', () => {
         telegramServiceMock.updatePublishedSubmissionFeedback,
       ).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: 'Radiohead',
-          publicId: 'radiohead-barcelona-2026-06-12',
-          country: 'ES',
-          city: 'barcelona',
+          gig: publishedGig,
         }),
       );
       expect(calendarServiceMock.addEvent).toHaveBeenCalledWith({
@@ -287,6 +284,7 @@ describe('GigModerationService', () => {
       );
       expect(telegramServiceMock.handlePostReject).toHaveBeenCalledWith(
         expect.objectContaining({
+          gig: rejectedGig,
           moderationMessage: { chatId: -100123, messageId: 42 },
         }),
       );

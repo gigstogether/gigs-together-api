@@ -9,6 +9,7 @@ import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
 import type { GigId } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
 import {
   TelegramPostComposer,
   PostEditKind,
@@ -19,10 +20,10 @@ import {
 export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
 
 interface EditSubmissionFeedbackPayload {
+  gig: PlainGig;
   chatId: TGChatId;
   messageId: number;
-  title: string;
-  status: string;
+  status: Status.Pending | Status.Published | Status.Rejected;
   url?: string;
 }
 
@@ -43,11 +44,15 @@ interface UpdateModerationPostAfterGigPublishedPayload {
 }
 
 interface UpdatePublishedSubmissionFeedbackPayload {
-  suggestedBy: PlainGig['suggestedBy'];
-  title: string;
-  publicId: string;
-  country: string;
-  city: string;
+  gig: PlainGig;
+}
+
+interface HandlePostRejectPayload {
+  gig: PlainGig;
+  moderationMessage: {
+    chatId: TGChatId;
+    messageId: TGMessage['message_id'];
+  };
 }
 
 interface WeeklyDigestMainChannelPublishResult {
@@ -302,7 +307,8 @@ export class TelegramService {
   async updatePublishedSubmissionFeedback(
     payload: UpdatePublishedSubmissionFeedbackPayload,
   ): Promise<void> {
-    const { suggestedBy, title, publicId, country, city } = payload;
+    const { gig } = payload;
+    const { suggestedBy, publicId, country, city } = gig;
 
     if (suggestedBy.feedbackMessageId == null) {
       return;
@@ -317,28 +323,44 @@ export class TelegramService {
     });
 
     await this.editSubmissionFeedback({
+      gig,
       chatId: suggestedBy.userId,
       messageId: suggestedBy.feedbackMessageId,
-      title,
-      status: 'Published',
+      status: Status.Published,
       url: gigUrl,
     });
   }
 
-  async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
-    await this.telegramBotClient.editMessageReplyMarkup({
-      chatId: moderationMessage.chatId,
-      messageId: moderationMessage.messageId,
-      replyMarkup:
-        this.telegramPostComposer.buildRejectedModerationReplyMarkup(gigId),
+  async handlePostReject({ gig, moderationMessage }: HandlePostRejectPayload) {
+    const editGigUrl = this.telegramPostComposer.buildEditGigUrl(gig.publicId);
+    const replyMarkup =
+      this.telegramPostComposer.buildRejectedModerationReplyMarkup(editGigUrl);
+    const body = this.telegramPostComposer.buildCaption({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+    const caption = this.telegramPostComposer.buildRejectedModerationCaption({
+      body,
     });
 
-    if (suggestedBy.feedbackMessageId != null) {
+    await this.telegramBotClient.editMessageCaption({
+      chatId: moderationMessage.chatId,
+      messageId: moderationMessage.messageId,
+      caption,
+      parseMode: TGParseMode.HTML,
+      disableWebPagePreview: true,
+      replyMarkup,
+    });
+
+    if (gig.suggestedBy.feedbackMessageId != null) {
       await this.editSubmissionFeedback({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        title,
-        status: 'Rejected',
+        gig,
+        chatId: gig.suggestedBy.userId,
+        messageId: gig.suggestedBy.feedbackMessageId,
+        status: Status.Rejected,
       });
     }
   }
@@ -346,21 +368,30 @@ export class TelegramService {
   private editSubmissionFeedback(
     payload: EditSubmissionFeedbackPayload,
   ): Promise<TGMessage | undefined> {
-    const { chatId, messageId, title, status, url } = payload;
+    const { gig, chatId, messageId, status, url } = payload;
 
     if (!chatId || messageId == null) {
       return Promise.resolve(undefined);
     }
 
-    const replyMarkup = url
-      ? { inline_keyboard: [[{ text: '🔗 Gig', url }]] }
-      : undefined;
+    const body = this.telegramPostComposer.buildCaption({
+      url: status === Status.Published ? url : undefined,
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+    const caption = this.telegramPostComposer.buildSubmissionFeedbackCaption({
+      body,
+      status,
+    });
 
     return this.telegramBotClient.editMessageCaption({
       chatId,
       messageId,
-      caption: `${title} is ${status}`,
-      replyMarkup,
+      caption,
+      parseMode: TGParseMode.HTML,
     });
   }
 

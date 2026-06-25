@@ -59,7 +59,7 @@ export class GigModerationService {
       gigId,
       Status.Published,
     );
-    this.logger.log(`Gig #${gigPublicId} (${gigId}) approved and published`);
+    this.logger.log(`Gig ${gigPublicId} (${gigId}) approved and published`);
 
     await this.feedRevalidateService.revalidateFeed({
       country: updatedGig.country,
@@ -82,11 +82,7 @@ export class GigModerationService {
     }
 
     await this.telegramService.updatePublishedSubmissionFeedback({
-      suggestedBy: updatedGig.suggestedBy,
-      title: updatedGig.title,
-      publicId: updatedGig.publicId,
-      country: updatedGig.country,
-      city: updatedGig.city,
+      gig: updatedGig,
     });
 
     const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
@@ -159,14 +155,12 @@ export class GigModerationService {
       gigId,
       Status.Rejected,
     );
-    this.logger.log(`Gig #${gigPublicId} (${gigId}) rejected`);
+    this.logger.log(`Gig ${gigPublicId} (${gigId}) rejected`);
 
     if (moderationPost) {
       await this.telegramService.handlePostReject({
-        suggestedBy: updatedGig.suggestedBy,
+        gig: updatedGig,
         moderationMessage: moderationPost,
-        gigId,
-        title: updatedGig.title,
       });
     } else {
       this.logger.warn(

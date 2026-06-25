@@ -84,7 +84,7 @@ describe('TelegramPostComposer', () => {
         inline_keyboard: [
           [
             {
-              text: 'Post',
+              text: '📢 Post',
               callback_data: `${Action.Post}:gig-a`,
             },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
@@ -116,7 +116,7 @@ describe('TelegramPostComposer', () => {
           gigUrl: 'https://app.example/feed/es/bcn#concert',
         }),
       ).toBe(
-        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Feed</a>',
+        '🟢 Published\n\n<a href="https://app.example/feed/es/bcn#concert">Concert</a>',
       );
     });
 
@@ -128,23 +128,37 @@ describe('TelegramPostComposer', () => {
           publishPostUrl: 'https://t.me/gigs/42',
         }),
       ).toBe(
-        'Concert\n\n<a href="https://app.example/feed/es/bcn#concert">Feed</a>\n<a href="https://t.me/gigs/42">Post</a>',
+        '🟢 Published | <a href="https://t.me/gigs/42">🔗 See post</a>\n\n<a href="https://app.example/feed/es/bcn#concert">Concert</a>',
       );
     });
   });
 
   describe('buildRejectedModerationReplyMarkup', () => {
-    it('should build rejected callback keyboard for gig id', () => {
-      expect(composer.buildRejectedModerationReplyMarkup('gig-a')).toEqual({
+    it('should build edit keyboard for moderation rejection', () => {
+      expect(
+        composer.buildRejectedModerationReplyMarkup(
+          'https://app.example/edit?startapp=gig-a',
+        ),
+      ).toEqual({
         inline_keyboard: [
           [
             {
-              text: '❌ Rejected',
-              callback_data: `${Action.Rejected}:gig-a`,
+              text: '✏️ Edit',
+              url: 'https://app.example/edit?startapp=gig-a',
             },
           ],
         ],
       });
+    });
+  });
+
+  describe('buildRejectedModerationCaption', () => {
+    it('should prepend rejected status to moderation body', () => {
+      expect(
+        composer.buildRejectedModerationCaption({
+          body: 'Concert\n\n🗓 Fri, 1 Jan 2027',
+        }),
+      ).toBe('🔴 Rejected\n\nConcert\n\n🗓 Fri, 1 Jan 2027');
     });
   });
 
@@ -269,10 +283,12 @@ describe('TelegramPostComposer', () => {
   describe('composeModerationPost', () => {
     beforeEach(() => {
       process.env.MODERATION_CHANNEL_ID = '-2001';
+      process.env.APP_BASE_URL = 'https://app.example';
     });
 
     afterEach(() => {
       delete process.env.MODERATION_CHANNEL_ID;
+      delete process.env.APP_BASE_URL;
     });
 
     it('should throw BadRequestException when MODERATION_CHANNEL_ID is not configured', () => {
@@ -314,6 +330,9 @@ describe('TelegramPostComposer', () => {
       const gig = {
         _id: 'gig-m2',
         title: 'Show',
+        publicId: 'gig-m2',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -324,14 +343,27 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.photo).toBe('https://cdn.example/p.jpg');
       expect(payload.chat_id).toBe('-2001');
+      expect(payload.caption).toContain('🟡 Pending');
+      expect(payload.caption).not.toContain('Gig</a>');
     });
   });
 
   describe('composeSubmissionFeedbackPost', () => {
+    beforeEach(() => {
+      process.env.APP_BASE_URL = 'https://app.example';
+    });
+
+    afterEach(() => {
+      delete process.env.APP_BASE_URL;
+    });
+
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
       const gig = {
         _id: 'gig-s1',
         title: 'Show',
+        publicId: 'gig-s1',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -347,6 +379,9 @@ describe('TelegramPostComposer', () => {
       const gig = {
         _id: 'gig-s2',
         title: 'Show',
+        publicId: 'gig-s2',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -366,6 +401,10 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.photo).toBe('file-feedback');
       expect(payload.chat_id).toBe(424242);
+      expect(payload.reply_markup).toBeUndefined();
+      expect(payload.caption).toContain('🟡 Pending');
+      expect(payload.caption).not.toContain('Gig</a>');
+      expect(payload.parse_mode).toBe(TGParseMode.HTML);
     });
   });
 

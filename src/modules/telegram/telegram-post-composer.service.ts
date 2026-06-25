@@ -15,6 +15,7 @@ import type { TGChat } from './types/chat.types';
 import { GigPost, GigPoster } from '../gig/gig.schema';
 import type { GigId } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
@@ -97,6 +98,20 @@ export interface BuildPublishedModerationCaptionPayload {
   readonly publishPostUrl?: string;
 }
 
+export type SubmissionFeedbackStatus =
+  | Status.Pending
+  | Status.Published
+  | Status.Rejected;
+
+export type BuildSubmissionFeedbackCaptionPayload = {
+  readonly body: string;
+  readonly status: SubmissionFeedbackStatus;
+};
+
+export interface BuildRejectedModerationCaptionPayload {
+  readonly body: string;
+}
+
 interface ComposedText {
   plain: string;
   html: string;
@@ -152,6 +167,8 @@ export class TelegramPostComposer {
       date: gig.date,
       endDate: gig.endDate,
     });
+    const statusLine = this.buildStatusLabel(Status.Pending);
+    const fullCaption = [statusLine, '', caption].join('\n');
 
     if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
@@ -164,7 +181,7 @@ export class TelegramPostComposer {
             media: {
               type: TGInputMediaType.Photo,
               media: posterUrl,
-              caption,
+              caption: fullCaption,
               parse_mode: TGParseMode.HTML,
             },
             replyMarkup,
@@ -179,7 +196,7 @@ export class TelegramPostComposer {
         payload: {
           chatId,
           messageId,
-          caption,
+          caption: fullCaption,
           parseMode: TGParseMode.HTML,
           disableWebPagePreview: true,
           replyMarkup,
@@ -192,7 +209,7 @@ export class TelegramPostComposer {
       payload: {
         chatId,
         messageId,
-        text: caption,
+        text: fullCaption,
         parseMode: TGParseMode.HTML,
         disableWebPagePreview: true,
         replyMarkup,
@@ -546,6 +563,8 @@ export class TelegramPostComposer {
       date: gig.date,
       endDate: gig.endDate,
     });
+    const statusLine = this.buildStatusLabel(Status.Pending);
+    const fullCaption = [statusLine, '', caption].join('\n');
 
     const poster = this.getPosterUrl(gig.poster);
 
@@ -558,7 +577,7 @@ export class TelegramPostComposer {
     return {
       chat_id: chatId,
       photo: poster,
-      caption,
+      caption: fullCaption,
       reply_markup: replyMarkup,
     };
   }
@@ -603,7 +622,7 @@ export class TelegramPostComposer {
 
     if (!publishPostUrl && gigId !== undefined) {
       row.push({
-        text: 'Post',
+        text: '📢 Post',
         callback_data: `${Action.Post}:${String(gigId)}`,
       });
     }
@@ -621,56 +640,55 @@ export class TelegramPostComposer {
   buildPublishedModerationCaption(
     payload: BuildPublishedModerationCaptionPayload,
   ): string {
-    const linkLines = [
-      payload.gigUrl ? `<a href="${payload.gigUrl}">Feed</a>` : undefined,
-      payload.publishPostUrl
-        ? `<a href="${payload.publishPostUrl}">Post</a>`
-        : undefined,
-    ].filter((line): line is string => line !== undefined);
+    const statusLabel = this.buildStatusLabel(Status.Published);
+    const statusLine = payload.publishPostUrl
+      ? `${statusLabel} | <a href="${payload.publishPostUrl}">🔗 See post</a>`
+      : statusLabel;
+    const titleLabel = payload.gigUrl
+      ? `<a href="${payload.gigUrl}">${payload.title}</a>`
+      : payload.title;
 
-    if (linkLines.length === 0) {
-      return payload.title;
-    }
-
-    return [payload.title, '', ...linkLines].join('\n');
+    return [statusLine, '', titleLabel].join('\n');
   }
 
-  buildRejectedModerationReplyMarkup(gigId: GigId): TGInlineKeyboardMarkup {
+  buildSubmissionFeedbackCaption(
+    payload: BuildSubmissionFeedbackCaptionPayload,
+  ): string {
+    const statusLabel = this.buildStatusLabel(payload.status);
+
+    return [statusLabel, '', payload.body].join('\n');
+  }
+
+  buildRejectedModerationCaption(
+    payload: BuildRejectedModerationCaptionPayload,
+  ): string {
+    const statusLabel = this.buildStatusLabel(Status.Rejected);
+    return [statusLabel, '', payload.body].join('\n');
+  }
+
+  buildRejectedModerationReplyMarkup(
+    editGigUrl?: string,
+  ): TGInlineKeyboardMarkup | undefined {
+    if (!editGigUrl) {
+      return undefined;
+    }
+
     return {
-      inline_keyboard: [
-        [
-          {
-            text: '❌ Rejected',
-            callback_data: `${Action.Rejected}:${String(gigId)}`,
-          },
-        ],
-      ],
-      // TODO: reason for rejection
-      // force_reply: true,
-      // input_field_placeholder: 'Reason?',
+      inline_keyboard: [[{ text: '✏️ Edit', url: editGigUrl }]],
     };
   }
 
   composeSubmissionFeedbackPost(gig: PlainGig, chatId: TGChatId): TGSendPhoto {
-    const statusForUser = 'Pending';
-
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: `⏳ ${statusForUser}`,
-            callback_data: `${Action.Status}:${statusForUser}`,
-          },
-        ],
-      ],
-    };
-
-    const caption = this.buildCaption({
+    const body = this.buildCaption({
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
       venue: gig.venue,
       date: gig.date,
       endDate: gig.endDate,
+    });
+    const caption = this.buildSubmissionFeedbackCaption({
+      body,
+      status: Status.Pending,
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
@@ -687,7 +705,7 @@ export class TelegramPostComposer {
       chat_id: chatId,
       photo: poster,
       caption,
-      reply_markup: replyMarkup,
+      parse_mode: TGParseMode.HTML,
     };
   }
 
@@ -708,6 +726,22 @@ export class TelegramPostComposer {
     );
     url.hash = input.publicId;
     return url.toString();
+  }
+
+  private buildStatusDot(status: SubmissionFeedbackStatus): string {
+    switch (status) {
+      case Status.Pending:
+        return '🟡';
+      case Status.Published:
+        return '🟢';
+      case Status.Rejected:
+        return '🔴';
+    }
+  }
+
+  private buildStatusLabel(status: SubmissionFeedbackStatus): string {
+    const statusDot = this.buildStatusDot(status);
+    return `${statusDot} ${status}`;
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {
