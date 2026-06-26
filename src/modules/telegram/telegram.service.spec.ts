@@ -268,6 +268,56 @@ describe('TelegramService', () => {
     });
   });
 
+  describe('updateModerationPostAfterGigPublished', () => {
+    it('should edit moderation caption with stable gig permalink', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+
+      const bot = testingModule.get(TelegramBotClient);
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue({
+          message_id: 42,
+          date: 1,
+          chat: { id: -100123, type: 'channel' },
+        });
+
+      await service.updateModerationPostAfterGigPublished({
+        gigId: '507f1f77bcf86cd799439011',
+        title: 'Radiohead',
+        publicId: 'radiohead-barcelona-2026-06-12',
+        moderationPost: {
+          chatId: -100123,
+          messageId: 42,
+        },
+        publishPost: {
+          chatId: -100456,
+          messageId: 77,
+        },
+      });
+
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith({
+        chatId: -100123,
+        messageId: 42,
+        caption: expect.stringContaining(
+          '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
+        ),
+        parseMode: TGParseMode.HTML,
+        disableWebPagePreview: true,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '✏️ Edit',
+                url: 'https://app.example/edit?startapp=radiohead-barcelona-2026-06-12',
+              },
+            ],
+          ],
+        },
+      });
+    });
+  });
+
   describe('updatePublishedSubmissionFeedback', () => {
     it('should edit feedback caption with textual gig link and no reply markup', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
@@ -304,7 +354,7 @@ describe('TelegramService', () => {
         chatId: 12345,
         messageId: 99,
         caption: expect.stringContaining(
-          '<a href="https://app.example/feed/es/barcelona#radiohead-barcelona-2026-06-12">Radiohead</a>',
+          '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
         ),
         parseMode: TGParseMode.HTML,
       });

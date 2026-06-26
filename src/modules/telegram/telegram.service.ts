@@ -35,8 +35,6 @@ interface UpdateModerationPostAfterGigPublishedPayload {
   gigId: GigId;
   title: string;
   publicId: string;
-  country: string;
-  city: string;
   publishPost?: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
@@ -253,23 +251,13 @@ export class TelegramService {
   async updateModerationPostAfterGigPublished(
     payload: UpdateModerationPostAfterGigPublishedPayload,
   ): Promise<void> {
-    const {
-      moderationPost,
-      publishPost,
-      title,
-      publicId,
-      country,
-      city,
-      gigId,
-    } = payload;
+    const { moderationPost, publishPost, title, publicId, gigId } = payload;
 
     const editGigUrl = this.telegramPostComposer.buildEditGigUrl(publicId);
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const gigUrl = this.telegramPostComposer.buildGigPermalink({
       baseUrl: appBaseUrl,
       publicId,
-      country,
-      city,
     });
 
     const publishPostChatIdUrl = publishPost
@@ -308,7 +296,7 @@ export class TelegramService {
     payload: UpdatePublishedSubmissionFeedbackPayload,
   ): Promise<void> {
     const { gig } = payload;
-    const { suggestedBy, publicId, country, city } = gig;
+    const { suggestedBy, publicId } = gig;
 
     if (suggestedBy.feedbackMessageId == null) {
       return;
@@ -318,8 +306,6 @@ export class TelegramService {
     const gigUrl = this.telegramPostComposer.buildGigPermalink({
       baseUrl: appBaseUrl,
       publicId,
-      country,
-      city,
     });
 
     await this.editSubmissionFeedback({

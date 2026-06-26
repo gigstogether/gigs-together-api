@@ -125,8 +125,6 @@ describe('GigModerationService', () => {
         expect.objectContaining({
           gigId,
           publicId: 'radiohead-barcelona-2026-06-12',
-          country: 'ES',
-          city: 'barcelona',
           moderationPost: { chatId: -100123, messageId: 42 },
         }),
       );
@@ -216,8 +214,6 @@ describe('GigModerationService', () => {
         expect.objectContaining({
           gigId,
           publicId: 'radiohead-barcelona-2026-06-12',
-          country: 'ES',
-          city: 'barcelona',
           moderationPost: { chatId: -100123, messageId: 42 },
           publishPost: {
             chatId: -100456,

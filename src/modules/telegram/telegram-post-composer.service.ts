@@ -74,10 +74,8 @@ interface BuildCaptionPayload {
 }
 
 export interface BuildGigPermalinkPayload {
-  baseUrl: string;
-  country: string;
-  city: string;
-  publicId: string;
+  readonly baseUrl: string;
+  readonly publicId: string;
 }
 
 export interface GetPostUrlPayload {
@@ -277,8 +275,6 @@ export class TelegramPostComposer {
     const url = this.buildGigPermalink({
       baseUrl: appBaseUrl,
       publicId: gig.publicId,
-      country: gig.country,
-      city: gig.city,
     });
 
     return this.buildCaption({
@@ -357,8 +353,6 @@ export class TelegramPostComposer {
         venue: gig.venue,
         ticketsUrl: gig.ticketsUrl,
         publicId: gig.publicId,
-        city: gig.city,
-        country: gig.country,
       };
     });
 
@@ -379,8 +373,6 @@ export class TelegramPostComposer {
       const url = this.buildGigPermalink({
         baseUrl: appBaseUrl,
         publicId: gig.publicId,
-        country: gig.country,
-        city: gig.city,
       });
 
       const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
@@ -710,22 +702,14 @@ export class TelegramPostComposer {
   }
 
   buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {
-    if (!input.baseUrl || !input.publicId || !input.country || !input.city) {
+    if (!input.baseUrl || !input.publicId) {
       return undefined;
     }
 
-    const country = input.country.trim().toLowerCase();
-    const city = input.city.trim().toLowerCase();
-
-    // Current frontend routes:
-    // - /feed/[country]/[city]
-    // - gig anchor: #<publicId>
-    const url = new URL(
-      `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`,
+    return new URL(
+      `/gigs/${encodeURIComponent(input.publicId)}`,
       input.baseUrl,
-    );
-    url.hash = input.publicId;
-    return url.toString();
+    ).toString();
   }
 
   private buildStatusDot(status: SubmissionFeedbackStatus): string {

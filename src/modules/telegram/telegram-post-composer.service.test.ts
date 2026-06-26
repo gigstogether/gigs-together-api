@@ -109,14 +109,14 @@ describe('TelegramPostComposer', () => {
   });
 
   describe('buildPublishedModerationCaption', () => {
-    it('should include feed link after gig is published', () => {
+    it('should include gig permalink after gig is published', () => {
       expect(
         composer.buildPublishedModerationCaption({
           title: 'Concert',
-          gigUrl: 'https://app.example/feed/es/bcn#concert',
+          gigUrl: 'https://app.example/gigs/concert',
         }),
       ).toBe(
-        '🟢 Published\n\n<a href="https://app.example/feed/es/bcn#concert">Concert</a>',
+        '🟢 Published\n\n<a href="https://app.example/gigs/concert">Concert</a>',
       );
     });
 
@@ -124,11 +124,11 @@ describe('TelegramPostComposer', () => {
       expect(
         composer.buildPublishedModerationCaption({
           title: 'Concert',
-          gigUrl: 'https://app.example/feed/es/bcn#concert',
+          gigUrl: 'https://app.example/gigs/concert',
           publishPostUrl: 'https://t.me/gigs/42',
         }),
       ).toBe(
-        '🟢 Published | <a href="https://t.me/gigs/42">🔗 See post</a>\n\n<a href="https://app.example/feed/es/bcn#concert">Concert</a>',
+        '🟢 Published | <a href="https://t.me/gigs/42">🔗 See post</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
       );
     });
   });
@@ -163,16 +163,14 @@ describe('TelegramPostComposer', () => {
   });
 
   describe('buildGigPermalink', () => {
-    it('should build feed URL with lowercased country and city and hash publicId', () => {
+    it('should build gigs URL from publicId', () => {
       const input: BuildGigPermalinkPayload = {
         baseUrl: 'https://app.example',
-        country: 'ES',
-        city: 'BCN',
         publicId: 'gig-1',
       };
 
       expect(composer.buildGigPermalink(input)).toBe(
-        'https://app.example/feed/es/bcn#gig-1',
+        'https://app.example/gigs/gig-1',
       );
     });
   });
@@ -180,16 +178,14 @@ describe('TelegramPostComposer', () => {
   describe('buildCaption', () => {
     it('should include titled link when url is provided', () => {
       const caption = composer.buildCaption({
-        url: 'https://app.example/feed/es/bcn#ab',
+        url: 'https://app.example/gigs/ab',
         title: 'Concert',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: new Date('2026-06-01T12:00:00.000Z'),
       });
 
-      expect(caption).toContain(
-        '<a href="https://app.example/feed/es/bcn#ab">',
-      );
+      expect(caption).toContain('<a href="https://app.example/gigs/ab">');
       expect(caption).toContain('Concert</a>');
       expect(caption).toContain('📍 Hall');
       expect(caption).toContain('🎫 https://tickets.example/x');

@@ -340,9 +340,6 @@ export class ReceiverService {
       }
       case Status.Published: {
         try {
-          // Intentionally do not update previously sent moderation or submission
-          // feedback links after a published gig is edited. Those links can become
-          // stale if the city or country changes; publicId itself is immutable.
           const edited = await this.telegramService.editMainPost(updatedGig, {
             updateMedia: !!poster,
           });
