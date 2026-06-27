@@ -95,6 +95,18 @@ export class AdminController {
   }
 
   @Version('1')
+  @Post('gig/:publicId/post')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  publishGigPostByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+  ): Promise<void> {
+    return this.gigModerationService.publishGigPost({
+      publicId: params.publicId,
+    });
+  }
+
+  @Version('1')
   @Get('languages')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getLanguages(): Promise<readonly SupportedLanguage[]> {

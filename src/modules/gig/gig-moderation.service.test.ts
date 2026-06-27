@@ -226,6 +226,31 @@ describe('GigModerationService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('should load gig by publicId when admin path is used', async () => {
+      const publishedGig = buildGigDocument({ status: Status.Published });
+      const publishPost = {
+        message_id: 99,
+        chat: { id: -100456, username: 'gigschannel' },
+        date: 1_748_697_600,
+      };
+
+      gigServiceMock.getGigByPublicId.mockResolvedValue(publishedGig);
+      telegramServiceMock.publishMain.mockResolvedValue(publishPost);
+      gigServiceMock.updateGig.mockResolvedValue(publishedGig);
+
+      await service.publishGigPost({
+        publicId: 'radiohead-barcelona-2026-06-12',
+      });
+
+      expect(gigServiceMock.getGigByPublicId).toHaveBeenCalledWith(
+        'radiohead-barcelona-2026-06-12',
+      );
+      expect(gigServiceMock.getGigById).not.toHaveBeenCalled();
+      expect(telegramServiceMock.publishMain).toHaveBeenCalledWith(
+        publishedGig,
+      );
+    });
+
     it('should throw when gig is not yet published in feed', async () => {
       gigServiceMock.getGigById.mockResolvedValue(
         buildGigDocument({ status: Status.Pending }),
