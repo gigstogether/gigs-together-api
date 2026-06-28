@@ -6,6 +6,8 @@ import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import type { GigDocument } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
+import { Messenger } from '../gig/types/messenger.enum';
+import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
 import {
@@ -357,6 +359,64 @@ describe('TelegramService', () => {
           '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
         ),
         parseMode: TGParseMode.HTML,
+      });
+    });
+  });
+
+  describe('editModerationPost', () => {
+    it('should keep rejected moderation post in rejected state after edit', async () => {
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+
+      const bot = testingModule.get(TelegramBotClient);
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue({
+          message_id: 42,
+          date: 1,
+          chat: { id: -100123, type: 'channel' },
+        });
+
+      await service.editModerationPost({
+        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+        publicId: 'radiohead-barcelona-2026-06-12',
+        title: 'Radiohead',
+        date: new Date('2026-06-12T12:00:00.000Z').getTime(),
+        city: 'barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+        status: Status.Rejected,
+        suggestedBy: {
+          userId: 12345,
+        },
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: -100123,
+            id: 42,
+            fileId: 'photo-file-id',
+            date: 1_780_000_000_000,
+          },
+        ],
+      } as PlainGig);
+
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith({
+        chatId: -100123,
+        messageId: 42,
+        caption: expect.stringContaining('Rejected'),
+        parseMode: TGParseMode.HTML,
+        disableWebPagePreview: true,
+        replyMarkup: {
+          inline_keyboard: [
+            [
+              {
+                text: '✏️ Edit',
+                url: 'https://app.example/edit?startapp=radiohead-barcelona-2026-06-12',
+              },
+            ],
+          ],
+        },
       });
     });
   });

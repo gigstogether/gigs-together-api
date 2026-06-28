@@ -77,7 +77,11 @@ export class TelegramPostComposerService {
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
 
-    const replyMarkup = this.buildModerationPostReplyMarkup(gig);
+    const editGigUrl = this.buildEditGigUrl(gig.publicId);
+    const isRejected = gig.status === Status.Rejected;
+    const replyMarkup = isRejected
+      ? this.buildRejectedModerationReplyMarkup(editGigUrl)
+      : this.buildModerationPostReplyMarkup(gig);
 
     const caption = this.buildCaption({
       title: gig.title,
@@ -86,7 +90,9 @@ export class TelegramPostComposerService {
       date: gig.date,
       endDate: gig.endDate,
     });
-    const statusLine = this.buildStatusLabel(Status.Pending);
+    const statusLine = this.buildStatusLabel(
+      isRejected ? Status.Rejected : Status.Pending,
+    );
     const fullCaption = [statusLine, '', caption].join('\n');
 
     if (opts?.updateMedia && post?.fileId) {
