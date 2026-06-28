@@ -555,7 +555,7 @@ export class TelegramPostComposerService {
   ): string {
     const statusLabel = this.buildStatusLabel(Status.Published);
     const statusLine = payload.publishPostUrl
-      ? `${statusLabel} | <a href="${payload.publishPostUrl}">🔗 See post</a>`
+      ? `${statusLabel} | <a href="${payload.publishPostUrl}">See post</a>`
       : statusLabel;
     const titleLabel = payload.gigUrl
       ? `<a href="${payload.gigUrl}">${payload.title}</a>`

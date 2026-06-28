@@ -128,7 +128,7 @@ describe('TelegramPostComposer', () => {
           publishPostUrl: 'https://t.me/gigs/42',
         }),
       ).toBe(
-        '🟢 Published | <a href="https://t.me/gigs/42">🔗 See post</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+        '🟢 Published | <a href="https://t.me/gigs/42">See post</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
       );
     });
   });
