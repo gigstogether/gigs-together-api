@@ -5,9 +5,10 @@ import { LanguageModule } from '../language/language.module';
 import { AdminController } from './admin.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminGigService } from './admin-gig.service';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
-  imports: [AuthModule, GigModule, LanguageModule],
+  imports: [AuthModule, GigModule, LanguageModule, TelegramModule],
   controllers: [AdminController],
   providers: [AdminDashboardService, AdminGigService],
   exports: [AdminDashboardService, AdminGigService],

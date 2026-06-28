@@ -66,7 +66,7 @@ export interface GigFormDataSuggestedBy {
   username?: string;
 }
 
-export interface GigFormDataByPublicId {
+export interface GigFormData {
   publicId: string;
   title: string;
   date: string; // YYYY-MM-DD
@@ -80,5 +80,6 @@ export interface GigFormDataByPublicId {
   suggestedBy: GigFormDataSuggestedBy;
   publishPostUrl?: string;
   publishPostDate?: number;
+  moderationPostUrl?: string;
   moderationPostDate?: number;
 }

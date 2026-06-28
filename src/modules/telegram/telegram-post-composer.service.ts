@@ -1,19 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGEditMessageCaption,
-  TGEditMessageMedia,
-  TGEditMessageText,
-  TGMessage,
-  TGSendMediaGroup,
-  TGSendMessage,
   TGSendPhoto,
   TGChatId,
   TGInputMedia,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import type { TGChat } from './types/chat.types';
 import { GigPost, GigPoster } from '../gig/gig.schema';
-import type { GigId } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import { Action } from './types/action.enum';
@@ -22,98 +14,27 @@ import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
+import {
+  BuildAfterPublishModerationReplyMarkupParams,
+  BuildCaptionPayload,
+  BuildGigPermalinkPayload,
+  BuildPublishedModerationCaptionPayload,
+  BuildRejectedModerationCaptionPayload,
+  BuildSubmissionFeedbackCaptionPayload,
+  ComposedText,
+  ComposeWeeklyDigestParams,
+  GetPostUrlPayload,
+  PostEditKind,
+  SubmissionFeedbackStatus,
+  TelegramGigPostEditComposition,
+  WeeklyDigestMainChannelSendKind,
+  WeeklyDigestMainChannelSendPlan,
+} from './types/telegram-post-composer.service.types';
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
 export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
   'There are no gigs scheduled for this week.';
-
-export enum PostEditKind {
-  Media = 'media',
-  Caption = 'caption',
-  Text = 'text',
-}
-
-export enum WeeklyDigestMainChannelSendKind {
-  SendMessage = 'sendMessage',
-  SendPhoto = 'sendPhoto',
-  SendMediaGroup = 'sendMediaGroup',
-}
-
-export interface ComposeWeeklyDigestParams {
-  readonly chatId: TGChatId;
-  readonly gigs: readonly PlainGig[];
-}
-
-export type WeeklyDigestMainChannelSendPlan =
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMessage;
-      readonly payload: TGSendMessage;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendPhoto;
-      readonly payload: TGSendPhoto;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMediaGroup;
-      readonly payload: TGSendMediaGroup;
-    };
-
-type TelegramGigPostEditComposition =
-  | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
-  | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
-  | { kind: PostEditKind.Text; payload: TGEditMessageText };
-
-interface BuildCaptionPayload {
-  date: string | number | Date;
-  endDate?: string | number | Date;
-  venue: string;
-  title: string;
-  ticketsUrl: string;
-  url?: string;
-}
-
-export interface BuildGigPermalinkPayload {
-  readonly baseUrl: string;
-  readonly publicId: string;
-}
-
-export interface GetPostUrlPayload {
-  chatId?: TGChatId;
-  chatUsername?: TGChat['username'];
-  messageId: TGMessage['message_id'];
-}
-
-export interface BuildAfterPublishModerationReplyMarkupParams {
-  readonly gigId?: GigId;
-  readonly publishPostUrl?: string;
-  readonly editGigUrl?: string;
-}
-
-export interface BuildPublishedModerationCaptionPayload {
-  readonly title: string;
-  readonly gigUrl?: string;
-  readonly publishPostUrl?: string;
-}
-
-export type SubmissionFeedbackStatus =
-  | Status.Pending
-  | Status.Published
-  | Status.Rejected;
-
-export type BuildSubmissionFeedbackCaptionPayload = {
-  readonly body: string;
-  readonly status: SubmissionFeedbackStatus;
-};
-
-export interface BuildRejectedModerationCaptionPayload {
-  readonly body: string;
-}
-
-interface ComposedText {
-  plain: string;
-  html: string;
-}
 
 const DATE_LOCALE = 'en-GB';
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -130,7 +51,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
  * Does not call the Bot HTTP API — callers send via {@link TelegramBotClient}.
  */
 @Injectable()
-export class TelegramPostComposer {
+export class TelegramPostComposerService {
   constructor(private readonly bucketService: BucketService) {}
 
   private addCacheBustToUrl(url: string, cacheBust: string): string {
@@ -730,6 +651,7 @@ export class TelegramPostComposer {
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {
     const { chatUsername, messageId, chatId } = payload;
+
     if (!messageId) return;
     if (chatUsername) {
       return `https://t.me/${chatUsername}/${messageId}`;

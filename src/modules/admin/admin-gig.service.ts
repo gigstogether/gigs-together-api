@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { GigService } from '../gig/gig.service';
-import { mapGigToFormDataByPublicId } from './admin-gig.mapper';
+import { mapGigToFormData } from './admin-gig.mapper';
 import { ADMIN_GIG_LIST_DEFAULT_LIMIT } from '../gig/types/admin-gig-list-sort.types';
 import type { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
 import { mapAdminGigListStatusQueryToGigStatuses } from './types/requests/v1-admin-gigs-get-query';
@@ -8,11 +8,16 @@ import type {
   V1AdminGigListItem,
   V1AdminGigsListResponseBody,
 } from './types/requests/v1-admin-gigs-list-response';
-import type { GigFormDataByPublicId } from '../gig/types/gig.types';
+import type { GigFormData, PlainGig } from '../gig/types/gig.types';
+import { PostType } from '../gig/types/postType.enum';
+import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()
 export class AdminGigService {
-  constructor(private readonly gigService: GigService) {}
+  constructor(
+    private readonly gigService: GigService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   async getGigsList(
     query: V1AdminGigsGetQueryDto,
@@ -27,40 +32,52 @@ export class AdminGigService {
 
     const gigs: V1AdminGigListItem[] = [];
     for (const plainGig of plainGigs) {
-      const posterUrl = this.gigService.resolveGigPosterPublicUrl(
-        plainGig.poster,
-      );
-      const publishPostUrl = await this.gigService.resolvePublishedPostUrl(
-        plainGig.posts,
-      );
-      const formData = mapGigToFormDataByPublicId({
-        gig: plainGig,
-        posterUrl,
-        publishPostUrl,
-      });
-      gigs.push(this.mapFormDataToListItem(formData));
+      const gig = await this.resolveGig(plainGig);
+      gigs.push(this.mapFormDataToListItem(gig));
     }
 
     return { gigs };
   }
 
-  async getGigByPublicId(publicId: string): Promise<GigFormDataByPublicId> {
-    const gig = await this.gigService.getGigByPublicId(publicId);
-    const posterUrl = this.gigService.resolveGigPosterPublicUrl(gig.poster);
-    const publishPostUrl = await this.gigService.resolvePublishedPostUrl(
-      gig.posts,
-    );
+  async getGigByPublicId(publicId: string): Promise<GigFormData> {
+    const plainGig = await this.gigService.getGigByPublicId(publicId);
+    return this.resolveGig(plainGig);
+  }
 
-    return mapGigToFormDataByPublicId({
+  private async resolveGig(gig: PlainGig): Promise<GigFormData> {
+    const posterUrl = this.gigService.resolveGigPosterPublicUrl(gig.poster);
+
+    const publishPost = this.telegramService.pickTgPost(
+      gig.posts,
+      PostType.Publish,
+    );
+    const publishPostUrl = await this.gigService.resolvePublicPostUrl({
+      chatId: publishPost?.chatId,
+      postId: publishPost?.id,
+    });
+
+    const moderationPost = this.telegramService.pickTgPost(
+      gig.posts,
+      PostType.Moderation,
+    );
+    const moderationPostUrl = moderationPost?.id
+      ? this.telegramService.getPostUrl({
+          messageId: moderationPost.id,
+          chatId: moderationPost?.chatId,
+        })
+      : undefined;
+
+    return mapGigToFormData({
       gig,
       posterUrl,
       publishPostUrl,
+      publishPostDate: publishPost?.date,
+      moderationPostUrl,
+      moderationPostDate: moderationPost?.date,
     });
   }
 
-  private mapFormDataToListItem(
-    formData: GigFormDataByPublicId,
-  ): V1AdminGigListItem {
+  private mapFormDataToListItem(formData: GigFormData): V1AdminGigListItem {
     const ticketsUrl = formData.ticketsUrl.trim();
 
     return {
@@ -77,6 +94,7 @@ export class AdminGigService {
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
       publishPostUrl: formData.publishPostUrl,
       publishPostDate: formData.publishPostDate,
+      moderationPostUrl: formData.moderationPostUrl,
       moderationPostDate: formData.moderationPostDate,
     };
   }

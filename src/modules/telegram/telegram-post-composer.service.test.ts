@@ -6,17 +6,17 @@ import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { BucketService } from '../bucket/bucket.service';
 import {
-  TelegramPostComposer,
+  TelegramPostComposerService,
   WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
-  WeeklyDigestMainChannelSendKind,
 } from './telegram-post-composer.service';
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
 import { Action } from './types/action.enum';
+import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
+import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
 
 describe('TelegramPostComposer', () => {
-  let composer: TelegramPostComposer;
+  let composer: TelegramPostComposerService;
 
   const mockBucket = {
     getPublicFileUrl: vi.fn(),
@@ -25,12 +25,12 @@ describe('TelegramPostComposer', () => {
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
-        TelegramPostComposer,
+        TelegramPostComposerService,
         { provide: BucketService, useValue: mockBucket },
       ],
     }).compile();
 
-    composer = moduleRef.get(TelegramPostComposer);
+    composer = moduleRef.get(TelegramPostComposerService);
   });
 
   describe('pickTgPost', () => {

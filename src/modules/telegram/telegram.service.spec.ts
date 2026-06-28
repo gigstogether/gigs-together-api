@@ -14,7 +14,7 @@ import {
 } from './telegram.service';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramPostComposer } from './telegram-post-composer.service';
+import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { Types } from 'mongoose';
 
@@ -44,7 +44,7 @@ describe('TelegramService', () => {
         TelegramService,
         TelegramAuthService,
         TelegramBotClient,
-        TelegramPostComposer,
+        TelegramPostComposerService,
         {
           provide: HttpService,
           useValue: mockHttpService,
