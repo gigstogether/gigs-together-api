@@ -29,7 +29,7 @@ Main entry points:
 ### Runtime and package manager
 
 - Node.js: `22.22.3`
-- npm: `11.10.1`
+- npm: `11.17.0`
 - package lock format: `lockfileVersion 3`
 
 ### Infrastructure
@@ -68,7 +68,7 @@ Detailed architecture notes live in [ARCHITECTURE.md](./ARCHITECTURE.md).
 Install the following before you start:
 
 1. Node.js `22.22.3`
-2. npm `11.10.1`
+2. npm `11.17.0`
 3. Docker Desktop or Docker Engine
 4. Access to required external credentials if you need full integration testing:
    - Telegram bot token and webhook secret
@@ -114,6 +114,8 @@ Depending on which flows you want to exercise, you may also need:
 - Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`
 - Manual hooks: `DIGEST_PUBLISH_SECRET`, `ADMIN_REVALIDATE_SECRET`
 - CORS: `CORS_ORIGINS`
+
+`APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
 
 ### Environment variables reference
 
@@ -475,6 +477,8 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
 - receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
+- admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
 - `POST /digest/publish` and `POST /admin/revalidate` are unversioned secret-protected operator hooks
 - `GET /health` is the simplest endpoint to use for smoke testing
 
