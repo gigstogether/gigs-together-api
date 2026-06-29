@@ -1,48 +1,29 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { TGMessage, TGSendPhoto, TGChatId } from './types/message.types';
 import { TGParseMode } from './types/message.types';
-import type { GigDocument } from '../gig/gig.schema';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
+import type { PlainGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
+import { TelegramPostComposerService } from './telegram-post-composer.service';
 import {
-  TelegramPostComposer,
+  EditSubmissionFeedbackPayload,
+  HandlePostRejectPayload,
+  UpdateModerationPostAfterGigPublishedPayload,
+  UpdatePublishedSubmissionFeedbackPayload,
+  WeeklyDigestMainChannelPublishResult,
+} from './types/telegram.service.types';
+import {
   PostEditKind,
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
-} from './telegram-post-composer.service';
+} from './types/telegram-post-composer.service.types';
 
 export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
-
-interface EditSubmissionFeedbackPayload {
-  chatId: TGChatId;
-  messageId: number;
-  title: string;
-  status: string;
-  url?: string;
-}
-
-interface HandleAfterPublishPayload {
-  suggestedBy: GigDocument['suggestedBy'];
-  moderationPost: {
-    chatId: TGChatId;
-    messageId: TGMessage['message_id'];
-  };
-  publishPost: {
-    chatId: TGChatId;
-    username: TGChat['username'];
-    messageId: TGMessage['message_id'];
-  };
-  title: string;
-  publicId?: string;
-}
-
-interface WeeklyDigestMainChannelPublishResult {
-  readonly postUrl: string;
-}
 
 @Injectable()
 export class TelegramService {
@@ -50,7 +31,7 @@ export class TelegramService {
     @Inject(CACHE_MANAGER) private cache: Cache,
     private readonly telegramAuthService: TelegramAuthService,
     private readonly telegramBotClient: TelegramBotClient,
-    private readonly telegramPostComposer: TelegramPostComposer,
+    private readonly telegramPostComposerService: TelegramPostComposerService,
   ) {}
 
   private readonly logger = new Logger(TelegramService.name);
@@ -66,8 +47,10 @@ export class TelegramService {
   readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
     this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
 
-  readonly pickTgPost: TelegramPostComposer['pickTgPost'] =
-    this.telegramPostComposer.pickTgPost.bind(this.telegramPostComposer);
+  readonly pickTgPost: TelegramPostComposerService['pickTgPost'] =
+    this.telegramPostComposerService.pickTgPost.bind(
+      this.telegramPostComposerService,
+    );
 
   readonly parseTelegramInitDataString: TelegramAuthService['parseTelegramInitDataString'] =
     this.telegramAuthService.parseTelegramInitDataString.bind(
@@ -94,14 +77,16 @@ export class TelegramService {
       this.telegramAuthService,
     );
 
-  readonly getPostUrl: TelegramPostComposer['getPostUrl'] =
-    this.telegramPostComposer.getPostUrl.bind(this.telegramPostComposer);
+  readonly getPostUrl: TelegramPostComposerService['getPostUrl'] =
+    this.telegramPostComposerService.getPostUrl.bind(
+      this.telegramPostComposerService,
+    );
 
   async editModerationPost(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): Promise<TGMessage | undefined> {
-    const composed = this.telegramPostComposer.composeModerationPostEdit(
+    const composed = this.telegramPostComposerService.composeModerationPostEdit(
       gig,
       opts,
     );
@@ -124,10 +109,13 @@ export class TelegramService {
    * NOTE: Can optionally update the media (poster) via editMessageMedia.
    */
   async editMainPost(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): Promise<TGMessage | undefined> {
-    const composed = this.telegramPostComposer.composeMainPostEdit(gig, opts);
+    const composed = this.telegramPostComposerService.composeMainPostEdit(
+      gig,
+      opts,
+    );
     if (!composed) return;
 
     switch (composed.kind) {
@@ -141,7 +129,7 @@ export class TelegramService {
   }
 
   async publishWeeklyDigestToMainChannel(
-    gigs: readonly GigDocument[],
+    gigs: readonly PlainGig[],
   ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
@@ -158,7 +146,7 @@ export class TelegramService {
 
     try {
       const plan: WeeklyDigestMainChannelSendPlan =
-        this.telegramPostComposer.composeWeeklyDigest({
+        this.telegramPostComposerService.composeWeeklyDigest({
           chatId,
           gigs,
         });
@@ -209,7 +197,7 @@ export class TelegramService {
       return;
     }
 
-    const postUrl = this.telegramPostComposer.getPostUrl({
+    const postUrl = this.telegramPostComposerService.getPostUrl({
       chatId,
       messageId,
     });
@@ -220,81 +208,138 @@ export class TelegramService {
     return { postUrl };
   }
 
-  publishMain(gig: GigDocument): Promise<TGMessage | undefined> {
+  publishMain(gig: PlainGig): Promise<TGMessage | undefined> {
     const composedMainPost: TGSendPhoto =
-      this.telegramPostComposer.composeMainPost(gig);
+      this.telegramPostComposerService.composeMainPost(gig);
     return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
   }
 
-  async sendToModeration(gig: GigDocument): Promise<TGMessage | undefined> {
+  async sendToModeration(gig: PlainGig): Promise<TGMessage | undefined> {
     const composedModerationPost: TGSendPhoto =
-      this.telegramPostComposer.composeModerationPost(gig);
+      this.telegramPostComposerService.composeModerationPost(gig);
     return this.telegramBotClient.sendPhoto(
       composedModerationPost,
       String(gig._id),
     );
   }
 
-  async handleAfterPublish(payload: HandleAfterPublishPayload): Promise<void> {
-    const { suggestedBy, moderationPost, publishPost, title, publicId } =
-      payload;
-    const editGigUrl = publicId
-      ? this.telegramPostComposer.buildEditGigUrl(publicId)
-      : undefined;
+  async updateModerationPostAfterGigPublished(
+    payload: UpdateModerationPostAfterGigPublishedPayload,
+  ): Promise<void> {
+    const { moderationPost, publishPost, title, publicId, gigId } = payload;
 
-    const publishPostChatIdUrl = this.telegramPostComposer.getPostUrl({
-      messageId: publishPost.messageId,
-      chatId: publishPost.chatId,
+    const editGigUrl =
+      this.telegramPostComposerService.buildEditGigUrl(publicId);
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const gigUrl = this.telegramPostComposerService.buildGigPermalink({
+      baseUrl: appBaseUrl,
+      publicId,
+    });
+    const adminGigUrl = this.telegramPostComposerService.buildAdminGigUrl({
+      baseUrl: appBaseUrl,
+      publicId,
     });
 
+    const publishPostChatIdUrl = publishPost
+      ? this.telegramPostComposerService.getPostUrl({
+          messageId: publishPost.messageId,
+          chatId: publishPost.chatId,
+        })
+      : undefined;
+
     const replyMarkup =
-      this.telegramPostComposer.buildAfterPublishModerationReplyMarkup({
+      this.telegramPostComposerService.buildAfterPublishModerationReplyMarkup({
+        gigId,
         publishPostUrl: publishPostChatIdUrl,
         editGigUrl,
       });
 
-    // Clean moderation post caption; optional 🔗 Post / ✏️ Edit row comes from composer markup.
+    const caption =
+      this.telegramPostComposerService.buildPublishedModerationCaption({
+        title,
+        gigUrl,
+        publishPostUrl: publishPostChatIdUrl,
+        adminGigUrl,
+      });
+
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
-    // so the poster will remain, but the caption/text will be cleaned.
+    // so the poster will remain, but the caption/text will be edited.
     await this.telegramBotClient.editMessageCaption({
       chatId: moderationPost.chatId,
       messageId: moderationPost.messageId,
-      caption: title,
+      caption,
+      parseMode: TGParseMode.HTML,
+      disableWebPagePreview: true,
+      replyMarkup,
+    });
+  }
+
+  async updatePublishedSubmissionFeedback(
+    payload: UpdatePublishedSubmissionFeedbackPayload,
+  ): Promise<void> {
+    const { gig } = payload;
+    const { suggestedBy, publicId } = gig;
+
+    if (suggestedBy.feedbackMessageId == null) {
+      return;
+    }
+
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const gigUrl = this.telegramPostComposerService.buildGigPermalink({
+      baseUrl: appBaseUrl,
+      publicId,
+    });
+
+    await this.editSubmissionFeedback({
+      gig,
+      chatId: suggestedBy.userId,
+      messageId: suggestedBy.feedbackMessageId,
+      status: Status.Published,
+      url: gigUrl,
+    });
+  }
+
+  async handlePostReject({ gig, moderationMessage }: HandlePostRejectPayload) {
+    const editGigUrl = this.telegramPostComposerService.buildEditGigUrl(
+      gig.publicId,
+    );
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const adminGigUrl = this.telegramPostComposerService.buildAdminGigUrl({
+      baseUrl: appBaseUrl,
+      publicId: gig.publicId,
+    });
+    const replyMarkup =
+      this.telegramPostComposerService.buildRejectedModerationReplyMarkup(
+        editGigUrl,
+      );
+    const body = this.telegramPostComposerService.buildCaption({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+    const caption =
+      this.telegramPostComposerService.buildRejectedModerationCaption({
+        body,
+        adminGigUrl,
+      });
+
+    await this.telegramBotClient.editMessageCaption({
+      chatId: moderationMessage.chatId,
+      messageId: moderationMessage.messageId,
+      caption,
       parseMode: TGParseMode.HTML,
       disableWebPagePreview: true,
       replyMarkup,
     });
 
-    const publishPostUsernameUrl = this.telegramPostComposer.getPostUrl({
-      chatUsername: publishPost.username,
-      messageId: publishPost.messageId,
-    });
-
-    if (suggestedBy.feedbackMessageId != null) {
+    if (gig.suggestedBy.feedbackMessageId != null) {
       await this.editSubmissionFeedback({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        title,
-        status: 'Published',
-        url: publishPostUsernameUrl,
-      });
-    }
-  }
-
-  async handlePostReject({ suggestedBy, moderationMessage, gigId, title }) {
-    await this.telegramBotClient.editMessageReplyMarkup({
-      chatId: moderationMessage.chatId,
-      messageId: moderationMessage.messageId,
-      replyMarkup:
-        this.telegramPostComposer.buildRejectedModerationReplyMarkup(gigId),
-    });
-
-    if (suggestedBy.feedbackMessageId != null) {
-      await this.editSubmissionFeedback({
-        chatId: suggestedBy.userId,
-        messageId: suggestedBy.feedbackMessageId,
-        title,
-        status: 'Rejected',
+        gig,
+        chatId: gig.suggestedBy.userId,
+        messageId: gig.suggestedBy.feedbackMessageId,
+        status: Status.Rejected,
       });
     }
   }
@@ -302,28 +347,43 @@ export class TelegramService {
   private editSubmissionFeedback(
     payload: EditSubmissionFeedbackPayload,
   ): Promise<TGMessage | undefined> {
-    const { chatId, messageId, title, status, url } = payload;
+    const { gig, chatId, messageId, status, url } = payload;
+
     if (!chatId || messageId == null) {
       return Promise.resolve(undefined);
     }
 
+    const body = this.telegramPostComposerService.buildCaption({
+      url: status === Status.Published ? url : undefined,
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+    const caption =
+      this.telegramPostComposerService.buildSubmissionFeedbackCaption({
+        body,
+        status,
+      });
+
     return this.telegramBotClient.editMessageCaption({
       chatId,
       messageId,
-      caption: `${title} is ${status}`,
-      replyMarkup:
-        this.telegramPostComposer.buildSubmissionFeedbackPostLinkReplyMarkup(
-          url,
-        ),
+      caption,
+      parseMode: TGParseMode.HTML,
     });
   }
 
   async sendSubmissionFeedback(
-    gig: GigDocument,
+    gig: PlainGig,
     chatId: TGChatId,
   ): Promise<TGMessage | undefined> {
     const composedSubmissionFeedbackPost: TGSendPhoto =
-      this.telegramPostComposer.composeSubmissionFeedbackPost(gig, chatId);
+      this.telegramPostComposerService.composeSubmissionFeedbackPost(
+        gig,
+        chatId,
+      );
     return this.telegramBotClient.sendPhoto(
       composedSubmissionFeedbackPost,
       String(gig._id),

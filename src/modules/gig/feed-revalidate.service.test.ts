@@ -10,6 +10,8 @@ describe('FeedRevalidateService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
+    vi.stubEnv('APP_BASE_URL', '');
+    vi.stubEnv('FEED_REVALIDATE_SECRET', '');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [FeedRevalidateService],

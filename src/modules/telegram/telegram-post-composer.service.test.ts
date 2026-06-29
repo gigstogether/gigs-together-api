@@ -6,17 +6,17 @@ import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { BucketService } from '../bucket/bucket.service';
 import {
-  TelegramPostComposer,
+  TelegramPostComposerService,
   WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
-  WeeklyDigestMainChannelSendKind,
 } from './telegram-post-composer.service';
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import type { BuildGigPermalinkPayload } from './telegram-post-composer.service';
 import { Action } from './types/action.enum';
+import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
+import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
 
 describe('TelegramPostComposer', () => {
-  let composer: TelegramPostComposer;
+  let composer: TelegramPostComposerService;
 
   const mockBucket = {
     getPublicFileUrl: vi.fn(),
@@ -25,12 +25,12 @@ describe('TelegramPostComposer', () => {
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
-        TelegramPostComposer,
+        TelegramPostComposerService,
         { provide: BucketService, useValue: mockBucket },
       ],
     }).compile();
 
-    composer = moduleRef.get(TelegramPostComposer);
+    composer = moduleRef.get(TelegramPostComposerService);
   });
 
   describe('pickTgPost', () => {
@@ -74,47 +74,78 @@ describe('TelegramPostComposer', () => {
   });
 
   describe('buildAfterPublishModerationReplyMarkup', () => {
-    it('should return undefined when neither publish nor edit URL is provided', () => {
-      expect(
-        composer.buildAfterPublishModerationReplyMarkup({}),
-      ).toBeUndefined();
-    });
-
-    it('should return one-row keyboard with Post and Edit when both URLs are provided', () => {
+    it('should return publish callback and edit URL when main post is not published yet', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
-          publishPostUrl: 'https://t.me/c/1/9',
+          gigId: 'gig-a',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
         inline_keyboard: [
           [
-            { text: '🔗 Post', url: 'https://t.me/c/1/9' },
+            {
+              text: '📢 Post',
+              callback_data: `${Action.Post}:gig-a`,
+            },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
           ],
         ],
       });
     });
 
-    it('should include only Post button when edit URL is missing', () => {
+    it('should remove publish button after main post is published', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
+          gigId: 'gig-a',
           publishPostUrl: 'https://t.me/x/1',
+          editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
-        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/x/1' }]],
+        inline_keyboard: [
+          [{ text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' }],
+        ],
       });
     });
   });
 
+  describe('buildPublishedModerationCaption', () => {
+    it('should include gig permalink after gig is published', () => {
+      expect(
+        composer.buildPublishedModerationCaption({
+          title: 'Concert',
+          gigUrl: 'https://app.example/gigs/concert',
+        }),
+      ).toBe(
+        '🟢 Published\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+      );
+    });
+
+    it('should include Telegram post link when main post is published', () => {
+      expect(
+        composer.buildPublishedModerationCaption({
+          title: 'Concert',
+          gigUrl: 'https://app.example/gigs/concert',
+          publishPostUrl: 'https://t.me/gigs/42',
+          adminGigUrl: 'https://app.example/admin/gigs/concert',
+        }),
+      ).toBe(
+        '🟢 Published | <a href="https://t.me/gigs/42">See post</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+      );
+    });
+  });
+
   describe('buildRejectedModerationReplyMarkup', () => {
-    it('should build rejected callback keyboard for gig id', () => {
-      expect(composer.buildRejectedModerationReplyMarkup('gig-a')).toEqual({
+    it('should build edit keyboard for moderation rejection', () => {
+      expect(
+        composer.buildRejectedModerationReplyMarkup(
+          'https://app.example/edit?startapp=gig-a',
+        ),
+      ).toEqual({
         inline_keyboard: [
           [
             {
-              text: '❌ Rejected',
-              callback_data: `${Action.Rejected}:gig-a`,
+              text: '✏️ Edit',
+              url: 'https://app.example/edit?startapp=gig-a',
             },
           ],
         ],
@@ -122,35 +153,36 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('buildSubmissionFeedbackPostLinkReplyMarkup', () => {
-    it('should return undefined when post URL is missing', () => {
+  describe('buildRejectedModerationCaption', () => {
+    it('should prepend rejected status to moderation body', () => {
       expect(
-        composer.buildSubmissionFeedbackPostLinkReplyMarkup(undefined),
-      ).toBeUndefined();
-    });
-
-    it('should build Post url button when post URL is provided', () => {
-      expect(
-        composer.buildSubmissionFeedbackPostLinkReplyMarkup(
-          'https://t.me/ch/77',
-        ),
-      ).toEqual({
-        inline_keyboard: [[{ text: '🔗 Post', url: 'https://t.me/ch/77' }]],
-      });
+        composer.buildRejectedModerationCaption({
+          body: 'Concert\n\n🗓 Fri, 1 Jan 2027',
+        }),
+      ).toBe('🔴 Rejected\n\nConcert\n\n🗓 Fri, 1 Jan 2027');
     });
   });
 
   describe('buildGigPermalink', () => {
-    it('should build feed URL with lowercased country and city and hash publicId', () => {
+    it('should build gigs URL from publicId', () => {
       const input: BuildGigPermalinkPayload = {
         baseUrl: 'https://app.example',
-        country: 'ES',
-        city: 'BCN',
         publicId: 'gig-1',
       };
 
       expect(composer.buildGigPermalink(input)).toBe(
-        'https://app.example/feed/es/bcn#gig-1',
+        'https://app.example/gigs/gig-1',
+      );
+    });
+
+    it('should build admin gigs URL from publicId', () => {
+      const input: BuildGigPermalinkPayload = {
+        baseUrl: 'https://app.example',
+        publicId: 'gig-1',
+      };
+
+      expect(composer.buildAdminGigUrl(input)).toBe(
+        'https://app.example/admin/gigs/gig-1',
       );
     });
   });
@@ -158,16 +190,14 @@ describe('TelegramPostComposer', () => {
   describe('buildCaption', () => {
     it('should include titled link when url is provided', () => {
       const caption = composer.buildCaption({
-        url: 'https://app.example/feed/es/bcn#ab',
+        url: 'https://app.example/gigs/ab',
         title: 'Concert',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: new Date('2026-06-01T12:00:00.000Z'),
       });
 
-      expect(caption).toContain(
-        '<a href="https://app.example/feed/es/bcn#ab">',
-      );
+      expect(caption).toContain('<a href="https://app.example/gigs/ab">');
       expect(caption).toContain('Concert</a>');
       expect(caption).toContain('📍 Hall');
       expect(caption).toContain('🎫 https://tickets.example/x');
@@ -261,10 +291,12 @@ describe('TelegramPostComposer', () => {
   describe('composeModerationPost', () => {
     beforeEach(() => {
       process.env.MODERATION_CHANNEL_ID = '-2001';
+      process.env.APP_BASE_URL = 'https://app.example';
     });
 
     afterEach(() => {
       delete process.env.MODERATION_CHANNEL_ID;
+      delete process.env.APP_BASE_URL;
     });
 
     it('should throw BadRequestException when MODERATION_CHANNEL_ID is not configured', () => {
@@ -306,6 +338,9 @@ describe('TelegramPostComposer', () => {
       const gig = {
         _id: 'gig-m2',
         title: 'Show',
+        publicId: 'gig-m2',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -316,14 +351,56 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.photo).toBe('https://cdn.example/p.jpg');
       expect(payload.chat_id).toBe('-2001');
+      expect(payload.caption).toContain('🟡 Pending');
+      expect(payload.caption).not.toContain('Gig</a>');
+      expect(payload.parse_mode).toBe(TGParseMode.HTML);
     });
   });
 
+  describe('composeModerationPost admin link', () => {
+    it('should include admin link in pending moderation post caption', () => {
+      process.env.MODERATION_CHANNEL_ID = '-2001';
+      process.env.APP_BASE_URL = 'https://app.example';
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
+
+      const gig = {
+        _id: 'gig-m3',
+        title: 'Show',
+        publicId: 'gig-m3',
+        country: 'ES',
+        city: 'barcelona',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        poster: { bucketPath: 'gigs/x.jpg' },
+      } as unknown as GigDocument;
+
+      const payload = composer.composeModerationPost(gig);
+
+      expect(payload.caption).toContain(
+        '<a href="https://app.example/admin/gigs/gig-m3">Open in admin</a>',
+      );
+
+      delete process.env.MODERATION_CHANNEL_ID;
+      delete process.env.APP_BASE_URL;
+    });
+  });
   describe('composeSubmissionFeedbackPost', () => {
+    beforeEach(() => {
+      process.env.APP_BASE_URL = 'https://app.example';
+    });
+
+    afterEach(() => {
+      delete process.env.APP_BASE_URL;
+    });
+
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
       const gig = {
         _id: 'gig-s1',
         title: 'Show',
+        publicId: 'gig-s1',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -339,6 +416,9 @@ describe('TelegramPostComposer', () => {
       const gig = {
         _id: 'gig-s2',
         title: 'Show',
+        publicId: 'gig-s2',
+        country: 'ES',
+        city: 'barcelona',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
@@ -358,6 +438,10 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.photo).toBe('file-feedback');
       expect(payload.chat_id).toBe(424242);
+      expect(payload.reply_markup).toBeUndefined();
+      expect(payload.caption).toContain('🟡 Pending');
+      expect(payload.caption).not.toContain('Gig</a>');
+      expect(payload.parse_mode).toBe(TGParseMode.HTML);
     });
   });
 

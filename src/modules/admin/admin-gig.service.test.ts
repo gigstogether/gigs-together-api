@@ -4,10 +4,13 @@ import { Types } from 'mongoose';
 
 import { AdminGigService } from './admin-gig.service';
 import { GigService } from '../gig/gig.service';
-import { Status } from '../gig/types/status.enum';
+import type { GigPost } from '../gig/gig.schema';
+import type { PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
-import type { PlainGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
+import { TelegramService } from '../telegram/telegram.service';
+import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
 
 function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
   const id = new Types.ObjectId('507f1f77bcf86cd799439011');
@@ -42,11 +45,41 @@ describe('AdminGigService', () => {
     getGigsByStatus: vi.fn(),
     getGigByPublicId: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
-    resolvePublishedPostUrl: vi.fn(),
+    resolvePublicPostUrl: vi.fn(),
+  };
+
+  const telegramServiceMock = {
+    pickTgPost: vi.fn(),
+    getPostUrl: vi.fn(),
   };
 
   beforeEach(async () => {
     vi.clearAllMocks();
+
+    telegramServiceMock.pickTgPost.mockImplementation(
+      (posts: GigPost[] | undefined, type: PostType): GigPost | undefined => {
+        return posts?.find((post) => {
+          return post.to === Messenger.Telegram && post.type === type;
+        });
+      },
+    );
+    telegramServiceMock.getPostUrl.mockImplementation(
+      (payload: GetPostUrlPayload): string | undefined => {
+        if ('chatUsername' in payload && payload.chatUsername) {
+          return `https://t.me/${payload.chatUsername}/${payload.messageId}`;
+        }
+
+        if ('chatId' in payload && payload.chatId) {
+          const rawChatId = String(payload.chatId);
+          const internalChatId = rawChatId.startsWith('-100')
+            ? rawChatId.slice(4)
+            : rawChatId;
+          return `https://t.me/c/${internalChatId}/${payload.messageId}`;
+        }
+
+        return undefined;
+      },
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +87,10 @@ describe('AdminGigService', () => {
         {
           provide: GigService,
           useValue: gigServiceMock,
+        },
+        {
+          provide: TelegramService,
+          useValue: telegramServiceMock,
         },
       ],
     }).compile();
@@ -68,7 +105,7 @@ describe('AdminGigService', () => {
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
-      gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
         'https://t.me/channel/1',
       );
 
@@ -81,6 +118,7 @@ describe('AdminGigService', () => {
             title: 'Radiohead',
             status: Status.Pending,
             date: '2026-06-12',
+            endDate: undefined,
             city: 'barcelona',
             country: 'ES',
             venue: 'Palau Sant Jordi',
@@ -88,6 +126,8 @@ describe('AdminGigService', () => {
             suggestedBy: { userId: '9001' },
             ticketsUrl: 'https://example.com/tickets',
             publishPostUrl: 'https://t.me/channel/1',
+            publishPostDate: undefined,
+            moderationPostUrl: 'https://t.me/c/123/42',
             moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
           },
         ],
@@ -126,7 +166,7 @@ describe('AdminGigService', () => {
 
       gigServiceMock.getGigsByStatus.mockResolvedValue([gig]);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(undefined);
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
       await expect(
         service.getGigsList({ status: 'approved', limit: 20 }),
@@ -134,6 +174,7 @@ describe('AdminGigService', () => {
         gigs: [
           expect.objectContaining({
             publishPostDate: publishedAt,
+            moderationPostUrl: 'https://t.me/c/123/42',
             moderationPostDate: moderationAt,
           }),
         ],
@@ -162,7 +203,7 @@ describe('AdminGigService', () => {
 
       gigServiceMock.getGigsByStatus.mockResolvedValue([gig]);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(undefined);
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
       const result = await service.getGigsList({
         status: 'approved',
@@ -176,7 +217,7 @@ describe('AdminGigService', () => {
       const gig = buildPlainGig({ ticketsUrl: '   ' });
       gigServiceMock.getGigsByStatus.mockResolvedValue([gig]);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(undefined);
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
       const result = await service.getGigsList({
         status: 'pending',
@@ -194,7 +235,7 @@ describe('AdminGigService', () => {
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
-      gigServiceMock.resolvePublishedPostUrl.mockResolvedValue(
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
         'https://t.me/channel/1',
       );
 
@@ -205,6 +246,7 @@ describe('AdminGigService', () => {
         title: 'Radiohead',
         status: Status.Pending,
         date: '2026-06-12',
+        endDate: undefined,
         city: 'barcelona',
         country: 'ES',
         venue: 'Palau Sant Jordi',
@@ -212,6 +254,8 @@ describe('AdminGigService', () => {
         suggestedBy: { userId: '9001' },
         ticketsUrl: 'https://example.com/tickets',
         publishPostUrl: 'https://t.me/channel/1',
+        publishPostDate: undefined,
+        moderationPostUrl: 'https://t.me/c/123/42',
         moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
       });
 

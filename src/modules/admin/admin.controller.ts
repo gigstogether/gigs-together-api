@@ -31,7 +31,7 @@ import {
 import { LanguageService } from '../language/language.service';
 import type { SupportedLanguage } from '../language/types/language.types';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
-import type { GigFormDataByPublicId } from '../gig/types/gig.types';
+import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
 
 /**
@@ -70,7 +70,7 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
-  ): Promise<GigFormDataByPublicId> {
+  ): Promise<GigFormData> {
     return this.adminGigService.getGigByPublicId(params.publicId);
   }
 
@@ -92,6 +92,18 @@ export class AdminController {
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<void> {
     return this.gigModerationService.rejectGig({ publicId: params.publicId });
+  }
+
+  @Version('1')
+  @Post('gig/:publicId/post')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  publishGigPostByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+  ): Promise<void> {
+    return this.gigModerationService.publishGigPost({
+      publicId: params.publicId,
+    });
   }
 
   @Version('1')

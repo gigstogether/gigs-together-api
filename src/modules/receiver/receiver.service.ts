@@ -15,6 +15,7 @@ import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { envBool } from '../../shared/utils/env';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -134,6 +135,16 @@ export class ReceiverService {
         });
         break;
       }
+      case Action.Post: {
+        await this.gigModerationService.publishGigPost({
+          gigId: callbackPayload,
+          moderationPost: {
+            messageId: message.message_id,
+            chatId: message.chat.id,
+          },
+        });
+        break;
+      }
       case Action.Reject: {
         await this.gigModerationService.rejectGig({
           gigId: callbackPayload,
@@ -237,11 +248,16 @@ export class ReceiverService {
       };
     }
 
-    // Notify the author in DM. (Except admins)
+    // Notify the author in DM.
     // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
     const authorTelegramId = user.tgUser.id;
+    const shouldSendGigSubmissionFeedbackToAdmins = envBool(
+      'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
+      false,
+    );
     const canSendSubmissionFeedback =
-      !user.isAdmin && authorTelegramId !== undefined;
+      (!user.isAdmin || shouldSendGigSubmissionFeedbackToAdmins) &&
+      authorTelegramId !== undefined;
 
     if (canSendSubmissionFeedback) {
       try {

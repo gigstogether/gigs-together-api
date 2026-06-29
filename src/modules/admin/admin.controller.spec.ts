@@ -25,7 +25,11 @@ describe('AdminController', () => {
   const gigModerationService = {
     approveGig: vi.fn().mockResolvedValue(undefined),
     rejectGig: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<GigModerationService, 'approveGig' | 'rejectGig'>;
+    publishGigPost: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<
+    GigModerationService,
+    'approveGig' | 'rejectGig' | 'publishGigPost'
+  >;
 
   const languageService = {
     getAllLanguagesOrdered: vi
@@ -121,6 +125,18 @@ describe('AdminController', () => {
       ).resolves.toBeUndefined();
 
       expect(gigModerationService.rejectGig).toHaveBeenCalledWith({
+        publicId: 'gig-42',
+      });
+    });
+  });
+
+  describe('publishGigPostByPublicId', () => {
+    it('should publish main telegram post via gig moderation service', async () => {
+      await expect(
+        controller.publishGigPostByPublicId({ publicId: 'gig-42' }),
+      ).resolves.toBeUndefined();
+
+      expect(gigModerationService.publishGigPost).toHaveBeenCalledWith({
         publicId: 'gig-42',
       });
     });

@@ -1,40 +1,24 @@
 import { msToYmd } from '../../shared/utils/date-formatter';
-import type { PlainGig, GigFormDataByPublicId } from '../gig/types/gig.types';
-import { PostType } from '../gig/types/postType.enum';
-import type { GigPost } from '../gig/gig.schema';
-import { Messenger } from '../gig/types/messenger.enum';
+import type { PlainGig, GigFormData } from '../gig/types/gig.types';
 
-export interface MapGigToFormDataByPublicIdParams {
+export interface MapGigToFormData {
   readonly gig: PlainGig;
   readonly posterUrl?: string;
   readonly publishPostUrl?: string;
+  readonly publishPostDate?: number;
+  readonly moderationPostUrl?: string;
+  readonly moderationPostDate?: number;
 }
 
-// TODO: use pickTgPost?
-function pickTelegramPostDateMs(
-  posts: GigPost[] | undefined,
-  postType: PostType,
-): number | undefined {
-  const post = posts?.find(
-    (entry) =>
-      entry.to === Messenger.Telegram &&
-      entry.type === postType &&
-      entry.chatId != null &&
-      entry.id != null,
-  );
-  if (!post) {
-    return undefined;
-  }
-  if (typeof post.date === 'number' && Number.isFinite(post.date)) {
-    return post.date;
-  }
-  return undefined;
-}
-
-export function mapGigToFormDataByPublicId(
-  params: MapGigToFormDataByPublicIdParams,
-): GigFormDataByPublicId {
-  const { gig, posterUrl, publishPostUrl } = params;
+export function mapGigToFormData(params: MapGigToFormData): GigFormData {
+  const {
+    gig,
+    posterUrl,
+    publishPostUrl,
+    publishPostDate,
+    moderationPostUrl,
+    moderationPostDate,
+  } = params;
 
   const date = msToYmd(gig.date);
   if (!date) {
@@ -60,7 +44,8 @@ export function mapGigToFormDataByPublicId(
       name: gig.suggestedBy.name,
     },
     publishPostUrl,
-    publishPostDate: pickTelegramPostDateMs(gig.posts, PostType.Publish),
-    moderationPostDate: pickTelegramPostDateMs(gig.posts, PostType.Moderation),
+    publishPostDate,
+    moderationPostUrl,
+    moderationPostDate,
   };
 }

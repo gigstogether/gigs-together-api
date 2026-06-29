@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
 import type { CreateGigInput, GigId, PlainGig } from './types/gig.types';
-import { Gig, GigPost, GigPoster } from './gig.schema';
+import { Gig, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
 import { AiService } from '../ai/ai.service';
@@ -52,7 +52,7 @@ import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from '../receiver/types/requests/v1-receiver-create-gig-request';
 
-interface GetPostUrlPayload {
+interface ResolvePublicPostUrl {
   postId?: number;
   chatId?: number;
 }
@@ -237,7 +237,7 @@ export class GigService {
       suggestedBy: {
         userId: user.tgUser.id,
         username: user.tgUser.username,
-        name: [user.tgUser.firstName, user.tgUser.lastName]
+        name: [user.tgUser.first_name, user.tgUser.last_name]
           .filter(Boolean)
           .join(' '),
       },
@@ -355,18 +355,6 @@ export class GigService {
     );
   }
 
-  resolvePublishedPostUrl(posts: GigPost[]): Promise<string | undefined> {
-    const publishedPost = this.telegramService.pickTgPost(
-      posts,
-      PostType.Publish,
-    );
-
-    return this.getPostUrl({
-      postId: publishedPost?.id,
-      chatId: publishedPost?.chatId,
-    });
-  }
-
   async updateGigByPublicId(
     payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
@@ -447,8 +435,8 @@ export class GigService {
     return this.updateGig(gigId, { status });
   }
 
-  private async getPostUrl(
-    payload: GetPostUrlPayload,
+  async resolvePublicPostUrl(
+    payload: ResolvePublicPostUrl,
   ): Promise<string | undefined> {
     const { postId, chatId } = payload;
 
@@ -482,7 +470,12 @@ export class GigService {
 
     const mapped: V1GetGigsResponseBody['gigs'] = [];
     for (const gig of gigs) {
-      const postUrl = await this.resolvePublishedPostUrl(gig.posts);
+      const post = this.telegramService.pickTgPost(gig.posts, PostType.Publish);
+
+      const postUrl = await this.resolvePublicPostUrl({
+        postId: post?.id,
+        chatId: post?.chatId,
+      });
 
       const calendarPayload = this.gigToCalendarPayload(gig);
       const calendarUrl =

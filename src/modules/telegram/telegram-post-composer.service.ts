@@ -1,98 +1,42 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGEditMessageCaption,
-  TGEditMessageMedia,
-  TGEditMessageText,
-  TGMessage,
-  TGSendMediaGroup,
-  TGSendMessage,
   TGSendPhoto,
   TGChatId,
   TGInputMedia,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import type { TGChat } from './types/chat.types';
-import { GigDocument, GigPost, GigPoster } from '../gig/gig.schema';
-import type { GigId } from '../gig/types/gig.types';
+import { GigPost, GigPoster } from '../gig/gig.schema';
+import type { PlainGig } from '../gig/types/gig.types';
+import { Status } from '../gig/types/status.enum';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
+import {
+  BuildAfterPublishModerationReplyMarkupParams,
+  BuildCaptionPayload,
+  BuildModerationCaptionPayload,
+  BuildModerationStatusLinePayload,
+  BuildGigPermalinkPayload,
+  BuildPublishedModerationCaptionPayload,
+  BuildRejectedModerationCaptionPayload,
+  BuildSubmissionFeedbackCaptionPayload,
+  ComposedText,
+  ComposeWeeklyDigestParams,
+  GetPostUrlPayload,
+  PostEditKind,
+  SubmissionFeedbackStatus,
+  TelegramGigPostEditComposition,
+  WeeklyDigestMainChannelSendKind,
+  WeeklyDigestMainChannelSendPlan,
+} from './types/telegram-post-composer.service.types';
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
 export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
   'There are no gigs scheduled for this week.';
-
-export enum PostEditKind {
-  Media = 'media',
-  Caption = 'caption',
-  Text = 'text',
-}
-
-export enum WeeklyDigestMainChannelSendKind {
-  SendMessage = 'sendMessage',
-  SendPhoto = 'sendPhoto',
-  SendMediaGroup = 'sendMediaGroup',
-}
-
-export interface ComposeWeeklyDigestParams {
-  readonly chatId: TGChatId;
-  readonly gigs: readonly GigDocument[];
-}
-
-export type WeeklyDigestMainChannelSendPlan =
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMessage;
-      readonly payload: TGSendMessage;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendPhoto;
-      readonly payload: TGSendPhoto;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMediaGroup;
-      readonly payload: TGSendMediaGroup;
-    };
-
-type TelegramGigPostEditComposition =
-  | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
-  | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
-  | { kind: PostEditKind.Text; payload: TGEditMessageText };
-
-interface BuildCaptionPayload {
-  date: string | number | Date;
-  endDate?: string | number | Date;
-  venue: string;
-  title: string;
-  ticketsUrl: string;
-  url?: string;
-}
-
-export interface BuildGigPermalinkPayload {
-  baseUrl: string;
-  country: string;
-  city: string;
-  publicId: string;
-}
-
-export interface GetPostUrlPayload {
-  chatId?: TGChatId;
-  chatUsername?: TGChat['username'];
-  messageId: TGMessage['message_id'];
-}
-
-export interface BuildAfterPublishModerationReplyMarkupParams {
-  readonly publishPostUrl?: string;
-  readonly editGigUrl?: string;
-}
-
-interface ComposedText {
-  plain: string;
-  html: string;
-}
 
 const DATE_LOCALE = 'en-GB';
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
@@ -109,7 +53,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
  * Does not call the Bot HTTP API — callers send via {@link TelegramBotClient}.
  */
 @Injectable()
-export class TelegramPostComposer {
+export class TelegramPostComposerService {
   constructor(private readonly bucketService: BucketService) {}
 
   private addCacheBustToUrl(url: string, cacheBust: string): string {
@@ -127,7 +71,7 @@ export class TelegramPostComposer {
   }
 
   composeModerationPostEdit(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): TelegramGigPostEditComposition | undefined {
     const post = this.pickTgPost(gig.posts, PostType.Moderation);
@@ -135,14 +79,17 @@ export class TelegramPostComposer {
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
 
-    const replyMarkup = this.buildModerationPostReplyMarkup(gig);
+    const editGigUrl = this.buildEditGigUrl(gig.publicId);
+    const adminGigUrl = this.buildAdminGigUrlByPublicId(gig.publicId);
+    const isRejected = gig.status === Status.Rejected;
+    const replyMarkup = isRejected
+      ? this.buildRejectedModerationReplyMarkup(editGigUrl)
+      : this.buildModerationPostReplyMarkup(gig);
 
-    const caption = this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+    const fullCaption = this.buildModerationCaption({
+      body: this.buildGigBodyCaption(gig),
+      status: isRejected ? Status.Rejected : Status.Pending,
+      adminGigUrl,
     });
 
     if (opts?.updateMedia && post?.fileId) {
@@ -156,7 +103,7 @@ export class TelegramPostComposer {
             media: {
               type: TGInputMediaType.Photo,
               media: posterUrl,
-              caption,
+              caption: fullCaption,
               parse_mode: TGParseMode.HTML,
             },
             replyMarkup,
@@ -171,7 +118,7 @@ export class TelegramPostComposer {
         payload: {
           chatId,
           messageId,
-          caption,
+          caption: fullCaption,
           parseMode: TGParseMode.HTML,
           disableWebPagePreview: true,
           replyMarkup,
@@ -184,7 +131,7 @@ export class TelegramPostComposer {
       payload: {
         chatId,
         messageId,
-        text: caption,
+        text: fullCaption,
         parseMode: TGParseMode.HTML,
         disableWebPagePreview: true,
         replyMarkup,
@@ -193,7 +140,7 @@ export class TelegramPostComposer {
   }
 
   composeMainPostEdit(
-    gig: GigDocument,
+    gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): TelegramGigPostEditComposition | undefined {
     const post = this.pickTgPost(gig.posts, PostType.Publish);
@@ -247,13 +194,11 @@ export class TelegramPostComposer {
     };
   }
 
-  private buildMainPostCaption(gig: GigDocument): string {
+  private buildMainPostCaption(gig: PlainGig): string {
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const url = this.buildGigPermalink({
       baseUrl: appBaseUrl,
       publicId: gig.publicId,
-      country: gig.country,
-      city: gig.city,
     });
 
     return this.buildCaption({
@@ -305,9 +250,7 @@ export class TelegramPostComposer {
     });
   }
 
-  formatWeeklyDigestCaptionLines(
-    gigDocs: readonly GigDocument[],
-  ): ComposedText {
+  formatWeeklyDigestCaptionLines(gigDocs: readonly PlainGig[]): ComposedText {
     const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
       weekday: DATE_FORMAT.weekday,
       month: DATE_FORMAT.month,
@@ -322,7 +265,7 @@ export class TelegramPostComposer {
     const GIG_INFO_ITEMS_SEPARATOR = ' • ';
     const TICKETS = 'Tickets';
 
-    const gigs = gigDocs.map((gig: GigDocument) => {
+    const gigs = gigDocs.map((gig: PlainGig) => {
       const dateLabel = formatter.format(new Date(gig.date));
       const endDateLabel = gig.endDate
         ? formatter.format(new Date(gig.endDate))
@@ -334,8 +277,6 @@ export class TelegramPostComposer {
         venue: gig.venue,
         ticketsUrl: gig.ticketsUrl,
         publicId: gig.publicId,
-        city: gig.city,
-        country: gig.country,
       };
     });
 
@@ -356,8 +297,6 @@ export class TelegramPostComposer {
       const url = this.buildGigPermalink({
         baseUrl: appBaseUrl,
         publicId: gig.publicId,
-        country: gig.country,
-        city: gig.city,
       });
 
       const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
@@ -376,7 +315,7 @@ export class TelegramPostComposer {
     return { plain: plainText, html: htmlText };
   }
 
-  composeWeeklyDigestCaption(gigs: readonly GigDocument[]): string {
+  composeWeeklyDigestCaption(gigs: readonly PlainGig[]): string {
     const { plain, html } = this.formatWeeklyDigestCaptionLines(gigs);
 
     if (plain.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
@@ -471,7 +410,7 @@ export class TelegramPostComposer {
     };
   }
 
-  getPosterReferenceForDigestAlbum(gig: GigDocument): string | undefined {
+  getPosterReferenceForDigestAlbum(gig: PlainGig): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     return moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
   }
@@ -486,7 +425,7 @@ export class TelegramPostComposer {
     return externalUrl;
   }
 
-  composeMainPost(gig: GigDocument): TGSendPhoto {
+  composeMainPost(gig: PlainGig): TGSendPhoto {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -518,7 +457,7 @@ export class TelegramPostComposer {
     };
   }
 
-  composeModerationPost(gig: GigDocument): TGSendPhoto {
+  composeModerationPost(gig: PlainGig): TGSendPhoto {
     const chatIdRaw = process.env.MODERATION_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -532,13 +471,10 @@ export class TelegramPostComposer {
     }
 
     const replyMarkup = this.buildModerationPostReplyMarkup(gig);
-
-    const caption = this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+    const fullCaption = this.buildModerationCaption({
+      body: this.buildGigBodyCaption(gig),
+      status: Status.Pending,
+      adminGigUrl: this.buildAdminGigUrlByPublicId(gig.publicId),
     });
 
     const poster = this.getPosterUrl(gig.poster);
@@ -552,13 +488,14 @@ export class TelegramPostComposer {
     return {
       chat_id: chatId,
       photo: poster,
-      caption,
+      caption: fullCaption,
+      parse_mode: TGParseMode.HTML,
       reply_markup: replyMarkup,
     };
   }
 
   private buildModerationPostReplyMarkup(
-    gig: GigDocument,
+    gig: PlainGig,
   ): TGInlineKeyboardMarkup {
     const editGigUrl = this.buildEditGigUrl(gig.publicId);
 
@@ -589,11 +526,17 @@ export class TelegramPostComposer {
   buildAfterPublishModerationReplyMarkup(
     params: BuildAfterPublishModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup | undefined {
-    const { publishPostUrl, editGigUrl } = params;
-    const row: { text: string; url: string }[] = [];
+    const { gigId, publishPostUrl, editGigUrl } = params;
 
-    if (publishPostUrl) {
-      row.push({ text: '🔗 Post', url: publishPostUrl });
+    const row: Array<
+      { text: string; url: string } | { text: string; callback_data: string }
+    > = [];
+
+    if (!publishPostUrl && gigId !== undefined) {
+      row.push({
+        text: '📢 Post',
+        callback_data: `${Action.Post}:${String(gigId)}`,
+      });
     }
     if (editGigUrl) {
       row.push({ text: '✏️ Edit', url: editGigUrl });
@@ -606,57 +549,62 @@ export class TelegramPostComposer {
     return { inline_keyboard: [row] };
   }
 
-  buildRejectedModerationReplyMarkup(gigId: GigId): TGInlineKeyboardMarkup {
-    return {
-      inline_keyboard: [
-        [
-          {
-            text: '❌ Rejected',
-            callback_data: `${Action.Rejected}:${String(gigId)}`,
-          },
-        ],
-      ],
-      // TODO: reason for rejection
-      // force_reply: true,
-      // input_field_placeholder: 'Reason?',
-    };
+  buildPublishedModerationCaption(
+    payload: BuildPublishedModerationCaptionPayload,
+  ): string {
+    const titleLabel = payload.gigUrl
+      ? `<a href="${payload.gigUrl}">${payload.title}</a>`
+      : payload.title;
+
+    return this.buildModerationCaption({
+      body: titleLabel,
+      status: Status.Published,
+      publishPostUrl: payload.publishPostUrl,
+      adminGigUrl: payload.adminGigUrl,
+    });
   }
 
-  buildSubmissionFeedbackPostLinkReplyMarkup(
-    postUrl?: string,
+  buildSubmissionFeedbackCaption(
+    payload: BuildSubmissionFeedbackCaptionPayload,
+  ): string {
+    const statusLabel = this.buildStatusLabel(payload.status);
+
+    return [statusLabel, '', payload.body].join('\n');
+  }
+
+  buildRejectedModerationCaption(
+    payload: BuildRejectedModerationCaptionPayload,
+  ): string {
+    return this.buildModerationCaption({
+      body: payload.body,
+      status: Status.Rejected,
+      adminGigUrl: payload.adminGigUrl,
+    });
+  }
+
+  buildRejectedModerationReplyMarkup(
+    editGigUrl?: string,
   ): TGInlineKeyboardMarkup | undefined {
-    if (!postUrl) {
+    if (!editGigUrl) {
       return undefined;
     }
 
     return {
-      inline_keyboard: [[{ text: '🔗 Post', url: postUrl }]],
+      inline_keyboard: [[{ text: '✏️ Edit', url: editGigUrl }]],
     };
   }
 
-  composeSubmissionFeedbackPost(
-    gig: GigDocument,
-    chatId: TGChatId,
-  ): TGSendPhoto {
-    const statusForUser = 'Pending';
-
-    const replyMarkup = {
-      inline_keyboard: [
-        [
-          {
-            text: `⏳ ${statusForUser}`,
-            callback_data: `${Action.Status}:${statusForUser}`,
-          },
-        ],
-      ],
-    };
-
-    const caption = this.buildCaption({
+  composeSubmissionFeedbackPost(gig: PlainGig, chatId: TGChatId): TGSendPhoto {
+    const body = this.buildCaption({
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,
       venue: gig.venue,
       date: gig.date,
       endDate: gig.endDate,
+    });
+    const caption = this.buildSubmissionFeedbackCaption({
+      body,
+      status: Status.Pending,
     });
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
@@ -673,31 +621,106 @@ export class TelegramPostComposer {
       chat_id: chatId,
       photo: poster,
       caption,
-      reply_markup: replyMarkup,
+      parse_mode: TGParseMode.HTML,
     };
   }
 
   buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {
-    if (!input.baseUrl || !input.publicId || !input.country || !input.city) {
+    if (!input.baseUrl || !input.publicId) {
       return undefined;
     }
 
-    const country = input.country.trim().toLowerCase();
-    const city = input.city.trim().toLowerCase();
-
-    // Current frontend routes:
-    // - /feed/[country]/[city]
-    // - gig anchor: #<publicId>
-    const url = new URL(
-      `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`,
+    return new URL(
+      `/gigs/${encodeURIComponent(input.publicId)}`,
       input.baseUrl,
-    );
-    url.hash = input.publicId;
-    return url.toString();
+    ).toString();
+  }
+
+  buildAdminGigUrl(input: BuildGigPermalinkPayload): string | undefined {
+    if (!input.baseUrl || !input.publicId) {
+      return undefined;
+    }
+
+    return new URL(
+      `/admin/gigs/${encodeURIComponent(input.publicId)}`,
+      input.baseUrl,
+    ).toString();
+  }
+
+  private buildModerationCaption(
+    payload: BuildModerationCaptionPayload,
+  ): string {
+    const statusLine = this.buildModerationStatusLine({
+      status: payload.status,
+      publishPostUrl: payload.publishPostUrl,
+      adminGigUrl: payload.adminGigUrl,
+    });
+
+    return [statusLine, '', payload.body].join('\n');
+  }
+
+  private buildModerationStatusLine(
+    params: BuildModerationStatusLinePayload,
+  ): string {
+    const statusLabel = this.buildStatusLabel(params.status);
+    const statusLinks = [
+      params.publishPostUrl
+        ? `<a href="${params.publishPostUrl}">See post</a>`
+        : undefined,
+      params.adminGigUrl
+        ? `<a href="${params.adminGigUrl}">Open in admin</a>`
+        : undefined,
+    ].filter(Boolean);
+
+    return statusLinks.length > 0
+      ? `${statusLabel} | ${statusLinks.join(' | ')}`
+      : statusLabel;
+  }
+
+  private buildAdminGigUrlByPublicId(publicId?: string): string | undefined {
+    if (!publicId) {
+      return undefined;
+    }
+
+    return this.buildAdminGigUrl({
+      baseUrl: this.getAppBaseUrl(),
+      publicId,
+    });
+  }
+
+  private buildGigBodyCaption(gig: PlainGig): string {
+    return this.buildCaption({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+  }
+
+  private getAppBaseUrl(): string {
+    return (process.env.APP_BASE_URL ?? '').trim();
+  }
+
+  private buildStatusDot(status: SubmissionFeedbackStatus): string {
+    switch (status) {
+      case Status.Pending:
+        return '🟡';
+      case Status.Published:
+        return '🟢';
+      case Status.Rejected:
+        return '🔴';
+    }
+  }
+
+  private buildStatusLabel(status: SubmissionFeedbackStatus): string {
+    const statusDot = this.buildStatusDot(status);
+    return `${statusDot} ${status}`;
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {
     const { chatUsername, messageId, chatId } = payload;
+
     if (!messageId) return;
     if (chatUsername) {
       return `https://t.me/${chatUsername}/${messageId}`;

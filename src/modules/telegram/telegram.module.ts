@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramPostComposer } from './telegram-post-composer.service';
+import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -32,7 +32,7 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
   providers: [
     TelegramAuthService,
     TelegramBotClient,
-    TelegramPostComposer,
+    TelegramPostComposerService,
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,

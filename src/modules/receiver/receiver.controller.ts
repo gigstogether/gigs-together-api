@@ -87,6 +87,7 @@ export class ReceiverController {
     return this.receiverService.handleGigSubmit(body, user, posterFile);
   }
 
+  // TODO: move to admin
   @Version('1')
   @Patch('gig/:publicId')
   @HttpCode(200)
