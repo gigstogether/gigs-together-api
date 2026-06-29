@@ -90,6 +90,20 @@ export interface BuildPublishedModerationCaptionPayload {
   readonly title: string;
   readonly gigUrl?: string;
   readonly publishPostUrl?: string;
+  readonly adminGigUrl?: string;
+}
+
+export interface BuildModerationStatusLinePayload {
+  readonly status: SubmissionFeedbackStatus;
+  readonly publishPostUrl?: string;
+  readonly adminGigUrl?: string;
+}
+
+export interface BuildModerationCaptionPayload {
+  readonly body: string;
+  readonly status: SubmissionFeedbackStatus;
+  readonly publishPostUrl?: string;
+  readonly adminGigUrl?: string;
 }
 
 export type SubmissionFeedbackStatus =
@@ -104,6 +118,7 @@ export type BuildSubmissionFeedbackCaptionPayload = {
 
 export interface BuildRejectedModerationCaptionPayload {
   readonly body: string;
+  readonly adminGigUrl?: string;
 }
 
 export interface ComposedText {

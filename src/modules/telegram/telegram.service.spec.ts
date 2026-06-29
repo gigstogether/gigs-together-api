@@ -298,12 +298,19 @@ describe('TelegramService', () => {
         },
       });
 
+      const editMessageCaptionPayload =
+        editMessageCaptionSpy.mock.calls[0]?.[0];
+
+      expect(editMessageCaptionPayload?.caption).toContain(
+        '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
+      );
+      expect(editMessageCaptionPayload?.caption).toContain(
+        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
+      );
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,
         messageId: 42,
-        caption: expect.stringContaining(
-          '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
-        ),
+        caption: expect.any(String),
         parseMode: TGParseMode.HTML,
         disableWebPagePreview: true,
         replyMarkup: {
@@ -365,6 +372,7 @@ describe('TelegramService', () => {
 
   describe('editModerationPost', () => {
     it('should keep rejected moderation post in rejected state after edit', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
       process.env.EDIT_GIG_URL = 'https://app.example/edit';
 
       const bot = testingModule.get(TelegramBotClient);
@@ -401,6 +409,13 @@ describe('TelegramService', () => {
         ],
       } as PlainGig);
 
+      const editMessageCaptionPayload =
+        editMessageCaptionSpy.mock.calls[0]?.[0];
+
+      expect(editMessageCaptionPayload?.caption).toContain(
+        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
+      );
+
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,
         messageId: 42,
@@ -423,6 +438,7 @@ describe('TelegramService', () => {
 
   describe('handlePostReject', () => {
     it('should edit moderation caption to rejected state and keep edit button', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
       process.env.EDIT_GIG_URL = 'https://app.example/edit';
 
       const bot = testingModule.get(TelegramBotClient);
@@ -455,6 +471,13 @@ describe('TelegramService', () => {
           messageId: 99,
         },
       });
+
+      const editMessageCaptionPayload =
+        editMessageCaptionSpy.mock.calls[0]?.[0];
+
+      expect(editMessageCaptionPayload?.caption).toContain(
+        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
+      );
 
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,

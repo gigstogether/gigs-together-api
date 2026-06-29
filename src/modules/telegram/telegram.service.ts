@@ -235,6 +235,10 @@ export class TelegramService {
       baseUrl: appBaseUrl,
       publicId,
     });
+    const adminGigUrl = this.telegramPostComposerService.buildAdminGigUrl({
+      baseUrl: appBaseUrl,
+      publicId,
+    });
 
     const publishPostChatIdUrl = publishPost
       ? this.telegramPostComposerService.getPostUrl({
@@ -255,6 +259,7 @@ export class TelegramService {
         title,
         gigUrl,
         publishPostUrl: publishPostChatIdUrl,
+        adminGigUrl,
       });
 
     // NOTE: Telegram can't remove media from a photo message via edit APIs,
@@ -298,6 +303,11 @@ export class TelegramService {
     const editGigUrl = this.telegramPostComposerService.buildEditGigUrl(
       gig.publicId,
     );
+    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const adminGigUrl = this.telegramPostComposerService.buildAdminGigUrl({
+      baseUrl: appBaseUrl,
+      publicId: gig.publicId,
+    });
     const replyMarkup =
       this.telegramPostComposerService.buildRejectedModerationReplyMarkup(
         editGigUrl,
@@ -312,6 +322,7 @@ export class TelegramService {
     const caption =
       this.telegramPostComposerService.buildRejectedModerationCaption({
         body,
+        adminGigUrl,
       });
 
     await this.telegramBotClient.editMessageCaption({

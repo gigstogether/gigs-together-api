@@ -17,6 +17,8 @@ import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import {
   BuildAfterPublishModerationReplyMarkupParams,
   BuildCaptionPayload,
+  BuildModerationCaptionPayload,
+  BuildModerationStatusLinePayload,
   BuildGigPermalinkPayload,
   BuildPublishedModerationCaptionPayload,
   BuildRejectedModerationCaptionPayload,
@@ -78,22 +80,17 @@ export class TelegramPostComposerService {
     if (!chatId || !messageId) return undefined;
 
     const editGigUrl = this.buildEditGigUrl(gig.publicId);
+    const adminGigUrl = this.buildAdminGigUrlByPublicId(gig.publicId);
     const isRejected = gig.status === Status.Rejected;
     const replyMarkup = isRejected
       ? this.buildRejectedModerationReplyMarkup(editGigUrl)
       : this.buildModerationPostReplyMarkup(gig);
 
-    const caption = this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+    const fullCaption = this.buildModerationCaption({
+      body: this.buildGigBodyCaption(gig),
+      status: isRejected ? Status.Rejected : Status.Pending,
+      adminGigUrl,
     });
-    const statusLine = this.buildStatusLabel(
-      isRejected ? Status.Rejected : Status.Pending,
-    );
-    const fullCaption = [statusLine, '', caption].join('\n');
 
     if (opts?.updateMedia && post?.fileId) {
       const posterUrl = this.getPosterUrlForEdit(gig.poster);
@@ -474,16 +471,11 @@ export class TelegramPostComposerService {
     }
 
     const replyMarkup = this.buildModerationPostReplyMarkup(gig);
-
-    const caption = this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+    const fullCaption = this.buildModerationCaption({
+      body: this.buildGigBodyCaption(gig),
+      status: Status.Pending,
+      adminGigUrl: this.buildAdminGigUrlByPublicId(gig.publicId),
     });
-    const statusLine = this.buildStatusLabel(Status.Pending);
-    const fullCaption = [statusLine, '', caption].join('\n');
 
     const poster = this.getPosterUrl(gig.poster);
 
@@ -497,6 +489,7 @@ export class TelegramPostComposerService {
       chat_id: chatId,
       photo: poster,
       caption: fullCaption,
+      parse_mode: TGParseMode.HTML,
       reply_markup: replyMarkup,
     };
   }
@@ -559,15 +552,16 @@ export class TelegramPostComposerService {
   buildPublishedModerationCaption(
     payload: BuildPublishedModerationCaptionPayload,
   ): string {
-    const statusLabel = this.buildStatusLabel(Status.Published);
-    const statusLine = payload.publishPostUrl
-      ? `${statusLabel} | <a href="${payload.publishPostUrl}">See post</a>`
-      : statusLabel;
     const titleLabel = payload.gigUrl
       ? `<a href="${payload.gigUrl}">${payload.title}</a>`
       : payload.title;
 
-    return [statusLine, '', titleLabel].join('\n');
+    return this.buildModerationCaption({
+      body: titleLabel,
+      status: Status.Published,
+      publishPostUrl: payload.publishPostUrl,
+      adminGigUrl: payload.adminGigUrl,
+    });
   }
 
   buildSubmissionFeedbackCaption(
@@ -581,8 +575,11 @@ export class TelegramPostComposerService {
   buildRejectedModerationCaption(
     payload: BuildRejectedModerationCaptionPayload,
   ): string {
-    const statusLabel = this.buildStatusLabel(Status.Rejected);
-    return [statusLabel, '', payload.body].join('\n');
+    return this.buildModerationCaption({
+      body: payload.body,
+      status: Status.Rejected,
+      adminGigUrl: payload.adminGigUrl,
+    });
   }
 
   buildRejectedModerationReplyMarkup(
@@ -637,6 +634,72 @@ export class TelegramPostComposerService {
       `/gigs/${encodeURIComponent(input.publicId)}`,
       input.baseUrl,
     ).toString();
+  }
+
+  buildAdminGigUrl(input: BuildGigPermalinkPayload): string | undefined {
+    if (!input.baseUrl || !input.publicId) {
+      return undefined;
+    }
+
+    return new URL(
+      `/admin/gigs/${encodeURIComponent(input.publicId)}`,
+      input.baseUrl,
+    ).toString();
+  }
+
+  private buildModerationCaption(
+    payload: BuildModerationCaptionPayload,
+  ): string {
+    const statusLine = this.buildModerationStatusLine({
+      status: payload.status,
+      publishPostUrl: payload.publishPostUrl,
+      adminGigUrl: payload.adminGigUrl,
+    });
+
+    return [statusLine, '', payload.body].join('\n');
+  }
+
+  private buildModerationStatusLine(
+    params: BuildModerationStatusLinePayload,
+  ): string {
+    const statusLabel = this.buildStatusLabel(params.status);
+    const statusLinks = [
+      params.publishPostUrl
+        ? `<a href="${params.publishPostUrl}">See post</a>`
+        : undefined,
+      params.adminGigUrl
+        ? `<a href="${params.adminGigUrl}">Open in admin</a>`
+        : undefined,
+    ].filter(Boolean);
+
+    return statusLinks.length > 0
+      ? `${statusLabel} | ${statusLinks.join(' | ')}`
+      : statusLabel;
+  }
+
+  private buildAdminGigUrlByPublicId(publicId?: string): string | undefined {
+    if (!publicId) {
+      return undefined;
+    }
+
+    return this.buildAdminGigUrl({
+      baseUrl: this.getAppBaseUrl(),
+      publicId,
+    });
+  }
+
+  private buildGigBodyCaption(gig: PlainGig): string {
+    return this.buildCaption({
+      title: gig.title,
+      ticketsUrl: gig.ticketsUrl,
+      venue: gig.venue,
+      date: gig.date,
+      endDate: gig.endDate,
+    });
+  }
+
+  private getAppBaseUrl(): string {
+    return (process.env.APP_BASE_URL ?? '').trim();
   }
 
   private buildStatusDot(status: SubmissionFeedbackStatus): string {

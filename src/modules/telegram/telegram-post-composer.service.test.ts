@@ -126,9 +126,10 @@ describe('TelegramPostComposer', () => {
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
           publishPostUrl: 'https://t.me/gigs/42',
+          adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '🟢 Published | <a href="https://t.me/gigs/42">See post</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+        '🟢 Published | <a href="https://t.me/gigs/42">See post</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
       );
     });
   });
@@ -171,6 +172,17 @@ describe('TelegramPostComposer', () => {
 
       expect(composer.buildGigPermalink(input)).toBe(
         'https://app.example/gigs/gig-1',
+      );
+    });
+
+    it('should build admin gigs URL from publicId', () => {
+      const input: BuildGigPermalinkPayload = {
+        baseUrl: 'https://app.example',
+        publicId: 'gig-1',
+      };
+
+      expect(composer.buildAdminGigUrl(input)).toBe(
+        'https://app.example/admin/gigs/gig-1',
       );
     });
   });
@@ -341,9 +353,38 @@ describe('TelegramPostComposer', () => {
       expect(payload.chat_id).toBe('-2001');
       expect(payload.caption).toContain('🟡 Pending');
       expect(payload.caption).not.toContain('Gig</a>');
+      expect(payload.parse_mode).toBe(TGParseMode.HTML);
     });
   });
 
+  describe('composeModerationPost admin link', () => {
+    it('should include admin link in pending moderation post caption', () => {
+      process.env.MODERATION_CHANNEL_ID = '-2001';
+      process.env.APP_BASE_URL = 'https://app.example';
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
+
+      const gig = {
+        _id: 'gig-m3',
+        title: 'Show',
+        publicId: 'gig-m3',
+        country: 'ES',
+        city: 'barcelona',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        poster: { bucketPath: 'gigs/x.jpg' },
+      } as unknown as GigDocument;
+
+      const payload = composer.composeModerationPost(gig);
+
+      expect(payload.caption).toContain(
+        '<a href="https://app.example/admin/gigs/gig-m3">Open in admin</a>',
+      );
+
+      delete process.env.MODERATION_CHANNEL_ID;
+      delete process.env.APP_BASE_URL;
+    });
+  });
   describe('composeSubmissionFeedbackPost', () => {
     beforeEach(() => {
       process.env.APP_BASE_URL = 'https://app.example';
