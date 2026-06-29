@@ -44,6 +44,8 @@ describe('ReceiverService', () => {
   };
 
   beforeEach(async () => {
+    vi.unstubAllEnvs();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ReceiverService,
@@ -67,6 +69,7 @@ describe('ReceiverService', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
   });
 
   beforeEach(() => {
@@ -187,7 +190,48 @@ describe('ReceiverService', () => {
       expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
     });
 
-    it('should skip submission feedback when user is admin', async () => {
+    it('should send submission feedback when user is not admin and env flag is disabled by default', async () => {
+      const savedGig = {
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      };
+      mockGigService.saveGig.mockResolvedValueOnce(savedGig);
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+      mockTelegramService.sendSubmissionFeedback.mockResolvedValueOnce({
+        message_id: 777,
+      });
+
+      await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'user',
+            first_name: 'Regular',
+            last_name: 'User',
+          },
+          isAdmin: false,
+        },
+        undefined,
+      );
+
+      expect(mockTelegramService.sendSubmissionFeedback).toHaveBeenCalledWith(
+        savedGig,
+        12345,
+      );
+    });
+
+    it('should skip submission feedback when user is admin and admin feedback env flag is disabled by default', async () => {
       mockGigService.saveGig.mockResolvedValueOnce({
         _id: '507f1f77bcf86cd799439011',
         publicId: 'arctic-monkeys-2026-07-01',
@@ -195,7 +239,7 @@ describe('ReceiverService', () => {
       mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
       mockGigService.updateGig.mockResolvedValueOnce(undefined);
 
-      const result = await service.handleGigSubmit(
+      await service.handleGigSubmit(
         {
           gig: {
             title: 'Arctic Monkeys',
@@ -218,8 +262,50 @@ describe('ReceiverService', () => {
         undefined,
       );
 
-      expect(result).toEqual({ publicId: 'arctic-monkeys-2026-07-01' });
       expect(mockTelegramService.sendSubmissionFeedback).not.toHaveBeenCalled();
+    });
+
+    it('should send submission feedback when user is admin and SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS is true', async () => {
+      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+
+      const savedGig = {
+        _id: '507f1f77bcf86cd799439011',
+        publicId: 'arctic-monkeys-2026-07-01',
+      };
+      mockGigService.saveGig.mockResolvedValueOnce(savedGig);
+      mockTelegramService.sendToModeration.mockResolvedValueOnce(undefined);
+      mockGigService.updateGig.mockResolvedValueOnce(undefined);
+      mockTelegramService.sendSubmissionFeedback.mockResolvedValueOnce({
+        message_id: 778,
+      });
+
+      await service.handleGigSubmit(
+        {
+          gig: {
+            title: 'Arctic Monkeys',
+            date: '2026-07-01',
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Razzmatazz',
+            ticketsUrl: 'https://tickets.example/gig',
+          },
+        },
+        {
+          tgUser: {
+            id: 12345,
+            username: 'admin',
+            first_name: 'Admin',
+            last_name: 'User',
+          },
+          isAdmin: true,
+        },
+        undefined,
+      );
+
+      expect(mockTelegramService.sendSubmissionFeedback).toHaveBeenCalledWith(
+        savedGig,
+        12345,
+      );
     });
   });
 
