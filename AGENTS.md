@@ -23,6 +23,13 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - If necessary for the task, it's allowed to run relevant tests without asking the user.
 - Do not run lint after documentation-only changes (for example `*.md`).
 
+## Secrets Access Policy
+
+- Never read or print repository secret files such as `.env`, `.env.*` (except `.env.example`), private keys, or credential dumps.
+- Treat `.env` and `.env.*` (except `.env.example`) as denied by default for AI agents. Do not run commands like `cat`, `type`, `Get-Content`, `rg`, or editors against them.
+- Use `.env.example` (or documented variable names) for configuration guidance instead of reading real secret files.
+- If a task cannot be completed without secret values, stop and ask the user to provide only the required variable names or masked values.
+
 ## Testing Rules
 
 - Use Vitest for unit and integration tests in this repository.
