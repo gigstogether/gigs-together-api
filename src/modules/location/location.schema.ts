@@ -10,7 +10,7 @@ export class Country {
     uppercase: true,
     trim: true,
   })
-  iso: string; // "ES"
+  iso: string; // ISO 3166-1 alpha-2: e.g. "ES"
 }
 
 export type CountryDocument = HydratedDocument<Country>;
@@ -22,7 +22,7 @@ export class City {
   code: string;
 
   @Prop({ required: true })
-  country: string; // iso code: e.g. "ES"
+  country: string; // ISO 3166-1 alpha-2: e.g. "ES"
 }
 
 export type CityDocument = HydratedDocument<City>;

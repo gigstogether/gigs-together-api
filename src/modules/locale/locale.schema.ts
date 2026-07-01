@@ -1,11 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
 
-/**
- * Locale available in the project.
- * Currently we use language-only locale codes: "en", "es", "ru".
- * Later this can be extended to regional codes like "pt-BR" or "es-MX".
- */
 @Schema()
 export class Locale {
   @Prop({
@@ -13,7 +8,7 @@ export class Locale {
     required: true,
     unique: true,
   })
-  iso: string;
+  iso: string; // ISO 639-1: e.g. "ES"
 
   @Prop({ type: String, required: true })
   nativeName: string;

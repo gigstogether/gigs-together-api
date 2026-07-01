@@ -8,16 +8,9 @@ export class Translation {
   @Prop({ type: String, required: true })
   key: string;
 
-  /**
-   * Locale tag (BCP 47), e.g. "en", "ru", "es", "pt-BR".
-   * Store in lowercase for easier matching (client headers may vary in case).
-   */
   @Prop({ type: String, required: true, lowercase: true, trim: true })
-  locale: string;
+  locale: string; // ISO 639-1: e.g. "ES"
 
-  /**
-   * Optional grouping (e.g. "country", "common", "errors").
-   */
   @Prop({ type: String, required: false, lowercase: true, trim: true })
   namespace?: string;
 
