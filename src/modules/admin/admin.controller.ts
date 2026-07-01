@@ -25,11 +25,11 @@ import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-das
 import { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
 import type { V1AdminGigsListResponseBody } from './types/requests/v1-admin-gigs-list-response';
 import {
-  V1AdminLanguagePatchBodyDto,
-  V1AdminLanguagesOrderPatchBodyDto,
-} from './types/requests/v1-admin-language-patch-body';
-import { LanguageService } from '../language/language.service';
-import type { SupportedLanguage } from '../language/types/language.types';
+  V1AdminLocalePatchBodyDto,
+  V1AdminLocalesOrderPatchBodyDto,
+} from './types/requests/v1-admin-locale-patch-body';
+import { LocaleService } from '../locale/locale.service';
+import type { SupportedLocale } from '../locale/types/locale.types';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
@@ -45,7 +45,7 @@ export class AdminController {
     private readonly adminGigService: AdminGigService,
     private readonly authorizationService: AuthorizationService,
     private readonly configService: ConfigService,
-    private readonly languageService: LanguageService,
+    private readonly localeService: LocaleService,
     private readonly gigModerationService: GigModerationService,
   ) {}
 
@@ -107,31 +107,31 @@ export class AdminController {
   }
 
   @Version('1')
-  @Get('languages')
+  @Get('locales')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  getLanguages(): Promise<readonly SupportedLanguage[]> {
-    return this.languageService.getAllLanguagesOrdered();
+  getLocales(): Promise<readonly SupportedLocale[]> {
+    return this.localeService.getAllLocalesOrdered();
   }
 
   @Version('1')
-  @Patch('languages/order')
+  @Patch('locales/order')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  patchLanguagesOrder(
-    @Body() body: V1AdminLanguagesOrderPatchBodyDto,
-  ): Promise<readonly SupportedLanguage[]> {
-    return this.languageService.updateLanguagesOrder({
-      languages: body.languages,
+  patchLocalesOrder(
+    @Body() body: V1AdminLocalesOrderPatchBodyDto,
+  ): Promise<readonly SupportedLocale[]> {
+    return this.localeService.updateLocalesOrder({
+      locales: body.locales,
     });
   }
 
   @Version('1')
-  @Patch('languages/:iso')
+  @Patch('locales/:iso')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  patchLanguage(
+  patchLocale(
     @Param('iso') iso: string,
-    @Body() body: V1AdminLanguagePatchBodyDto,
-  ): Promise<SupportedLanguage> {
-    return this.languageService.updateLanguageByIso({ iso, ...body });
+    @Body() body: V1AdminLocalePatchBodyDto,
+  ): Promise<SupportedLocale> {
+    return this.localeService.updateLocaleByIso({ iso, ...body });
   }
 
   @Post('revalidate')

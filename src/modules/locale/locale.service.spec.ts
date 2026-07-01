@@ -2,36 +2,36 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
-import { Language } from './language.schema';
+import { Locale } from './locale.schema';
 import { Translation } from './translation.schema';
-import { LanguageService } from './language.service';
+import { LocaleService } from './locale.service';
 
-describe('LanguageService', () => {
-  let service: LanguageService;
+describe('LocaleService', () => {
+  let service: LocaleService;
 
-  const languageFindMock = vi.fn();
-  const languageFindOneAndUpdateMock = vi.fn();
-  const languageCountDocumentsMock = vi.fn();
-  const languageBulkWriteMock = vi.fn();
+  const localeFindMock = vi.fn();
+  const localeFindOneAndUpdateMock = vi.fn();
+  const localeCountDocumentsMock = vi.fn();
+  const localeBulkWriteMock = vi.fn();
   const translationFindMock = vi.fn();
 
   beforeEach(async () => {
-    languageFindMock.mockReset();
-    languageFindOneAndUpdateMock.mockReset();
-    languageCountDocumentsMock.mockReset();
-    languageBulkWriteMock.mockReset();
+    localeFindMock.mockReset();
+    localeFindOneAndUpdateMock.mockReset();
+    localeCountDocumentsMock.mockReset();
+    localeBulkWriteMock.mockReset();
     translationFindMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LanguageService,
+        LocaleService,
         {
-          provide: getModelToken(Language.name),
+          provide: getModelToken(Locale.name),
           useValue: {
-            find: languageFindMock,
-            findOneAndUpdate: languageFindOneAndUpdateMock,
-            countDocuments: languageCountDocumentsMock,
-            bulkWrite: languageBulkWriteMock,
+            find: localeFindMock,
+            findOneAndUpdate: localeFindOneAndUpdateMock,
+            countDocuments: localeCountDocumentsMock,
+            bulkWrite: localeBulkWriteMock,
           },
         },
         {
@@ -43,32 +43,32 @@ describe('LanguageService', () => {
       ],
     }).compile();
 
-    service = module.get<LanguageService>(LanguageService);
+    service = module.get<LocaleService>(LocaleService);
   });
 
-  describe('getAllLanguagesOrdered', () => {
-    it('should return all languages sorted by order and iso', async () => {
+  describe('getAllLocalesOrdered', () => {
+    it('should return all locales sorted by order and iso', async () => {
       const execMock = vi.fn().mockResolvedValue([
         { iso: 'en', name: 'English', isActive: true, order: 0 },
         { iso: 'es', name: 'Español', isActive: true, order: 1 },
       ]);
-      languageFindMock.mockReturnValue({
+      localeFindMock.mockReturnValue({
         sort: vi.fn().mockReturnValue({
           lean: vi.fn().mockReturnValue({ exec: execMock }),
         }),
       });
 
-      await expect(service.getAllLanguagesOrdered()).resolves.toEqual([
+      await expect(service.getAllLocalesOrdered()).resolves.toEqual([
         { iso: 'en', name: 'English', isActive: true, order: 0 },
         { iso: 'es', name: 'Español', isActive: true, order: 1 },
       ]);
     });
   });
 
-  describe('updateLanguageByIso', () => {
+  describe('updateLocaleByIso', () => {
     function mockFindOneAndUpdateResult(value: unknown) {
       const execMock = vi.fn().mockResolvedValue(value);
-      languageFindOneAndUpdateMock.mockReturnValue({
+      localeFindOneAndUpdateMock.mockReturnValue({
         select: vi.fn().mockReturnValue({
           lean: vi.fn().mockReturnValue({ exec: execMock }),
         }),
@@ -76,8 +76,8 @@ describe('LanguageService', () => {
       return execMock;
     }
 
-    it('should update language fields when payload is valid', async () => {
-      languageCountDocumentsMock.mockReturnValue({
+    it('should update locale fields when payload is valid', async () => {
+      localeCountDocumentsMock.mockReturnValue({
         exec: vi.fn().mockResolvedValue(1),
       });
       mockFindOneAndUpdateResult({
@@ -88,7 +88,7 @@ describe('LanguageService', () => {
       });
 
       await expect(
-        service.updateLanguageByIso({
+        service.updateLocaleByIso({
           iso: 'es',
           isActive: false,
           order: 2,
@@ -101,38 +101,38 @@ describe('LanguageService', () => {
       });
     });
 
-    it('should throw when language iso is invalid', async () => {
+    it('should throw when locale iso is invalid', async () => {
       await expect(
-        service.updateLanguageByIso({ iso: 'INVALID', isActive: true }),
+        service.updateLocaleByIso({ iso: 'INVALID', isActive: true }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('should throw when deactivating the last active language', async () => {
-      languageCountDocumentsMock.mockReturnValue({
+    it('should throw when deactivating the last active locale', async () => {
+      localeCountDocumentsMock.mockReturnValue({
         exec: vi.fn().mockResolvedValue(0),
       });
 
       await expect(
-        service.updateLanguageByIso({ iso: 'en', isActive: false }),
+        service.updateLocaleByIso({ iso: 'en', isActive: false }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('should throw when language is not found', async () => {
-      languageCountDocumentsMock.mockReturnValue({
+    it('should throw when locale is not found', async () => {
+      localeCountDocumentsMock.mockReturnValue({
         exec: vi.fn().mockResolvedValue(1),
       });
       mockFindOneAndUpdateResult(null);
 
       await expect(
-        service.updateLanguageByIso({ iso: 'en', name: 'English' }),
+        service.updateLocaleByIso({ iso: 'en', name: 'English' }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 
-  describe('updateLanguagesOrder', () => {
-    it('should bulk update language orders and return ordered list', async () => {
-      languageBulkWriteMock.mockResolvedValue({ ok: 1 });
-      languageFindMock
+  describe('updateLocalesOrder', () => {
+    it('should bulk update locale orders and return ordered list', async () => {
+      localeBulkWriteMock.mockResolvedValue({ ok: 1 });
+      localeFindMock
         .mockReturnValueOnce({
           lean: vi.fn().mockReturnValue({
             exec: vi.fn().mockResolvedValue([{ iso: 'en' }, { iso: 'es' }]),
@@ -150,8 +150,8 @@ describe('LanguageService', () => {
         });
 
       await expect(
-        service.updateLanguagesOrder({
-          languages: [
+        service.updateLocalesOrder({
+          locales: [
             { iso: 'es', order: 0 },
             { iso: 'en', order: 1 },
           ],
@@ -161,7 +161,7 @@ describe('LanguageService', () => {
         { iso: 'en', name: 'English', isActive: true, order: 1 },
       ]);
 
-      expect(languageBulkWriteMock).toHaveBeenCalledWith([
+      expect(localeBulkWriteMock).toHaveBeenCalledWith([
         {
           updateOne: { filter: { iso: 'es' }, update: { $set: { order: 0 } } },
         },
@@ -171,24 +171,24 @@ describe('LanguageService', () => {
       ]);
     });
 
-    it('should throw when fewer than two languages are provided', async () => {
+    it('should throw when fewer than two locales are provided', async () => {
       await expect(
-        service.updateLanguagesOrder({
-          languages: [{ iso: 'en', order: 0 }],
+        service.updateLocalesOrder({
+          locales: [{ iso: 'en', order: 0 }],
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('should throw when a language iso is not found', async () => {
-      languageFindMock.mockReturnValue({
+    it('should throw when a locale iso is not found', async () => {
+      localeFindMock.mockReturnValue({
         lean: vi.fn().mockReturnValue({
           exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
         }),
       });
 
       await expect(
-        service.updateLanguagesOrder({
-          languages: [
+        service.updateLocalesOrder({
+          locales: [
             { iso: 'en', order: 0 },
             { iso: 'es', order: 1 },
           ],

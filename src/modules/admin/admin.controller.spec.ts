@@ -2,7 +2,7 @@ import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
 import type { GigModerationService } from '../gig/gig-moderation.service';
-import type { LanguageService } from '../language/language.service';
+import type { LocaleService } from '../locale/locale.service';
 
 describe('AdminController', () => {
   const adminDashboardService = {
@@ -31,25 +31,25 @@ describe('AdminController', () => {
     'approveGig' | 'rejectGig' | 'publishGigPost'
   >;
 
-  const languageService = {
-    getAllLanguagesOrdered: vi
+  const localeService = {
+    getAllLocalesOrdered: vi
       .fn()
       .mockResolvedValue([
         { iso: 'en', name: 'English', isActive: true, order: 0 },
       ]),
-    updateLanguageByIso: vi.fn().mockResolvedValue({
+    updateLocaleByIso: vi.fn().mockResolvedValue({
       iso: 'en',
       name: 'English',
       isActive: false,
       order: 0,
     }),
-    updateLanguagesOrder: vi.fn().mockResolvedValue([
+    updateLocalesOrder: vi.fn().mockResolvedValue([
       { iso: 'es', name: 'Español', isActive: true, order: 0 },
       { iso: 'en', name: 'English', isActive: true, order: 1 },
     ]),
   } satisfies Pick<
-    LanguageService,
-    'getAllLanguagesOrdered' | 'updateLanguageByIso' | 'updateLanguagesOrder'
+    LocaleService,
+    'getAllLocalesOrdered' | 'updateLocaleByIso' | 'updateLocalesOrder'
   >;
 
   const authorizationService = {
@@ -65,7 +65,7 @@ describe('AdminController', () => {
     adminGigService as unknown as AdminGigService,
     authorizationService as never,
     configService as never,
-    languageService as unknown as LanguageService,
+    localeService as unknown as LocaleService,
     gigModerationService as unknown as GigModerationService,
   );
 
@@ -142,19 +142,19 @@ describe('AdminController', () => {
     });
   });
 
-  describe('getLanguages', () => {
-    it('should return languages from language service', async () => {
-      await expect(controller.getLanguages()).resolves.toEqual([
+  describe('getLocales', () => {
+    it('should return locales from locale service', async () => {
+      await expect(controller.getLocales()).resolves.toEqual([
         { iso: 'en', name: 'English', isActive: true, order: 0 },
       ]);
-      expect(languageService.getAllLanguagesOrdered).toHaveBeenCalled();
+      expect(localeService.getAllLocalesOrdered).toHaveBeenCalled();
     });
   });
 
-  describe('patchLanguage', () => {
-    it('should update language via language service', async () => {
+  describe('patchLocale', () => {
+    it('should update locale via locale service', async () => {
       await expect(
-        controller.patchLanguage('en', { isActive: false }),
+        controller.patchLocale('en', { isActive: false }),
       ).resolves.toEqual({
         iso: 'en',
         name: 'English',
@@ -162,18 +162,18 @@ describe('AdminController', () => {
         order: 0,
       });
 
-      expect(languageService.updateLanguageByIso).toHaveBeenCalledWith({
+      expect(localeService.updateLocaleByIso).toHaveBeenCalledWith({
         iso: 'en',
         isActive: false,
       });
     });
   });
 
-  describe('patchLanguagesOrder', () => {
-    it('should batch update language order via language service', async () => {
+  describe('patchLocalesOrder', () => {
+    it('should batch update locale order via locale service', async () => {
       await expect(
-        controller.patchLanguagesOrder({
-          languages: [
+        controller.patchLocalesOrder({
+          locales: [
             { iso: 'es', order: 0 },
             { iso: 'en', order: 1 },
           ],
@@ -183,8 +183,8 @@ describe('AdminController', () => {
         { iso: 'en', name: 'English', isActive: true, order: 1 },
       ]);
 
-      expect(languageService.updateLanguagesOrder).toHaveBeenCalledWith({
-        languages: [
+      expect(localeService.updateLocalesOrder).toHaveBeenCalledWith({
+        locales: [
           { iso: 'es', order: 0 },
           { iso: 'en', order: 1 },
         ],

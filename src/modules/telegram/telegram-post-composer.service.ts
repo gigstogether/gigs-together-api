@@ -616,7 +616,7 @@ export class TelegramPostComposerService {
       );
     }
 
-    // TODO: add some language like "You've submitted, blablabla..."
+    // TODO: add some text like "You've submitted, blablabla..."
     return {
       chat_id: chatId,
       photo: poster,

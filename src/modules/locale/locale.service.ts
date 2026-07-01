@@ -4,29 +4,29 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type {
-  SupportedLanguage,
-  UpdateLanguageByIsoParams,
-  UpdateLanguagesOrderParams,
-} from './types/language.types';
+  SupportedLocale,
+  UpdateLocaleByIsoParams,
+  UpdateLocalesOrderParams,
+} from './types/locale.types';
 import { InjectModel } from '@nestjs/mongoose';
-import { LanguageDocument, Language } from './language.schema';
+import { LocaleDocument, Locale } from './locale.schema';
 import { Model } from 'mongoose';
 import { Translation, TranslationDocument } from './translation.schema';
 import type {
-  V1LanguageGetTranslationsRequest,
-  V1LanguageGetTranslationsResponseBody,
-} from './types/requests/v1-language-get-translations-request';
+  V1LocaleGetTranslationsRequest,
+  V1LocaleGetTranslationsResponseBody,
+} from './types/requests/v1-locale-get-translations-request';
 
 @Injectable()
-export class LanguageService {
+export class LocaleService {
   constructor(
-    @InjectModel(Language.name)
-    private readonly languageModel: Model<LanguageDocument>,
+    @InjectModel(Locale.name)
+    private readonly localeModel: Model<LocaleDocument>,
     @InjectModel(Translation.name)
     private readonly translationModel: Model<TranslationDocument>,
   ) {}
 
-  private static readonly DEFAULT_LANGUAGE_ISO: string = 'en';
+  private static readonly DEFAULT_LOCALE_ISO: string = 'en';
   private static readonly DEFAULT_NAMESPACE = 'default';
 
   private static normalizeAcceptLanguage(value?: string): string | undefined {
@@ -39,7 +39,7 @@ export class LanguageService {
     return primary;
   }
 
-  private static normalizeLanguageIsoParam(isoRaw: string): string {
+  private static normalizeLocaleIsoParam(isoRaw: string): string {
     const iso = isoRaw.trim().toLowerCase();
     if (!/^[a-z]{2}(?:-[a-z]{2})?$/.test(iso)) {
       throw new BadRequestException('iso has invalid format');
@@ -72,7 +72,7 @@ export class LanguageService {
     }
 
     const isValid = (ns: string) =>
-      ns === LanguageService.DEFAULT_NAMESPACE ||
+      ns === LocaleService.DEFAULT_NAMESPACE ||
       /^[a-z0-9][a-z0-9_-]{0,63}$/.test(ns);
 
     const invalid = unique.filter((ns) => !isValid(ns));
@@ -86,45 +86,42 @@ export class LanguageService {
   }
 
   private async resolveLocale(acceptLanguageRaw?: string): Promise<string> {
-    const requested =
-      LanguageService.normalizeAcceptLanguage(acceptLanguageRaw);
-    if (!requested) return LanguageService.DEFAULT_LANGUAGE_ISO;
+    const requested = LocaleService.normalizeAcceptLanguage(acceptLanguageRaw);
+    if (!requested) return LocaleService.DEFAULT_LOCALE_ISO;
 
-    const supported = await this.languageModel
+    const supported = await this.localeModel
       .find({ isActive: true }, { _id: 0, iso: 1 })
       .lean<Array<{ readonly iso: string }>>()
       .exec();
 
     const set = new Set(supported.map((x) => x.iso));
-    return set.has(requested)
-      ? requested
-      : LanguageService.DEFAULT_LANGUAGE_ISO;
+    return set.has(requested) ? requested : LocaleService.DEFAULT_LOCALE_ISO;
   }
 
-  getLanguagesV1(): Promise<readonly SupportedLanguage[]> {
-    return this.languageModel
+  getLocalesV1(): Promise<readonly SupportedLocale[]> {
+    return this.localeModel
       .find(
         { isActive: true },
         { _id: 0, iso: 1, name: 1, isActive: 1, order: 1 },
       )
       .sort({ order: 1, iso: 1 })
-      .lean<SupportedLanguage[]>()
+      .lean<SupportedLocale[]>()
       .exec();
   }
 
-  getAllLanguagesOrdered(): Promise<readonly SupportedLanguage[]> {
-    return this.languageModel
+  getAllLocalesOrdered(): Promise<readonly SupportedLocale[]> {
+    return this.localeModel
       .find({}, { _id: 0, iso: 1, name: 1, isActive: 1, order: 1 })
       .sort({ order: 1, iso: 1 })
-      .lean<SupportedLanguage[]>()
+      .lean<SupportedLocale[]>()
       .exec();
   }
 
-  async updateLanguageByIso(
-    params: UpdateLanguageByIsoParams,
-  ): Promise<SupportedLanguage> {
-    const iso = LanguageService.normalizeLanguageIsoParam(params.iso);
-    const update: Partial<Language> = {};
+  async updateLocaleByIso(
+    params: UpdateLocaleByIsoParams,
+  ): Promise<SupportedLocale> {
+    const iso = LocaleService.normalizeLocaleIsoParam(params.iso);
+    const update: Partial<Locale> = {};
 
     if (params.name !== undefined) {
       const name = params.name.trim();
@@ -150,36 +147,36 @@ export class LanguageService {
     }
 
     if (params.isActive === false) {
-      const otherActiveCount = await this.languageModel
+      const otherActiveCount = await this.localeModel
         .countDocuments({ isActive: true, iso: { $ne: iso } })
         .exec();
       if (otherActiveCount === 0) {
         throw new BadRequestException(
-          'Cannot deactivate the last active language',
+          'Cannot deactivate the last active locale',
         );
       }
     }
 
-    const updated = await this.languageModel
+    const updated = await this.localeModel
       .findOneAndUpdate({ iso }, update, { returnDocument: 'after' })
       .select({ _id: 0, iso: 1, name: 1, isActive: 1, order: 1 })
-      .lean<SupportedLanguage>()
+      .lean<SupportedLocale>()
       .exec();
 
     if (!updated) {
-      throw new NotFoundException(`Language "${iso}" not found`);
+      throw new NotFoundException(`Locale "${iso}" not found`);
     }
 
     return updated;
   }
 
-  async updateLanguagesOrder(
-    params: UpdateLanguagesOrderParams,
-  ): Promise<readonly SupportedLanguage[]> {
-    const updates = params.languages;
+  async updateLocalesOrder(
+    params: UpdateLocalesOrderParams,
+  ): Promise<readonly SupportedLocale[]> {
+    const updates = params.locales;
 
     if (updates.length < 2) {
-      throw new BadRequestException('At least two languages must be updated');
+      throw new BadRequestException('At least two locales must be updated');
     }
 
     const normalizedUpdates = updates.map((update) => {
@@ -188,7 +185,7 @@ export class LanguageService {
         throw new BadRequestException('order must be a non-negative integer');
       }
       return {
-        iso: LanguageService.normalizeLanguageIsoParam(update.iso),
+        iso: LocaleService.normalizeLocaleIsoParam(update.iso),
         order,
       };
     });
@@ -203,20 +200,20 @@ export class LanguageService {
       throw new BadRequestException('Duplicate order values in request');
     }
 
-    const existing = await this.languageModel
+    const existing = await this.localeModel
       .find({ iso: { $in: isos } }, { iso: 1 })
       .lean<Array<{ readonly iso: string }>>()
       .exec();
 
     if (existing.length !== isos.length) {
-      const existingIsos = new Set(existing.map((language) => language.iso));
+      const existingIsos = new Set(existing.map((locale) => locale.iso));
       const missingIsos = isos.filter((iso) => !existingIsos.has(iso));
       throw new NotFoundException(
-        `Language(s) not found: ${missingIsos.join(', ')}`,
+        `Locale(s) not found: ${missingIsos.join(', ')}`,
       );
     }
 
-    await this.languageModel.bulkWrite(
+    await this.localeModel.bulkWrite(
       normalizedUpdates.map((update) => ({
         updateOne: {
           filter: { iso: update.iso },
@@ -225,15 +222,15 @@ export class LanguageService {
       })),
     );
 
-    return this.getAllLanguagesOrdered();
+    return this.getAllLocalesOrdered();
   }
 
   async getTranslationsV1(
-    request: V1LanguageGetTranslationsRequest,
-  ): Promise<V1LanguageGetTranslationsResponseBody> {
+    request: V1LocaleGetTranslationsRequest,
+  ): Promise<V1LocaleGetTranslationsResponseBody> {
     const locale = await this.resolveLocale(request.acceptLanguage);
 
-    const namespaces = LanguageService.parseNamespacesQuery(
+    const namespaces = LocaleService.parseNamespacesQuery(
       request.namespacesQuery,
     );
 
@@ -244,10 +241,10 @@ export class LanguageService {
 
     if (namespaces !== undefined) {
       const withoutDefault = namespaces.filter(
-        (ns) => ns !== LanguageService.DEFAULT_NAMESPACE,
+        (ns) => ns !== LocaleService.DEFAULT_NAMESPACE,
       );
       const includesDefault = namespaces.includes(
-        LanguageService.DEFAULT_NAMESPACE,
+        LocaleService.DEFAULT_NAMESPACE,
       );
 
       if (includesDefault && withoutDefault.length > 0) {
@@ -297,7 +294,7 @@ export class LanguageService {
         .toString()
         .trim()
         .toLowerCase();
-      const namespace = namespaceRaw || LanguageService.DEFAULT_NAMESPACE;
+      const namespace = namespaceRaw || LocaleService.DEFAULT_NAMESPACE;
       translations[namespace] ??= {};
       translations[namespace][doc.key] = {
         value: doc.value,

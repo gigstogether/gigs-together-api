@@ -21,5 +21,4 @@ export interface ModerateGigByPublicIdParams extends ModerateGigBaseParams {
 }
 
 export type ModerateGigParams =
-  | ModerateGigByIdParams
-  | ModerateGigByPublicIdParams;
+  ModerateGigByIdParams | ModerateGigByPublicIdParams;

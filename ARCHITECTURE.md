@@ -102,23 +102,25 @@ Supporting pieces:
 - receiver exception filters
 - multer-based file upload interceptor for posters
 
-#### `LanguageModule`
+#### `LocaleModule`
 
 Responsibilities:
 
-- serves supported languages
-- serves translation payloads
+- serves supported locales
+
+[//]: # '- serves translation payloads'
 
 Persistence:
 
-- `Language`
-- `Translation`
+- `Locale`
+
+[//]: # '- `Translation`'
 
 Main files:
 
-- `src/modules/language/language.module.ts`
-- `src/modules/language/language.controller.ts`
-- `src/modules/language/language.service.ts`
+- `src/modules/locale/locale.module.ts`
+- `src/modules/locale/locale.controller.ts`
+- `src/modules/locale/locale.service.ts`
 
 #### `LocationModule`
 
@@ -129,7 +131,7 @@ Responsibilities:
 Persistence:
 
 - `Country`
-- `Language`
+- `locale`
 
 Main files:
 
@@ -227,7 +229,7 @@ Main files:
 
 Typical path:
 
-1. request hits a controller such as `GigController`, `LanguageController`, or `LocationController`
+1. request hits a controller such as `GigController`, `localeController`, or `LocationController`
 2. DTO/query validation runs through the global validation pipe
 3. the controller delegates to a domain service
 4. the service reads from MongoDB and returns a response DTO
@@ -238,8 +240,8 @@ Examples:
 - `/v1/gig/dates`
 - `/v1/gig/around`
 - `/v1/location/countries`
-- `/v1/language`
-- `/v1/language/translations`
+- `/v1/locale`
+- `/v1/locale/translations`
 
 ### Receiver and integration flow
 
@@ -263,7 +265,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 
 - gigs in `src/modules/gig/gig.schema.ts`
 - admins in `src/shared/schemas/admin.schema.ts`
-- languages and translations in `src/modules/language/*.schema.ts`
+- locales and translations in `src/modules/locale/*.schema.ts`
 - locations in `src/modules/location/location.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
@@ -281,7 +283,7 @@ This keeps schema ownership aligned with the module that owns the use case.
 
 The codebase is organized around a few practical boundaries:
 
-- public read API is mostly isolated in `GigModule`, `LocationModule`, and `LanguageModule`
+- public read API is mostly isolated in `GigModule`, `LocationModule`, and `LocaleModule`
 - Telegram- and moderation-oriented write flows are concentrated in `ReceiverModule`
 - external systems are abstracted behind dedicated services instead of being called directly from controllers
 - Mongo models are registered per module rather than globally

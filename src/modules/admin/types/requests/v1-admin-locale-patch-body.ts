@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class V1AdminLanguagePatchBodyDto {
+export class V1AdminLocalePatchBodyDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
@@ -27,7 +27,7 @@ export class V1AdminLanguagePatchBodyDto {
   order?: number;
 }
 
-export class V1AdminLanguageOrderItemDto {
+export class V1AdminLocaleOrderItemDto {
   @IsString()
   @MinLength(1)
   iso!: string;
@@ -37,10 +37,10 @@ export class V1AdminLanguageOrderItemDto {
   order!: number;
 }
 
-export class V1AdminLanguagesOrderPatchBodyDto {
+export class V1AdminLocalesOrderPatchBodyDto {
   @IsArray()
   @ArrayMinSize(2)
   @ValidateNested({ each: true })
-  @Type(() => V1AdminLanguageOrderItemDto)
-  languages!: V1AdminLanguageOrderItemDto[];
+  @Type(() => V1AdminLocaleOrderItemDto)
+  locales!: V1AdminLocaleOrderItemDto[];
 }

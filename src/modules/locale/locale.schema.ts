@@ -1,8 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
 
+/**
+ * Locale available in the project.
+ * Currently we use language-only locale codes: "en", "es", "ru".
+ * Later this can be extended to regional codes like "pt-BR" or "es-MX".
+ */
 @Schema()
-export class Language {
+export class Locale {
   @Prop({
     type: String,
     required: true,
@@ -20,5 +25,5 @@ export class Language {
   order: number;
 }
 
-export type LanguageDocument = HydratedDocument<Language>;
-export const LanguageSchema = SchemaFactory.createForClass(Language);
+export type LocaleDocument = HydratedDocument<Locale>;
+export const LocaleSchema = SchemaFactory.createForClass(Locale);

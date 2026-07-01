@@ -8,7 +8,7 @@ The API currently provides:
 
 - public REST endpoints for gigs, locations, and translations
 - cookie-based auth endpoints for the admin and receiver clients
-- admin endpoints for dashboard, gig moderation, language management, and admin cache revalidation
+- admin endpoints for dashboard, gig moderation, locale management, and admin cache revalidation
 - Telegram webhook handling for admin/moderation flows
 - gig creation and editing endpoints for the receiver client
 - manual digest publish and feed revalidation hooks
@@ -47,12 +47,12 @@ src/
     receiver/              Telegram/receiver-facing endpoints
     telegram/              Telegram integration
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
-    admin/                 admin dashboard, moderation, language management, revalidation
+    admin/                 admin dashboard, moderation, locale management, revalidation
     calendar/              Google Calendar integration
     bucket/                S3-compatible poster storage
     ai/                    AI-assisted lookup
     location/              country/location endpoints
-    language/              translations and language endpoints
+    locale/                translations and locale endpoints
 migrations/                MongoDB migration files
 test/                      e2e test setup
 docker-compose.yml         local MongoDB
@@ -471,7 +471,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, and `/v1/language/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
