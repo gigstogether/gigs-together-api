@@ -123,12 +123,12 @@ export class LocaleService {
     const iso = LocaleService.normalizeLocaleIsoParam(params.iso);
     const update: Partial<Locale> = {};
 
-    if (params.name !== undefined) {
-      const name = params.name.trim();
+    if (params.nativeName !== undefined) {
+      const name = params.nativeName.trim();
       if (!name) {
         throw new BadRequestException('name must not be empty');
       }
-      update.name = name;
+      update.nativeName = name;
     }
 
     if (params.isActive !== undefined) {

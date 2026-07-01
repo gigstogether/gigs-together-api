@@ -1,16 +1,13 @@
 export interface SupportedLocale {
   readonly iso: string;
-  /**
-   * Default locale name in its own language (e.g. "Русский", "Español").
-   */
-  readonly name: string; // TODO: rename to nativeName?
+  readonly nativeName: string;
   readonly isActive: boolean;
   readonly order: number;
 }
 
 export interface UpdateLocaleByIsoParams {
   readonly iso: string;
-  readonly name?: string;
+  readonly nativeName?: string;
   readonly isActive?: boolean;
   readonly order?: number;
 }

@@ -16,7 +16,7 @@ export class Locale {
   iso: string;
 
   @Prop({ type: String, required: true })
-  name: string;
+  nativeName: string;
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean;

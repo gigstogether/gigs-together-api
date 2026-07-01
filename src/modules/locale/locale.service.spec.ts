@@ -124,7 +124,7 @@ describe('LocaleService', () => {
       mockFindOneAndUpdateResult(null);
 
       await expect(
-        service.updateLocaleByIso({ iso: 'en', name: 'English' }),
+        service.updateLocaleByIso({ iso: 'en', nativeName: 'English' }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
