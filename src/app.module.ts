@@ -14,6 +14,7 @@ import { BucketModule } from './modules/bucket/bucket.module';
 import { AiModule } from './modules/ai/ai.module';
 import { LocationModule } from './modules/location/location.module';
 import { LocaleModule } from './modules/locale/locale.module';
+import { TranslationModule } from './modules/translation/translation.module';
 import { DigestModule } from './modules/digest/digest.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
@@ -47,6 +48,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     AiModule,
     LocationModule,
     LocaleModule,
+    TranslationModule,
     DigestModule,
     AdminModule,
   ],

@@ -1,6 +1,6 @@
 import type { TranslationFormat } from '../../translation.schema';
 
-export interface V1LocaleGetTranslationsRequest {
+export interface V1TranslationGetTranslationsRequest {
   /**
    * Raw `Accept-Language` header value (may be "*", "en-US,en;q=0.9", etc).
    * We validate and normalize it on the server.
@@ -14,7 +14,7 @@ export interface V1TranslationValue {
   readonly format: TranslationFormat;
 }
 
-export interface V1LocaleGetTranslationsResponseBody {
+export interface V1TranslationGetTranslationsResponseBody {
   /**
    * Effective locale used for the response.
    * May differ from the requested `accept-language` if it's unsupported/inactive.

@@ -3,7 +3,6 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { getModelToken } from '@nestjs/mongoose';
 import { Locale } from './locale.schema';
-import { Translation } from './translation.schema';
 import { LocaleService } from './locale.service';
 
 describe('LocaleService', () => {
@@ -13,14 +12,12 @@ describe('LocaleService', () => {
   const localeFindOneAndUpdateMock = vi.fn();
   const localeCountDocumentsMock = vi.fn();
   const localeBulkWriteMock = vi.fn();
-  const translationFindMock = vi.fn();
 
   beforeEach(async () => {
     localeFindMock.mockReset();
     localeFindOneAndUpdateMock.mockReset();
     localeCountDocumentsMock.mockReset();
     localeBulkWriteMock.mockReset();
-    translationFindMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,12 +29,6 @@ describe('LocaleService', () => {
             findOneAndUpdate: localeFindOneAndUpdateMock,
             countDocuments: localeCountDocumentsMock,
             bulkWrite: localeBulkWriteMock,
-          },
-        },
-        {
-          provide: getModelToken(Translation.name),
-          useValue: {
-            find: translationFindMock,
           },
         },
       ],

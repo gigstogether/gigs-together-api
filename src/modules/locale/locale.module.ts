@@ -3,14 +3,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { LocaleController } from './locale.controller';
 import { LocaleService } from './locale.service';
 import { Locale, LocaleSchema } from './locale.schema';
-import { Translation, TranslationSchema } from './translation.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: Locale.name, schema: LocaleSchema },
-      { name: Translation.name, schema: TranslationSchema },
-    ]),
+    MongooseModule.forFeature([{ name: Locale.name, schema: LocaleSchema }]),
   ],
   controllers: [LocaleController],
   providers: [LocaleService],
