@@ -15,7 +15,7 @@ export class V1AdminLocalePatchBodyDto {
   @IsOptional()
   @IsString()
   @MinLength(1)
-  name?: string;
+  nativeName?: string;
 
   @IsOptional()
   @IsBoolean()

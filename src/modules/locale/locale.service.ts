@@ -31,7 +31,7 @@ export class LocaleService {
     return this.localeModel
       .find(
         { isActive: true },
-        { _id: 0, iso: 1, name: 1, isActive: 1, order: 1 },
+        { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 },
       )
       .sort({ order: 1, iso: 1 })
       .lean<SupportedLocale[]>()
@@ -40,7 +40,7 @@ export class LocaleService {
 
   getAllLocalesOrdered(): Promise<readonly SupportedLocale[]> {
     return this.localeModel
-      .find({}, { _id: 0, iso: 1, name: 1, isActive: 1, order: 1 })
+      .find({}, { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 })
       .sort({ order: 1, iso: 1 })
       .lean<SupportedLocale[]>()
       .exec();
@@ -53,11 +53,11 @@ export class LocaleService {
     const update: Partial<Locale> = {};
 
     if (params.nativeName !== undefined) {
-      const name = params.nativeName.trim();
-      if (!name) {
-        throw new BadRequestException('name must not be empty');
+      const trimmedNativeName = params.nativeName.trim();
+      if (!trimmedNativeName) {
+        throw new BadRequestException('nativeName must not be empty');
       }
-      update.nativeName = name;
+      update.nativeName = trimmedNativeName;
     }
 
     if (params.isActive !== undefined) {
@@ -88,7 +88,7 @@ export class LocaleService {
 
     const updated = await this.localeModel
       .findOneAndUpdate({ iso }, update, { returnDocument: 'after' })
-      .select({ _id: 0, iso: 1, name: 1, isActive: 1, order: 1 })
+      .select({ _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 })
       .lean<SupportedLocale>()
       .exec();
 

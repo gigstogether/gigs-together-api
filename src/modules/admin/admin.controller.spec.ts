@@ -35,17 +35,17 @@ describe('AdminController', () => {
     getAllLocalesOrdered: vi
       .fn()
       .mockResolvedValue([
-        { iso: 'en', name: 'English', isActive: true, order: 0 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
       ]),
     updateLocaleByIso: vi.fn().mockResolvedValue({
       iso: 'en',
-      name: 'English',
+      nativeName: 'English',
       isActive: false,
       order: 0,
     }),
     updateLocalesOrder: vi.fn().mockResolvedValue([
-      { iso: 'es', name: 'Español', isActive: true, order: 0 },
-      { iso: 'en', name: 'English', isActive: true, order: 1 },
+      { iso: 'es', nativeName: 'Español', isActive: true, order: 0 },
+      { iso: 'en', nativeName: 'English', isActive: true, order: 1 },
     ]),
   } satisfies Pick<
     LocaleService,
@@ -145,7 +145,7 @@ describe('AdminController', () => {
   describe('getLocales', () => {
     it('should return locales from locale service', async () => {
       await expect(controller.getLocales()).resolves.toEqual([
-        { iso: 'en', name: 'English', isActive: true, order: 0 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
       ]);
       expect(localeService.getAllLocalesOrdered).toHaveBeenCalled();
     });
@@ -157,7 +157,7 @@ describe('AdminController', () => {
         controller.patchLocale('en', { isActive: false }),
       ).resolves.toEqual({
         iso: 'en',
-        name: 'English',
+        nativeName: 'English',
         isActive: false,
         order: 0,
       });
@@ -179,8 +179,8 @@ describe('AdminController', () => {
           ],
         }),
       ).resolves.toEqual([
-        { iso: 'es', name: 'Español', isActive: true, order: 0 },
-        { iso: 'en', name: 'English', isActive: true, order: 1 },
+        { iso: 'es', nativeName: 'Español', isActive: true, order: 0 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 1 },
       ]);
 
       expect(localeService.updateLocalesOrder).toHaveBeenCalledWith({

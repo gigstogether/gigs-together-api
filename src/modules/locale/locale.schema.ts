@@ -8,7 +8,7 @@ export class Locale {
     required: true,
     unique: true,
   })
-  iso: string; // ISO 639-1: e.g. "ES"
+  iso: string; // ISO 639-1: e.g. "es"
 
   @Prop({ type: String, required: true })
   nativeName: string;

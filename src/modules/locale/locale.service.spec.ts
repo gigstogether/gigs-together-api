@@ -40,8 +40,8 @@ describe('LocaleService', () => {
   describe('getAllLocalesOrdered', () => {
     it('should return all locales sorted by order and iso', async () => {
       const execMock = vi.fn().mockResolvedValue([
-        { iso: 'en', name: 'English', isActive: true, order: 0 },
-        { iso: 'es', name: 'Español', isActive: true, order: 1 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+        { iso: 'es', nativeName: 'Español', isActive: true, order: 1 },
       ]);
       localeFindMock.mockReturnValue({
         sort: vi.fn().mockReturnValue({
@@ -50,8 +50,8 @@ describe('LocaleService', () => {
       });
 
       await expect(service.getAllLocalesOrdered()).resolves.toEqual([
-        { iso: 'en', name: 'English', isActive: true, order: 0 },
-        { iso: 'es', name: 'Español', isActive: true, order: 1 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+        { iso: 'es', nativeName: 'Español', isActive: true, order: 1 },
       ]);
     });
   });
@@ -73,7 +73,7 @@ describe('LocaleService', () => {
       });
       mockFindOneAndUpdateResult({
         iso: 'es',
-        name: 'Español',
+        nativeName: 'Español',
         isActive: false,
         order: 2,
       });
@@ -86,7 +86,7 @@ describe('LocaleService', () => {
         }),
       ).resolves.toEqual({
         iso: 'es',
-        name: 'Español',
+        nativeName: 'Español',
         isActive: false,
         order: 2,
       });
@@ -133,8 +133,8 @@ describe('LocaleService', () => {
           sort: vi.fn().mockReturnValue({
             lean: vi.fn().mockReturnValue({
               exec: vi.fn().mockResolvedValue([
-                { iso: 'es', name: 'Español', isActive: true, order: 0 },
-                { iso: 'en', name: 'English', isActive: true, order: 1 },
+                { iso: 'es', nativeName: 'Español', isActive: true, order: 0 },
+                { iso: 'en', nativeName: 'English', isActive: true, order: 1 },
               ]),
             }),
           }),
@@ -148,8 +148,8 @@ describe('LocaleService', () => {
           ],
         }),
       ).resolves.toEqual([
-        { iso: 'es', name: 'Español', isActive: true, order: 0 },
-        { iso: 'en', name: 'English', isActive: true, order: 1 },
+        { iso: 'es', nativeName: 'Español', isActive: true, order: 0 },
+        { iso: 'en', nativeName: 'English', isActive: true, order: 1 },
       ]);
 
       expect(localeBulkWriteMock).toHaveBeenCalledWith([
