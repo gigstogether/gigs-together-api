@@ -3,6 +3,8 @@ import type { HydratedDocument } from 'mongoose';
 
 export type TranslationFormat = 'plain' | 'icu';
 
+export type TranslationKind = 'text' | 'template';
+
 @Schema({ timestamps: true })
 export class Translation {
   @Prop({ type: String, required: true })
@@ -11,7 +13,7 @@ export class Translation {
   @Prop({ type: String, required: true, lowercase: true, trim: true })
   locale: string; // ISO 639-1: e.g. "ES"
 
-  @Prop({ type: String, required: false, lowercase: true, trim: true })
+  @Prop({ type: String, required: false, trim: true })
   namespace?: string;
 
   @Prop({ type: String, required: true })
@@ -24,6 +26,14 @@ export class Translation {
     default: 'plain',
   })
   format: TranslationFormat;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['text', 'template'],
+    default: 'text',
+  })
+  kind: TranslationKind;
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean;

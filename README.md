@@ -6,7 +6,7 @@ NestJS API for the Gigs Together project. It serves public gig data, authenticat
 
 The API currently provides:
 
-- public REST endpoints for gigs, locations, and translations
+- public REST endpoints for gigs, locations, supported locales, and translations
 - cookie-based auth endpoints for the admin and receiver clients
 - admin endpoints for dashboard, gig moderation, locale management, and admin cache revalidation
 - Telegram webhook handling for admin/moderation flows
@@ -52,7 +52,8 @@ src/
     bucket/                S3-compatible poster storage
     ai/                    AI-assisted lookup
     location/              country/location endpoints
-    locale/                translations and locale endpoints
+    locale/                supported locales (`Locale` collection, admin CRUD via `LocaleService`)
+    translation/           static localized text (`Translation` collection, namespace/key records)
 migrations/                MongoDB migration files
 test/                      e2e test setup
 docker-compose.yml         local MongoDB
@@ -471,7 +472,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, and `/v1/locale/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
@@ -481,6 +482,30 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
 - `POST /digest/publish` and `POST /admin/revalidate` are unversioned secret-protected operator hooks
 - `GET /health` is the simplest endpoint to use for smoke testing
+
+### Locale and translations modules
+
+Locale metadata and translation strings are split into two Nest modules. Both expose routes under the `/v1/locale` prefix, but they own different collections and responsibilities.
+
+| Module              | Path                       | MongoDB model | Responsibility                                                     |
+| ------------------- | -------------------------- | ------------- | ------------------------------------------------------------------ |
+| `LocaleModule`      | `src/modules/locale/`      | `Locale`      | Supported locale records: `iso`, `nativeName`, `isActive`, `order` |
+| `TranslationModule` | `src/modules/translation/` | `Translation` | Text and templates keyed by `locale`, `namespace`, and `key`       |
+
+Public endpoints:
+
+- `GET /v1/locale` — active locales sorted for clients (from `LocaleModule`)
+- `GET /v1/locale/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional `?namespaces=` filter (from `TranslationModule`)
+
+Admin locale management lives in `AdminModule`, which imports `LocaleModule` and reuses `LocaleService`:
+
+- `GET /v1/admin/locales`
+- `PATCH /v1/admin/locales/:iso`
+- `PATCH /v1/admin/locales/order`
+
+`TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
+
+More module-level detail is in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Common development workflow
 

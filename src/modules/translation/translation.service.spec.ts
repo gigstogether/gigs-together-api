@@ -51,9 +51,22 @@ describe('TranslationService', () => {
         readonly value: string;
         readonly namespace?: string | null;
         readonly format: TranslationDocument['format'];
+        readonly kind: TranslationDocument['kind'];
       }> = [
-        { key: 'hello', value: 'Hello', namespace: '', format: 'plain' },
-        { key: 'cta', value: 'Join', namespace: 'home', format: 'plain' },
+        {
+          key: 'hello',
+          value: 'Hello',
+          namespace: '',
+          format: 'plain',
+          kind: 'text',
+        },
+        {
+          key: 'cta',
+          value: 'Join',
+          namespace: 'home',
+          format: 'plain',
+          kind: 'text',
+        },
       ];
 
       translationFindMock.mockReturnValue({
@@ -73,10 +86,10 @@ describe('TranslationService', () => {
         locale: 'en',
         translations: {
           default: {
-            hello: { value: 'Hello', format: 'plain' },
+            hello: { value: 'Hello', format: 'plain', kind: 'text' },
           },
           home: {
-            cta: { value: 'Join', format: 'plain' },
+            cta: { value: 'Join', format: 'plain', kind: 'text' },
           },
         },
       });

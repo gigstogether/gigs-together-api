@@ -6,7 +6,9 @@ import { Translation, TranslationDocument } from './translation.schema';
 import type {
   V1TranslationGetTranslationsRequest,
   V1TranslationGetTranslationsResponseBody,
+  V1TranslationValue,
 } from './types/requests/v1-translation-get-translations-request';
+import { isValidTranslationNamespace } from './translation-identifiers';
 
 @Injectable()
 export class TranslationService {
@@ -41,7 +43,7 @@ export class TranslationService {
 
     const parts = rawList
       .flatMap((item) => item.split(','))
-      .map((item) => item.trim().toLowerCase())
+      .map((item) => item.trim())
       .filter((item) => item.length > 0);
 
     const unique = [...new Set(parts)];
@@ -54,9 +56,7 @@ export class TranslationService {
       );
     }
 
-    const isValid = (ns: string) =>
-      ns === TranslationService.DEFAULT_NAMESPACE ||
-      /^[a-z0-9][a-z0-9_-]{0,63}$/.test(ns);
+    const isValid = (ns: string) => isValidTranslationNamespace(ns);
 
     const invalid = unique.filter((ns) => !isValid(ns));
     if (invalid.length > 0) {
@@ -125,7 +125,14 @@ export class TranslationService {
     }
 
     const docs = await this.translationModel
-      .find(filter, { _id: 0, key: 1, value: 1, namespace: 1, format: 1 })
+      .find(filter, {
+        _id: 0,
+        key: 1,
+        value: 1,
+        namespace: 1,
+        format: 1,
+        kind: 1,
+      })
       .sort({ namespace: 1, key: 1 })
       .lean<
         Array<{
@@ -133,31 +140,21 @@ export class TranslationService {
           readonly value: string;
           readonly namespace?: string | null;
           readonly format: TranslationDocument['format'];
+          readonly kind?: TranslationDocument['kind'];
         }>
       >()
       .exec();
 
-    const translations: Record<
-      string,
-      Record<
-        string,
-        {
-          readonly value: string;
-          readonly format: TranslationDocument['format'];
-        }
-      >
-    > = {};
+    const translations: Record<string, Record<string, V1TranslationValue>> = {};
 
     for (const doc of docs) {
-      const namespaceRaw = (doc.namespace ?? '')
-        .toString()
-        .trim()
-        .toLowerCase();
+      const namespaceRaw = (doc.namespace ?? '').toString().trim();
       const namespace = namespaceRaw || TranslationService.DEFAULT_NAMESPACE;
       translations[namespace] ??= {};
       translations[namespace][doc.key] = {
         value: doc.value,
         format: doc.format,
+        kind: doc.kind ?? 'text',
       };
     }
 

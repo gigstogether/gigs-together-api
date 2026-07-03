@@ -1,4 +1,7 @@
-import type { TranslationFormat } from '../../translation.schema';
+import type {
+  TranslationFormat,
+  TranslationKind,
+} from '../../translation.schema';
 
 export interface V1TranslationGetTranslationsRequest {
   /**
@@ -12,6 +15,7 @@ export interface V1TranslationGetTranslationsRequest {
 export interface V1TranslationValue {
   readonly value: string;
   readonly format: TranslationFormat;
+  readonly kind: TranslationKind;
 }
 
 export interface V1TranslationGetTranslationsResponseBody {

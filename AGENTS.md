@@ -98,6 +98,19 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Use dependency injection consistently.
 - Avoid creating clients directly inside methods unless the scope requires it and the reason is clear.
 
+## Translations
+
+- Do not use the word **copy** for UI text, labels, strings, templates, or other translatable content. Prefer **text**, **strings**, **labels**, or **content**. Reserve **copy** for clipboard actions (for example `Copy link`) and file operations (for example `Copy .env.example`).
+- Translation **namespaces** and **keys** use **camelCase** identifiers.
+- Namespace pattern: start with a lowercase letter, then alphanumeric; examples: `common`, `telegram`, `default`.
+- Key pattern: dot-separated camelCase segments; examples: `mainGig.withLink`, `weeklyDigest.gigLine.html`, `button.approve`.
+- Do not use snake_case or kebab-case in namespaces or keys (for example `main_gig_post`, `weekly-digest`).
+- Post template keys name the post type without a redundant `Post` suffix (for example `mainGig`, `weeklyDigest`, not `mainGigPost`); namespace `telegram` already scopes channel post text.
+- **Locale** values stay lowercase ISO 639-1 codes (for example `en`, `es`); locale is not camelCase.
+- Preserve namespace casing in storage and API responses; do not normalize namespaces to lowercase.
+- Reuse validation helpers in `src/modules/translation/translation-identifiers.ts` when parsing or validating translation records, seeds, and admin input.
+- Translation record shape: `namespace`, `key`, `value`, `format` (`plain`), `kind` (`text` for labels and static strings, `template` for strings with `{placeholders}`), `isActive`.
+
 ## Notes
 
 - This file is the repository-wide, tool-agnostic source of agent instructions.
