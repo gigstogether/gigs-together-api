@@ -14,6 +14,8 @@ import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
+import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
+import { TelegramTemplateService } from './telegram-template.service';
 import {
   BuildAfterPublishModerationReplyMarkupParams,
   BuildCaptionPayload,
@@ -35,9 +37,6 @@ import {
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
-export const WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN =
-  'There are no gigs scheduled for this week.';
-
 const DATE_LOCALE = 'en-GB';
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: 'numeric',
@@ -45,6 +44,8 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   year: 'numeric',
   weekday: 'short',
 };
+
+const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
@@ -54,7 +55,10 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
  */
 @Injectable()
 export class TelegramPostComposerService {
-  constructor(private readonly bucketService: BucketService) {}
+  constructor(
+    private readonly bucketService: BucketService,
+    private readonly postTemplates: TelegramTemplateService,
+  ) {}
 
   private addCacheBustToUrl(url: string, cacheBust: string): string {
     const sep = url.includes('?') ? '&' : '?';
@@ -224,16 +228,17 @@ export class TelegramPostComposerService {
       : undefined;
     const dates = [date, endDate].filter(Boolean).join(' - ');
 
-    return [
-      payload.url
-        ? `<a href="${payload.url}">${payload.title}</a>`
-        : payload.title,
-      '',
-      `🗓 ${dates}`,
-      `📍 ${payload.venue}`,
-      '',
-      `🎫 ${payload.ticketsUrl}`,
-    ].join('\n');
+    const templateKey = payload.url
+      ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
+      : TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink;
+
+    return this.postTemplates.render(templateKey, {
+      url: payload.url,
+      title: payload.title,
+      dates,
+      venue: payload.venue,
+      ticketsUrl: payload.ticketsUrl,
+    });
   }
 
   pickTgPost(
@@ -258,12 +263,16 @@ export class TelegramPostComposerService {
     });
 
     const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-
-    const PREFIX = "Here's what is happening this week:";
-    const GIGS_SEPARATOR = '\n\n';
-    const GIG_INFO_SEPARATOR = '\n';
-    const GIG_INFO_ITEMS_SEPARATOR = ' • ';
-    const TICKETS = 'Tickets';
+    // TODO
+    const header = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader,
+    );
+    const footer = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter,
+    );
+    const ticketsLabel = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel,
+    );
 
     const gigs = gigDocs.map((gig: PlainGig) => {
       const dateLabel = formatter.format(new Date(gig.date));
@@ -271,47 +280,58 @@ export class TelegramPostComposerService {
         ? formatter.format(new Date(gig.endDate))
         : undefined;
       const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
-      return {
-        dates: datesLabel,
-        title: gig.title,
-        venue: gig.venue,
-        ticketsUrl: gig.ticketsUrl,
-        publicId: gig.publicId,
-      };
-    });
-
-    const plainLines: string[] = [PREFIX];
-    for (const gig of gigs) {
-      const plainLine = [
-        gig.title,
-        gig.dates,
-        [gig.venue, TICKETS].join(GIG_INFO_ITEMS_SEPARATOR),
-      ].join(GIG_INFO_SEPARATOR);
-
-      plainLines.push(plainLine);
-    }
-    const plainText = plainLines.join(GIGS_SEPARATOR);
-
-    const htmlLines: string[] = [PREFIX];
-    for (const gig of gigs) {
       const url = this.buildGigPermalink({
         baseUrl: appBaseUrl,
         publicId: gig.publicId,
       });
 
-      const titleLabel = url ? `<a href="${url}">${gig.title}</a>` : gig.title;
-      const ticketsLabel = `<a href="${gig.ticketsUrl}">${TICKETS}</a>`;
+      const titleLine = url
+        ? this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink,
+            { url, title: gig.title },
+          )
+        : this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink,
+            { title: gig.title },
+          );
+      const ticketsLine = this.postTemplates.render(
+        TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink,
+        { url: gig.ticketsUrl, ticketsLabel },
+      );
 
-      const htmlLine = [
-        titleLabel,
-        gig.dates,
-        [gig.venue, ticketsLabel].join(GIG_INFO_ITEMS_SEPARATOR),
-      ].join(GIG_INFO_SEPARATOR);
+      return {
+        dates: datesLabel,
+        title: gig.title,
+        venue: gig.venue,
+        ticketsLabel,
+        titleLine,
+        ticketsLine,
+      };
+    });
 
-      htmlLines.push(htmlLine);
+    const plainLines: string[] = [header];
+    for (const gig of gigs) {
+      plainLines.push(
+        this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain,
+          gig,
+        ),
+      );
     }
+    plainLines.push(footer);
+    const plainText = plainLines.join(WEEKLY_DIGEST_GIGS_SEPARATOR);
 
-    const htmlText = htmlLines.join(GIGS_SEPARATOR);
+    const htmlLines: string[] = [header];
+    for (const gig of gigs) {
+      htmlLines.push(
+        this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml,
+          gig,
+        ),
+      );
+    }
+    htmlLines.push(footer);
+    const htmlText = htmlLines.join(WEEKLY_DIGEST_GIGS_SEPARATOR);
     return { plain: plainText, html: htmlText };
   }
 
@@ -324,7 +344,9 @@ export class TelegramPostComposerService {
 
     let body = html;
 
-    const ellipsis = '\n…';
+    const ellipsis = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.weeklyDigestTruncationEllipsis,
+    );
     const budget = TELEGRAM_MEDIA_CAPTION_MAX_CHARS - ellipsis.length;
     if (budget <= 0) {
       return '…'.slice(0, TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
@@ -352,7 +374,9 @@ export class TelegramPostComposerService {
         kind: WeeklyDigestMainChannelSendKind.SendMessage,
         payload: {
           chat_id: chatId,
-          text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+          text: this.postTemplates.getText(
+            TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
+          ),
         },
       };
     }
@@ -503,12 +527,25 @@ export class TelegramPostComposerService {
       inline_keyboard: [
         [
           {
-            text: '✅ Approve',
+            text: this.postTemplates.getText(
+              TELEGRAM_TEMPLATE_KEYS.buttonApprove,
+            ),
             callback_data: `${Action.Approve}:${gig._id}`,
           },
-          ...(editGigUrl ? [{ text: '✏️ Edit', url: editGigUrl }] : []),
+          ...(editGigUrl
+            ? [
+                {
+                  text: this.postTemplates.getText(
+                    TELEGRAM_TEMPLATE_KEYS.buttonEdit,
+                  ),
+                  url: editGigUrl,
+                },
+              ]
+            : []),
           {
-            text: '❌ Reject',
+            text: this.postTemplates.getText(
+              TELEGRAM_TEMPLATE_KEYS.buttonReject,
+            ),
             callback_data: `${Action.Reject}:${gig._id}`,
           },
         ],
@@ -534,12 +571,15 @@ export class TelegramPostComposerService {
 
     if (!publishPostUrl && gigId !== undefined) {
       row.push({
-        text: '📢 Post',
+        text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonPost),
         callback_data: `${Action.Post}:${String(gigId)}`,
       });
     }
     if (editGigUrl) {
-      row.push({ text: '✏️ Edit', url: editGigUrl });
+      row.push({
+        text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonEdit),
+        url: editGigUrl,
+      });
     }
 
     if (row.length === 0) {
@@ -553,8 +593,14 @@ export class TelegramPostComposerService {
     payload: BuildPublishedModerationCaptionPayload,
   ): string {
     const titleLabel = payload.gigUrl
-      ? `<a href="${payload.gigUrl}">${payload.title}</a>`
-      : payload.title;
+      ? this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink,
+          { url: payload.gigUrl, title: payload.title },
+        )
+      : this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink,
+          { title: payload.title },
+        );
 
     return this.buildModerationCaption({
       body: titleLabel,
@@ -569,7 +615,13 @@ export class TelegramPostComposerService {
   ): string {
     const statusLabel = this.buildStatusLabel(payload.status);
 
-    return [statusLabel, '', payload.body].join('\n');
+    return this.postTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.submissionFeedback,
+      {
+        statusLabel,
+        body: payload.body,
+      },
+    );
   }
 
   buildRejectedModerationCaption(
@@ -590,7 +642,14 @@ export class TelegramPostComposerService {
     }
 
     return {
-      inline_keyboard: [[{ text: '✏️ Edit', url: editGigUrl }]],
+      inline_keyboard: [
+        [
+          {
+            text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonEdit),
+            url: editGigUrl,
+          },
+        ],
+      ],
     };
   }
 
@@ -656,7 +715,10 @@ export class TelegramPostComposerService {
       adminGigUrl: payload.adminGigUrl,
     });
 
-    return [statusLine, '', payload.body].join('\n');
+    return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.moderationGig, {
+      statusLine,
+      body: payload.body,
+    });
   }
 
   private buildModerationStatusLine(
@@ -665,16 +727,30 @@ export class TelegramPostComposerService {
     const statusLabel = this.buildStatusLabel(params.status);
     const statusLinks = [
       params.publishPostUrl
-        ? `<a href="${params.publishPostUrl}">See post</a>`
+        ? this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
+            { url: params.publishPostUrl },
+          )
         : undefined,
       params.adminGigUrl
-        ? `<a href="${params.adminGigUrl}">Open in admin</a>`
+        ? this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin,
+            { url: params.adminGigUrl },
+          )
         : undefined,
     ].filter(Boolean);
 
-    return statusLinks.length > 0
-      ? `${statusLabel} | ${statusLinks.join(' | ')}`
-      : statusLabel;
+    if (statusLinks.length === 0) {
+      return statusLabel;
+    }
+
+    return this.postTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks,
+      {
+        statusLabel,
+        statusLinks: statusLinks.join(' | '),
+      },
+    );
   }
 
   private buildAdminGigUrlByPublicId(publicId?: string): string | undefined {
@@ -702,20 +778,19 @@ export class TelegramPostComposerService {
     return (process.env.APP_BASE_URL ?? '').trim();
   }
 
-  private buildStatusDot(status: SubmissionFeedbackStatus): string {
+  private buildStatusLabel(status: SubmissionFeedbackStatus): string {
     switch (status) {
       case Status.Pending:
-        return '🟡';
+        return this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.statusPending);
       case Status.Published:
-        return '🟢';
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.statusPublished,
+        );
       case Status.Rejected:
-        return '🔴';
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.statusRejected,
+        );
     }
-  }
-
-  private buildStatusLabel(status: SubmissionFeedbackStatus): string {
-    const statusDot = this.buildStatusDot(status);
-    return `${statusDot} ${status}`;
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {

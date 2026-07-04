@@ -10,19 +10,19 @@ import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
-import {
-  TelegramService,
-  WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
-} from './telegram.service';
+import { TelegramService } from './telegram.service';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
+import { TelegramTemplateService } from './telegram-template.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { Types } from 'mongoose';
 
 describe('TelegramService', () => {
   let service: TelegramService;
   let testingModule: TestingModule;
+  let postTemplates: TelegramTemplateService;
 
   const mockHttpService = {
     post: vi.fn(),
@@ -47,6 +47,7 @@ describe('TelegramService', () => {
         TelegramAuthService,
         TelegramBotClient,
         TelegramPostComposerService,
+        TelegramTemplateService,
         {
           provide: HttpService,
           useValue: mockHttpService,
@@ -63,6 +64,7 @@ describe('TelegramService', () => {
     }).compile();
 
     service = testingModule.get<TelegramService>(TelegramService);
+    postTemplates = testingModule.get(TelegramTemplateService);
   });
 
   afterEach(() => {
@@ -126,7 +128,7 @@ describe('TelegramService', () => {
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: '-1001',
-        text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+        text: postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty),
       });
     });
 

@@ -5,11 +5,10 @@ import type { GigDocument } from '../gig/gig.schema';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { BucketService } from '../bucket/bucket.service';
-import {
-  TelegramPostComposerService,
-  WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
-} from './telegram-post-composer.service';
+import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
+import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
+import { TelegramTemplateService } from './telegram-template.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { Action } from './types/action.enum';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
@@ -17,6 +16,7 @@ import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.
 
 describe('TelegramPostComposer', () => {
   let composer: TelegramPostComposerService;
+  let postTemplates: TelegramTemplateService;
 
   const mockBucket = {
     getPublicFileUrl: vi.fn(),
@@ -26,11 +26,13 @@ describe('TelegramPostComposer', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramPostComposerService,
+        TelegramTemplateService,
         { provide: BucketService, useValue: mockBucket },
       ],
     }).compile();
 
     composer = moduleRef.get(TelegramPostComposerService);
+    postTemplates = moduleRef.get(TelegramTemplateService);
   });
 
   describe('pickTgPost', () => {
@@ -456,7 +458,7 @@ describe('TelegramPostComposer', () => {
         kind: WeeklyDigestMainChannelSendKind.SendMessage,
         payload: {
           chat_id: '-1001',
-          text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+          text: postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty),
         },
       });
     });

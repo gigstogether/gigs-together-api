@@ -23,8 +23,6 @@ import {
   WeeklyDigestMainChannelSendPlan,
 } from './types/telegram-post-composer.service.types';
 
-export { WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN } from './telegram-post-composer.service';
-
 @Injectable()
 export class TelegramService {
   constructor(
