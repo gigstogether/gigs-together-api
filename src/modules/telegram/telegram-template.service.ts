@@ -1,37 +1,49 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  OnModuleInit,
+} from '@nestjs/common';
 import type {
   TranslationBundleEntry,
-  TranslationLocaleBundle,
+  TranslationEntriesByLocale,
 } from '../translation/types/translation.types';
 import {
   isValidTranslationKey,
   isValidTranslationNamespace,
 } from '../translation/translation-identifiers';
+import { TranslationService } from '../translation/translation.service';
 import { isRecord } from '../../shared/utils/is-record';
-import enTelegramTemplateBundleJson from './templates/en.json';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 
-type PlainTemplateParams = Readonly<
+export type PlainTemplateParams = Readonly<
   Record<string, string | number | boolean | null | undefined>
+>;
+
+type TelegramTemplateRegistry = ReadonlyMap<
+  string,
+  ReadonlyMap<string, TranslationBundleEntry>
 >;
 
 export const TELEGRAM_TEMPLATE_DEFAULT_LOCALE = 'en';
 
-const TELEGRAM_TEMPLATE_NAMESPACE = 'telegram';
-
-const TELEGRAM_TEMPLATE_BUNDLES_BY_LOCALE = {
-  en: enTelegramTemplateBundleJson,
-} as const satisfies Readonly<Record<string, unknown>>;
+export const TELEGRAM_TEMPLATE_NAMESPACE = 'telegram';
 
 @Injectable()
-export class TelegramTemplateService {
-  private readonly entriesByLocale: ReadonlyMap<
-    string,
-    ReadonlyMap<string, TranslationBundleEntry>
-  >;
+export class TelegramTemplateService implements OnModuleInit {
+  private readonly logger = new Logger(TelegramTemplateService.name);
 
-  constructor() {
-    this.entriesByLocale = TelegramTemplateService.createRegistry();
+  private registry: TelegramTemplateRegistry | undefined;
+
+  constructor(private readonly translationService: TranslationService) {}
+
+  async onModuleInit(): Promise<void> {
+    const translationsByLocale =
+      await this.translationService.getActiveNamespaceTranslations({
+        namespace: TELEGRAM_TEMPLATE_NAMESPACE,
+      });
+
+    this.registry = this.buildRegistry(translationsByLocale);
   }
 
   getText(
@@ -62,77 +74,75 @@ export class TelegramTemplateService {
     return TelegramTemplateService.renderPlainTemplate(entry.value, params);
   }
 
-  private static createRegistry(): ReadonlyMap<
-    string,
-    ReadonlyMap<string, TranslationBundleEntry>
-  > {
-    const enBundle = TelegramTemplateService.getTelegramTemplateBundle(
-      TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
-    );
+  private buildRegistry(
+    translationsByLocale: TranslationEntriesByLocale,
+  ): TelegramTemplateRegistry {
+    if (translationsByLocale.size === 0) {
+      this.logger.error(
+        `No active translations found for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}". Run telegram translation seed migration.`,
+      );
+      return new Map();
+    }
 
-    return new Map([
-      [
-        enBundle.locale,
-        TelegramTemplateService.indexTelegramTemplateEntries(enBundle.entries),
-      ],
-    ]);
-  }
+    const registry = new Map<
+      string,
+      ReadonlyMap<string, TranslationBundleEntry>
+    >();
 
-  private static getTelegramTemplateBundle(
-    locale: string,
-  ): TranslationLocaleBundle {
-    const normalizedLocale = locale.trim().toLowerCase();
-    const raw =
-      TELEGRAM_TEMPLATE_BUNDLES_BY_LOCALE[
-        normalizedLocale as keyof typeof TELEGRAM_TEMPLATE_BUNDLES_BY_LOCALE
-      ];
+    for (const [locale, entries] of translationsByLocale) {
+      const validatedEntries: TranslationBundleEntry[] = [];
+      const seenKeys = new Set<string>();
 
-    if (raw === undefined) {
-      throw new Error(
-        `Telegram template bundle is missing for locale "${normalizedLocale}".`,
+      for (const entry of entries) {
+        const parsed = this.tryParseTranslationBundleEntry(entry);
+        if (parsed === undefined) {
+          continue;
+        }
+        if (seenKeys.has(parsed.key)) {
+          this.logger.error(
+            `Skipping duplicate telegram translation key "${parsed.key}" for locale "${locale}".`,
+          );
+          continue;
+        }
+        seenKeys.add(parsed.key);
+        validatedEntries.push(parsed);
+      }
+
+      if (validatedEntries.length === 0) {
+        this.logger.error(
+          `No valid telegram translations remain for locale "${locale}".`,
+        );
+        continue;
+      }
+
+      registry.set(
+        locale,
+        TelegramTemplateService.indexActiveTranslationEntries(validatedEntries),
       );
     }
 
-    const bundle = TelegramTemplateService.parseTelegramTemplateBundle(raw);
-
-    if (bundle.locale !== normalizedLocale) {
-      throw new Error(
-        `Telegram template bundle locale mismatch: expected "${normalizedLocale}", got "${bundle.locale}".`,
+    const defaultLocaleEntries = registry.get(TELEGRAM_TEMPLATE_DEFAULT_LOCALE);
+    if (defaultLocaleEntries === undefined || defaultLocaleEntries.size === 0) {
+      this.logger.error(
+        `Telegram translations for default locale "${TELEGRAM_TEMPLATE_DEFAULT_LOCALE}" are missing.`,
       );
     }
 
-    return bundle;
+    return registry;
   }
 
-  private static parseTelegramTemplateBundle(
-    raw: unknown,
-  ): TranslationLocaleBundle {
-    if (!isRecord(raw)) {
-      throw new Error('Telegram template bundle must be an object.');
+  private tryParseTranslationBundleEntry(
+    value: unknown,
+  ): TranslationBundleEntry | undefined {
+    try {
+      return TelegramTemplateService.parseTranslationBundleEntry(value);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Skipping invalid telegram translation entry: ${message}`,
+      );
+      return undefined;
     }
-
-    const locale = raw.locale;
-    const entries = raw.entries;
-
-    if (typeof locale !== 'string' || locale.trim().length === 0) {
-      throw new Error('Telegram template bundle locale must be a string.');
-    }
-    if (!Array.isArray(entries)) {
-      throw new Error('Telegram template bundle entries must be an array.');
-    }
-
-    const parsedEntries = entries.map(
-      TelegramTemplateService.parseTranslationBundleEntry,
-    );
-    const keys = parsedEntries.map((entry) => entry.key);
-    if (new Set(keys).size !== keys.length) {
-      throw new Error('Telegram template bundle contains duplicate keys.');
-    }
-
-    return {
-      locale: locale.trim().toLowerCase(),
-      entries: parsedEntries,
-    };
   }
 
   private static parseTranslationBundleEntry(
@@ -206,7 +216,7 @@ export class TelegramTemplateService {
     };
   }
 
-  private static indexTelegramTemplateEntries(
+  private static indexActiveTranslationEntries(
     entries: readonly TranslationBundleEntry[],
   ): ReadonlyMap<string, TranslationBundleEntry> {
     const byKey = new Map<string, TranslationBundleEntry>();
@@ -238,11 +248,18 @@ export class TelegramTemplateService {
     key: TelegramTemplateKey,
     locale: string,
   ): TranslationBundleEntry {
+    const registry = this.registry;
+    if (registry === undefined) {
+      throw new InternalServerErrorException(
+        'Telegram templates are not loaded yet.',
+      );
+    }
+
     const normalizedLocale = locale.trim().toLowerCase();
-    const entries = this.entriesByLocale.get(normalizedLocale);
+    const entries = registry.get(normalizedLocale);
     const entry = entries?.get(key);
 
-    if (!entry) {
+    if (entry === undefined) {
       throw new InternalServerErrorException(
         `Telegram translation "${key}" is missing for locale "${normalizedLocale}".`,
       );

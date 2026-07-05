@@ -8,7 +8,27 @@ import type {
   V1TranslationGetTranslationsResponseBody,
   V1TranslationValue,
 } from './types/requests/v1-translation-get-translations-request';
+import type {
+  TranslationFormat,
+  TranslationKind,
+  TranslationBundleEntry,
+  TranslationEntriesByLocale,
+} from './types/translation.types';
 import { isValidTranslationNamespace } from './translation-identifiers';
+
+interface GetActiveNamespaceTranslationsParams {
+  readonly namespace: string;
+}
+
+interface ActiveNamespaceTranslationLeanDoc {
+  readonly locale: string;
+  readonly namespace?: string | null;
+  readonly key: string;
+  readonly value: string;
+  readonly format: TranslationFormat;
+  readonly kind?: TranslationKind;
+  readonly isActive: boolean;
+}
 
 @Injectable()
 export class TranslationService {
@@ -159,5 +179,52 @@ export class TranslationService {
     }
 
     return { locale, translations };
+  }
+
+  async getActiveNamespaceTranslations(
+    params: GetActiveNamespaceTranslationsParams,
+  ): Promise<TranslationEntriesByLocale> {
+    const namespace = params.namespace.trim();
+    if (!isValidTranslationNamespace(namespace)) {
+      throw new BadRequestException(
+        `Invalid translation namespace "${namespace}".`,
+      );
+    }
+
+    const docs = await this.translationModel
+      .find(
+        { namespace, isActive: true },
+        {
+          _id: 0,
+          locale: 1,
+          namespace: 1,
+          key: 1,
+          value: 1,
+          format: 1,
+          kind: 1,
+          isActive: 1,
+        },
+      )
+      .sort({ locale: 1, key: 1 })
+      .lean<Array<ActiveNamespaceTranslationLeanDoc>>()
+      .exec();
+
+    const byLocale = new Map<string, readonly TranslationBundleEntry[]>();
+
+    for (const doc of docs) {
+      const locale = doc.locale.trim().toLowerCase();
+      const entry: TranslationBundleEntry = {
+        namespace,
+        key: doc.key,
+        value: doc.value,
+        format: doc.format,
+        kind: doc.kind ?? 'text',
+        isActive: doc.isActive,
+      };
+      const existingEntries = byLocale.get(locale) ?? [];
+      byLocale.set(locale, [...existingEntries, entry]);
+    }
+
+    return byLocale;
   }
 }

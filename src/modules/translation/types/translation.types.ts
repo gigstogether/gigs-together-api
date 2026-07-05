@@ -2,7 +2,7 @@ import type { TranslationFormat, TranslationKind } from '../translation.schema';
 
 export type { TranslationFormat, TranslationKind };
 
-export interface TranslationRecord {
+interface TranslationRecord {
   readonly locale: string;
   readonly namespace: string;
   readonly key: string;
@@ -14,10 +14,11 @@ export interface TranslationRecord {
 
 export type TranslationBundleEntry = Omit<TranslationRecord, 'locale'>;
 
-/**
- * TODO
- * Temporary locale-grouped seed bundle until MongoDB translations are seeded.
- */
+export type TranslationEntriesByLocale = ReadonlyMap<
+  string,
+  readonly TranslationBundleEntry[]
+>;
+
 export interface TranslationLocaleBundle {
   readonly locale: string;
   readonly entries: readonly TranslationBundleEntry[];

@@ -130,4 +130,49 @@ describe('TranslationService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
+
+  describe('getActiveNamespaceTranslations', () => {
+    it('should return active entries grouped by locale when namespace is valid', async () => {
+      translationFindMock.mockReturnValue({
+        sort: vi.fn().mockReturnValue({
+          lean: vi.fn().mockReturnValue({
+            exec: vi.fn().mockResolvedValue([
+              {
+                locale: 'en',
+                namespace: 'telegram',
+                key: 'weeklyDigest.empty',
+                value: 'There are no gigs scheduled for this week.',
+                format: 'plain',
+                kind: 'text',
+                isActive: true,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      const result = await service.getActiveNamespaceTranslations({
+        namespace: 'telegram',
+      });
+
+      expect(result.get('en')).toEqual([
+        {
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
+          value: 'There are no gigs scheduled for this week.',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+    });
+
+    it('should throw when namespace is invalid', async () => {
+      await expect(
+        service.getActiveNamespaceTranslations({
+          namespace: '$invalid',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });

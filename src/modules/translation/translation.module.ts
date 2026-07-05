@@ -14,5 +14,6 @@ import { TranslationService } from './translation.service';
   ],
   controllers: [TranslationController],
   providers: [TranslationService],
+  exports: [TranslationService],
 })
 export class TranslationModule {}
