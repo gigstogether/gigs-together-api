@@ -3,19 +3,22 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Locale } from '../locale/locale.schema';
-import { Translation } from './translation.schema';
-import type { TranslationDocument } from './translation.schema';
+import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
+import type { TranslationRepository } from './repositories/translation.repository';
 import { TranslationService } from './translation.service';
 
 describe('TranslationService', () => {
   let service: TranslationService;
+  let translationRepository: TranslationRepository;
 
   const localeFindMock = vi.fn();
-  const translationFindMock = vi.fn();
+  const findActiveTranslationsMock = vi.fn();
+  const findActiveByNamespaceMock = vi.fn();
 
   beforeEach(async () => {
     localeFindMock.mockReset();
-    translationFindMock.mockReset();
+    findActiveTranslationsMock.mockReset();
+    findActiveByNamespaceMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -27,15 +30,19 @@ describe('TranslationService', () => {
           },
         },
         {
-          provide: getModelToken(Translation.name),
+          provide: TRANSLATION_REPOSITORY,
           useValue: {
-            find: translationFindMock,
+            findActiveTranslations: findActiveTranslationsMock,
+            findActiveByNamespace: findActiveByNamespaceMock,
           },
         },
       ],
     }).compile();
 
     service = module.get<TranslationService>(TranslationService);
+    translationRepository = module.get<TranslationRepository>(
+      TRANSLATION_REPOSITORY,
+    );
   });
 
   describe('getTranslationsV1', () => {
@@ -46,13 +53,7 @@ describe('TranslationService', () => {
         }),
       });
 
-      const docs: Array<{
-        readonly key: string;
-        readonly value: string;
-        readonly namespace?: string | null;
-        readonly format: TranslationDocument['format'];
-        readonly kind: TranslationDocument['kind'];
-      }> = [
+      findActiveTranslationsMock.mockResolvedValue([
         {
           key: 'hello',
           value: 'Hello',
@@ -67,15 +68,7 @@ describe('TranslationService', () => {
           format: 'plain',
           kind: 'text',
         },
-      ];
-
-      translationFindMock.mockReturnValue({
-        sort: vi.fn().mockReturnValue({
-          lean: vi.fn().mockReturnValue({
-            exec: vi.fn().mockResolvedValue(docs),
-          }),
-        }),
-      });
+      ]);
 
       await expect(
         service.getTranslationsV1({
@@ -93,6 +86,13 @@ describe('TranslationService', () => {
           },
         },
       });
+
+      expect(translationRepository.findActiveTranslations).toHaveBeenCalledWith(
+        {
+          locale: 'en',
+          namespaces: ['default', 'home'],
+        },
+      );
     });
 
     it('should fallback to default locale when accept-language is unsupported', async () => {
@@ -102,13 +102,7 @@ describe('TranslationService', () => {
         }),
       });
 
-      translationFindMock.mockReturnValue({
-        sort: vi.fn().mockReturnValue({
-          lean: vi.fn().mockReturnValue({
-            exec: vi.fn().mockResolvedValue([]),
-          }),
-        }),
-      });
+      findActiveTranslationsMock.mockResolvedValue([]);
 
       await expect(
         service.getTranslationsV1({
@@ -133,23 +127,17 @@ describe('TranslationService', () => {
 
   describe('getActiveNamespaceTranslations', () => {
     it('should return active entries grouped by locale when namespace is valid', async () => {
-      translationFindMock.mockReturnValue({
-        sort: vi.fn().mockReturnValue({
-          lean: vi.fn().mockReturnValue({
-            exec: vi.fn().mockResolvedValue([
-              {
-                locale: 'en',
-                namespace: 'telegram',
-                key: 'weeklyDigest.empty',
-                value: 'There are no gigs scheduled for this week.',
-                format: 'plain',
-                kind: 'text',
-                isActive: true,
-              },
-            ]),
-          }),
-        }),
-      });
+      findActiveByNamespaceMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
+          value: 'There are no gigs scheduled for this week.',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
 
       const result = await service.getActiveNamespaceTranslations({
         namespace: 'telegram',
@@ -165,6 +153,10 @@ describe('TranslationService', () => {
           isActive: true,
         },
       ]);
+
+      expect(translationRepository.findActiveByNamespace).toHaveBeenCalledWith({
+        namespace: 'telegram',
+      });
     });
 
     it('should throw when namespace is invalid', async () => {

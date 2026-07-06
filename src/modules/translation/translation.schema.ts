@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
-
-export type TranslationFormat = 'plain' | 'icu';
-
-export type TranslationKind = 'text' | 'template';
+import type {
+  TranslationFormat,
+  TranslationKind,
+} from './types/translation.types';
 
 @Schema({ timestamps: true })
 export class Translation {

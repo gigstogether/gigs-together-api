@@ -1,15 +1,23 @@
-import type { TranslationFormat, TranslationKind } from '../translation.schema';
+export type TranslationFormat = 'plain' | 'icu';
 
-export type { TranslationFormat, TranslationKind };
+export type TranslationKind = 'text' | 'template';
 
-interface TranslationRecord {
-  readonly locale: string;
-  readonly namespace: string;
+export interface TranslationRecord {
   readonly key: string;
   readonly value: string;
+  readonly namespace: string;
   readonly format: TranslationFormat;
   readonly kind: TranslationKind;
+  readonly locale: string;
   readonly isActive: boolean;
+}
+
+export interface TranslationEntry {
+  readonly key: string;
+  readonly value: string;
+  readonly namespace?: string | null;
+  readonly format: TranslationFormat;
+  readonly kind?: TranslationKind;
 }
 
 export type TranslationBundleEntry = Omit<TranslationRecord, 'locale'>;

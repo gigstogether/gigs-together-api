@@ -1,7 +1,4 @@
-import type {
-  TranslationFormat,
-  TranslationKind,
-} from '../../translation.schema';
+import type { TranslationFormat, TranslationKind } from '../translation.types';
 
 export interface V1TranslationGetTranslationsRequest {
   /**

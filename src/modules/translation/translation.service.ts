@@ -1,33 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Locale, LocaleDocument } from '../locale/locale.schema';
-import { Translation, TranslationDocument } from './translation.schema';
 import type {
   V1TranslationGetTranslationsRequest,
   V1TranslationGetTranslationsResponseBody,
   V1TranslationValue,
 } from './types/requests/v1-translation-get-translations-request';
 import type {
-  TranslationFormat,
-  TranslationKind,
   TranslationBundleEntry,
   TranslationEntriesByLocale,
 } from './types/translation.types';
 import { isValidTranslationNamespace } from './translation-identifiers';
+import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
+import type { TranslationRepository } from './repositories/translation.repository';
 
 interface GetActiveNamespaceTranslationsParams {
   readonly namespace: string;
-}
-
-interface ActiveNamespaceTranslationLeanDoc {
-  readonly locale: string;
-  readonly namespace?: string | null;
-  readonly key: string;
-  readonly value: string;
-  readonly format: TranslationFormat;
-  readonly kind?: TranslationKind;
-  readonly isActive: boolean;
 }
 
 @Injectable()
@@ -35,8 +24,8 @@ export class TranslationService {
   constructor(
     @InjectModel(Locale.name)
     private readonly localeModel: Model<LocaleDocument>,
-    @InjectModel(Translation.name)
-    private readonly translationModel: Model<TranslationDocument>,
+    @Inject(TRANSLATION_REPOSITORY)
+    private readonly translationRepository: TranslationRepository,
   ) {}
 
   private static readonly DEFAULT_LOCALE_ISO: string = 'en';
@@ -113,68 +102,21 @@ export class TranslationService {
       request.namespacesQuery,
     );
 
-    const filter: Record<string, unknown> = {
+    const entries = await this.translationRepository.findActiveTranslations({
       locale,
-      isActive: true,
-    };
-
-    if (namespaces !== undefined) {
-      const withoutDefault = namespaces.filter(
-        (namespace) => namespace !== TranslationService.DEFAULT_NAMESPACE,
-      );
-      const includesDefault = namespaces.includes(
-        TranslationService.DEFAULT_NAMESPACE,
-      );
-
-      if (includesDefault && withoutDefault.length > 0) {
-        filter.$or = [
-          { namespace: { $in: withoutDefault } },
-          { namespace: { $exists: false } },
-          { namespace: null },
-          { namespace: '' },
-        ];
-      } else if (includesDefault) {
-        filter.$or = [
-          { namespace: { $exists: false } },
-          { namespace: null },
-          { namespace: '' },
-        ];
-      } else {
-        filter.namespace = { $in: withoutDefault };
-      }
-    }
-
-    const docs = await this.translationModel
-      .find(filter, {
-        _id: 0,
-        key: 1,
-        value: 1,
-        namespace: 1,
-        format: 1,
-        kind: 1,
-      })
-      .sort({ namespace: 1, key: 1 })
-      .lean<
-        Array<{
-          readonly key: string;
-          readonly value: string;
-          readonly namespace?: string | null;
-          readonly format: TranslationDocument['format'];
-          readonly kind?: TranslationDocument['kind'];
-        }>
-      >()
-      .exec();
+      ...(namespaces !== undefined ? { namespaces } : {}),
+    });
 
     const translations: Record<string, Record<string, V1TranslationValue>> = {};
 
-    for (const doc of docs) {
-      const namespaceRaw = (doc.namespace ?? '').toString().trim();
+    for (const entry of entries) {
+      const namespaceRaw = (entry.namespace ?? '').toString().trim();
       const namespace = namespaceRaw || TranslationService.DEFAULT_NAMESPACE;
       translations[namespace] ??= {};
-      translations[namespace][doc.key] = {
-        value: doc.value,
-        format: doc.format,
-        kind: doc.kind ?? 'text',
+      translations[namespace][entry.key] = {
+        value: entry.value,
+        format: entry.format,
+        kind: entry.kind ?? 'text',
       };
     }
 
@@ -191,38 +133,23 @@ export class TranslationService {
       );
     }
 
-    const docs = await this.translationModel
-      .find(
-        { namespace, isActive: true },
-        {
-          _id: 0,
-          locale: 1,
-          namespace: 1,
-          key: 1,
-          value: 1,
-          format: 1,
-          kind: 1,
-          isActive: 1,
-        },
-      )
-      .sort({ locale: 1, key: 1 })
-      .lean<Array<ActiveNamespaceTranslationLeanDoc>>()
-      .exec();
+    const records = await this.translationRepository.findActiveByNamespace({
+      namespace,
+    });
 
     const byLocale = new Map<string, readonly TranslationBundleEntry[]>();
 
-    for (const doc of docs) {
-      const locale = doc.locale.trim().toLowerCase();
+    for (const record of records) {
       const entry: TranslationBundleEntry = {
         namespace,
-        key: doc.key,
-        value: doc.value,
-        format: doc.format,
-        kind: doc.kind ?? 'text',
-        isActive: doc.isActive,
+        key: record.key,
+        value: record.value,
+        format: record.format,
+        kind: record.kind,
+        isActive: record.isActive,
       };
-      const existingEntries = byLocale.get(locale) ?? [];
-      byLocale.set(locale, [...existingEntries, entry]);
+      const existingEntries = byLocale.get(record.locale) ?? [];
+      byLocale.set(record.locale, [...existingEntries, entry]);
     }
 
     return byLocale;
