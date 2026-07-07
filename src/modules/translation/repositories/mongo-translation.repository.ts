@@ -19,8 +19,6 @@ import type {
 
 @Injectable()
 export class MongoTranslationRepository implements TranslationRepository {
-  private static readonly DEFAULT_NAMESPACE = 'default';
-
   constructor(
     @InjectModel(Translation.name)
     private readonly translationModel: Model<TranslationDocument>,
@@ -69,6 +67,28 @@ export class MongoTranslationRepository implements TranslationRepository {
     return TranslationRepositoryMapper.toTranslationRecords(docs);
   }
 
+  async findAllActiveRecords(): Promise<readonly TranslationRecord[]> {
+    const docs = await this.translationModel
+      .find(
+        { isActive: true },
+        {
+          _id: 0,
+          locale: 1,
+          namespace: 1,
+          key: 1,
+          value: 1,
+          format: 1,
+          kind: 1,
+          isActive: 1,
+        },
+      )
+      .sort({ namespace: 1, locale: 1, key: 1 })
+      .lean<readonly TranslationRecordLeanDocument[]>()
+      .exec();
+
+    return TranslationRepositoryMapper.toTranslationRecords(docs);
+  }
+
   private static buildLocaleTranslationsFilter(
     params: FindActiveTranslationsParams,
   ): QueryFilter<Translation> {
@@ -77,37 +97,10 @@ export class MongoTranslationRepository implements TranslationRepository {
       isActive: true,
     };
 
-    if (params.namespaces === undefined) {
-      return filter;
+    if (params.namespaces !== undefined) {
+      filter.namespace = { $in: [...params.namespaces] };
     }
 
-    const withoutDefault = params.namespaces.filter(
-      (namespace) => namespace !== MongoTranslationRepository.DEFAULT_NAMESPACE,
-    );
-    const includesDefault = params.namespaces.includes(
-      MongoTranslationRepository.DEFAULT_NAMESPACE,
-    );
-
-    if (includesDefault && withoutDefault.length > 0) {
-      filter.$or = [
-        { namespace: { $in: [...withoutDefault] } },
-        { namespace: { $exists: false } },
-        { namespace: null },
-        { namespace: '' },
-      ];
-      return filter;
-    }
-
-    if (includesDefault) {
-      filter.$or = [
-        { namespace: { $exists: false } },
-        { namespace: null },
-        { namespace: '' },
-      ];
-      return filter;
-    }
-
-    filter.namespace = { $in: [...withoutDefault] };
     return filter;
   }
 }

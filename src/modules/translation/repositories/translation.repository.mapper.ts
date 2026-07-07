@@ -8,14 +8,14 @@ import type {
 export interface TranslationEntryLeanDocument {
   readonly key: string;
   readonly value: string;
-  readonly namespace?: string | null;
+  readonly namespace: string;
   readonly format: TranslationFormat;
   readonly kind?: TranslationKind;
 }
 
 export interface TranslationRecordLeanDocument {
   readonly locale: string;
-  readonly namespace?: string | null;
+  readonly namespace: string;
   readonly key: string;
   readonly value: string;
   readonly format: TranslationFormat;
@@ -49,7 +49,7 @@ export class TranslationRepositoryMapper {
   ): TranslationRecord {
     return {
       locale: doc.locale.trim().toLowerCase(),
-      namespace: (doc.namespace ?? '').toString().trim(),
+      namespace: doc.namespace.trim(),
       key: doc.key,
       value: doc.value,
       format: doc.format,

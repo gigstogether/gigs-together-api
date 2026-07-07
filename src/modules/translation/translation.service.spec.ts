@@ -1,4 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
@@ -57,7 +60,7 @@ describe('TranslationService', () => {
         {
           key: 'hello',
           value: 'Hello',
-          namespace: '',
+          namespace: 'default',
           format: 'plain',
           kind: 'text',
         },
@@ -122,6 +125,30 @@ describe('TranslationService', () => {
           namespacesQuery: '$invalid',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should throw when a stored translation has an empty namespace', async () => {
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+      findActiveTranslationsMock.mockResolvedValue([
+        {
+          key: 'hello',
+          value: 'Hello',
+          namespace: '   ',
+          format: 'plain',
+          kind: 'text',
+        },
+      ]);
+
+      await expect(
+        service.getTranslationsV1({
+          acceptLanguage: 'en',
+          namespacesQuery: undefined,
+        }),
+      ).rejects.toBeInstanceOf(InternalServerErrorException);
     });
   });
 

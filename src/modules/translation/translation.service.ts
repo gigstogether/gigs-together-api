@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Locale, LocaleDocument } from '../locale/locale.schema';
@@ -29,7 +34,6 @@ export class TranslationService {
   ) {}
 
   private static readonly DEFAULT_LOCALE_ISO: string = 'en';
-  private static readonly DEFAULT_NAMESPACE = 'default';
 
   private static normalizeAcceptLanguage(value?: string): string | undefined {
     if (!value) return undefined;
@@ -110,8 +114,12 @@ export class TranslationService {
     const translations: Record<string, Record<string, V1TranslationValue>> = {};
 
     for (const entry of entries) {
-      const namespaceRaw = (entry.namespace ?? '').toString().trim();
-      const namespace = namespaceRaw || TranslationService.DEFAULT_NAMESPACE;
+      const namespace = entry.namespace.trim();
+      if (namespace.length === 0) {
+        throw new InternalServerErrorException(
+          `Translation key "${entry.key}" has an empty namespace.`,
+        );
+      }
       translations[namespace] ??= {};
       translations[namespace][entry.key] = {
         value: entry.value,

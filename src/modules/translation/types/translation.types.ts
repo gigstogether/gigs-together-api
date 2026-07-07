@@ -15,7 +15,7 @@ export interface TranslationRecord {
 export interface TranslationEntry {
   readonly key: string;
   readonly value: string;
-  readonly namespace?: string | null;
+  readonly namespace: string;
   readonly format: TranslationFormat;
   readonly kind?: TranslationKind;
 }

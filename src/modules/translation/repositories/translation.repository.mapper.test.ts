@@ -7,14 +7,14 @@ describe('TranslationRepositoryMapper', () => {
         TranslationRepositoryMapper.toTranslationEntry({
           key: 'hello',
           value: 'Hello',
-          namespace: '',
+          namespace: 'home',
           format: 'plain',
           kind: 'text',
         }),
       ).toEqual({
         key: 'hello',
         value: 'Hello',
-        namespace: '',
+        namespace: 'home',
         format: 'plain',
         kind: 'text',
       });
@@ -25,6 +25,7 @@ describe('TranslationRepositoryMapper', () => {
         TranslationRepositoryMapper.toTranslationEntry({
           key: 'hello',
           value: 'Hello',
+          namespace: 'home',
           format: 'plain',
         }),
       ).toEqual({

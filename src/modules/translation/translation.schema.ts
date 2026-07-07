@@ -13,8 +13,8 @@ export class Translation {
   @Prop({ type: String, required: true, lowercase: true, trim: true })
   locale: string; // ISO 639-1: e.g. "ES"
 
-  @Prop({ type: String, required: false, trim: true })
-  namespace?: string;
+  @Prop({ type: String, required: true, trim: true })
+  namespace: string;
 
   @Prop({ type: String, required: true })
   value: string;

@@ -38,7 +38,7 @@ describe('MongoTranslationRepository', () => {
               {
                 key: 'hello',
                 value: 'Hello',
-                namespace: '',
+                namespace: 'home',
                 format: 'plain',
                 kind: 'text',
               },
@@ -50,13 +50,13 @@ describe('MongoTranslationRepository', () => {
       await expect(
         repository.findActiveTranslations({
           locale: 'en',
-          namespaces: ['default', 'home'],
+          namespaces: ['home', 'about'],
         }),
       ).resolves.toEqual([
         {
           key: 'hello',
           value: 'Hello',
-          namespace: '',
+          namespace: 'home',
           format: 'plain',
           kind: 'text',
         },
@@ -66,12 +66,7 @@ describe('MongoTranslationRepository', () => {
         {
           locale: 'en',
           isActive: true,
-          $or: [
-            { namespace: { $in: ['home'] } },
-            { namespace: { $exists: false } },
-            { namespace: null },
-            { namespace: '' },
-          ],
+          namespace: { $in: ['home', 'about'] },
         },
         {
           _id: 0,
@@ -121,6 +116,54 @@ describe('MongoTranslationRepository', () => {
 
       expect(translationFindMock).toHaveBeenCalledWith(
         { namespace: 'telegram', isActive: true },
+        {
+          _id: 0,
+          locale: 1,
+          namespace: 1,
+          key: 1,
+          value: 1,
+          format: 1,
+          kind: 1,
+          isActive: 1,
+        },
+      );
+    });
+  });
+
+  describe('findAllActiveRecords', () => {
+    it('should query all active translation records sorted by namespace, locale, and key', async () => {
+      translationFindMock.mockReturnValue({
+        sort: vi.fn().mockReturnValue({
+          lean: vi.fn().mockReturnValue({
+            exec: vi.fn().mockResolvedValue([
+              {
+                locale: 'en',
+                namespace: 'about',
+                key: 'title',
+                value: 'About',
+                format: 'plain',
+                kind: 'text',
+                isActive: true,
+              },
+            ]),
+          }),
+        }),
+      });
+
+      await expect(repository.findAllActiveRecords()).resolves.toEqual([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+
+      expect(translationFindMock).toHaveBeenCalledWith(
+        { isActive: true },
         {
           _id: 0,
           locale: 1,
