@@ -91,12 +91,25 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Avoid patterns that hide invalid states, for example `res?.data ?? res ?? {}`, `value || {}`, or `arr ?? []` when the default is not explicitly part of the contract.
 - At boundaries, parse unknown input, validate the expected shape, and throw if it does not match.
 
+## Architecture and Design Decisions
+
+- This is a **production** project with real users, not an MVP playground. Treat new and changed code accordingly.
+- When introducing or changing behavior, **design for the best fit for this codebase first**: established patterns, clear ownership, maintainability, and correctness over speed of delivery or size of diff.
+- Do **not** default to quick-and-dirty, "good enough for now", or compromise solutions when a clearly better alternative exists for this project.
+- Do **not** recommend the smallest refactor, the fastest patch, or the simplest workaround **instead of** the more correct design unless the user explicitly asks for that tradeoff.
+- **Do** research and propose best practices, proven patterns, and the most appropriate architecture for the task before implementation.
+- **Do** propose refactoring when the current structure blocks the correct solution or would accumulate avoidable technical debt.
+- Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt, limits).
+- Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts must be conscious and explicit, not silent defaults.
+
 ## NestJS Patterns
 
 - Prefer DTOs for request and response shapes.
 - Keep controllers thin and move business logic into services.
 - Use dependency injection consistently.
 - Avoid creating clients directly inside methods unless the scope requires it and the reason is clear.
+- For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
+- When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
 
 ## Translations
 
