@@ -7,6 +7,7 @@ import { TranslationCacheService } from './translation-cache.service';
 import { TranslationController } from './translation.controller';
 import { Translation, TranslationSchema } from './translation.schema';
 import { TranslationService } from './translation.service';
+import { TranslationTemplateService } from './translation-template.service';
 
 @Module({
   imports: [
@@ -19,11 +20,16 @@ import { TranslationService } from './translation.service';
   providers: [
     TranslationService,
     TranslationCacheService,
+    TranslationTemplateService,
     {
       provide: TRANSLATION_REPOSITORY,
       useClass: MongoTranslationRepository,
     },
   ],
-  exports: [TranslationService, TranslationCacheService],
+  exports: [
+    TranslationService,
+    TranslationCacheService,
+    TranslationTemplateService,
+  ],
 })
 export class TranslationModule {}

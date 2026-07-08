@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InternalServerErrorException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TranslationService } from '../translation/translation.service';
+import { TranslationTemplateService } from '../translation/translation-template.service';
 import type { TranslationBundleEntry } from '../translation/types/translation.types';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import {
@@ -52,6 +53,7 @@ describe('TelegramTemplateService', () => {
               ),
           },
         },
+        TranslationTemplateService,
       ],
     }).compile();
 
@@ -95,6 +97,7 @@ describe('TelegramTemplateService', () => {
               .mockResolvedValue(new Map()),
           },
         },
+        TranslationTemplateService,
       ],
     }).compile();
 

@@ -13,12 +13,12 @@ import {
   isValidTranslationNamespace,
 } from '../translation/translation-identifiers';
 import { TranslationService } from '../translation/translation.service';
+import { TranslationTemplateService } from '../translation/translation-template.service';
+import type { PlainTemplateParams } from '../translation/types/translation-template.types';
 import { isRecord } from '../../shared/utils/is-record';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 
-export type PlainTemplateParams = Readonly<
-  Record<string, string | number | boolean | null | undefined>
->;
+export type { PlainTemplateParams } from '../translation/types/translation-template.types';
 
 type TelegramTemplateRegistry = ReadonlyMap<
   string,
@@ -35,7 +35,10 @@ export class TelegramTemplateService implements OnModuleInit {
 
   private registry: TelegramTemplateRegistry | undefined;
 
-  constructor(private readonly translationService: TranslationService) {}
+  constructor(
+    private readonly translationService: TranslationService,
+    private readonly translationTemplateService: TranslationTemplateService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     const translationsByLocale =
@@ -60,18 +63,7 @@ export class TelegramTemplateService implements OnModuleInit {
     locale: string = TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
   ): string {
     const entry = this.getEntry(key, locale);
-    if (entry.kind !== 'template') {
-      throw new InternalServerErrorException(
-        `Telegram translation "${key}" is not a template.`,
-      );
-    }
-    if (entry.format !== 'plain') {
-      throw new InternalServerErrorException(
-        `Telegram template "${key}" uses unsupported format "${entry.format}".`,
-      );
-    }
-
-    return TelegramTemplateService.renderPlainTemplate(entry.value, params);
+    return this.translationTemplateService.render({ entry, params });
   }
 
   private buildRegistry(
@@ -229,19 +221,6 @@ export class TelegramTemplateService implements OnModuleInit {
     }
 
     return byKey;
-  }
-
-  private static renderPlainTemplate(
-    template: string,
-    params: PlainTemplateParams,
-  ): string {
-    return template.replace(/\{(\w+)\}/g, (match, rawKey: string) => {
-      const value = params[rawKey];
-      if (value === null || value === undefined) {
-        return match;
-      }
-      return String(value);
-    });
   }
 
   private getEntry(
