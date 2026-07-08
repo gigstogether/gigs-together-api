@@ -136,7 +136,7 @@ export class AdminController {
     return this.localeService.updateLocaleByIso({ iso, ...body });
   }
 
-  @Post('revalidate')
+  @Post('revalidate/admins')
   @HttpCode(HttpStatus.NO_CONTENT)
   async revalidateAdmins(
     @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,

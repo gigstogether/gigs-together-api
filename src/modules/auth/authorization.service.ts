@@ -46,7 +46,7 @@ export class AuthorizationService {
   }
 
   /**
-   * Forces a DB reload (used by TTL refresh and POST /internal/revalidate-admins).
+   * Forces a DB reload (used by TTL refresh and POST /admin/revalidate/admins).
    */
   async refreshAdminsCache(): Promise<void> {
     await this.pullAdmins();
