@@ -26,7 +26,7 @@ import {
 @Injectable()
 export class TelegramService {
   constructor(
-    @Inject(CACHE_MANAGER) private cache: Cache,
+    @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramAuthService: TelegramAuthService,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramPostComposerService: TelegramPostComposerService,
@@ -394,15 +394,15 @@ export class TelegramService {
     const chatKey = `chat:${chatId}`;
     const errorKey = `chat-error:${chatId}`;
 
-    const cachedChat = await this.cache.get<TGChat>(chatKey);
+    const cachedChat = await this.chatLookupCache.get<TGChat>(chatKey);
     if (cachedChat) return cachedChat.username;
 
-    const cachedError = await this.cache.get<boolean>(errorKey);
+    const cachedError = await this.chatLookupCache.get<boolean>(errorKey);
     if (cachedError) return undefined;
 
     try {
       const chat = await this.telegramBotClient.getChat(chatId);
-      await this.cache.set(chatKey, chat);
+      await this.chatLookupCache.set(chatKey, chat);
       return chat.username;
     } catch (e: unknown) {
       logError(this.logger, {
@@ -411,7 +411,11 @@ export class TelegramService {
         context: TelegramService.name,
         meta: { chatId },
       });
-      await this.cache.set(errorKey, true, TelegramService.CHAT_ERROR_TTL_MS);
+      await this.chatLookupCache.set(
+        errorKey,
+        true,
+        TelegramService.CHAT_ERROR_TTL_MS,
+      );
       return undefined;
     }
   }

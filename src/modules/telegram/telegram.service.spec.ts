@@ -100,7 +100,7 @@ describe('TelegramService', () => {
     get: vi.fn(),
   };
 
-  const mockCache = {
+  const mockChatLookupCache = {
     get: vi.fn(),
     set: vi.fn(),
     del: vi.fn(),
@@ -134,7 +134,7 @@ describe('TelegramService', () => {
         },
         {
           provide: CACHE_MANAGER,
-          useValue: mockCache,
+          useValue: mockChatLookupCache,
         },
       ],
     }).compile();
