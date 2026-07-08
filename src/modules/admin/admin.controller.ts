@@ -31,6 +31,7 @@ import type { SupportedLocale } from '../locale/types/locale.types';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { DigestService } from '../digest/digest.service';
 import { TranslationCacheService } from '../translation/translation-cache.service';
 import { assertAdminRevalidateSecret } from './admin-revalidate-secret';
 import { V1AdminRevalidateTranslationsBodyDto } from './types/requests/v1-admin-revalidate-translations-body';
@@ -48,6 +49,7 @@ export class AdminController {
     private readonly configService: ConfigService,
     private readonly localeService: LocaleService,
     private readonly gigModerationService: GigModerationService,
+    private readonly digestService: DigestService,
     private readonly translationCacheService: TranslationCacheService,
   ) {}
 
@@ -106,6 +108,14 @@ export class AdminController {
     return this.gigModerationService.publishGigPost({
       publicId: params.publicId,
     });
+  }
+
+  @Version('1')
+  @Post('digest/publish')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  publishDigest(): Promise<void> {
+    return this.digestService.publish();
   }
 
   @Version('1')

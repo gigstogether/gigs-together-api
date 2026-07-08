@@ -2,6 +2,7 @@ import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
 import type { GigModerationService } from '../gig/gig-moderation.service';
+import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
 import type { TranslationCacheService } from '../translation/translation-cache.service';
 import {
@@ -70,6 +71,10 @@ describe('AdminController', () => {
     revalidateNamespace: vi.fn(),
   } satisfies Pick<TranslationCacheService, 'revalidateNamespace'>;
 
+  const digestService = {
+    publish: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<DigestService, 'publish'>;
+
   const controller = new AdminController(
     adminDashboardService as unknown as AdminDashboardService,
     adminGigService as unknown as AdminGigService,
@@ -77,6 +82,7 @@ describe('AdminController', () => {
     configService as never,
     localeService as unknown as LocaleService,
     gigModerationService as unknown as GigModerationService,
+    digestService as unknown as DigestService,
     translationCacheService as unknown as TranslationCacheService,
   );
 
@@ -155,6 +161,14 @@ describe('AdminController', () => {
       expect(gigModerationService.publishGigPost).toHaveBeenCalledWith({
         publicId: 'gig-42',
       });
+    });
+  });
+
+  describe('publishDigest', () => {
+    it('should publish weekly digest via digest service', async () => {
+      await expect(controller.publishDigest()).resolves.toBeUndefined();
+
+      expect(digestService.publish).toHaveBeenCalledTimes(1);
     });
   });
 

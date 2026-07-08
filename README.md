@@ -8,10 +8,9 @@ The API currently provides:
 
 - public REST endpoints for gigs, locations, supported locales, and translations
 - cookie-based auth endpoints for the admin and receiver clients
-- admin endpoints for dashboard, gig moderation, locale management, and admin cache revalidation
+- admin endpoints for dashboard, gig moderation, locale management, digest publish, and cache revalidation
 - Telegram webhook handling for admin/moderation flows
 - gig creation and editing endpoints for the receiver client
-- manual digest publish and feed revalidation hooks
 - MongoDB persistence through Mongoose
 - Google Calendar integration
 - S3-compatible poster storage
@@ -113,7 +112,7 @@ Depending on which flows you want to exercise, you may also need:
 - S3 storage: `S3_*`
 - AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
 - Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`
-- Manual hooks: `DIGEST_PUBLISH_SECRET`, `ADMIN_REVALIDATE_SECRET`
+- Manual hooks: `ADMIN_REVALIDATE_SECRET`
 - CORS: `CORS_ORIGINS`
 
 `APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
@@ -129,7 +128,6 @@ Current variables defined in `.env.example`:
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                                                                                    |
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.                                                            |
 | `ADMIN_REVALIDATE_SECRET`                       | Optional                                     | Shared secret for `POST /v1/admin/revalidate/admins` and `POST /v1/admin/revalidate/translations` (`x-admin-revalidate-secret`). |
-| `DIGEST_PUBLISH_SECRET`                         | Optional                                     | Shared secret for `POST /v1/digest/publish` (`x-digest-publish-secret`). Returns 503 when unset.                                 |
 | `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                                                                              |
 | `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                                                                         |
 | `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                                                                                       |
@@ -480,8 +478,9 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
 - receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
 - admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
 - approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
-- `POST /v1/digest/publish` and `POST /v1/admin/revalidate/admins` are secret-protected operator hooks (`x-digest-publish-secret` and `x-admin-revalidate-secret`)
+- `POST /v1/admin/revalidate/admins` and `POST /v1/admin/revalidate/translations` are secret-protected operator hooks (`x-admin-revalidate-secret`)
 - `GET /health` is the simplest endpoint to use for smoke testing
 
 ### Locale and translations modules

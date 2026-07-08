@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { DigestModule } from '../digest/digest.module';
 import { GigModule } from '../gig/gig.module';
 import { LocaleModule } from '../locale/locale.module';
 import { TranslationModule } from '../translation/translation.module';
@@ -11,6 +12,7 @@ import { TelegramModule } from '../telegram/telegram.module';
 @Module({
   imports: [
     AuthModule,
+    DigestModule,
     GigModule,
     LocaleModule,
     TelegramModule,
