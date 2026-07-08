@@ -29,57 +29,6 @@ describe('MongoTranslationRepository', () => {
     );
   });
 
-  describe('findActiveTranslations', () => {
-    it('should query active translations by locale and namespace filter', async () => {
-      translationFindMock.mockReturnValue({
-        sort: vi.fn().mockReturnValue({
-          lean: vi.fn().mockReturnValue({
-            exec: vi.fn().mockResolvedValue([
-              {
-                key: 'hello',
-                value: 'Hello',
-                namespace: 'home',
-                format: 'plain',
-                kind: 'text',
-              },
-            ]),
-          }),
-        }),
-      });
-
-      await expect(
-        repository.findActiveTranslations({
-          locale: 'en',
-          namespaces: ['home', 'about'],
-        }),
-      ).resolves.toEqual([
-        {
-          key: 'hello',
-          value: 'Hello',
-          namespace: 'home',
-          format: 'plain',
-          kind: 'text',
-        },
-      ]);
-
-      expect(translationFindMock).toHaveBeenCalledWith(
-        {
-          locale: 'en',
-          isActive: true,
-          namespace: { $in: ['home', 'about'] },
-        },
-        {
-          _id: 0,
-          key: 1,
-          value: 1,
-          namespace: 1,
-          format: 1,
-          kind: 1,
-        },
-      );
-    });
-  });
-
   describe('findActiveByNamespace', () => {
     it('should query active translations for a namespace sorted by locale and key', async () => {
       translationFindMock.mockReturnValue({

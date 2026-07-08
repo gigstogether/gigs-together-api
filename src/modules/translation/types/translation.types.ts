@@ -12,14 +12,6 @@ export interface TranslationRecord {
   readonly isActive: boolean;
 }
 
-export interface TranslationEntry {
-  readonly key: string;
-  readonly value: string;
-  readonly namespace: string;
-  readonly format: TranslationFormat;
-  readonly kind?: TranslationKind;
-}
-
 export type TranslationBundleEntry = Omit<TranslationRecord, 'locale'>;
 
 export type TranslationEntriesByLocale = ReadonlyMap<
