@@ -42,4 +42,4 @@ export class Translation {
 export type TranslationDocument = HydratedDocument<Translation>;
 export const TranslationSchema = SchemaFactory.createForClass(Translation);
 
-TranslationSchema.index({ locale: 1, namespace: 1, key: 1 }, { unique: true });
+TranslationSchema.index({ namespace: 1, locale: 1, key: 1 }, { unique: true });
