@@ -11,8 +11,10 @@ import {
   TelegramTemplateService,
 } from './telegram-template.service';
 
-const telegramTemplateServiceTestEntries: readonly TranslationBundleEntry[] = [
-  {
+const telegramTemplateServiceTestEntries: Readonly<
+  Record<string, TranslationBundleEntry>
+> = {
+  [TELEGRAM_TEMPLATE_KEYS.mainGigWithLink]: {
     namespace: TELEGRAM_TEMPLATE_NAMESPACE,
     key: TELEGRAM_TEMPLATE_KEYS.mainGigWithLink,
     value:
@@ -21,7 +23,7 @@ const telegramTemplateServiceTestEntries: readonly TranslationBundleEntry[] = [
     kind: 'template',
     isActive: true,
   },
-  {
+  [TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty]: {
     namespace: TELEGRAM_TEMPLATE_NAMESPACE,
     key: TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
     value: 'There are no gigs scheduled for this week.',
@@ -29,28 +31,18 @@ const telegramTemplateServiceTestEntries: readonly TranslationBundleEntry[] = [
     kind: 'text',
     isActive: true,
   },
-];
-
-function toNamespaceRegistry(
-  entries: readonly TranslationBundleEntry[],
-): Map<string, Map<string, TranslationBundleEntry>> {
-  const byKey = new Map<string, TranslationBundleEntry>();
-  for (const entry of entries) {
-    byKey.set(entry.key, entry);
-  }
-
-  return new Map([[TELEGRAM_TEMPLATE_DEFAULT_LOCALE, byKey]]);
-}
+};
 
 describe('TelegramTemplateService', () => {
   let service: TelegramTemplateService;
 
-  const getNamespaceEntriesMock = vi.fn();
+  const getEntryMock = vi.fn();
 
   beforeEach(async () => {
-    getNamespaceEntriesMock.mockReset();
-    getNamespaceEntriesMock.mockReturnValue(
-      toNamespaceRegistry(telegramTemplateServiceTestEntries),
+    getEntryMock.mockReset();
+    getEntryMock.mockImplementation(
+      (params: { namespace: string; key: string; locale: string }) =>
+        telegramTemplateServiceTestEntries[params.key],
     );
 
     const moduleRef = await Test.createTestingModule({
@@ -59,7 +51,7 @@ describe('TelegramTemplateService', () => {
         {
           provide: TranslationCacheService,
           useValue: {
-            getNamespaceEntries: getNamespaceEntriesMock,
+            getEntry: getEntryMock,
           },
         },
         TranslationTemplateService,
@@ -67,13 +59,17 @@ describe('TelegramTemplateService', () => {
     }).compile();
 
     service = moduleRef.get(TelegramTemplateService);
-    await service.onModuleInit();
   });
 
-  it('should load the English telegram template bundle', () => {
+  it('should return telegram text from cache', () => {
     expect(service.getText(TELEGRAM_TEMPLATE_KEYS.mainGigWithLink)).toContain(
       '{title}',
     );
+    expect(getEntryMock).toHaveBeenCalledWith({
+      namespace: TELEGRAM_TEMPLATE_NAMESPACE,
+      key: TELEGRAM_TEMPLATE_KEYS.mainGigWithLink,
+      locale: TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
+    });
   });
 
   it('should render main gig template with placeholders', () => {
@@ -88,32 +84,21 @@ describe('TelegramTemplateService', () => {
     ).toContain('<a href="https://app.example/gigs/a">Concert</a>');
   });
 
-  it('should return weekly digest empty message from seeded translations', () => {
+  it('should return weekly digest empty message from cache', () => {
     expect(service.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty)).toBe(
       'There are no gigs scheduled for this week.',
     );
   });
 
-  it('should finish module init when translations are missing', async () => {
-    getNamespaceEntriesMock.mockReturnValue(new Map());
+  it('should throw when translation is missing from cache', () => {
+    getEntryMock.mockImplementation(() => {
+      throw new InternalServerErrorException(
+        `Translation "${TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty}" is missing for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}" and locale "${TELEGRAM_TEMPLATE_DEFAULT_LOCALE}".`,
+      );
+    });
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        TelegramTemplateService,
-        {
-          provide: TranslationCacheService,
-          useValue: {
-            getNamespaceEntries: getNamespaceEntriesMock,
-          },
-        },
-        TranslationTemplateService,
-      ],
-    }).compile();
-
-    const emptyService = moduleRef.get(TelegramTemplateService);
-    await expect(emptyService.onModuleInit()).resolves.toBeUndefined();
     expect(() =>
-      emptyService.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty),
+      service.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty),
     ).toThrow(InternalServerErrorException);
   });
 });
