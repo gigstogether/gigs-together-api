@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
@@ -11,6 +8,7 @@ import { Locale } from '../locale/locale.schema';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TranslationCacheService } from './translation-cache.service';
+import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 
 describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
@@ -67,6 +65,10 @@ describe('TranslationCacheService', () => {
     );
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('onModuleInit', () => {
     it('should warm up cache from all active records and register TTL interval', async () => {
       findAllActiveRecordsMock.mockResolvedValue([
@@ -101,7 +103,7 @@ describe('TranslationCacheService', () => {
       ).toBe('About');
     });
 
-    it('should keep stale cache when warm-up fails', async () => {
+    it('should throw when warm-up fails', async () => {
       findAllActiveRecordsMock.mockRejectedValue(new Error('mongo down'));
       localeFindMock.mockReturnValue({
         lean: vi.fn().mockReturnValue({
@@ -109,15 +111,47 @@ describe('TranslationCacheService', () => {
         }),
       });
 
+      await expect(service.onModuleInit()).rejects.toSatisfy(
+        (error: unknown) =>
+          error instanceof Error && error.message === 'mongo down',
+      );
+      expect(addIntervalMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('TTL full reload', () => {
+    it('should keep stale cache when scheduled reload fails', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+
+      vi.useFakeTimers();
       await service.onModuleInit();
 
-      expect(() =>
+      findAllActiveRecordsMock.mockRejectedValue(new Error('mongo down'));
+      await vi.advanceTimersByTimeAsync(TRANSLATION_CACHE_DEFAULT_TTL_MS);
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(
         service.getEntry({
           namespace: 'about',
           key: 'title',
           locale: 'en',
-        }),
-      ).toThrow(InternalServerErrorException);
+        }).value,
+      ).toBe('About');
     });
   });
 

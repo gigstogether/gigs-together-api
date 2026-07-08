@@ -62,7 +62,7 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
-    await this.executeReload(() => this.performFullReload());
+    await this.executeReload(() => this.loadFullCache());
 
     const interval = setInterval(() => {
       void this.executeReload(() => this.performFullReload());
@@ -180,22 +180,26 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
 
   private async performFullReload(): Promise<void> {
     try {
-      const [records, activeLocales] = await Promise.all([
-        this.translationRepository.findAllActiveRecords(),
-        this.loadActiveLocales(),
-      ]);
-
-      this.cache = buildTranslationCacheIndex(records, this.logger);
-      this.activeLocales = activeLocales;
-      this.logger.log(
-        `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s), ${activeLocales.size} active locale(s).`,
-      );
+      await this.loadFullCache();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Translation cache full reload failed; keeping stale cache. ${message}`,
       );
     }
+  }
+
+  private async loadFullCache(): Promise<void> {
+    const [records, activeLocales] = await Promise.all([
+      this.translationRepository.findAllActiveRecords(),
+      this.loadActiveLocales(),
+    ]);
+
+    this.cache = buildTranslationCacheIndex(records, this.logger);
+    this.activeLocales = activeLocales;
+    this.logger.log(
+      `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s), ${activeLocales.size} active locale(s).`,
+    );
   }
 
   private async performNamespaceReload(namespace: string): Promise<void> {
