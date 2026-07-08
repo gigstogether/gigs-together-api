@@ -51,6 +51,7 @@ describe('FeedRevalidateService', () => {
       vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
       fetchMock.mockResolvedValue({
         ok: true,
+        status: 204,
         text: () => Promise.resolve(''),
       });
 
