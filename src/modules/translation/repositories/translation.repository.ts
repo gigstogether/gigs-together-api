@@ -22,4 +22,6 @@ export interface TranslationRepository {
   findActiveByNamespace(
     params: FindActiveByNamespaceParams,
   ): Promise<readonly TranslationRecord[]>;
+
+  findAllActiveRecords(): Promise<readonly TranslationRecord[]>;
 }

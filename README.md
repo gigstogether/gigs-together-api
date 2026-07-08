@@ -127,6 +127,7 @@ Current variables defined in `.env.example`:
 | `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                          |
 | `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                 |
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                             |
+| `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.     |
 | `ADMIN_REVALIDATE_SECRET`                       | Optional                                     | Shared secret for `POST /admin/revalidate` (`x-admin-revalidate-secret`). |
 | `DIGEST_PUBLISH_SECRET`                         | Optional                                     | Shared secret for `POST /digest/publish`. Returns 503 when unset.         |
 | `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                       |
