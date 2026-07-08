@@ -9,8 +9,6 @@ import {
   Patch,
   Post,
   Query,
-  ServiceUnavailableException,
-  UnauthorizedException,
   UseGuards,
   Version,
 } from '@nestjs/common';
@@ -33,6 +31,9 @@ import type { SupportedLocale } from '../locale/types/locale.types';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { TranslationCacheService } from '../translation/translation-cache.service';
+import { assertAdminRevalidateSecret } from './admin-revalidate-secret';
+import { V1AdminRevalidateTranslationsBodyDto } from './types/requests/v1-admin-revalidate-translations-body';
 
 /**
  * Manual admin-list cache refresh (e.g. after DB migration).
@@ -47,6 +48,7 @@ export class AdminController {
     private readonly configService: ConfigService,
     private readonly localeService: LocaleService,
     private readonly gigModerationService: GigModerationService,
+    private readonly translationCacheService: TranslationCacheService,
   ) {}
 
   @Version('1')
@@ -135,22 +137,24 @@ export class AdminController {
   }
 
   @Post('revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
   async revalidateAdmins(
     @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,
-  ): Promise<{ readonly ok: true }> {
-    const secret = (
-      this.configService.get<string>('ADMIN_REVALIDATE_SECRET') ?? ''
-    ).trim();
-    if (!secret) {
-      throw new ServiceUnavailableException(
-        'ADMIN_REVALIDATE_SECRET is not configured',
-      );
-    }
-    const provided = (secretHeader ?? '').trim();
-    if (!provided || provided !== secret) {
-      throw new UnauthorizedException();
-    }
+  ): Promise<void> {
+    assertAdminRevalidateSecret(this.configService, secretHeader);
     await this.authorizationService.refreshAdminsCache();
-    return { ok: true };
+  }
+
+  @Version('1')
+  @Post('revalidate/translations')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revalidateTranslations(
+    @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,
+    @Body() body: V1AdminRevalidateTranslationsBodyDto,
+  ): Promise<void> {
+    assertAdminRevalidateSecret(this.configService, secretHeader);
+    await this.translationCacheService.revalidateNamespace({
+      namespace: body.namespace,
+    });
   }
 }
