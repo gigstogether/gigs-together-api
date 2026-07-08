@@ -119,6 +119,12 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
 - When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
 
+## File placement
+
+- Do not add a new file when the code has a **single call site** — colocate it in the existing module artifact (service, controller, guard, pipe, mapper, or parser) instead.
+- Extract to a shared file only when there are **multiple consumers**, or when the boundary is already established (request/response DTOs under `types/requests/*`, guards and validators reused across controllers, module public exports, shared parsers at HTTP or I/O boundaries).
+- Prefer extending an existing file in the same feature module over creating parallel one-off helpers.
+
 ## Translations
 
 - Do not use the word **copy** for UI text, labels, strings, templates, or other translatable content. Prefer **text**, **strings**, **labels**, or **content**. Reserve **copy** for clipboard actions (for example `Copy link`) and file operations (for example `Copy .env.example`).
