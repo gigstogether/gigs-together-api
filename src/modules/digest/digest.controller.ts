@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Post,
   UseGuards,
+  Version,
 } from '@nestjs/common';
 import { DigestService } from './digest.service';
 import { DigestPublishGuard } from './guards/digest-publish.guard';
@@ -16,6 +17,7 @@ import { DigestPublishGuard } from './guards/digest-publish.guard';
 export class DigestController {
   constructor(private readonly digestService: DigestService) {}
 
+  @Version('1')
   @Post('publish')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(DigestPublishGuard)

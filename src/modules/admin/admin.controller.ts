@@ -136,6 +136,7 @@ export class AdminController {
     return this.localeService.updateLocaleByIso({ iso, ...body });
   }
 
+  @Version('1')
   @Post('revalidate/admins')
   @HttpCode(HttpStatus.NO_CONTENT)
   async revalidateAdmins(
