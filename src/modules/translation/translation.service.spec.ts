@@ -42,12 +42,12 @@ describe('TranslationService', () => {
       resolveLocaleMock.mockReturnValue('en');
       getNamespaceEntriesMock.mockImplementation(
         (params: { namespace: string; locale: string }) => {
-          if (params.namespace === 'default') {
+          if (params.namespace === 'common') {
             return new Map([
               [
                 'hello',
                 {
-                  namespace: 'default',
+                  namespace: 'common',
                   key: 'hello',
                   value: 'Hello',
                   format: 'plain',
@@ -79,12 +79,12 @@ describe('TranslationService', () => {
       expect(
         service.getTranslationsV1({
           acceptLanguage: 'en-US,en;q=0.9',
-          namespacesQuery: 'default,home',
+          namespacesQuery: 'common,home',
         }),
       ).toEqual({
         locale: 'en',
         translations: {
-          default: {
+          common: {
             hello: { value: 'Hello', format: 'plain', kind: 'text' },
           },
           home: {
@@ -97,7 +97,7 @@ describe('TranslationService', () => {
         'en-US,en;q=0.9',
       );
       expect(translationCacheService.getNamespaceEntries).toHaveBeenCalledWith({
-        namespace: 'default',
+        namespace: 'common',
         locale: 'en',
       });
       expect(translationCacheService.getNamespaceEntries).toHaveBeenCalledWith({

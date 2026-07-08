@@ -8,9 +8,8 @@ describe('isValidTranslationNamespace', () => {
   it('should accept camelCase namespace names', () => {
     expect(isValidTranslationNamespace('telegram')).toBe(true);
     expect(isValidTranslationNamespace('common')).toBe(true);
-    expect(isValidTranslationNamespace('default')).toBe(true);
+    expect(isValidTranslationNamespace('feedFilters')).toBe(true);
   });
-
   it('should reject snake_case namespace names', () => {
     expect(isValidTranslationNamespace('telegram_post')).toBe(false);
   });

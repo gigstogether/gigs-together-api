@@ -120,6 +120,53 @@ describe('TranslationCacheService', () => {
   });
 
   describe('TTL full reload', () => {
+    it('should refresh cache when scheduled reload succeeds', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+
+      vi.useFakeTimers();
+      await service.onModuleInit();
+
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'Updated about',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      await vi.advanceTimersByTimeAsync(TRANSLATION_CACHE_DEFAULT_TTL_MS);
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(
+        service.getEntry({
+          namespace: 'about',
+          key: 'title',
+          locale: 'en',
+        }).value,
+      ).toBe('Updated about');
+      expect(findAllActiveRecordsMock.mock.calls.length).toBeGreaterThanOrEqual(
+        2,
+      );
+    });
+
     it('should keep stale cache when scheduled reload fails', async () => {
       findAllActiveRecordsMock.mockResolvedValue([
         {
@@ -237,6 +284,96 @@ describe('TranslationCacheService', () => {
       await expect(
         service.revalidateNamespace({ namespace: '$invalid' }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should serialize concurrent namespace reloads', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+      await service.onModuleInit();
+
+      let releaseFirstReload!: () => void;
+      const firstReloadGate = new Promise<void>((resolve) => {
+        releaseFirstReload = resolve;
+      });
+
+      findActiveByNamespaceMock.mockImplementation(
+        async (params: { namespace: string }) => {
+          if (params.namespace === 'about') {
+            await firstReloadGate;
+            return [
+              {
+                locale: 'en',
+                namespace: 'about',
+                key: 'title',
+                value: 'Updated about',
+                format: 'plain',
+                kind: 'text',
+                isActive: true,
+              },
+            ];
+          }
+
+          return [
+            {
+              locale: 'en',
+              namespace: 'telegram',
+              key: 'weeklyDigest.empty',
+              value: 'No gigs this week.',
+              format: 'plain',
+              kind: 'text',
+              isActive: true,
+            },
+          ];
+        },
+      );
+
+      const aboutReload = service.revalidateNamespace({ namespace: 'about' });
+      const telegramReload = service.revalidateNamespace({
+        namespace: 'telegram',
+      });
+
+      await Promise.resolve();
+      expect(findActiveByNamespaceMock).toHaveBeenCalledTimes(1);
+      expect(findActiveByNamespaceMock).toHaveBeenCalledWith({
+        namespace: 'about',
+      });
+
+      releaseFirstReload();
+      await aboutReload;
+      await telegramReload;
+
+      expect(findActiveByNamespaceMock).toHaveBeenCalledTimes(2);
+      expect(findActiveByNamespaceMock).toHaveBeenLastCalledWith({
+        namespace: 'telegram',
+      });
+      expect(
+        service.getEntry({
+          namespace: 'about',
+          key: 'title',
+          locale: 'en',
+        }).value,
+      ).toBe('Updated about');
+      expect(
+        service.getEntry({
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
+          locale: 'en',
+        }).value,
+      ).toBe('No gigs this week.');
     });
   });
 
