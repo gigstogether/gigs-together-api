@@ -31,6 +31,7 @@ describe('TranslationRepositoryMapper', () => {
       ).toEqual({
         key: 'hello',
         value: 'Hello',
+        namespace: 'home',
         format: 'plain',
         kind: 'text',
       });

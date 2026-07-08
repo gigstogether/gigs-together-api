@@ -12,7 +12,7 @@ import {
   isValidTranslationKey,
   isValidTranslationNamespace,
 } from '../translation/translation-identifiers';
-import { TranslationService } from '../translation/translation.service';
+import { TranslationCacheService } from '../translation/translation-cache.service';
 import { TranslationTemplateService } from '../translation/translation-template.service';
 import type { PlainTemplateParams } from '../translation/types/translation-template.types';
 import { isRecord } from '../../shared/utils/is-record';
@@ -36,15 +36,23 @@ export class TelegramTemplateService implements OnModuleInit {
   private registry: TelegramTemplateRegistry | undefined;
 
   constructor(
-    private readonly translationService: TranslationService,
+    private readonly translationCacheService: TranslationCacheService,
     private readonly translationTemplateService: TranslationTemplateService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const translationsByLocale =
-      await this.translationService.getActiveNamespaceTranslations({
-        namespace: TELEGRAM_TEMPLATE_NAMESPACE,
-      });
+    const namespaceRegistry = this.translationCacheService.getNamespaceEntries({
+      namespace: TELEGRAM_TEMPLATE_NAMESPACE,
+    });
+
+    const translationsByLocale = new Map<
+      string,
+      readonly TranslationBundleEntry[]
+    >();
+
+    for (const [locale, keyRegistry] of namespaceRegistry) {
+      translationsByLocale.set(locale, [...keyRegistry.values()]);
+    }
 
     this.registry = this.buildRegistry(translationsByLocale);
   }

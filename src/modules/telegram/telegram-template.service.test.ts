@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { InternalServerErrorException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TranslationService } from '../translation/translation.service';
+import { TranslationCacheService } from '../translation/translation-cache.service';
 import { TranslationTemplateService } from '../translation/translation-template.service';
 import type { TranslationBundleEntry } from '../translation/types/translation.types';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
@@ -31,26 +31,35 @@ const telegramTemplateServiceTestEntries: readonly TranslationBundleEntry[] = [
   },
 ];
 
+function toNamespaceRegistry(
+  entries: readonly TranslationBundleEntry[],
+): Map<string, Map<string, TranslationBundleEntry>> {
+  const byKey = new Map<string, TranslationBundleEntry>();
+  for (const entry of entries) {
+    byKey.set(entry.key, entry);
+  }
+
+  return new Map([[TELEGRAM_TEMPLATE_DEFAULT_LOCALE, byKey]]);
+}
+
 describe('TelegramTemplateService', () => {
   let service: TelegramTemplateService;
 
+  const getNamespaceEntriesMock = vi.fn();
+
   beforeEach(async () => {
+    getNamespaceEntriesMock.mockReset();
+    getNamespaceEntriesMock.mockReturnValue(
+      toNamespaceRegistry(telegramTemplateServiceTestEntries),
+    );
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramTemplateService,
         {
-          provide: TranslationService,
+          provide: TranslationCacheService,
           useValue: {
-            getActiveNamespaceTranslations: vi
-              .fn()
-              .mockResolvedValue(
-                new Map<string, readonly TranslationBundleEntry[]>([
-                  [
-                    TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
-                    telegramTemplateServiceTestEntries,
-                  ],
-                ]),
-              ),
+            getNamespaceEntries: getNamespaceEntriesMock,
           },
         },
         TranslationTemplateService,
@@ -86,15 +95,15 @@ describe('TelegramTemplateService', () => {
   });
 
   it('should finish module init when translations are missing', async () => {
+    getNamespaceEntriesMock.mockReturnValue(new Map());
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramTemplateService,
         {
-          provide: TranslationService,
+          provide: TranslationCacheService,
           useValue: {
-            getActiveNamespaceTranslations: vi
-              .fn()
-              .mockResolvedValue(new Map()),
+            getNamespaceEntries: getNamespaceEntriesMock,
           },
         },
         TranslationTemplateService,

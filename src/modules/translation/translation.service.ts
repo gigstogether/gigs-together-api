@@ -1,49 +1,18 @@
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Locale, LocaleDocument } from '../locale/locale.schema';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { TranslationCacheService } from './translation-cache.service';
+import { isValidTranslationNamespace } from './translation-identifiers';
 import type {
   V1TranslationGetTranslationsRequest,
   V1TranslationGetTranslationsResponseBody,
   V1TranslationValue,
 } from './types/requests/v1-translation-get-translations-request';
-import type {
-  TranslationBundleEntry,
-  TranslationEntriesByLocale,
-} from './types/translation.types';
-import { isValidTranslationNamespace } from './translation-identifiers';
-import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
-import type { TranslationRepository } from './repositories/translation.repository';
-
-interface GetActiveNamespaceTranslationsParams {
-  readonly namespace: string;
-}
+import type { LocaleKeyRegistry } from './types/translation-cache.types';
 
 @Injectable()
 export class TranslationService {
   constructor(
-    @InjectModel(Locale.name)
-    private readonly localeModel: Model<LocaleDocument>,
-    @Inject(TRANSLATION_REPOSITORY)
-    private readonly translationRepository: TranslationRepository,
+    private readonly translationCacheService: TranslationCacheService,
   ) {}
-
-  private static readonly DEFAULT_LOCALE_ISO: string = 'en';
-
-  private static normalizeAcceptLanguage(value?: string): string | undefined {
-    if (!value) return undefined;
-    const first = value.split(',')[0]?.trim(); // "en-US;q=0.9" or "*"
-    if (!first || first === '*') return undefined;
-    const withoutQ = first.split(';')[0]?.trim(); // "en-US"
-    const primary = withoutQ.split('-')[0]?.trim().toLowerCase(); // "en"
-    if (!primary) return undefined;
-    return primary;
-  }
 
   private static parseNamespacesQuery(
     namespacesQuery: string | readonly string[] | undefined,
@@ -81,85 +50,52 @@ export class TranslationService {
     return unique;
   }
 
-  private async resolveLocale(acceptLanguageRaw?: string): Promise<string> {
-    const requested =
-      TranslationService.normalizeAcceptLanguage(acceptLanguageRaw);
-    if (!requested) return TranslationService.DEFAULT_LOCALE_ISO;
-
-    const supported = await this.localeModel
-      .find({ isActive: true }, { _id: 0, iso: 1 })
-      .lean<Array<{ readonly iso: string }>>()
-      .exec();
-
-    const set = new Set(supported.map((locale) => locale.iso));
-    return set.has(requested)
-      ? requested
-      : TranslationService.DEFAULT_LOCALE_ISO;
-  }
-
-  async getTranslationsV1(
+  getTranslationsV1(
     request: V1TranslationGetTranslationsRequest,
-  ): Promise<V1TranslationGetTranslationsResponseBody> {
-    const locale = await this.resolveLocale(request.acceptLanguage);
+  ): V1TranslationGetTranslationsResponseBody {
+    const locale = this.translationCacheService.resolveLocale(
+      request.acceptLanguage,
+    );
 
     const namespaces = TranslationService.parseNamespacesQuery(
       request.namespacesQuery,
     );
 
-    const entries = await this.translationRepository.findActiveTranslations({
-      locale,
-      ...(namespaces !== undefined ? { namespaces } : {}),
-    });
+    const targetNamespaces =
+      namespaces ?? this.translationCacheService.listNamespaces();
 
     const translations: Record<string, Record<string, V1TranslationValue>> = {};
 
-    for (const entry of entries) {
-      const namespace = entry.namespace.trim();
-      if (namespace.length === 0) {
-        throw new InternalServerErrorException(
-          `Translation key "${entry.key}" has an empty namespace.`,
-        );
+    for (const namespace of targetNamespaces) {
+      const localeRegistry = this.translationCacheService.getNamespaceEntries({
+        namespace,
+        locale,
+      });
+
+      if (localeRegistry.size === 0) {
+        continue;
       }
-      translations[namespace] ??= {};
-      translations[namespace][entry.key] = {
-        value: entry.value,
-        format: entry.format,
-        kind: entry.kind ?? 'text',
-      };
+
+      translations[namespace] =
+        TranslationService.toV1TranslationValues(localeRegistry);
     }
 
     return { locale, translations };
   }
 
-  async getActiveNamespaceTranslations(
-    params: GetActiveNamespaceTranslationsParams,
-  ): Promise<TranslationEntriesByLocale> {
-    const namespace = params.namespace.trim();
-    if (!isValidTranslationNamespace(namespace)) {
-      throw new BadRequestException(
-        `Invalid translation namespace "${namespace}".`,
-      );
-    }
+  private static toV1TranslationValues(
+    localeRegistry: LocaleKeyRegistry,
+  ): Record<string, V1TranslationValue> {
+    const values: Record<string, V1TranslationValue> = {};
 
-    const records = await this.translationRepository.findActiveByNamespace({
-      namespace,
-    });
-
-    const byLocale = new Map<string, readonly TranslationBundleEntry[]>();
-
-    for (const record of records) {
-      const entry: TranslationBundleEntry = {
-        namespace,
-        key: record.key,
-        value: record.value,
-        format: record.format,
-        kind: record.kind,
-        isActive: record.isActive,
+    for (const [key, entry] of localeRegistry) {
+      values[key] = {
+        value: entry.value,
+        format: entry.format,
+        kind: entry.kind,
       };
-      const existingEntries = byLocale.get(record.locale) ?? [];
-      byLocale.set(record.locale, [...existingEntries, entry]);
     }
 
-    return byLocale;
+    return values;
   }
 }

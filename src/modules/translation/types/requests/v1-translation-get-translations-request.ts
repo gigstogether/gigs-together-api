@@ -23,7 +23,6 @@ export interface V1TranslationGetTranslationsResponseBody {
   readonly locale: string;
   /**
    * Grouped by namespace.
-   * Translations without an explicit namespace are placed under "default".
    */
   readonly translations: Readonly<
     Record<string, Readonly<Record<string, V1TranslationValue>>>

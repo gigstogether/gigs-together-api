@@ -12,7 +12,7 @@ export class TranslationController {
     @Query('namespaces')
     namespacesQuery: string | readonly string[] | undefined,
     @Headers('accept-language') acceptLanguage: string | undefined,
-  ): Promise<V1TranslationGetTranslationsResponseBody> {
+  ): V1TranslationGetTranslationsResponseBody {
     return this.translationService.getTranslationsV1({
       acceptLanguage,
       namespacesQuery,

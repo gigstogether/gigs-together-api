@@ -1,84 +1,87 @@
-import {
-  BadRequestException,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { getModelToken } from '@nestjs/mongoose';
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { Locale } from '../locale/locale.schema';
-import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
-import type { TranslationRepository } from './repositories/translation.repository';
+import { TranslationCacheService } from './translation-cache.service';
 import { TranslationService } from './translation.service';
 
 describe('TranslationService', () => {
   let service: TranslationService;
-  let translationRepository: TranslationRepository;
+  let translationCacheService: TranslationCacheService;
 
-  const localeFindMock = vi.fn();
-  const findActiveTranslationsMock = vi.fn();
-  const findActiveByNamespaceMock = vi.fn();
+  const resolveLocaleMock = vi.fn();
+  const listNamespacesMock = vi.fn();
+  const getNamespaceEntriesMock = vi.fn();
 
   beforeEach(async () => {
-    localeFindMock.mockReset();
-    findActiveTranslationsMock.mockReset();
-    findActiveByNamespaceMock.mockReset();
+    resolveLocaleMock.mockReset();
+    listNamespacesMock.mockReset();
+    getNamespaceEntriesMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TranslationService,
         {
-          provide: getModelToken(Locale.name),
+          provide: TranslationCacheService,
           useValue: {
-            find: localeFindMock,
-          },
-        },
-        {
-          provide: TRANSLATION_REPOSITORY,
-          useValue: {
-            findActiveTranslations: findActiveTranslationsMock,
-            findActiveByNamespace: findActiveByNamespaceMock,
+            resolveLocale: resolveLocaleMock,
+            listNamespaces: listNamespacesMock,
+            getNamespaceEntries: getNamespaceEntriesMock,
           },
         },
       ],
     }).compile();
 
     service = module.get<TranslationService>(TranslationService);
-    translationRepository = module.get<TranslationRepository>(
-      TRANSLATION_REPOSITORY,
+    translationCacheService = module.get<TranslationCacheService>(
+      TranslationCacheService,
     );
   });
 
   describe('getTranslationsV1', () => {
-    it('should return translations grouped by namespace when locale is supported', async () => {
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }, { iso: 'es' }]),
-        }),
-      });
-
-      findActiveTranslationsMock.mockResolvedValue([
-        {
-          key: 'hello',
-          value: 'Hello',
-          namespace: 'default',
-          format: 'plain',
-          kind: 'text',
+    it('should return translations grouped by namespace when locale is supported', () => {
+      resolveLocaleMock.mockReturnValue('en');
+      getNamespaceEntriesMock.mockImplementation(
+        (params: { namespace: string; locale: string }) => {
+          if (params.namespace === 'default') {
+            return new Map([
+              [
+                'hello',
+                {
+                  namespace: 'default',
+                  key: 'hello',
+                  value: 'Hello',
+                  format: 'plain',
+                  kind: 'text',
+                  isActive: true,
+                },
+              ],
+            ]);
+          }
+          if (params.namespace === 'home') {
+            return new Map([
+              [
+                'cta',
+                {
+                  namespace: 'home',
+                  key: 'cta',
+                  value: 'Join',
+                  format: 'plain',
+                  kind: 'text',
+                  isActive: true,
+                },
+              ],
+            ]);
+          }
+          return new Map();
         },
-        {
-          key: 'cta',
-          value: 'Join',
-          namespace: 'home',
-          format: 'plain',
-          kind: 'text',
-        },
-      ]);
+      );
 
-      await expect(
+      expect(
         service.getTranslationsV1({
           acceptLanguage: 'en-US,en;q=0.9',
           namespacesQuery: 'default,home',
         }),
-      ).resolves.toEqual({
+      ).toEqual({
         locale: 'en',
         translations: {
           default: {
@@ -90,108 +93,93 @@ describe('TranslationService', () => {
         },
       });
 
-      expect(translationRepository.findActiveTranslations).toHaveBeenCalledWith(
-        {
-          locale: 'en',
-          namespaces: ['default', 'home'],
-        },
+      expect(translationCacheService.resolveLocale).toHaveBeenCalledWith(
+        'en-US,en;q=0.9',
       );
+      expect(translationCacheService.getNamespaceEntries).toHaveBeenCalledWith({
+        namespace: 'default',
+        locale: 'en',
+      });
+      expect(translationCacheService.getNamespaceEntries).toHaveBeenCalledWith({
+        namespace: 'home',
+        locale: 'en',
+      });
+      expect(translationCacheService.listNamespaces).not.toHaveBeenCalled();
     });
 
-    it('should fallback to default locale when accept-language is unsupported', async () => {
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'es' }]),
+    it('should read all cached namespaces when namespaces query is omitted', () => {
+      resolveLocaleMock.mockReturnValue('en');
+      listNamespacesMock.mockReturnValue(['about']);
+      getNamespaceEntriesMock.mockReturnValue(
+        new Map([
+          [
+            'title',
+            {
+              namespace: 'about',
+              key: 'title',
+              value: 'About',
+              format: 'plain',
+              kind: 'text',
+              isActive: true,
+            },
+          ],
+        ]),
+      );
+
+      expect(
+        service.getTranslationsV1({
+          acceptLanguage: 'en',
+          namespacesQuery: undefined,
         }),
+      ).toEqual({
+        locale: 'en',
+        translations: {
+          about: {
+            title: { value: 'About', format: 'plain', kind: 'text' },
+          },
+        },
       });
 
-      findActiveTranslationsMock.mockResolvedValue([]);
+      expect(translationCacheService.listNamespaces).toHaveBeenCalledTimes(1);
+    });
 
-      await expect(
+    it('should fallback to default locale when accept-language is unsupported', () => {
+      resolveLocaleMock.mockReturnValue('en');
+      listNamespacesMock.mockReturnValue([]);
+
+      expect(
         service.getTranslationsV1({
           acceptLanguage: 'fr-FR',
           namespacesQuery: undefined,
         }),
-      ).resolves.toEqual({
+      ).toEqual({
         locale: 'en',
         translations: {},
       });
     });
 
-    it('should throw when namespaces are invalid', async () => {
-      await expect(
+    it('should throw when namespaces are invalid', () => {
+      expect(() =>
         service.getTranslationsV1({
           acceptLanguage: undefined,
           namespacesQuery: '$invalid',
         }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).toThrow(BadRequestException);
     });
 
-    it('should throw when a stored translation has an empty namespace', async () => {
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
-      findActiveTranslationsMock.mockResolvedValue([
-        {
-          key: 'hello',
-          value: 'Hello',
-          namespace: '   ',
-          format: 'plain',
-          kind: 'text',
-        },
-      ]);
+    it('should omit namespaces with no entries for the resolved locale', () => {
+      resolveLocaleMock.mockReturnValue('en');
+      getNamespaceEntriesMock.mockReturnValue(new Map());
 
-      await expect(
+      expect(
         service.getTranslationsV1({
           acceptLanguage: 'en',
-          namespacesQuery: undefined,
+          namespacesQuery: 'missing',
         }),
-      ).rejects.toBeInstanceOf(InternalServerErrorException);
-    });
-  });
-
-  describe('getActiveNamespaceTranslations', () => {
-    it('should return active entries grouped by locale when namespace is valid', async () => {
-      findActiveByNamespaceMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'telegram',
-          key: 'weeklyDigest.empty',
-          value: 'There are no gigs scheduled for this week.',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
-
-      const result = await service.getActiveNamespaceTranslations({
-        namespace: 'telegram',
+      ).toEqual({
+        locale: 'en',
+        translations: {},
       });
-
-      expect(result.get('en')).toEqual([
-        {
-          namespace: 'telegram',
-          key: 'weeklyDigest.empty',
-          value: 'There are no gigs scheduled for this week.',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
-
-      expect(translationRepository.findActiveByNamespace).toHaveBeenCalledWith({
-        namespace: 'telegram',
-      });
-    });
-
-    it('should throw when namespace is invalid', async () => {
-      await expect(
-        service.getActiveNamespaceTranslations({
-          namespace: '$invalid',
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

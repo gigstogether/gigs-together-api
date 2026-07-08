@@ -133,6 +133,10 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       : TRANSLATION_CACHE_DEFAULT_LOCALE;
   }
 
+  listNamespaces(): readonly string[] {
+    return [...this.cache.keys()].sort();
+  }
+
   async revalidateNamespace(
     params: RevalidateTranslationNamespaceParams,
   ): Promise<void> {

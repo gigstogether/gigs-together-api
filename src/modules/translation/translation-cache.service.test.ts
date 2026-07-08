@@ -233,6 +233,67 @@ describe('TranslationCacheService', () => {
 
       expect(entries.get('title')?.value).toBe('About');
     });
+
+    it('should return all locale registries when locale is omitted', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
+          value: 'There are no gigs scheduled for this week.',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+      await service.onModuleInit();
+
+      const entries = service.getNamespaceEntries({
+        namespace: 'telegram',
+      });
+
+      expect(entries.get('en')?.get('weeklyDigest.empty')?.value).toBe(
+        'There are no gigs scheduled for this week.',
+      );
+    });
+  });
+
+  describe('listNamespaces', () => {
+    it('should return sorted namespace keys from the warm cache', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'home',
+          key: 'cta',
+          value: 'Join',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
+        }),
+      });
+      await service.onModuleInit();
+
+      expect(service.listNamespaces()).toEqual(['about', 'home']);
+    });
   });
 
   describe('onModuleDestroy', () => {
