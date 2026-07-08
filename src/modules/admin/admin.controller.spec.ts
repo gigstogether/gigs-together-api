@@ -4,12 +4,6 @@ import type { AdminGigService } from './admin-gig.service';
 import type { GigModerationService } from '../gig/gig-moderation.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
-import type { TranslationCacheService } from '../translation/translation-cache.service';
-import {
-  BadRequestException,
-  ServiceUnavailableException,
-  UnauthorizedException,
-} from '@nestjs/common';
 
 describe('AdminController', () => {
   const adminDashboardService = {
@@ -59,18 +53,6 @@ describe('AdminController', () => {
     'getAllLocalesOrdered' | 'updateLocaleByIso' | 'updateLocalesOrder'
   >;
 
-  const authorizationService = {
-    refreshAdminsCache: vi.fn(),
-  };
-
-  const configService = {
-    get: vi.fn().mockReturnValue('secret'),
-  };
-
-  const translationCacheService = {
-    revalidateNamespace: vi.fn(),
-  } satisfies Pick<TranslationCacheService, 'revalidateNamespace'>;
-
   const digestService = {
     publish: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<DigestService, 'publish'>;
@@ -78,17 +60,13 @@ describe('AdminController', () => {
   const controller = new AdminController(
     adminDashboardService as unknown as AdminDashboardService,
     adminGigService as unknown as AdminGigService,
-    authorizationService as never,
-    configService as never,
     localeService as unknown as LocaleService,
     gigModerationService as unknown as GigModerationService,
     digestService as unknown as DigestService,
-    translationCacheService as unknown as TranslationCacheService,
   );
 
   beforeEach(() => {
     vi.clearAllMocks();
-    configService.get.mockReturnValue('secret');
   });
 
   describe('getDashboard', () => {
@@ -219,60 +197,6 @@ describe('AdminController', () => {
           { iso: 'en', order: 1 },
         ],
       });
-    });
-  });
-
-  describe('revalidateAdmins', () => {
-    it('should refresh admins cache when secret is valid', async () => {
-      await expect(
-        controller.revalidateAdmins('secret'),
-      ).resolves.toBeUndefined();
-
-      expect(authorizationService.refreshAdminsCache).toHaveBeenCalledTimes(1);
-    });
-
-    it('should throw when secret header is invalid', async () => {
-      await expect(controller.revalidateAdmins('wrong')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
-    });
-
-    it('should throw when admin revalidate secret is not configured', async () => {
-      configService.get.mockReturnValue('');
-
-      await expect(
-        controller.revalidateAdmins('secret'),
-      ).rejects.toBeInstanceOf(ServiceUnavailableException);
-    });
-  });
-
-  describe('revalidateTranslations', () => {
-    it('should revalidate translation namespace when secret is valid', async () => {
-      await expect(
-        controller.revalidateTranslations('secret', { namespace: 'telegram' }),
-      ).resolves.toBeUndefined();
-
-      expect(translationCacheService.revalidateNamespace).toHaveBeenCalledWith({
-        namespace: 'telegram',
-      });
-    });
-
-    it('should throw when secret header is invalid', async () => {
-      await expect(
-        controller.revalidateTranslations('wrong', { namespace: 'telegram' }),
-      ).rejects.toBeInstanceOf(UnauthorizedException);
-    });
-
-    it('should throw when namespace is invalid', async () => {
-      translationCacheService.revalidateNamespace.mockRejectedValue(
-        new BadRequestException('Invalid translation namespace "$invalid".'),
-      );
-
-      await expect(
-        controller.revalidateTranslations('secret', {
-          namespace: '$invalid',
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

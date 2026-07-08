@@ -162,13 +162,35 @@ Main files:
 
 Responsibilities:
 
-- loads active admins from MongoDB (cached) and answers `isAdmin(telegramId)`
-- provides AdminGuard` for routes that require admin privileges
+- admin UI HTTP API: dashboard, gig moderation, locale management, manual digest publish
+- delegates to `AdminDashboardService`, `AdminGigService`, `GigModerationService`, `DigestService`, and `LocaleService`
+- all routes use JWT cookies plus `AdminGuard`
 
 Main files:
 
 - `src/modules/admin/admin.module.ts`
-- `src/modules/admin/admin.service.ts`
+- `src/modules/admin/admin.controller.ts`
+- `src/modules/admin/admin-dashboard.service.ts`
+- `src/modules/admin/admin-gig.service.ts`
+
+#### `InternalModule`
+
+Responsibilities:
+
+- internal platform hooks for scripts, deploy pipelines, and on-call tooling
+- cache revalidation for admins and translations
+- authenticated with `x-internal-api-key` / `INTERNAL_API_KEY` via `InternalApiKeyGuard` (not admin JWT)
+
+Main files:
+
+- `src/modules/internal/internal.module.ts`
+- `src/modules/internal/internal.controller.ts`
+- `src/modules/internal/guards/internal-api-key.guard.ts`
+
+Routes:
+
+- `POST /v1/internal/admins/revalidate` → refresh admins cache
+- `POST /v1/internal/translations/revalidate` → refresh translation cache namespace
 
 #### `AuthModule`
 

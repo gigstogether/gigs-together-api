@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -12,10 +11,8 @@ import {
   UseGuards,
   Version,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
-import { AuthorizationService } from '../auth/authorization.service';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminGigService } from './admin-gig.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -32,25 +29,16 @@ import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
-import { TranslationCacheService } from '../translation/translation-cache.service';
-import { assertAdminRevalidateSecret } from './admin-revalidate-secret';
-import { V1AdminRevalidateTranslationsBodyDto } from './types/requests/v1-admin-revalidate-translations-body';
 
-/**
- * Manual admin-list cache refresh (e.g. after DB migration).
- * Requires ADMIN_REVALIDATE_SECRET; if unset, POST returns 503 (TTL refresh still works without it).
- */
+/** Admin UI API: dashboard, moderation, locales, and manual digest publish. */
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly adminDashboardService: AdminDashboardService,
     private readonly adminGigService: AdminGigService,
-    private readonly authorizationService: AuthorizationService,
-    private readonly configService: ConfigService,
     private readonly localeService: LocaleService,
     private readonly gigModerationService: GigModerationService,
     private readonly digestService: DigestService,
-    private readonly translationCacheService: TranslationCacheService,
   ) {}
 
   @Version('1')
@@ -144,28 +132,5 @@ export class AdminController {
     @Body() body: V1AdminLocalePatchBodyDto,
   ): Promise<SupportedLocale> {
     return this.localeService.updateLocaleByIso({ iso, ...body });
-  }
-
-  @Version('1')
-  @Post('revalidate/admins')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async revalidateAdmins(
-    @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,
-  ): Promise<void> {
-    assertAdminRevalidateSecret(this.configService, secretHeader);
-    await this.authorizationService.refreshAdminsCache();
-  }
-
-  @Version('1')
-  @Post('revalidate/translations')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async revalidateTranslations(
-    @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,
-    @Body() body: V1AdminRevalidateTranslationsBodyDto,
-  ): Promise<void> {
-    assertAdminRevalidateSecret(this.configService, secretHeader);
-    await this.translationCacheService.revalidateNamespace({
-      namespace: body.namespace,
-    });
   }
 }
