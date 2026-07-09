@@ -129,6 +129,7 @@ Current variables defined in `.env.example`:
 | `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                               |
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                                           |
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.                   |
+| `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.                     |
 | `INTERNAL_API_KEY`                              | Optional                                     | Shared key for `/v1/internal/...` hooks (`x-internal-api-key`). Returns 503 when unset. |
 | `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                                     |
 | `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                                |

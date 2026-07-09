@@ -8,7 +8,7 @@ export class LocaleController {
 
   @Version('1')
   @Get()
-  getLocalesV1(): Promise<readonly SupportedLocale[]> {
+  getLocalesV1(): readonly SupportedLocale[] {
     return this.localeService.getLocalesV1();
   }
 }

@@ -9,25 +9,35 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { LocaleService } from '../locale/locale.service';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
-  TRANSLATION_CACHE_DEFAULT_LOCALE,
 } from './translation-bundle.parser';
 import { isValidTranslationNamespace } from './translation-identifiers';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import type {
-  GetNamespaceEntriesParams,
-  GetTranslationCacheEntryParams,
   LocaleKeyRegistry,
   NamespaceLocaleRegistry,
-  RevalidateTranslationNamespaceParams,
   TranslationCacheIndex,
 } from './types/translation-cache.types';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationBundleEntry } from './types/translation.types';
+
+interface RevalidateTranslationNamespaceParams {
+  readonly namespace: string;
+}
+
+interface GetTranslationCacheEntryParams {
+  readonly namespace: string;
+  readonly key: string;
+  readonly locale: string;
+}
+
+interface GetNamespaceEntriesParams {
+  readonly namespace: string;
+  readonly locale?: string;
+}
 
 @Injectable()
 export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
@@ -36,16 +46,12 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(TranslationCacheService.name);
 
   private cache: TranslationCacheIndex = new Map();
-  private activeLocales: ReadonlySet<string> = new Set([
-    TRANSLATION_CACHE_DEFAULT_LOCALE,
-  ]);
   private reloadInFlight: Promise<void> | undefined;
   private readonly cacheTtlMs: number;
 
   constructor(
     @Inject(TRANSLATION_REPOSITORY)
     private readonly translationRepository: TranslationRepository,
-    private readonly localeService: LocaleService,
     private readonly configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
@@ -118,18 +124,6 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
     return entry;
   }
 
-  resolveLocale(acceptLanguageRaw?: string): string {
-    const requested =
-      TranslationCacheService.normalizeAcceptLanguage(acceptLanguageRaw);
-    if (!requested) {
-      return TRANSLATION_CACHE_DEFAULT_LOCALE;
-    }
-
-    return this.activeLocales.has(requested)
-      ? requested
-      : TRANSLATION_CACHE_DEFAULT_LOCALE;
-  }
-
   listNamespaces(): readonly string[] {
     return [...this.cache.keys()].sort();
   }
@@ -145,16 +139,6 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
     }
 
     await this.executeReload(() => this.performNamespaceReload(namespace));
-  }
-
-  private static normalizeAcceptLanguage(value?: string): string | undefined {
-    if (!value) return undefined;
-    const first = value.split(',')[0]?.trim();
-    if (!first || first === '*') return undefined;
-    const withoutQ = first.split(';')[0]?.trim();
-    const primary = withoutQ.split('-')[0]?.trim().toLowerCase();
-    if (!primary) return undefined;
-    return primary;
   }
 
   private async executeReload(operation: () => Promise<void>): Promise<void> {
@@ -187,15 +171,11 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async loadFullCache(): Promise<void> {
-    const [records, activeLocales] = await Promise.all([
-      this.translationRepository.findAllActiveRecords(),
-      this.loadActiveLocales(),
-    ]);
+    const records = await this.translationRepository.findAllActiveRecords();
 
     this.cache = buildTranslationCacheIndex(records, this.logger);
-    this.activeLocales = activeLocales;
     this.logger.log(
-      `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s), ${activeLocales.size} active locale(s).`,
+      `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s).`,
     );
   }
 
@@ -223,15 +203,5 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
         `Translation cache namespace reload failed for "${namespace}"; keeping stale slice. ${message}`,
       );
     }
-  }
-
-  private async loadActiveLocales(): Promise<ReadonlySet<string>> {
-    const isos = await this.localeService.getActiveLocaleIsos();
-
-    if (isos.length === 0) {
-      return new Set([TRANSLATION_CACHE_DEFAULT_LOCALE]);
-    }
-
-    return new Set(isos);
   }
 }

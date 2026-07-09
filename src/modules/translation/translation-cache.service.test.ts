@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { LocaleService } from '../locale/locale.service';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TranslationCacheService } from './translation-cache.service';
@@ -13,14 +12,12 @@ describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
   let translationRepository: TranslationRepository;
 
-  const getActiveLocaleIsosMock = vi.fn();
   const findAllActiveRecordsMock = vi.fn();
   const findActiveByNamespaceMock = vi.fn();
   const addIntervalMock = vi.fn();
   const deleteIntervalMock = vi.fn();
 
   beforeEach(async () => {
-    getActiveLocaleIsosMock.mockReset();
     findAllActiveRecordsMock.mockReset();
     findActiveByNamespaceMock.mockReset();
     addIntervalMock.mockReset();
@@ -34,12 +31,6 @@ describe('TranslationCacheService', () => {
           useValue: {
             findAllActiveRecords: findAllActiveRecordsMock,
             findActiveByNamespace: findActiveByNamespaceMock,
-          },
-        },
-        {
-          provide: LocaleService,
-          useValue: {
-            getActiveLocaleIsos: getActiveLocaleIsosMock,
           },
         },
         {
@@ -81,7 +72,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en', 'es']);
 
       await service.onModuleInit();
 
@@ -100,7 +90,6 @@ describe('TranslationCacheService', () => {
 
     it('should throw when warm-up fails', async () => {
       findAllActiveRecordsMock.mockRejectedValue(new Error('mongo down'));
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       await expect(service.onModuleInit()).rejects.toSatisfy(
         (error: unknown) =>
@@ -123,7 +112,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       vi.useFakeTimers();
       await service.onModuleInit();
@@ -166,7 +154,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       vi.useFakeTimers();
       await service.onModuleInit();
@@ -185,29 +172,6 @@ describe('TranslationCacheService', () => {
     });
   });
 
-  describe('resolveLocale', () => {
-    it('should resolve supported locale from cache without reloading active locales', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en', 'es']);
-
-      await service.onModuleInit();
-
-      expect(service.resolveLocale('es-ES,es;q=0.9')).toBe('es');
-      expect(getActiveLocaleIsosMock).toHaveBeenCalledTimes(1);
-      expect(service.resolveLocale('es')).toBe('es');
-      expect(getActiveLocaleIsosMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('should fallback to default locale when accept-language is unsupported', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([]);
-      getActiveLocaleIsosMock.mockResolvedValue(['es']);
-
-      await service.onModuleInit();
-
-      expect(service.resolveLocale('fr-FR')).toBe('en');
-    });
-  });
-
   describe('revalidateNamespace', () => {
     it('should reload only the requested namespace slice', async () => {
       findAllActiveRecordsMock.mockResolvedValue([
@@ -221,7 +185,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       findActiveByNamespaceMock.mockResolvedValue([
@@ -269,7 +232,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       let releaseFirstReload!: () => void;
@@ -357,7 +319,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -380,7 +341,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -415,7 +375,6 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       expect(service.listNamespaces()).toEqual(['about', 'home']);
@@ -425,7 +384,6 @@ describe('TranslationCacheService', () => {
   describe('onModuleDestroy', () => {
     it('should delete TTL interval from scheduler registry', async () => {
       findAllActiveRecordsMock.mockResolvedValue([]);
-      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       service.onModuleDestroy();

@@ -1,41 +1,98 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import type {
   SupportedLocale,
   UpdateLocaleByIsoParams,
   UpdateLocalesOrderParams,
 } from './types/locale.types';
+import {
+  LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS,
+  LOCALE_DEFAULT_ISO,
+} from './locale-cache.constants';
 import { InjectModel } from '@nestjs/mongoose';
 import { LocaleDocument, Locale } from './locale.schema';
 import { Model } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 @Injectable()
-export class LocaleService {
+export class LocaleService implements OnModuleInit, OnModuleDestroy {
+  private static readonly ACTIVE_LOCALES_TTL_INTERVAL_NAME =
+    'locale-active-cache-ttl';
+
+  private readonly logger = new Logger(LocaleService.name);
+
+  private activeLocales: readonly SupportedLocale[] = [
+    {
+      iso: LOCALE_DEFAULT_ISO,
+      nativeName: 'English',
+      isActive: true,
+      order: 0,
+    },
+  ];
+  private readonly cacheTtlMs: number;
+
   constructor(
     @InjectModel(Locale.name)
     private readonly localeModel: Model<LocaleDocument>,
-  ) {}
-
-  private static normalizeLocaleIsoParam(isoRaw: string): string {
-    const iso = isoRaw.trim().toLowerCase();
-    if (!/^[a-z]{2}(?:-[a-z]{2})?$/.test(iso)) {
-      throw new BadRequestException('iso has invalid format');
-    }
-    return iso;
+    private readonly configService: ConfigService,
+    private readonly schedulerRegistry: SchedulerRegistry,
+  ) {
+    const raw = this.configService.get<string>('LOCALE_ACTIVE_CACHE_TTL_MS');
+    const parsed = raw?.trim() ? Number.parseInt(raw.trim(), 10) : Number.NaN;
+    // Default 3_600_000 ms (1 hour). Override LOCALE_ACTIVE_CACHE_TTL_MS for shorter windows in dev.
+    this.cacheTtlMs =
+      Number.isFinite(parsed) && parsed > 0
+        ? parsed
+        : LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS;
   }
 
-  getLocalesV1(): Promise<readonly SupportedLocale[]> {
-    return this.localeModel
-      .find(
-        { isActive: true },
-        { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 },
-      )
-      .sort({ order: 1, iso: 1 })
-      .lean<SupportedLocale[]>()
-      .exec();
+  async onModuleInit(): Promise<void> {
+    await this.refreshActiveLocaleCacheFromMongo();
+
+    const interval = setInterval(() => {
+      void this.performScheduledActiveLocaleRefresh();
+    }, this.cacheTtlMs);
+
+    this.schedulerRegistry.addInterval(
+      LocaleService.ACTIVE_LOCALES_TTL_INTERVAL_NAME,
+      interval,
+    );
+  }
+
+  onModuleDestroy(): void {
+    this.schedulerRegistry.deleteInterval(
+      LocaleService.ACTIVE_LOCALES_TTL_INTERVAL_NAME,
+    );
+  }
+
+  getActiveLocaleIsos(): readonly string[] {
+    if (this.activeLocales.length === 0) {
+      return [LOCALE_DEFAULT_ISO];
+    }
+
+    return this.activeLocales.map((locale) => locale.iso);
+  }
+
+  resolveLocale(acceptLanguageRaw?: string): string {
+    const requested = LocaleService.normalizeAcceptLanguage(acceptLanguageRaw);
+    if (!requested) {
+      return LOCALE_DEFAULT_ISO;
+    }
+
+    return this.getActiveLocaleIsos().includes(requested)
+      ? requested
+      : LOCALE_DEFAULT_ISO;
+  }
+
+  getLocalesV1(): readonly SupportedLocale[] {
+    return this.activeLocales;
   }
 
   getAllLocalesOrdered(): Promise<readonly SupportedLocale[]> {
@@ -44,17 +101,6 @@ export class LocaleService {
       .sort({ order: 1, iso: 1 })
       .lean<SupportedLocale[]>()
       .exec();
-  }
-
-  async getActiveLocaleIsos(): Promise<readonly string[]> {
-    const locales = await this.localeModel
-      .find({ isActive: true }, { _id: 0, iso: 1 })
-      .lean<Array<{ readonly iso: string }>>()
-      .exec();
-
-    return locales
-      .map((locale) => locale.iso.trim().toLowerCase())
-      .filter((iso) => iso.length > 0);
   }
 
   async updateLocaleByIso(
@@ -106,6 +152,8 @@ export class LocaleService {
     if (!updated) {
       throw new NotFoundException(`Locale "${iso}" not found`);
     }
+
+    await this.refreshActiveLocaleCacheFromMongo();
 
     return updated;
   }
@@ -162,6 +210,61 @@ export class LocaleService {
       })),
     );
 
+    await this.refreshActiveLocaleCacheFromMongo();
+
     return this.getAllLocalesOrdered();
+  }
+
+  private static normalizeLocaleIsoParam(isoRaw: string): string {
+    const iso = isoRaw.trim().toLowerCase();
+    if (!/^[a-z]{2}(?:-[a-z]{2})?$/.test(iso)) {
+      throw new BadRequestException('iso has invalid format');
+    }
+    return iso;
+  }
+
+  private static normalizeAcceptLanguage(value?: string): string | undefined {
+    if (!value) return undefined;
+    const first = value.split(',')[0]?.trim();
+    if (!first || first === '*') return undefined;
+    const withoutQ = first.split(';')[0]?.trim();
+    const primary = withoutQ.split('-')[0]?.trim().toLowerCase();
+    if (!primary) return undefined;
+    return primary;
+  }
+
+  private async performScheduledActiveLocaleRefresh(): Promise<void> {
+    try {
+      await this.refreshActiveLocaleCacheFromMongo();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Active locales cache refresh failed; keeping stale set. ${message}`,
+      );
+    }
+  }
+
+  private async refreshActiveLocaleCacheFromMongo(): Promise<void> {
+    const locales = await this.localeModel
+      .find(
+        { isActive: true },
+        { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 },
+      )
+      .sort({ order: 1, iso: 1 })
+      .lean<SupportedLocale[]>()
+      .exec();
+
+    this.activeLocales = locales
+      .map((locale) => ({
+        iso: locale.iso.trim().toLowerCase(),
+        nativeName: locale.nativeName,
+        isActive: locale.isActive,
+        order: locale.order,
+      }))
+      .filter((locale) => locale.iso.length > 0);
+
+    this.logger.log(
+      `Active locales cache refreshed: ${this.activeLocales.length} active locale(s).`,
+    );
   }
 }

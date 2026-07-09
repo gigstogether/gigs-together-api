@@ -107,8 +107,8 @@ Supporting pieces:
 Responsibilities:
 
 - serves supported locales
-
-[//]: # '- serves translation payloads'
+- in-memory cache of active locale ISO codes (`LocaleService.getActiveLocaleIsos`, `resolveLocale`)
+- Accept-Language resolution for translation reads
 
 Persistence:
 

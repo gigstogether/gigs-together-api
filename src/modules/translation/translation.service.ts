@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
 import { isValidTranslationNamespace } from './translation-identifiers';
 import type {
@@ -11,6 +12,7 @@ import type { LocaleKeyRegistry } from './types/translation-cache.types';
 @Injectable()
 export class TranslationService {
   constructor(
+    private readonly localeService: LocaleService,
     private readonly translationCacheService: TranslationCacheService,
   ) {}
 
@@ -53,9 +55,7 @@ export class TranslationService {
   getTranslationsV1(
     request: V1TranslationGetTranslationsRequest,
   ): V1TranslationGetTranslationsResponseBody {
-    const locale = this.translationCacheService.resolveLocale(
-      request.acceptLanguage,
-    );
+    const locale = this.localeService.resolveLocale(request.acceptLanguage);
 
     const namespaces = TranslationService.parseNamespacesQuery(
       request.namespacesQuery,

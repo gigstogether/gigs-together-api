@@ -1,11 +1,13 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
+import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
 import { TranslationService } from './translation.service';
 
 describe('TranslationService', () => {
   let service: TranslationService;
+  let localeService: LocaleService;
   let translationCacheService: TranslationCacheService;
 
   const resolveLocaleMock = vi.fn();
@@ -21,9 +23,14 @@ describe('TranslationService', () => {
       providers: [
         TranslationService,
         {
-          provide: TranslationCacheService,
+          provide: LocaleService,
           useValue: {
             resolveLocale: resolveLocaleMock,
+          },
+        },
+        {
+          provide: TranslationCacheService,
+          useValue: {
             listNamespaces: listNamespacesMock,
             getNamespaceEntries: getNamespaceEntriesMock,
           },
@@ -32,6 +39,7 @@ describe('TranslationService', () => {
     }).compile();
 
     service = module.get<TranslationService>(TranslationService);
+    localeService = module.get<LocaleService>(LocaleService);
     translationCacheService = module.get<TranslationCacheService>(
       TranslationCacheService,
     );
@@ -93,7 +101,7 @@ describe('TranslationService', () => {
         },
       });
 
-      expect(translationCacheService.resolveLocale).toHaveBeenCalledWith(
+      expect(localeService.resolveLocale).toHaveBeenCalledWith(
         'en-US,en;q=0.9',
       );
       expect(translationCacheService.getNamespaceEntries).toHaveBeenCalledWith({
