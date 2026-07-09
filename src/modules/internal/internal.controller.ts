@@ -8,6 +8,7 @@ import {
   Version,
 } from '@nestjs/common';
 import { AuthorizationService } from '../auth/authorization.service';
+import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from '../translation/translation-cache.service';
 import { InternalApiKeyGuard } from './guards/internal-api-key.guard';
 import { V1InternalRevalidateTranslationsBodyDto } from './types/requests/v1-internal-revalidate-translations-body';
@@ -20,6 +21,7 @@ import { V1InternalRevalidateTranslationsBodyDto } from './types/requests/v1-int
 export class InternalController {
   constructor(
     private readonly authorizationService: AuthorizationService,
+    private readonly localeService: LocaleService,
     private readonly translationCacheService: TranslationCacheService,
   ) {}
 
@@ -29,6 +31,14 @@ export class InternalController {
   @UseGuards(InternalApiKeyGuard)
   revalidateAdminsCache(): Promise<void> {
     return this.authorizationService.refreshAdminsCache();
+  }
+
+  @Version('1')
+  @Post('locales/revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(InternalApiKeyGuard)
+  revalidateLocalesCache(): Promise<void> {
+    return this.localeService.revalidateActiveLocalesCache();
   }
 
   @Version('1')

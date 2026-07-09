@@ -95,6 +95,13 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
     return this.activeLocales;
   }
 
+  /**
+   * Forces a DB reload of active locales (used by writes, TTL refresh, and POST /v1/internal/locales/revalidate).
+   */
+  revalidateActiveLocalesCache(): Promise<void> {
+    return this.refreshActiveLocaleCacheFromMongo();
+  }
+
   getAllLocalesOrdered(): Promise<readonly SupportedLocale[]> {
     return this.localeRepository.findAllLocalesOrdered();
   }
@@ -148,7 +155,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException(`Locale "${iso}" not found`);
     }
 
-    await this.refreshActiveLocaleCacheFromMongo();
+    await this.revalidateActiveLocalesCache();
 
     return updated;
   }
@@ -195,7 +202,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
 
     await this.localeRepository.bulkOrderUpdate(normalizedUpdates);
 
-    await this.refreshActiveLocaleCacheFromMongo();
+    await this.revalidateActiveLocalesCache();
 
     return this.getAllLocalesOrdered();
   }

@@ -198,6 +198,39 @@ describe('LocaleService', () => {
     });
   });
 
+  describe('revalidateActiveLocalesCache', () => {
+    it('should reload active locales from repository', async () => {
+      findActiveLocalesOrderedMock.mockResolvedValue([
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+      ]);
+      await service.onModuleInit();
+
+      findActiveLocalesOrderedMock.mockResolvedValue([
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+        { iso: 'es', nativeName: 'Español', isActive: true, order: 1 },
+      ]);
+
+      await service.revalidateActiveLocalesCache();
+
+      expect(service.getActiveLocaleIsos()).toEqual(['en', 'es']);
+      expect(findActiveLocalesOrderedMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should propagate repository errors', async () => {
+      findActiveLocalesOrderedMock.mockResolvedValue([
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+      ]);
+      await service.onModuleInit();
+
+      findActiveLocalesOrderedMock.mockRejectedValue(new Error('mongo down'));
+
+      await expect(service.revalidateActiveLocalesCache()).rejects.toSatisfy(
+        (error: unknown) =>
+          error instanceof Error && error.message === 'mongo down',
+      );
+    });
+  });
+
   describe('getAllLocalesOrdered', () => {
     it('should return all locales sorted by order and iso', async () => {
       findAllLocalesOrderedMock.mockResolvedValue([

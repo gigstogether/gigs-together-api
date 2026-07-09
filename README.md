@@ -483,7 +483,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
 - approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
-- internal hooks: `POST /v1/internal/admins/revalidate` and `POST /v1/internal/translations/revalidate` (`x-internal-api-key` / `INTERNAL_API_KEY`)
+- internal hooks: `POST /v1/internal/admins/revalidate`, `POST /v1/internal/locales/revalidate`, and `POST /v1/internal/translations/revalidate` (`x-internal-api-key` / `INTERNAL_API_KEY`)
 - `GET /health` is the simplest endpoint to use for smoke testing
 
 ### Locale and translations modules
