@@ -245,6 +245,21 @@ describe('LocaleService', () => {
     });
   });
 
+  describe('parseLocaleIsoParam', () => {
+    it('should return normalized locale iso when value is valid', () => {
+      expect(LocaleService.parseLocaleIsoParam(' EN ')).toBe('en');
+    });
+
+    it('should throw when locale iso format is invalid', () => {
+      expect(() => LocaleService.parseLocaleIsoParam('english')).toThrow(
+        BadRequestException,
+      );
+      expect(() => LocaleService.parseLocaleIsoParam('english')).toThrow(
+        'iso has invalid format',
+      );
+    });
+  });
+
   describe('updateLocaleByIso', () => {
     it('should update locale fields when payload is valid', async () => {
       countOtherActiveLocalesMock.mockResolvedValue(1);

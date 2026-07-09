@@ -62,8 +62,8 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - When using `any`, localize it at the boundary and add a short comment explaining why it is unavoidable.
 
 - Mark a function as `async` only when it contains `await`.
-- If a function returns a `Promise` without using `await`, declare the `Promise` return type explicitly in the signature instead of marking the function as `async`.
 - Do not use `.then(...)` when the same logic can be written with `await`.
+- If a function returns a `Promise` without using `await`, declare the `Promise` return type explicitly in the signature instead of marking the function as `async`.
 
 - Avoid type assertions with `as` as much as possible.
 - Prefer type guards, narrowing, and better source types instead of `as`.

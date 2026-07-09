@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
   Version,
@@ -25,18 +26,26 @@ import {
 } from './types/requests/v1-admin-locale-patch-body';
 import { LocaleService } from '../locale/locale.service';
 import type { SupportedLocale } from '../locale/types/locale.types';
+import { TranslationService } from '../translation/translation.service';
+import type { StoredTranslationRecord } from '../translation/types/translation-record.types';
+import { V1AdminTranslationSetActiveBodyDto } from './types/requests/v1-admin-translation-set-active-body';
+import { V1AdminTranslationUpsertBodyDto } from './types/requests/v1-admin-translation-upsert-body';
+import { V1AdminTranslationsGetQueryDto } from './types/requests/v1-admin-translations-get-query';
+import type { V1AdminTranslationNamespacesListResponseBody } from './types/requests/v1-admin-translation-namespaces-list-response';
+import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
 
-/** Admin UI API: dashboard, moderation, locales, and manual digest publish. */
+/** Admin UI API: dashboard, moderation, locales, translations, and manual digest publish. */
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly adminDashboardService: AdminDashboardService,
     private readonly adminGigService: AdminGigService,
     private readonly localeService: LocaleService,
+    private readonly translationService: TranslationService,
     private readonly gigModerationService: GigModerationService,
     private readonly digestService: DigestService,
   ) {}
@@ -132,5 +141,50 @@ export class AdminController {
     @Body() body: V1AdminLocalePatchBodyDto,
   ): Promise<SupportedLocale> {
     return this.localeService.updateLocaleByIso({ iso, ...body });
+  }
+
+  @Version('1')
+  @Get('translations/namespaces')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  async getTranslationNamespaces(): Promise<V1AdminTranslationNamespacesListResponseBody> {
+    const namespaces = await this.translationService.listDistinctNamespaces();
+
+    return { namespaces };
+  }
+
+  @Version('1')
+  @Get('translations')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  async getTranslations(
+    @Query() query: V1AdminTranslationsGetQueryDto,
+  ): Promise<V1AdminTranslationsListResponseBody> {
+    const records = await this.translationService.listRecords({
+      namespace: query.namespace,
+      locale: query.locale,
+    });
+
+    return { records };
+  }
+
+  @Version('1')
+  @Put('translations')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  upsertTranslation(
+    @Body() body: V1AdminTranslationUpsertBodyDto,
+  ): Promise<StoredTranslationRecord> {
+    return this.translationService.upsertRecord(body);
+  }
+
+  @Version('1')
+  @Patch('translations/:id/active')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  patchTranslationActive(
+    @Param('id') id: string,
+    @Body() body: V1AdminTranslationSetActiveBodyDto,
+  ): Promise<StoredTranslationRecord> {
+    return this.translationService.setActiveById({
+      id,
+      isActive: body.isActive,
+    });
   }
 }

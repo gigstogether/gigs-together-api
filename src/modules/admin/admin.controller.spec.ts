@@ -4,6 +4,7 @@ import type { AdminGigService } from './admin-gig.service';
 import type { GigModerationService } from '../gig/gig-moderation.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
+import type { TranslationService } from '../translation/translation.service';
 
 describe('AdminController', () => {
   const adminDashboardService = {
@@ -53,6 +54,45 @@ describe('AdminController', () => {
     'getAllLocalesOrdered' | 'updateLocaleByIso' | 'updateLocalesOrder'
   >;
 
+  const translationService = {
+    listDistinctNamespaces: vi.fn().mockResolvedValue(['about', 'country']),
+    listRecords: vi.fn().mockResolvedValue([
+      {
+        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        namespace: 'about',
+        locale: 'en',
+        key: 'title',
+        value: 'About',
+        format: 'plain',
+        kind: 'text',
+        isActive: true,
+      },
+    ]),
+    upsertRecord: vi.fn().mockResolvedValue({
+      id: '64f1a2b3c4d5e6f7a8b9c0d1',
+      namespace: 'about',
+      locale: 'en',
+      key: 'title',
+      value: 'About us',
+      format: 'plain',
+      kind: 'text',
+      isActive: true,
+    }),
+    setActiveById: vi.fn().mockResolvedValue({
+      id: '64f1a2b3c4d5e6f7a8b9c0d1',
+      namespace: 'about',
+      locale: 'en',
+      key: 'title',
+      value: 'About',
+      format: 'plain',
+      kind: 'text',
+      isActive: false,
+    }),
+  } satisfies Pick<
+    TranslationService,
+    'listDistinctNamespaces' | 'listRecords' | 'upsertRecord' | 'setActiveById'
+  >;
+
   const digestService = {
     publish: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<DigestService, 'publish'>;
@@ -61,6 +101,7 @@ describe('AdminController', () => {
     adminDashboardService as unknown as AdminDashboardService,
     adminGigService as unknown as AdminGigService,
     localeService as unknown as LocaleService,
+    translationService as unknown as TranslationService,
     gigModerationService as unknown as GigModerationService,
     digestService as unknown as DigestService,
   );
@@ -196,6 +237,125 @@ describe('AdminController', () => {
           { iso: 'es', order: 0 },
           { iso: 'en', order: 1 },
         ],
+      });
+    });
+  });
+
+  describe('getTranslationNamespaces', () => {
+    it('should return translation namespaces from translation service', async () => {
+      await expect(controller.getTranslationNamespaces()).resolves.toEqual({
+        namespaces: ['about', 'country'],
+      });
+
+      expect(translationService.listDistinctNamespaces).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+  });
+
+  describe('getTranslations', () => {
+    it('should return all translations when namespace is omitted', async () => {
+      await expect(controller.getTranslations({})).resolves.toEqual({
+        records: [
+          {
+            id: '64f1a2b3c4d5e6f7a8b9c0d1',
+            namespace: 'about',
+            locale: 'en',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ],
+      });
+
+      expect(translationService.listRecords).toHaveBeenCalledWith({
+        namespace: undefined,
+        locale: undefined,
+      });
+    });
+
+    it('should return translations list from translation service', async () => {
+      await expect(
+        controller.getTranslations({ namespace: 'about', locale: 'en' }),
+      ).resolves.toEqual({
+        records: [
+          {
+            id: '64f1a2b3c4d5e6f7a8b9c0d1',
+            namespace: 'about',
+            locale: 'en',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ],
+      });
+
+      expect(translationService.listRecords).toHaveBeenCalledWith({
+        namespace: 'about',
+        locale: 'en',
+      });
+    });
+  });
+
+  describe('upsertTranslation', () => {
+    it('should upsert translation via translation service', async () => {
+      await expect(
+        controller.upsertTranslation({
+          namespace: 'about',
+          locale: 'en',
+          key: 'title',
+          value: 'About us',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        }),
+      ).resolves.toEqual({
+        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        namespace: 'about',
+        locale: 'en',
+        key: 'title',
+        value: 'About us',
+        format: 'plain',
+        kind: 'text',
+        isActive: true,
+      });
+
+      expect(translationService.upsertRecord).toHaveBeenCalledWith({
+        namespace: 'about',
+        locale: 'en',
+        key: 'title',
+        value: 'About us',
+        format: 'plain',
+        kind: 'text',
+        isActive: true,
+      });
+    });
+  });
+
+  describe('patchTranslationActive', () => {
+    it('should toggle translation active flag via translation service', async () => {
+      await expect(
+        controller.patchTranslationActive('64f1a2b3c4d5e6f7a8b9c0d1', {
+          isActive: false,
+        }),
+      ).resolves.toEqual({
+        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        namespace: 'about',
+        locale: 'en',
+        key: 'title',
+        value: 'About',
+        format: 'plain',
+        kind: 'text',
+        isActive: false,
+      });
+
+      expect(translationService.setActiveById).toHaveBeenCalledWith({
+        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        isActive: false,
       });
     });
   });

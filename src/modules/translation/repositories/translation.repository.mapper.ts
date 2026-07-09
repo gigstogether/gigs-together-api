@@ -1,3 +1,4 @@
+import type { StoredTranslationRecord } from '../types/translation-record.types';
 import type {
   TranslationFormat,
   TranslationKind,
@@ -12,6 +13,10 @@ export interface TranslationRecordLeanDocument {
   readonly format: TranslationFormat;
   readonly kind?: TranslationKind;
   readonly isActive: boolean;
+}
+
+export interface StoredTranslationRecordLeanDocument extends TranslationRecordLeanDocument {
+  readonly _id: { toString(): string } | string;
 }
 
 export class TranslationRepositoryMapper {
@@ -34,6 +39,25 @@ export class TranslationRepositoryMapper {
   ): readonly TranslationRecord[] {
     return docs.map((doc) =>
       TranslationRepositoryMapper.toTranslationRecord(doc),
+    );
+  }
+
+  static toStoredTranslationRecord(
+    doc: StoredTranslationRecordLeanDocument,
+  ): StoredTranslationRecord {
+    const id = typeof doc._id === 'string' ? doc._id : doc._id.toString();
+
+    return {
+      id,
+      ...TranslationRepositoryMapper.toTranslationRecord(doc),
+    };
+  }
+
+  static toStoredTranslationRecords(
+    docs: readonly StoredTranslationRecordLeanDocument[],
+  ): readonly StoredTranslationRecord[] {
+    return docs.map((doc) =>
+      TranslationRepositoryMapper.toStoredTranslationRecord(doc),
     );
   }
 }

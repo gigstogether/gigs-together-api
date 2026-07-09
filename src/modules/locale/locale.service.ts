@@ -21,6 +21,8 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { LOCALE_REPOSITORY } from './repositories/locale.repository';
 import type { LocaleRepository } from './repositories/locale.repository';
 
+const LOCALE_ISO_PATTERN = /^[a-z]{2}(?:-[a-z]{2})?$/;
+
 @Injectable()
 export class LocaleService implements OnModuleInit, OnModuleDestroy {
   private static readonly ACTIVE_LOCALES_TTL_INTERVAL_NAME =
@@ -91,6 +93,15 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
       : LOCALE_DEFAULT_ISO;
   }
 
+  static parseLocaleIsoParam(isoRaw: string): string {
+    const iso = isoRaw.trim().toLowerCase();
+    if (!LOCALE_ISO_PATTERN.test(iso)) {
+      throw new BadRequestException('iso has invalid format');
+    }
+
+    return iso;
+  }
+
   getLocalesV1(): readonly SupportedLocale[] {
     return this.activeLocales;
   }
@@ -109,7 +120,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   async updateLocaleByIso(
     params: UpdateLocaleByIsoParams,
   ): Promise<SupportedLocale> {
-    const iso = LocaleService.normalizeLocaleIsoParam(params.iso);
+    const iso = LocaleService.parseLocaleIsoParam(params.iso);
     const update: {
       nativeName?: string;
       isActive?: boolean;
@@ -175,7 +186,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
         throw new BadRequestException('order must be a non-negative integer');
       }
       return {
-        iso: LocaleService.normalizeLocaleIsoParam(update.iso),
+        iso: LocaleService.parseLocaleIsoParam(update.iso),
         order,
       };
     });
@@ -205,14 +216,6 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
     await this.revalidateActiveLocalesCache();
 
     return this.getAllLocalesOrdered();
-  }
-
-  private static normalizeLocaleIsoParam(isoRaw: string): string {
-    const iso = isoRaw.trim().toLowerCase();
-    if (!/^[a-z]{2}(?:-[a-z]{2})?$/.test(iso)) {
-      throw new BadRequestException('iso has invalid format');
-    }
-    return iso;
   }
 
   private static normalizeAcceptLanguage(value?: string): string | undefined {
