@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -15,11 +16,10 @@ import {
   LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS,
   LOCALE_DEFAULT_ISO,
 } from './locale-cache.constants';
-import { InjectModel } from '@nestjs/mongoose';
-import { LocaleDocument, Locale } from './locale.schema';
-import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { LOCALE_REPOSITORY } from './repositories/locale.repository';
+import type { LocaleRepository } from './repositories/locale.repository';
 
 @Injectable()
 export class LocaleService implements OnModuleInit, OnModuleDestroy {
@@ -39,8 +39,8 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   private readonly cacheTtlMs: number;
 
   constructor(
-    @InjectModel(Locale.name)
-    private readonly localeModel: Model<LocaleDocument>,
+    @Inject(LOCALE_REPOSITORY)
+    private readonly localeRepository: LocaleRepository,
     private readonly configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
@@ -96,18 +96,18 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   }
 
   getAllLocalesOrdered(): Promise<readonly SupportedLocale[]> {
-    return this.localeModel
-      .find({}, { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 })
-      .sort({ order: 1, iso: 1 })
-      .lean<SupportedLocale[]>()
-      .exec();
+    return this.localeRepository.findAllLocalesOrdered();
   }
 
   async updateLocaleByIso(
     params: UpdateLocaleByIsoParams,
   ): Promise<SupportedLocale> {
     const iso = LocaleService.normalizeLocaleIsoParam(params.iso);
-    const update: Partial<Locale> = {};
+    const update: {
+      nativeName?: string;
+      isActive?: boolean;
+      order?: number;
+    } = {};
 
     if (params.nativeName !== undefined) {
       const trimmedNativeName = params.nativeName.trim();
@@ -133,9 +133,8 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (params.isActive === false) {
-      const otherActiveCount = await this.localeModel
-        .countDocuments({ isActive: true, iso: { $ne: iso } })
-        .exec();
+      const otherActiveCount =
+        await this.localeRepository.countOtherActiveLocales(iso);
       if (otherActiveCount === 0) {
         throw new BadRequestException(
           'Cannot deactivate the last active locale',
@@ -143,11 +142,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const updated = await this.localeModel
-      .findOneAndUpdate({ iso }, update, { returnDocument: 'after' })
-      .select({ _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 })
-      .lean<SupportedLocale>()
-      .exec();
+    const updated = await this.localeRepository.updateLocaleByIso(iso, update);
 
     if (!updated) {
       throw new NotFoundException(`Locale "${iso}" not found`);
@@ -188,27 +183,17 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
       throw new BadRequestException('Duplicate order values in request');
     }
 
-    const existing = await this.localeModel
-      .find({ iso: { $in: isos } }, { iso: 1 })
-      .lean<Array<{ readonly iso: string }>>()
-      .exec();
+    const existingIsos = await this.localeRepository.findIsosByIsoList(isos);
 
-    if (existing.length !== isos.length) {
-      const existingIsos = new Set(existing.map((locale) => locale.iso));
-      const missingIsos = isos.filter((iso) => !existingIsos.has(iso));
+    if (existingIsos.length !== isos.length) {
+      const existingIsoSet = new Set(existingIsos);
+      const missingIsos = isos.filter((iso) => !existingIsoSet.has(iso));
       throw new NotFoundException(
         `Locale(s) not found: ${missingIsos.join(', ')}`,
       );
     }
 
-    await this.localeModel.bulkWrite(
-      normalizedUpdates.map((update) => ({
-        updateOne: {
-          filter: { iso: update.iso },
-          update: { $set: { order: update.order } },
-        },
-      })),
-    );
+    await this.localeRepository.bulkOrderUpdate(normalizedUpdates);
 
     await this.refreshActiveLocaleCacheFromMongo();
 
@@ -245,23 +230,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async refreshActiveLocaleCacheFromMongo(): Promise<void> {
-    const locales = await this.localeModel
-      .find(
-        { isActive: true },
-        { _id: 0, iso: 1, nativeName: 1, isActive: 1, order: 1 },
-      )
-      .sort({ order: 1, iso: 1 })
-      .lean<SupportedLocale[]>()
-      .exec();
-
-    this.activeLocales = locales
-      .map((locale) => ({
-        iso: locale.iso.trim().toLowerCase(),
-        nativeName: locale.nativeName,
-        isActive: locale.isActive,
-        order: locale.order,
-      }))
-      .filter((locale) => locale.iso.length > 0);
+    this.activeLocales = await this.localeRepository.findActiveLocalesOrdered();
 
     this.logger.log(
       `Active locales cache refreshed: ${this.activeLocales.length} active locale(s).`,
