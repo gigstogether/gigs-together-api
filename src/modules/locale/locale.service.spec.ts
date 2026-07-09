@@ -56,6 +56,33 @@ describe('LocaleService', () => {
     });
   });
 
+  describe('getActiveLocaleIsos', () => {
+    it('should return normalized active locale isos', async () => {
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi
+            .fn()
+            .mockResolvedValue([{ iso: ' EN ' }, { iso: 'es' }, { iso: '  ' }]),
+        }),
+      });
+
+      await expect(service.getActiveLocaleIsos()).resolves.toEqual([
+        'en',
+        'es',
+      ]);
+    });
+
+    it('should return empty list when no active locales exist', async () => {
+      localeFindMock.mockReturnValue({
+        lean: vi.fn().mockReturnValue({
+          exec: vi.fn().mockResolvedValue([]),
+        }),
+      });
+
+      await expect(service.getActiveLocaleIsos()).resolves.toEqual([]);
+    });
+  });
+
   describe('updateLocaleByIso', () => {
     function mockFindOneAndUpdateResult(value: unknown) {
       const execMock = vi.fn().mockResolvedValue(value);

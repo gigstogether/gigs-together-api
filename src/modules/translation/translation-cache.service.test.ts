@@ -1,10 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getModelToken } from '@nestjs/mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { Locale } from '../locale/locale.schema';
+import { LocaleService } from '../locale/locale.service';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TranslationCacheService } from './translation-cache.service';
@@ -14,14 +13,14 @@ describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
   let translationRepository: TranslationRepository;
 
-  const localeFindMock = vi.fn();
+  const getActiveLocaleIsosMock = vi.fn();
   const findAllActiveRecordsMock = vi.fn();
   const findActiveByNamespaceMock = vi.fn();
   const addIntervalMock = vi.fn();
   const deleteIntervalMock = vi.fn();
 
   beforeEach(async () => {
-    localeFindMock.mockReset();
+    getActiveLocaleIsosMock.mockReset();
     findAllActiveRecordsMock.mockReset();
     findActiveByNamespaceMock.mockReset();
     addIntervalMock.mockReset();
@@ -38,9 +37,9 @@ describe('TranslationCacheService', () => {
           },
         },
         {
-          provide: getModelToken(Locale.name),
+          provide: LocaleService,
           useValue: {
-            find: localeFindMock,
+            getActiveLocaleIsos: getActiveLocaleIsosMock,
           },
         },
         {
@@ -82,11 +81,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }, { iso: 'es' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en', 'es']);
 
       await service.onModuleInit();
 
@@ -105,11 +100,7 @@ describe('TranslationCacheService', () => {
 
     it('should throw when warm-up fails', async () => {
       findAllActiveRecordsMock.mockRejectedValue(new Error('mongo down'));
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       await expect(service.onModuleInit()).rejects.toSatisfy(
         (error: unknown) =>
@@ -132,11 +123,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       vi.useFakeTimers();
       await service.onModuleInit();
@@ -179,11 +166,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
 
       vi.useFakeTimers();
       await service.onModuleInit();
@@ -203,29 +186,21 @@ describe('TranslationCacheService', () => {
   });
 
   describe('resolveLocale', () => {
-    it('should resolve supported locale from cache without querying Mongo', async () => {
+    it('should resolve supported locale from cache without reloading active locales', async () => {
       findAllActiveRecordsMock.mockResolvedValue([]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }, { iso: 'es' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en', 'es']);
 
       await service.onModuleInit();
 
       expect(service.resolveLocale('es-ES,es;q=0.9')).toBe('es');
-      expect(localeFindMock).toHaveBeenCalledTimes(1);
+      expect(getActiveLocaleIsosMock).toHaveBeenCalledTimes(1);
       expect(service.resolveLocale('es')).toBe('es');
-      expect(localeFindMock).toHaveBeenCalledTimes(1);
+      expect(getActiveLocaleIsosMock).toHaveBeenCalledTimes(1);
     });
 
     it('should fallback to default locale when accept-language is unsupported', async () => {
       findAllActiveRecordsMock.mockResolvedValue([]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'es' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['es']);
 
       await service.onModuleInit();
 
@@ -246,11 +221,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       findActiveByNamespaceMock.mockResolvedValue([
@@ -298,11 +269,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       let releaseFirstReload!: () => void;
@@ -390,11 +357,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -417,11 +380,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -456,11 +415,7 @@ describe('TranslationCacheService', () => {
           isActive: true,
         },
       ]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       expect(service.listNamespaces()).toEqual(['about', 'home']);
@@ -470,11 +425,7 @@ describe('TranslationCacheService', () => {
   describe('onModuleDestroy', () => {
     it('should delete TTL interval from scheduler registry', async () => {
       findAllActiveRecordsMock.mockResolvedValue([]);
-      localeFindMock.mockReturnValue({
-        lean: vi.fn().mockReturnValue({
-          exec: vi.fn().mockResolvedValue([{ iso: 'en' }]),
-        }),
-      });
+      getActiveLocaleIsosMock.mockResolvedValue(['en']);
       await service.onModuleInit();
 
       service.onModuleDestroy();

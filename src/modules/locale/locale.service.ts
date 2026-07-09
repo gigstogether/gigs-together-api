@@ -46,6 +46,17 @@ export class LocaleService {
       .exec();
   }
 
+  async getActiveLocaleIsos(): Promise<readonly string[]> {
+    const locales = await this.localeModel
+      .find({ isActive: true }, { _id: 0, iso: 1 })
+      .lean<Array<{ readonly iso: string }>>()
+      .exec();
+
+    return locales
+      .map((locale) => locale.iso.trim().toLowerCase())
+      .filter((iso) => iso.length > 0);
+  }
+
   async updateLocaleByIso(
     params: UpdateLocaleByIsoParams,
   ): Promise<SupportedLocale> {

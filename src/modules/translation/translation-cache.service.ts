@@ -8,10 +8,8 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import type { Model } from 'mongoose';
-import { Locale, LocaleDocument } from '../locale/locale.schema';
+import { LocaleService } from '../locale/locale.service';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
@@ -47,8 +45,7 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(TRANSLATION_REPOSITORY)
     private readonly translationRepository: TranslationRepository,
-    @InjectModel(Locale.name)
-    private readonly localeModel: Model<LocaleDocument>,
+    private readonly localeService: LocaleService,
     private readonly configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
@@ -229,19 +226,12 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async loadActiveLocales(): Promise<ReadonlySet<string>> {
-    const locales = await this.localeModel
-      .find({ isActive: true }, { _id: 0, iso: 1 })
-      .lean<Array<{ readonly iso: string }>>()
-      .exec();
+    const isos = await this.localeService.getActiveLocaleIsos();
 
-    const normalized = locales
-      .map((locale) => locale.iso.trim().toLowerCase())
-      .filter((iso) => iso.length > 0);
-
-    if (normalized.length === 0) {
+    if (isos.length === 0) {
       return new Set([TRANSLATION_CACHE_DEFAULT_LOCALE]);
     }
 
-    return new Set(normalized);
+    return new Set(isos);
   }
 }

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Locale, LocaleSchema } from '../locale/locale.schema';
+import { LocaleModule } from '../locale/locale.module';
 import { MongoTranslationRepository } from './repositories/mongo-translation.repository';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import { TranslationCacheService } from './translation-cache.service';
@@ -11,8 +11,8 @@ import { TranslationTemplateService } from './translation-template.service';
 
 @Module({
   imports: [
+    LocaleModule,
     MongooseModule.forFeature([
-      { name: Locale.name, schema: LocaleSchema },
       { name: Translation.name, schema: TranslationSchema },
     ]),
   ],
