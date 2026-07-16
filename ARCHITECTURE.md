@@ -173,25 +173,6 @@ Main files:
 - `src/modules/admin/admin-dashboard.service.ts`
 - `src/modules/admin/admin-gig.service.ts`
 
-#### `InternalModule`
-
-Responsibilities:
-
-- internal platform hooks for scripts, deploy pipelines, and on-call tooling
-- cache revalidation for admins and translations
-- authenticated with `x-internal-api-key` / `INTERNAL_API_KEY` via `InternalApiKeyGuard` (not admin JWT)
-
-Main files:
-
-- `src/modules/internal/internal.module.ts`
-- `src/modules/internal/internal.controller.ts`
-- `src/modules/internal/guards/internal-api-key.guard.ts`
-
-Routes:
-
-- `POST /v1/internal/admins/revalidate` → refresh admins cache
-- `POST /v1/internal/translations/revalidate` → refresh translation cache namespace
-
 #### `AuthModule`
 
 Responsibilities:

@@ -107,7 +107,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Forces a DB reload of active locales (used by writes, TTL refresh, and POST /v1/internal/locales/revalidate).
+   * Forces a DB reload of active locales (used by writes and TTL refresh).
    */
   revalidateActiveLocalesCache(): Promise<void> {
     return this.refreshActiveLocaleCacheFromMongo();
