@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
+import { TranslationRevalidateService } from './translation-revalidate.service';
 import { TranslationService } from './translation.service';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
@@ -20,6 +21,7 @@ describe('TranslationService', () => {
   const listDistinctNamespacesMock = vi.fn();
   const upsertRecordMock = vi.fn();
   const setActiveByIdMock = vi.fn();
+  const revalidateAfterWriteMock = vi.fn();
 
   const translationRepository: TranslationRepository = {
     findByNamespace: findByNamespaceMock,
@@ -40,6 +42,8 @@ describe('TranslationService', () => {
     listDistinctNamespacesMock.mockReset();
     upsertRecordMock.mockReset();
     setActiveByIdMock.mockReset();
+    revalidateAfterWriteMock.mockReset();
+    revalidateAfterWriteMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -55,6 +59,12 @@ describe('TranslationService', () => {
           useValue: {
             listNamespaces: listNamespacesMock,
             getNamespaceEntries: getNamespaceEntriesMock,
+          },
+        },
+        {
+          provide: TranslationRevalidateService,
+          useValue: {
+            revalidateAfterWrite: revalidateAfterWriteMock,
           },
         },
         {
@@ -299,15 +309,13 @@ describe('TranslationService', () => {
       });
     });
 
-    it('should reject invalid namespace when listing translations', async () => {
-      await expect(
-        service.listRecords({ namespace: '$invalid' }),
-      ).rejects.toSatisfy((error: unknown) => {
-        return (
-          error instanceof BadRequestException &&
-          error.message === 'namespace has invalid format'
-        );
-      });
+    it('should reject invalid namespace when listing translations', () => {
+      expect(() => service.listRecords({ namespace: '$invalid' })).toThrow(
+        BadRequestException,
+      );
+      expect(() => service.listRecords({ namespace: '$invalid' })).toThrow(
+        'namespace has invalid format',
+      );
     });
   });
 
@@ -343,6 +351,10 @@ describe('TranslationService', () => {
         format: 'plain',
         kind: 'text',
         isActive: true,
+      });
+
+      expect(revalidateAfterWriteMock).toHaveBeenCalledWith({
+        namespace: 'about',
       });
     });
 
@@ -412,6 +424,10 @@ describe('TranslationService', () => {
         format: 'plain',
         kind: 'text',
         isActive: false,
+      });
+
+      expect(revalidateAfterWriteMock).toHaveBeenCalledWith({
+        namespace: 'about',
       });
     });
 

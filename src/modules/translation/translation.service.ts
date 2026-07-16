@@ -7,6 +7,7 @@ import {
 import { Types } from 'mongoose';
 import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
+import { TranslationRevalidateService } from './translation-revalidate.service';
 import {
   isValidTranslationKey,
   isValidTranslationNamespace,
@@ -52,6 +53,7 @@ export class TranslationService {
   constructor(
     private readonly localeService: LocaleService,
     private readonly translationCacheService: TranslationCacheService,
+    private readonly translationRevalidateService: TranslationRevalidateService,
     @Inject(TRANSLATION_REPOSITORY)
     private readonly translationRepository: TranslationRepository,
   ) {}
@@ -123,8 +125,13 @@ export class TranslationService {
     return { locale, translations };
   }
 
-  listDistinctNamespaces(): Promise<readonly string[]> {
-    return this.translationRepository.listDistinctNamespaces();
+  async listDistinctNamespaces(): Promise<readonly string[]> {
+    const namespaces =
+      await this.translationRepository.listDistinctNamespaces();
+
+    return namespaces.filter((namespace) =>
+      isValidTranslationNamespace(namespace),
+    );
   }
 
   listRecords(
@@ -147,10 +154,10 @@ export class TranslationService {
     });
   }
 
-  upsertRecord(
+  async upsertRecord(
     params: UpsertTranslationRecordInput,
   ): Promise<StoredTranslationRecord> {
-    return this.translationRepository.upsertRecord({
+    const record = await this.translationRepository.upsertRecord({
       namespace: TranslationService.parseNamespaceParam(params.namespace),
       locale: LocaleService.parseLocaleIsoParam(params.locale),
       key: TranslationService.parseKeyParam(params.key),
@@ -159,6 +166,12 @@ export class TranslationService {
       kind: TranslationService.parseRecordKindParam(params.kind),
       isActive: params.isActive,
     });
+
+    await this.translationRevalidateService.revalidateAfterWrite({
+      namespace: record.namespace,
+    });
+
+    return record;
   }
 
   async setActiveById(
@@ -174,6 +187,10 @@ export class TranslationService {
     if (!updated) {
       throw new NotFoundException(`Translation "${id}" not found`);
     }
+
+    await this.translationRevalidateService.revalidateAfterWrite({
+      namespace: updated.namespace,
+    });
 
     return updated;
   }
