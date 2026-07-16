@@ -35,7 +35,7 @@ export class Translation {
   })
   kind: TranslationKind;
 
-  @Prop({ type: Boolean, default: true })
+  @Prop({ type: Boolean, required: true, default: true })
   isActive: boolean;
 }
 
