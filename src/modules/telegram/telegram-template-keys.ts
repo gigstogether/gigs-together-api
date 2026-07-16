@@ -15,7 +15,6 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   weeklyDigestTicketsLink: 'weeklyDigest.ticketsLink',
   weeklyDigestGigLineHtml: 'weeklyDigest.gigLine.html',
   weeklyDigestGigLinePlain: 'weeklyDigest.gigLine.plain',
-  weeklyDigestTruncationEllipsis: 'weeklyDigest.truncationEllipsis',
   statusPending: 'status.pending',
   statusPublished: 'status.published',
   statusRejected: 'status.rejected',

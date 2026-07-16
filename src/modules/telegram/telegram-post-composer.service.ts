@@ -344,9 +344,8 @@ export class TelegramPostComposerService {
 
     let body = html;
 
-    const ellipsis = this.postTemplates.getText(
-      TELEGRAM_TEMPLATE_KEYS.weeklyDigestTruncationEllipsis,
-    );
+    const ellipsis = '\n…';
+
     const budget = TELEGRAM_MEDIA_CAPTION_MAX_CHARS - ellipsis.length;
     if (budget <= 0) {
       return '…'.slice(0, TELEGRAM_MEDIA_CAPTION_MAX_CHARS);

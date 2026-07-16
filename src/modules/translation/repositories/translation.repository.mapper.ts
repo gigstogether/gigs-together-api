@@ -11,7 +11,7 @@ export interface TranslationRecordLeanDocument {
   readonly key: string;
   readonly value: string;
   readonly format: TranslationFormat;
-  readonly kind?: TranslationKind;
+  readonly kind: TranslationKind;
   readonly isActive: boolean;
 }
 
@@ -29,7 +29,7 @@ export class TranslationRepositoryMapper {
       key: doc.key,
       value: doc.value,
       format: doc.format,
-      kind: doc.kind ?? 'text',
+      kind: doc.kind,
       isActive: doc.isActive,
     };
   }

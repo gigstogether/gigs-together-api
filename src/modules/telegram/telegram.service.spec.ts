@@ -44,7 +44,6 @@ function createMockPostTemplates(): MockPostTemplates {
       "Here's what is happening this week:",
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTruncationEllipsis]: '\n…',
     [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
     [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
     [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
