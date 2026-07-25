@@ -35,11 +35,12 @@ import type { V1AdminTranslationNamespacesListResponseBody } from './types/reque
 import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
+import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 
-/** Admin UI API: dashboard, moderation, locales, translations, and manual digest publish. */
+/** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -49,6 +50,7 @@ export class AdminController {
     private readonly translationService: TranslationService,
     private readonly translationRevalidateService: TranslationRevalidateService,
     private readonly gigModerationService: GigModerationService,
+    private readonly feedRevalidateService: FeedRevalidateService,
     private readonly digestService: DigestService,
   ) {}
 
@@ -115,6 +117,14 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   publishDigest(): Promise<void> {
     return this.digestService.publish();
+  }
+
+  @Version('1')
+  @Post('feed/revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  revalidateFeed(): Promise<void> {
+    return this.feedRevalidateService.revalidateFeed({});
   }
 
   @Version('1')

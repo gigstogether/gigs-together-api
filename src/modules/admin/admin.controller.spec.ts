@@ -1,9 +1,11 @@
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
+import type { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import type { GigModerationService } from '../gig/gig-moderation.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
+import type { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 import type { TranslationService } from '../translation/translation.service';
 
 describe('AdminController', () => {
@@ -93,6 +95,14 @@ describe('AdminController', () => {
     'listDistinctNamespaces' | 'listRecords' | 'upsertRecord' | 'setActiveById'
   >;
 
+  const translationRevalidateService = {
+    revalidateAll: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
+
+  const feedRevalidateService = {
+    revalidateFeed: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<FeedRevalidateService, 'revalidateFeed'>;
+
   const digestService = {
     publish: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<DigestService, 'publish'>;
@@ -102,7 +112,9 @@ describe('AdminController', () => {
     adminGigService as unknown as AdminGigService,
     localeService as unknown as LocaleService,
     translationService as unknown as TranslationService,
+    translationRevalidateService as unknown as TranslationRevalidateService,
     gigModerationService as unknown as GigModerationService,
+    feedRevalidateService as unknown as FeedRevalidateService,
     digestService as unknown as DigestService,
   );
 
@@ -188,6 +200,26 @@ describe('AdminController', () => {
       await expect(controller.publishDigest()).resolves.toBeUndefined();
 
       expect(digestService.publish).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('revalidateFeed', () => {
+    it('should revalidate all feed paths via feed revalidate service', async () => {
+      await expect(controller.revalidateFeed()).resolves.toBeUndefined();
+
+      expect(feedRevalidateService.revalidateFeed).toHaveBeenCalledWith({});
+    });
+  });
+
+  describe('revalidateTranslations', () => {
+    it('should revalidate all translation caches via translation revalidate service', async () => {
+      await expect(
+        controller.revalidateTranslations(),
+      ).resolves.toBeUndefined();
+
+      expect(translationRevalidateService.revalidateAll).toHaveBeenCalledTimes(
+        1,
+      );
     });
   });
 

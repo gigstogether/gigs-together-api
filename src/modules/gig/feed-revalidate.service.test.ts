@@ -78,5 +78,29 @@ describe('FeedRevalidateService', () => {
 
       expect(fetchMock).not.toHaveBeenCalled();
     });
+
+    it('should POST empty body when country and city are omitted', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 204,
+        text: () => Promise.resolve(''),
+      });
+
+      await service.revalidateFeed({});
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://gigs.example/api/revalidate/feed',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-revalidate-secret': 'secret',
+          },
+          body: JSON.stringify({}),
+        },
+      );
+    });
   });
 });
