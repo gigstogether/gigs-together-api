@@ -7,6 +7,8 @@ describe('TranslationRevalidateService', () => {
   let service: TranslationRevalidateService;
 
   const revalidateNamespaceMock = vi.fn();
+  const revalidateAllMock = vi.fn();
+  const listNamespacesMock = vi.fn();
   const fetchMock = vi.fn();
 
   beforeEach(async () => {
@@ -15,6 +17,8 @@ describe('TranslationRevalidateService', () => {
     vi.stubEnv('APP_BASE_URL', '');
     vi.stubEnv('TRANSLATIONS_REVALIDATE_SECRET', '');
     revalidateNamespaceMock.mockResolvedValue(undefined);
+    revalidateAllMock.mockResolvedValue(undefined);
+    listNamespacesMock.mockReturnValue([]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -23,6 +27,8 @@ describe('TranslationRevalidateService', () => {
           provide: TranslationCacheService,
           useValue: {
             revalidateNamespace: revalidateNamespaceMock,
+            revalidateAll: revalidateAllMock,
+            listNamespaces: listNamespacesMock,
           },
         },
       ],
@@ -76,6 +82,56 @@ describe('TranslationRevalidateService', () => {
       await service.revalidateAfterWrite({ namespace: 'country' });
 
       expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('revalidateAll', () => {
+    it('should reload full API cache and skip front requests when env is not configured', async () => {
+      listNamespacesMock.mockReturnValue(['about', 'common']);
+
+      await service.revalidateAll();
+
+      expect(revalidateAllMock).toHaveBeenCalledOnce();
+      expect(listNamespacesMock).toHaveBeenCalledOnce();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('should POST front revalidate for each cached namespace when env is configured', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+      vi.stubEnv('TRANSLATIONS_REVALIDATE_SECRET', 'secret');
+      listNamespacesMock.mockReturnValue(['about', 'common']);
+      fetchMock.mockResolvedValue({
+        ok: true,
+        status: 204,
+        text: () => Promise.resolve(''),
+      });
+
+      await service.revalidateAll();
+
+      expect(revalidateAllMock).toHaveBeenCalledOnce();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://gigs.example/api/revalidate/translations',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-translations-revalidate-secret': 'secret',
+          },
+          body: JSON.stringify({ namespace: 'about' }),
+        },
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://gigs.example/api/revalidate/translations',
+        {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-translations-revalidate-secret': 'secret',
+          },
+          body: JSON.stringify({ namespace: 'common' }),
+        },
+      );
     });
   });
 });

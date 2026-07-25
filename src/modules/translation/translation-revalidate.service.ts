@@ -29,6 +29,15 @@ export class TranslationRevalidateService {
     await this.revalidateFrontCache(params.namespace);
   }
 
+  async revalidateAll(): Promise<void> {
+    await this.translationCacheService.revalidateAll();
+
+    const namespaces = this.translationCacheService.listNamespaces();
+    await Promise.all(
+      namespaces.map((namespace) => this.revalidateFrontCache(namespace)),
+    );
+  }
+
   private revalidateFrontCache(namespace: string): Promise<void> {
     const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const secret = (process.env.TRANSLATIONS_REVALIDATE_SECRET ?? '').trim();

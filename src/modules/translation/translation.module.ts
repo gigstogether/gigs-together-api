@@ -31,6 +31,7 @@ import { TranslationTemplateService } from './translation-template.service';
   exports: [
     TranslationService,
     TranslationCacheService,
+    TranslationRevalidateService,
     TranslationTemplateService,
   ],
 })

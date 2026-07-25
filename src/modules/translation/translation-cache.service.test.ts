@@ -220,6 +220,54 @@ describe('TranslationCacheService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('should reload full cache when revalidateAll is called', async () => {
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+      await service.onModuleInit();
+
+      findAllActiveRecordsMock.mockResolvedValue([
+        {
+          locale: 'en',
+          namespace: 'about',
+          key: 'title',
+          value: 'About refreshed',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+        {
+          locale: 'en',
+          namespace: 'common',
+          key: 'ok',
+          value: 'OK',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ]);
+
+      await service.revalidateAll();
+
+      expect(findAllActiveRecordsMock).toHaveBeenCalledTimes(2);
+      expect(
+        service.getEntry({
+          namespace: 'about',
+          key: 'title',
+          locale: 'en',
+        }).value,
+      ).toBe('About refreshed');
+      expect(service.listNamespaces()).toEqual(['about', 'common']);
+    });
+
     it('should serialize concurrent namespace reloads', async () => {
       findAllActiveRecordsMock.mockResolvedValue([
         {

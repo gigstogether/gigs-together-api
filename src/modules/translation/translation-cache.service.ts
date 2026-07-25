@@ -141,6 +141,10 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
     await this.executeReload(() => this.performNamespaceReload(namespace));
   }
 
+  async revalidateAll(): Promise<void> {
+    await this.executeReload(() => this.loadFullCache());
+  }
+
   private async executeReload(operation: () => Promise<void>): Promise<void> {
     while (this.reloadInFlight !== undefined) {
       await this.reloadInFlight;

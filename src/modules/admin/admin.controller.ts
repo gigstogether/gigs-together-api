@@ -37,6 +37,7 @@ import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by
 import type { GigFormData } from '../gig/types/gig.types';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
+import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 
 /** Admin UI API: dashboard, moderation, locales, translations, and manual digest publish. */
 @Controller('admin')
@@ -46,6 +47,7 @@ export class AdminController {
     private readonly adminGigService: AdminGigService,
     private readonly localeService: LocaleService,
     private readonly translationService: TranslationService,
+    private readonly translationRevalidateService: TranslationRevalidateService,
     private readonly gigModerationService: GigModerationService,
     private readonly digestService: DigestService,
   ) {}
@@ -113,6 +115,14 @@ export class AdminController {
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   publishDigest(): Promise<void> {
     return this.digestService.publish();
+  }
+
+  @Version('1')
+  @Post('translations/revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  revalidateTranslations(): Promise<void> {
+    return this.translationRevalidateService.revalidateAll();
   }
 
   @Version('1')
