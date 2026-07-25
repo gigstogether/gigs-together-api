@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
+import { TranslationModule } from '../translation/translation.module';
 import { TelegramAuthController } from './telegram-auth.controller';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
@@ -27,11 +29,13 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
     }),
     BucketModule,
     AuthModule,
+    TranslationModule,
   ],
   controllers: [TelegramAuthController],
   providers: [
     TelegramAuthService,
     TelegramBotClient,
+    TelegramTemplateService,
     TelegramPostComposerService,
     TelegramService,
     TelegramInitDataAuthService,

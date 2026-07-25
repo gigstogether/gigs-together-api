@@ -3,8 +3,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { DigestCronService } from './digest-cron.service';
-import { DigestController } from './digest.controller';
-import { DigestPublishGuard } from './guards/digest-publish.guard';
 import {
   DigestPublicationState,
   DigestPublicationStateSchema,
@@ -25,8 +23,7 @@ import { DigestService } from './digest.service';
     GigModule,
     TelegramModule,
   ],
-  controllers: [DigestController],
-  providers: [DigestService, DigestCronService, DigestPublishGuard],
+  providers: [DigestService, DigestCronService],
   exports: [DigestService],
 })
 export class DigestModule {}

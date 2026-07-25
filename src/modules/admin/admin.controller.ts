@@ -2,22 +2,18 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
+  Put,
   Query,
-  ServiceUnavailableException,
-  UnauthorizedException,
   UseGuards,
   Version,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
-import { AuthorizationService } from '../auth/authorization.service';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminGigService } from './admin-gig.service';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -25,28 +21,37 @@ import type { V1AdminDashboardResponseBody } from './types/requests/v1-admin-das
 import { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
 import type { V1AdminGigsListResponseBody } from './types/requests/v1-admin-gigs-list-response';
 import {
-  V1AdminLanguagePatchBodyDto,
-  V1AdminLanguagesOrderPatchBodyDto,
-} from './types/requests/v1-admin-language-patch-body';
-import { LanguageService } from '../language/language.service';
-import type { SupportedLanguage } from '../language/types/language.types';
+  V1AdminLocalePatchBodyDto,
+  V1AdminLocalesOrderPatchBodyDto,
+} from './types/requests/v1-admin-locale-patch-body';
+import { LocaleService } from '../locale/locale.service';
+import type { SupportedLocale } from '../locale/types/locale.types';
+import { TranslationService } from '../translation/translation.service';
+import type { StoredTranslationRecord } from '../translation/types/translation-record.types';
+import { V1AdminTranslationSetActiveBodyDto } from './types/requests/v1-admin-translation-set-active-body';
+import { V1AdminTranslationUpsertBodyDto } from './types/requests/v1-admin-translation-upsert-body';
+import { V1AdminTranslationsGetQueryDto } from './types/requests/v1-admin-translations-get-query';
+import type { V1AdminTranslationNamespacesListResponseBody } from './types/requests/v1-admin-translation-namespaces-list-response';
+import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
+import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { DigestService } from '../digest/digest.service';
+import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 
-/**
- * Manual admin-list cache refresh (e.g. after DB migration).
- * Requires ADMIN_REVALIDATE_SECRET; if unset, POST returns 503 (TTL refresh still works without it).
- */
+/** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
 export class AdminController {
   constructor(
     private readonly adminDashboardService: AdminDashboardService,
     private readonly adminGigService: AdminGigService,
-    private readonly authorizationService: AuthorizationService,
-    private readonly configService: ConfigService,
-    private readonly languageService: LanguageService,
+    private readonly localeService: LocaleService,
+    private readonly translationService: TranslationService,
+    private readonly translationRevalidateService: TranslationRevalidateService,
     private readonly gigModerationService: GigModerationService,
+    private readonly feedRevalidateService: FeedRevalidateService,
+    private readonly digestService: DigestService,
   ) {}
 
   @Version('1')
@@ -107,50 +112,99 @@ export class AdminController {
   }
 
   @Version('1')
-  @Get('languages')
+  @Post('digest/publish')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  getLanguages(): Promise<readonly SupportedLanguage[]> {
-    return this.languageService.getAllLanguagesOrdered();
+  publishDigest(): Promise<void> {
+    return this.digestService.publish();
   }
 
   @Version('1')
-  @Patch('languages/order')
+  @Post('feed/revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  patchLanguagesOrder(
-    @Body() body: V1AdminLanguagesOrderPatchBodyDto,
-  ): Promise<readonly SupportedLanguage[]> {
-    return this.languageService.updateLanguagesOrder({
-      languages: body.languages,
+  revalidateFeed(): Promise<void> {
+    return this.feedRevalidateService.revalidateFeed({});
+  }
+
+  @Version('1')
+  @Post('translations/revalidate')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  revalidateTranslations(): Promise<void> {
+    return this.translationRevalidateService.revalidateAll();
+  }
+
+  @Version('1')
+  @Get('locales')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getLocales(): Promise<readonly SupportedLocale[]> {
+    return this.localeService.getAllLocalesOrdered();
+  }
+
+  @Version('1')
+  @Patch('locales/order')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  patchLocalesOrder(
+    @Body() body: V1AdminLocalesOrderPatchBodyDto,
+  ): Promise<readonly SupportedLocale[]> {
+    return this.localeService.updateLocalesOrder({
+      locales: body.locales,
     });
   }
 
   @Version('1')
-  @Patch('languages/:iso')
+  @Patch('locales/:iso')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  patchLanguage(
+  patchLocale(
     @Param('iso') iso: string,
-    @Body() body: V1AdminLanguagePatchBodyDto,
-  ): Promise<SupportedLanguage> {
-    return this.languageService.updateLanguageByIso({ iso, ...body });
+    @Body() body: V1AdminLocalePatchBodyDto,
+  ): Promise<SupportedLocale> {
+    return this.localeService.updateLocaleByIso({ iso, ...body });
   }
 
-  @Post('revalidate')
-  async revalidateAdmins(
-    @Headers('x-admin-revalidate-secret') secretHeader: string | undefined,
-  ): Promise<{ readonly ok: true }> {
-    const secret = (
-      this.configService.get<string>('ADMIN_REVALIDATE_SECRET') ?? ''
-    ).trim();
-    if (!secret) {
-      throw new ServiceUnavailableException(
-        'ADMIN_REVALIDATE_SECRET is not configured',
-      );
-    }
-    const provided = (secretHeader ?? '').trim();
-    if (!provided || provided !== secret) {
-      throw new UnauthorizedException();
-    }
-    await this.authorizationService.refreshAdminsCache();
-    return { ok: true };
+  @Version('1')
+  @Get('translations/namespaces')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  async getTranslationNamespaces(): Promise<V1AdminTranslationNamespacesListResponseBody> {
+    const namespaces = await this.translationService.listDistinctNamespaces();
+
+    return { namespaces };
+  }
+
+  @Version('1')
+  @Get('translations')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  async getTranslations(
+    @Query() query: V1AdminTranslationsGetQueryDto,
+  ): Promise<V1AdminTranslationsListResponseBody> {
+    const records = await this.translationService.listRecords({
+      namespace: query.namespace,
+      locale: query.locale,
+    });
+
+    return { records };
+  }
+
+  @Version('1')
+  @Put('translations')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  upsertTranslation(
+    @Body() body: V1AdminTranslationUpsertBodyDto,
+  ): Promise<StoredTranslationRecord> {
+    return this.translationService.upsertRecord(body);
+  }
+
+  @Version('1')
+  @Patch('translations/:id/active')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  patchTranslationActive(
+    @Param('id') id: string,
+    @Body() body: V1AdminTranslationSetActiveBodyDto,
+  ): Promise<StoredTranslationRecord> {
+    return this.translationService.setActiveById({
+      id,
+      isActive: body.isActive,
+    });
   }
 }

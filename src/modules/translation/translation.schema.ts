@@ -1,0 +1,45 @@
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import type { HydratedDocument } from 'mongoose';
+import type {
+  TranslationFormat,
+  TranslationKind,
+} from './types/translation.types';
+
+@Schema({ timestamps: true })
+export class Translation {
+  @Prop({ type: String, required: true })
+  key: string;
+
+  @Prop({ type: String, required: true, lowercase: true, trim: true })
+  locale: string; // ISO 639-1: e.g. "ES"
+
+  @Prop({ type: String, required: true, trim: true })
+  namespace: string;
+
+  @Prop({ type: String, required: true })
+  value: string;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['plain', 'icu'],
+    default: 'plain',
+  })
+  format: TranslationFormat;
+
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['text', 'template'],
+    default: 'text',
+  })
+  kind: TranslationKind;
+
+  @Prop({ type: Boolean, required: true, default: true })
+  isActive: boolean;
+}
+
+export type TranslationDocument = HydratedDocument<Translation>;
+export const TranslationSchema = SchemaFactory.createForClass(Translation);
+
+TranslationSchema.index({ namespace: 1, locale: 1, key: 1 }, { unique: true });
