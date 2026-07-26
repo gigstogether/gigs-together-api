@@ -376,6 +376,9 @@ export class TelegramPostComposerService {
           text: this.postTemplates.getText(
             TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
           ),
+          // TODO: read parse_mode from translations
+          parse_mode: TGParseMode.HTML,
+          disable_web_page_preview: true,
         },
       };
     }
