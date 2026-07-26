@@ -10,26 +10,96 @@ import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
-import {
-  TelegramService,
-  WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
-} from './telegram.service';
+import { TelegramService } from './telegram.service';
 import { TelegramAuthService } from './telegram-auth.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
+import type { TelegramTemplateKey } from './telegram-template-keys';
+import type { PlainTemplateParams } from './telegram-template.service';
+import { TelegramTemplateService } from './telegram-template.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { Types } from 'mongoose';
+
+type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
+
+function renderPlainTemplate(
+  template: string,
+  params: PlainTemplateParams,
+): string {
+  return template.replace(/\{(\w+)\}/g, (match, rawKey: string) => {
+    const value = params[rawKey];
+    if (value === null || value === undefined) {
+      return match;
+    }
+    return String(value);
+  });
+}
+
+function createMockPostTemplates(): MockPostTemplates {
+  const texts: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty]:
+      'There are no gigs scheduled for this week.',
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader]:
+      "Here's what is happening this week:",
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
+    [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
+    [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
+    [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
+    [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
+    [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
+    [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
+    [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
+  };
+
+  const templates: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.mainGigWithLink]:
+      '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
+    [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
+      '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
+    [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks]:
+      '{statusLabel} | {statusLinks}',
+    [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
+      '<a href="{url}">See post</a>',
+    [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
+      '<a href="{url}">Open in admin</a>',
+    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink]:
+      '<a href="{url}">{title}</a>',
+    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink]: '{title}',
+    [TELEGRAM_TEMPLATE_KEYS.submissionFeedback]: '{statusLabel}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
+      '<a href="{url}">{ticketsLabel}</a>',
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
+      '{titleLine}\n{dates}\n{venue} • {ticketsLine}',
+    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain]:
+      '{title}\n{dates}\n{venue} • {ticketsLabel}',
+  };
+
+  return {
+    getText: vi.fn((key: TelegramTemplateKey) => texts[key] ?? ''),
+    render: vi.fn((key: TelegramTemplateKey, params: PlainTemplateParams) => {
+      const template = templates[key];
+      if (template === undefined) {
+        return '';
+      }
+      return renderPlainTemplate(template, params);
+    }),
+  };
+}
 
 describe('TelegramService', () => {
   let service: TelegramService;
   let testingModule: TestingModule;
+  let mockPostTemplates: MockPostTemplates;
 
   const mockHttpService = {
     post: vi.fn(),
     get: vi.fn(),
   };
 
-  const mockCache = {
+  const mockChatLookupCache = {
     get: vi.fn(),
     set: vi.fn(),
     del: vi.fn(),
@@ -41,12 +111,18 @@ describe('TelegramService', () => {
   };
 
   beforeEach(async () => {
+    mockPostTemplates = createMockPostTemplates();
+
     testingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
         TelegramAuthService,
         TelegramBotClient,
         TelegramPostComposerService,
+        {
+          provide: TelegramTemplateService,
+          useValue: mockPostTemplates,
+        },
         {
           provide: HttpService,
           useValue: mockHttpService,
@@ -57,7 +133,7 @@ describe('TelegramService', () => {
         },
         {
           provide: CACHE_MANAGER,
-          useValue: mockCache,
+          useValue: mockChatLookupCache,
         },
       ],
     }).compile();
@@ -126,7 +202,9 @@ describe('TelegramService', () => {
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: '-1001',
-        text: WEEKLY_DIGEST_EMPTY_CHANNEL_MESSAGE_EN,
+        text: mockPostTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
+        ),
       });
     });
 

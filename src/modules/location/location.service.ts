@@ -14,8 +14,8 @@ export class LocationService {
 
   getCountriesV1(): Promise<readonly Country[]> {
     return this.countryModel
-      .find({}, { _id: 0, iso: 1, order: 1 })
-      .sort({ order: 1, iso: 1 })
+      .find({}, { _id: 0, iso: 1 })
+      .sort({ iso: 1 })
       .lean()
       .exec();
   }

@@ -77,8 +77,7 @@ interface GetPostUrlPayloadByChatUsernameParams extends GetPostUrlPayloadBasePar
 }
 
 export type GetPostUrlPayload =
-  | GetPostUrlPayloadByChatIdParams
-  | GetPostUrlPayloadByChatUsernameParams;
+  GetPostUrlPayloadByChatIdParams | GetPostUrlPayloadByChatUsernameParams;
 
 export interface BuildAfterPublishModerationReplyMarkupParams {
   readonly gigId?: GigId;
@@ -107,9 +106,7 @@ export interface BuildModerationCaptionPayload {
 }
 
 export type SubmissionFeedbackStatus =
-  | Status.Pending
-  | Status.Published
-  | Status.Rejected;
+  Status.Pending | Status.Published | Status.Rejected;
 
 export type BuildSubmissionFeedbackCaptionPayload = {
   readonly body: string;

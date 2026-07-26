@@ -6,12 +6,11 @@ NestJS API for the Gigs Together project. It serves public gig data, authenticat
 
 The API currently provides:
 
-- public REST endpoints for gigs, locations, and translations
+- public REST endpoints for gigs, locations, supported locales, and translations
 - cookie-based auth endpoints for the admin and receiver clients
-- admin endpoints for dashboard, gig moderation, language management, and admin cache revalidation
+- admin endpoints for dashboard, gig moderation, locale management, and digest publish
 - Telegram webhook handling for admin/moderation flows
 - gig creation and editing endpoints for the receiver client
-- manual digest publish and feed revalidation hooks
 - MongoDB persistence through Mongoose
 - Google Calendar integration
 - S3-compatible poster storage
@@ -22,7 +21,7 @@ Main entry points:
 - `GET /` returns a simple service payload
 - `GET /health` returns health status
 - versioned API routes are exposed under `/v1/...`
-- unversioned operator hooks include `POST /digest/publish` and `POST /admin/revalidate`
+- unversioned routes are limited to `GET /` and `GET /health`
 
 ## Tech stack
 
@@ -47,12 +46,13 @@ src/
     receiver/              Telegram/receiver-facing endpoints
     telegram/              Telegram integration
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
-    admin/                 admin dashboard, moderation, language management, revalidation
+    admin/                 admin dashboard, moderation, locale management
     calendar/              Google Calendar integration
     bucket/                S3-compatible poster storage
     ai/                    AI-assisted lookup
     location/              country/location endpoints
-    language/              translations and language endpoints
+    locale/                supported locales (`Locale` collection, admin CRUD via `LocaleService`)
+    translation/           static localized text (`Translation` collection, namespace/key records)
 migrations/                MongoDB migration files
 test/                      e2e test setup
 docker-compose.yml         local MongoDB
@@ -111,8 +111,7 @@ Depending on which flows you want to exercise, you may also need:
 - Google: `CALENDAR_ID`, `GOOGLE_AUTH_JSON`
 - S3 storage: `S3_*`
 - AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
-- Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`
-- Manual hooks: `DIGEST_PUBLISH_SECRET`, `ADMIN_REVALIDATE_SECRET`
+- Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`, `TRANSLATIONS_REVALIDATE_SECRET`
 - CORS: `CORS_ORIGINS`
 
 `APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
@@ -121,55 +120,55 @@ Depending on which flows you want to exercise, you may also need:
 
 Current variables defined in `.env.example`:
 
-| Variable                                        | Required                                     | Purpose                                                                   |
-| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------- |
-| `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                          |
-| `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                 |
-| `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                             |
-| `ADMIN_REVALIDATE_SECRET`                       | Optional                                     | Shared secret for `POST /admin/revalidate` (`x-admin-revalidate-secret`). |
-| `DIGEST_PUBLISH_SECRET`                         | Optional                                     | Shared secret for `POST /digest/publish`. Returns 503 when unset.         |
-| `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                       |
-| `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                  |
-| `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                                |
-| `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production.  |
-| `JWT_ACCESS_EXPIRES_IN_SEC`                     | Optional                                     | Access JWT and access-cookie TTL in seconds.                              |
-| `JWT_REFRESH_EXPIRES_IN_SEC`                    | Optional                                     | Refresh JWT and refresh-cookie TTL in seconds.                            |
-| `ACCESS_TOKEN_COOKIE_NAME`                      | Optional                                     | Access-token cookie name.                                                 |
-| `ACCESS_TOKEN_COOKIE_SECURE`                    | Optional                                     | Forces the `Secure` flag for the access cookie.                           |
-| `ACCESS_TOKEN_COOKIE_SAMESITE`                  | Optional                                     | SameSite mode for the access cookie.                                      |
-| `ACCESS_TOKEN_COOKIE_DOMAIN`                    | Optional                                     | Domain attribute for the access cookie.                                   |
-| `REFRESH_TOKEN_COOKIE_NAME`                     | Optional                                     | Refresh-token cookie name.                                                |
-| `REFRESH_TOKEN_COOKIE_SECURE`                   | Optional                                     | Forces the `Secure` flag for the refresh cookie.                          |
-| `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | SameSite mode for the refresh cookie.                                     |
-| `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                  |
-| `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                     |
-| `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                 |
-| `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                           |
-| `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                             |
-| `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                  |
-| `EDIT_GIG_URL`                                  | For edit flows                               | Frontend or app URL for editing gigs.                                     |
-| `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                                |
-| `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                    |
-| `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                               |
-| `CALENDAR_ID`                                   | Optional                                     | Google Calendar id.                                                       |
-| `GOOGLE_AUTH_JSON`                              | Optional                                     | Base64-encoded or raw Google auth JSON.                                   |
-| `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                           |
-| `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                        |
-| `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                       |
-| `S3_SECRET_ACCESS_KEY`                          | Optional                                     | Storage secret key.                                                       |
-| `S3_POSTERS_PREFIX`                             | Optional                                     | Poster object prefix. Defaults to `gigs`.                                 |
-| `S3_PUBLIC_BASE_URL`                            | Optional but required for public bucket mode | Public URL base for uploaded posters.                                     |
-| `CORS_ORIGINS`                                  | Optional                                     | CORS mode or comma-separated allowlist.                                   |
-| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED`          | Optional                                     | Enables fallback poster URL behavior.                                     |
-| `DEFAULT_GIG_POSTER_URL`                        | Optional                                     | Default public poster URL for gigs without posters.                       |
-| `AI_URL`                                        | Optional                                     | AI service base URL.                                                      |
-| `AI_API_KEY`                                    | Optional                                     | AI service key.                                                           |
-| `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                      |
-| `AI_LOOKUP_DEBUG`                               | Optional                                     | Enables extra lookup diagnostics.                                         |
-| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/gig/lookup`.                                  |
-| `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                            |
-| `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                        |
-| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend feed revalidation.                                    |
+| Variable                                        | Required                                     | Purpose                                                                  |
+| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                         |
+| `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                |
+| `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                            |
+| `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
+| `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
+| `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                      |
+| `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                 |
+| `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                               |
+| `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production. |
+| `JWT_ACCESS_EXPIRES_IN_SEC`                     | Optional                                     | Access JWT and access-cookie TTL in seconds.                             |
+| `JWT_REFRESH_EXPIRES_IN_SEC`                    | Optional                                     | Refresh JWT and refresh-cookie TTL in seconds.                           |
+| `ACCESS_TOKEN_COOKIE_NAME`                      | Optional                                     | Access-token cookie name.                                                |
+| `ACCESS_TOKEN_COOKIE_SECURE`                    | Optional                                     | Forces the `Secure` flag for the access cookie.                          |
+| `ACCESS_TOKEN_COOKIE_SAMESITE`                  | Optional                                     | SameSite mode for the access cookie.                                     |
+| `ACCESS_TOKEN_COOKIE_DOMAIN`                    | Optional                                     | Domain attribute for the access cookie.                                  |
+| `REFRESH_TOKEN_COOKIE_NAME`                     | Optional                                     | Refresh-token cookie name.                                               |
+| `REFRESH_TOKEN_COOKIE_SECURE`                   | Optional                                     | Forces the `Secure` flag for the refresh cookie.                         |
+| `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | SameSite mode for the refresh cookie.                                    |
+| `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
+| `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
+| `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
+| `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
+| `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                            |
+| `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
+| `EDIT_GIG_URL`                                  | For edit flows                               | Frontend or app URL for editing gigs.                                    |
+| `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
+| `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
+| `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |
+| `CALENDAR_ID`                                   | Optional                                     | Google Calendar id.                                                      |
+| `GOOGLE_AUTH_JSON`                              | Optional                                     | Base64-encoded or raw Google auth JSON.                                  |
+| `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                          |
+| `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                       |
+| `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                      |
+| `S3_SECRET_ACCESS_KEY`                          | Optional                                     | Storage secret key.                                                      |
+| `S3_POSTERS_PREFIX`                             | Optional                                     | Poster object prefix. Defaults to `gigs`.                                |
+| `S3_PUBLIC_BASE_URL`                            | Optional but required for public bucket mode | Public URL base for uploaded posters.                                    |
+| `CORS_ORIGINS`                                  | Optional                                     | CORS mode or comma-separated allowlist.                                  |
+| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED`          | Optional                                     | Enables fallback poster URL behavior.                                    |
+| `DEFAULT_GIG_POSTER_URL`                        | Optional                                     | Default public poster URL for gigs without posters.                      |
+| `AI_URL`                                        | Optional                                     | AI service base URL.                                                     |
+| `AI_API_KEY`                                    | Optional                                     | AI service key.                                                          |
+| `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                     |
+| `AI_LOOKUP_DEBUG`                               | Optional                                     | Enables extra lookup diagnostics.                                        |
+| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/gig/lookup`.                                 |
+| `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                           |
+| `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                       |
+| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend feed revalidation.                                   |
 
 ### CORS behavior
 
@@ -471,16 +470,41 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, and `/v1/language/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
 - receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
 - admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
 - approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
-- `POST /digest/publish` and `POST /admin/revalidate` are unversioned secret-protected operator hooks
+- translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
+
+### Locale and translations modules
+
+Locale metadata and translation strings are split into two Nest modules. Both expose routes under the `/v1/locale` prefix, but they own different collections and responsibilities.
+
+| Module              | Path                       | MongoDB model | Responsibility                                                     |
+| ------------------- | -------------------------- | ------------- | ------------------------------------------------------------------ |
+| `LocaleModule`      | `src/modules/locale/`      | `Locale`      | Supported locale records: `iso`, `nativeName`, `isActive`, `order` |
+| `TranslationModule` | `src/modules/translation/` | `Translation` | Text and templates keyed by `locale`, `namespace`, and `key`       |
+
+Public endpoints:
+
+- `GET /v1/locale` — active locales sorted for clients (from `LocaleModule`)
+- `GET /v1/locale/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional `?namespaces=` filter (from `TranslationModule`)
+
+Admin locale management lives in `AdminModule`, which imports `LocaleModule` and reuses `LocaleService`:
+
+- `GET /v1/admin/locales`
+- `PATCH /v1/admin/locales/:iso`
+- `PATCH /v1/admin/locales/order`
+
+`TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
+
+More module-level detail is in [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ## Common development workflow
 

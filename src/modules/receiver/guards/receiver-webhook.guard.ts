@@ -25,8 +25,7 @@ export class ReceiverWebhookGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<ReceiverWebhookRequest>();
 
     const secretHeader = request.headers['x-telegram-bot-api-secret-token'] as
-      | string
-      | undefined;
+      string | undefined;
 
     const expectedSecret = process.env.BOT_SECRET;
     if (!expectedSecret || secretHeader !== expectedSecret) {
