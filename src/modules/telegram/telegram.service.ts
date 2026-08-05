@@ -8,6 +8,7 @@ import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramAuthService } from './telegram-auth.service';
 import type { PlainGig } from '../gig/types/gig.types';
+import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
 import { Status } from '../gig/types/status.enum';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import {
@@ -15,6 +16,7 @@ import {
   HandlePostRejectPayload,
   UpdateModerationPostAfterGigPublishedPayload,
   UpdatePublishedSubmissionFeedbackPayload,
+  UpdateGigCandidatePostParams,
   WeeklyDigestMainChannelPublishResult,
 } from './types/telegram.service.types';
 import {
@@ -219,6 +221,32 @@ export class TelegramService {
       composedModerationPost,
       String(gig._id),
     );
+  }
+
+  sendGigCandidateToSuggestion(
+    gigCandidate: GigCandidateRecord,
+  ): Promise<TGMessage | undefined> {
+    const composed =
+      this.telegramPostComposerService.composeGigCandidatePost(gigCandidate);
+    return this.telegramBotClient.sendPhoto(composed, gigCandidate.id);
+  }
+
+  async updateGigCandidatePost(
+    params: UpdateGigCandidatePostParams,
+  ): Promise<void> {
+    const composed =
+      this.telegramPostComposerService.composeGigCandidatePostEdit(params);
+    switch (composed.kind) {
+      case PostEditKind.Caption:
+        await this.telegramBotClient.editMessageCaption(composed.payload);
+        return;
+      case PostEditKind.Text:
+        await this.telegramBotClient.editMessageText(composed.payload);
+        return;
+      case PostEditKind.Media:
+        await this.telegramBotClient.editMessageMedia(composed.payload);
+        return;
+    }
   }
 
   async updateModerationPostAfterGigPublished(

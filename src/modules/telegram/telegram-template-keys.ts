@@ -18,10 +18,13 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   statusPending: 'status.pending',
   statusPublished: 'status.published',
   statusRejected: 'status.rejected',
+  statusAccepted: 'status.accepted',
   buttonApprove: 'button.approve',
+  buttonAccept: 'button.accept',
   buttonEdit: 'button.edit',
   buttonReject: 'button.reject',
   buttonPost: 'button.post',
+  gigCandidate: 'gigCandidate',
 } as const;
 
 export type TelegramTemplateKey =

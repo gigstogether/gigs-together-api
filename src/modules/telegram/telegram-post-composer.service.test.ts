@@ -1,3 +1,4 @@
+import { GigCandidateSource } from '../gig-candidate/types/gig-candidate-source.enum';
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -15,6 +16,7 @@ import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { Action } from './types/action.enum';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
 import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
+import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -42,7 +44,9 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
     [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
     [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
+    [TELEGRAM_TEMPLATE_KEYS.statusAccepted]: '🟢 Accepted',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
+    [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
@@ -54,6 +58,7 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks]:
       '{statusLabel} | {statusLinks}',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
@@ -535,6 +540,8 @@ describe('TelegramPostComposer', () => {
           text: mockPostTemplates.getText(
             TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
           ),
+          parse_mode: TGParseMode.HTML,
+          disable_web_page_preview: true,
         },
       });
     });
@@ -652,6 +659,71 @@ describe('TelegramPostComposer', () => {
 
       expect(text.endsWith('\n…')).toBe(true);
       expect(text.length).toBeLessThanOrEqual(TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
+    });
+  });
+
+  describe('composeGigCandidatePost', () => {
+    beforeEach(() => {
+      process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID = '-3001';
+    });
+
+    afterEach(() => {
+      delete process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
+    });
+
+    it('should compose suggestion post with Accept and Reject buttons only', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
+
+      const payload = composer.composeGigCandidatePost({
+        id: '507f1f77bcf86cd799439099',
+        source: GigCandidateSource.User,
+        title: 'Suggested Band',
+        date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+        city: 'Barcelona',
+        country: 'ES',
+        status: GigCandidateStatus.Pending,
+        posts: [],
+        suggestedBy: { userId: 42, username: 'fan', name: 'Fan User' },
+        poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.chat_id).toBe('-3001');
+      expect(payload.reply_markup?.inline_keyboard).toEqual([
+        [
+          {
+            text: '✅ Accept',
+            callback_data: 'acceptCandidate:507f1f77bcf86cd799439099',
+          },
+          {
+            text: '❌ Reject',
+            callback_data: 'rejectCandidate:507f1f77bcf86cd799439099',
+          },
+        ],
+      ]);
+    });
+
+    it('should throw BadRequestException when GIG_CANDIDATE_MODERATION_CHANNEL_ID is missing', () => {
+      delete process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
+
+      expect(() =>
+        composer.composeGigCandidatePost({
+          id: '507f1f77bcf86cd799439099',
+          source: GigCandidateSource.User,
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          status: GigCandidateStatus.Pending,
+          posts: [],
+          suggestedBy: { userId: 42 },
+          poster: { bucketPath: 'gigs/x' },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      ).toThrow(BadRequestException);
     });
   });
 });

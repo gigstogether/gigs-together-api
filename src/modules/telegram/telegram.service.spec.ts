@@ -47,7 +47,9 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
     [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
     [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
+    [TELEGRAM_TEMPLATE_KEYS.statusAccepted]: '🟢 Accepted',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
+    [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
@@ -59,6 +61,7 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks]:
       '{statusLabel} | {statusLinks}',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
