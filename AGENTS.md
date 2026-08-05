@@ -85,6 +85,9 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer `interface` over `type` for object shapes unless `type` is clearly the better fit.
 - Use `type` for unions, intersections, mapped types, conditional types, tuples, and other patterns that interfaces cannot express cleanly.
 - Keep type imports separate from value imports. Do not mix them in one import statement.
+- Default: keep param/DTO types in the owning module (service, controller, parser, etc.).
+- Create a colocated `*.types.ts` only when a consumer cannot import the owning module, or when the same shapes are shared across modules that must stay decoupled from that owner's runtime.
+- Do not extract types into `*.types.ts` only because they are exported or used in tests.
 - Files under `types/` and files named `*.types.ts` must export **types only** (`interface`, `type`, `enum`, type-only helpers). Put runtime constants and functions in a colocated `*.constants.ts` file or the owning module artifact (service, parser, controller).
 
 ## Strictness
