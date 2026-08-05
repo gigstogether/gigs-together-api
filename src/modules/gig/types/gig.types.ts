@@ -21,6 +21,7 @@ export interface PlainGig {
   readonly status: Status;
   readonly posts: GigPost[];
   readonly suggestedBy: GigSuggestedBy;
+  readonly gigCandidateId?: Types.ObjectId;
 }
 
 export interface V1GetGigsResponseBodyGig {
@@ -37,6 +38,11 @@ export interface V1GetGigsResponseBodyGig {
   postUrl?: string;
 }
 
+export interface GigPosterInput {
+  bucketPath?: string;
+  externalUrl?: string;
+}
+
 export interface CreateGigInput {
   title: string;
   publicId: string;
@@ -46,11 +52,33 @@ export interface CreateGigInput {
   country: string;
   venue: string;
   ticketsUrl: string;
-  poster?: {
-    bucketPath?: string;
-    externalUrl?: string;
-  };
+  poster?: GigPosterInput;
   suggestedBy: GigSuggestedBy;
+}
+
+export interface CreateGigFromGigCandidateParams {
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue?: string;
+  ticketsUrl?: string;
+  poster?: GigPosterInput;
+  suggestedBy: GigSuggestedBy;
+  gigCandidateId: string;
+}
+
+export interface GigModerationPostInput {
+  id: number;
+  chatId: number;
+  date: number;
+  fileId?: string;
+}
+
+export interface SetPendingWithOptionalModerationPostParams {
+  gigId: string;
+  moderationPost?: GigModerationPostInput;
 }
 
 export interface GigSuggestedBy {

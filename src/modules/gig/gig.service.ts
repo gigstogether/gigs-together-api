@@ -6,7 +6,13 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
-import type { CreateGigInput, GigId, PlainGig } from './types/gig.types';
+import type {
+  CreateGigFromGigCandidateParams,
+  CreateGigInput,
+  GigId,
+  PlainGig,
+  SetPendingWithOptionalModerationPostParams,
+} from './types/gig.types';
 import { Gig, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
@@ -266,6 +272,92 @@ export class GigService {
 
     const createdGig = new this.gigModel(mappedData);
     return createdGig.save();
+  }
+
+  async createFromGigCandidate(
+    params: CreateGigFromGigCandidateParams,
+  ): Promise<GigDocument> {
+    if (!Types.ObjectId.isValid(params.gigCandidateId)) {
+      throw new BadRequestException(
+        `Invalid gigCandidateId MongoDB ID: ${params.gigCandidateId}`,
+      );
+    }
+
+    const date = new Date(params.date);
+    if (!Number.isFinite(date.getTime())) {
+      throw new BadRequestException(
+        'GigCandidate date must be a valid timestamp',
+      );
+    }
+    const yyyyMmDd = date.toISOString().split('T')[0];
+    const publicId = await this.generateUniquePublicId({
+      title: params.title,
+      yyyyMmDd,
+    });
+
+    let poster = params.poster;
+    if (!poster?.bucketPath) {
+      const defaultPosterUrl =
+        (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
+      poster = await this.uploadPoster({
+        url: defaultPosterUrl,
+        context: {
+          date: yyyyMmDd,
+          city: params.city,
+          country: params.country,
+          publicId,
+        },
+      });
+    }
+
+    // Schema requires venue/ticketsUrl strings; optional GigCandidate fields map to empty.
+    const mappedData: Gig = {
+      publicId,
+      title: params.title,
+      date: params.date,
+      city: params.city,
+      country: params.country,
+      venue: params.venue ?? '',
+      ticketsUrl: params.ticketsUrl ?? '',
+      poster,
+      status: Status.New,
+      posts: [],
+      suggestedBy: params.suggestedBy,
+      gigCandidateId: new Types.ObjectId(params.gigCandidateId),
+    };
+    if (params.endDate !== undefined) {
+      mappedData.endDate = params.endDate;
+    }
+
+    const createdGig = new this.gigModel(mappedData);
+    return createdGig.save();
+  }
+
+  /**
+   * Moves a Gig created from a GigCandidate into Pending and optionally records
+   * the Telegram moderation post. Keeps UpdateQuery / schema details inside GigService.
+   */
+  async setPendingWithOptionalModerationPost(
+    params: SetPendingWithOptionalModerationPostParams,
+  ): Promise<GigDocument> {
+    const updateGigPayload: UpdateQuery<Gig> = {
+      status: Status.Pending,
+    };
+    if (params.moderationPost) {
+      updateGigPayload.$push = {
+        posts: {
+          id: params.moderationPost.id,
+          chatId: params.moderationPost.chatId,
+          ...(params.moderationPost.fileId !== undefined
+            ? { fileId: params.moderationPost.fileId }
+            : {}),
+          to: Messenger.Telegram,
+          type: PostType.Moderation,
+          date: params.moderationPost.date,
+        },
+      };
+    }
+    return this.updateGig(params.gigId, updateGigPayload);
   }
 
   async updateGig(gigId: GigId, data: UpdateQuery<Gig>): Promise<GigDocument> {

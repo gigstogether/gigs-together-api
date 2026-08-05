@@ -31,7 +31,12 @@ import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
     FeedRevalidateService,
     GigLookupBodyPipe,
   ],
-  exports: [GigService, GigModerationService, FeedRevalidateService],
+  exports: [
+    GigService,
+    GigModerationService,
+    FeedRevalidateService,
+    GigPosterService,
+  ],
   controllers: [GigController],
 })
 export class GigModule {}

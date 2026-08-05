@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { Status } from './types/status.enum';
 import { Messenger } from './types/messenger.enum';
 import { GigSuggestedBy } from './types/gig.types';
@@ -97,6 +97,9 @@ export class Gig {
 
   @Prop({ type: Object, required: true })
   suggestedBy: GigSuggestedBy;
+
+  @Prop({ type: Types.ObjectId, required: false, ref: 'GigCandidate' })
+  gigCandidateId?: Types.ObjectId;
 }
 
 export type GigDocument = HydratedDocument<Gig>;
@@ -109,3 +112,5 @@ GigSchema.index(
   { country: 1, city: 1 },
   { collation: { locale: 'en', strength: 2 } },
 );
+
+GigSchema.index({ gigCandidateId: 1 }, { unique: true, sparse: true });
