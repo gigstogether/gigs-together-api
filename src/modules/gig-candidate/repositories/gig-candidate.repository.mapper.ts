@@ -3,10 +3,8 @@ import type {
   GigCandidatePost,
   GigCandidateRecord,
 } from '../types/gig-candidate.types';
-import type { GigCandidatePostType } from '../types/gig-candidate-post-type.enum';
 import type { GigCandidateSource } from '../types/gig-candidate-source.enum';
 import type { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import type { Messenger } from '../../gig/types/messenger.enum';
 import type { GigSuggestedBy } from '../../gig/types/gig.types';
 
 export interface GigCandidateLeanDocument {
@@ -19,19 +17,9 @@ export interface GigCandidateLeanDocument {
   country: string;
   venue?: string;
   ticketsUrl?: string;
-  poster?: {
-    bucketPath?: string;
-    externalUrl?: string;
-  };
+  poster?: GigCandidatePoster;
   status: GigCandidateStatus;
-  posts: Array<{
-    to: Messenger;
-    type: GigCandidatePostType;
-    date: number;
-    id: number;
-    chatId: number;
-    fileId?: string;
-  }>;
+  posts: GigCandidatePost[];
   suggestedBy: GigSuggestedBy;
   gigId?: { toString(): string } | string;
   createdAt: Date;
@@ -80,12 +68,7 @@ export class GigCandidateRepositoryMapper {
   }
 
   private static toPoster(
-    poster:
-      | {
-          bucketPath?: string;
-          externalUrl?: string;
-        }
-      | undefined,
+    poster: GigCandidatePoster | undefined,
   ): GigCandidatePoster | undefined {
     if (!poster) {
       return undefined;
@@ -103,14 +86,7 @@ export class GigCandidateRepositoryMapper {
     };
   }
 
-  private static toPost(post: {
-    to: Messenger;
-    type: GigCandidatePostType;
-    date: number;
-    id: number;
-    chatId: number;
-    fileId?: string;
-  }): GigCandidatePost {
+  private static toPost(post: GigCandidatePost): GigCandidatePost {
     return {
       to: post.to,
       type: post.type,

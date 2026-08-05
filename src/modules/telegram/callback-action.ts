@@ -17,17 +17,20 @@ export enum GigCandidateCallbackAction {
   Reject = 'reject',
 }
 
+export interface GigCallbackData {
+  scope: CallbackScope.Gig;
+  action: GigCallbackAction;
+  id: string;
+}
+
+export interface GigCandidateCallbackData {
+  scope: CallbackScope.GigCandidate;
+  action: GigCandidateCallbackAction;
+  id: string;
+}
+
 export type EncodeCallbackDataParams =
-  | {
-      scope: CallbackScope.Gig;
-      action: GigCallbackAction;
-      id: string;
-    }
-  | {
-      scope: CallbackScope.GigCandidate;
-      action: GigCandidateCallbackAction;
-      id: string;
-    };
+  GigCallbackData | GigCandidateCallbackData;
 
 export type ParsedCallbackData = EncodeCallbackDataParams;
 

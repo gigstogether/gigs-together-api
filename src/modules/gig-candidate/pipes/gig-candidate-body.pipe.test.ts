@@ -54,10 +54,7 @@ describe('GigCandidateBodyPipe', () => {
   });
 
   it('should throw when body is not an object', () => {
-    expect(() => {
-      // Intentionally invalid runtime input for the pipe boundary.
-      pipe.transform(null as never);
-    }).toThrow(BadRequestException);
+    expect(() => pipe.transform(null)).toThrow(BadRequestException);
   });
 
   it('should throw when a gig field is not a string', () => {

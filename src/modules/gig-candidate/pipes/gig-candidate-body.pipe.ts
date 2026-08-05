@@ -2,7 +2,9 @@ import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { V1CreateGigCandidateRequestBodyGig } from '../types/requests/v1-create-gig-candidate-request';
 
-type AnyBodyWithGig = Record<string, unknown> & { gig?: unknown };
+export interface GigCandidateBodyWithParsedGig extends Record<string, unknown> {
+  gig: V1CreateGigCandidateRequestBodyGig;
+}
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -16,8 +18,8 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  */
 @Injectable()
 export class GigCandidateBodyPipe implements PipeTransform<
-  AnyBodyWithGig,
-  AnyBodyWithGig & { gig: V1CreateGigCandidateRequestBodyGig }
+  unknown,
+  GigCandidateBodyWithParsedGig
 > {
   private parseGig(value: unknown): V1CreateGigCandidateRequestBodyGig {
     if (typeof value === 'string') {
@@ -81,9 +83,7 @@ export class GigCandidateBodyPipe implements PipeTransform<
     return raw;
   }
 
-  transform(
-    bodyRaw: AnyBodyWithGig,
-  ): AnyBodyWithGig & { gig: V1CreateGigCandidateRequestBodyGig } {
+  transform(bodyRaw: unknown): GigCandidateBodyWithParsedGig {
     if (!isPlainObject(bodyRaw)) {
       throw new BadRequestException('Body must be an object');
     }

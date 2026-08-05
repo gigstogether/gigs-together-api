@@ -552,7 +552,7 @@ export class TelegramPostComposerService {
 
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
-        'Cannot compose gig-candidate suggestion post: user gig has no poster URL.',
+        'Cannot compose gig-candidate suggestion post: gig candidate has no poster URL.',
       );
     }
 

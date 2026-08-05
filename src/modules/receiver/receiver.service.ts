@@ -45,26 +45,56 @@ export class ReceiverService {
 
   private readonly logger = new Logger(ReceiverService.name);
 
-  private formatCallbackQueryError(e: any): string {
-    const data = e?.response?.data;
-    const tgDescription: string | undefined = data?.description;
-    if (tgDescription) return `Failed: ${tgDescription}`;
-
-    if (e instanceof BadRequestException) {
-      const res = e.getResponse() as unknown;
-      const msg =
-        typeof res === 'string'
-          ? res
-          : typeof res === 'object' && res !== null && 'message' in res
-            ? Array.isArray((res as { message?: unknown }).message)
-              ? (res as { message: string[] }).message.join(', ')
-              : String((res as { message?: unknown }).message ?? e.message)
-            : e.message;
-      return `Failed: ${String(msg)}`;
+  private formatCallbackQueryError(e: unknown): string {
+    const tgDescription = this.readTelegramErrorDescription(e);
+    if (tgDescription !== undefined) {
+      return `Failed: ${tgDescription}`;
     }
 
-    if (e instanceof Error) return `Failed: ${e.message}`;
+    if (e instanceof BadRequestException) {
+      return `Failed: ${this.readBadRequestMessage(e)}`;
+    }
+
+    if (e instanceof Error) {
+      return `Failed: ${e.message}`;
+    }
     return 'Failed: unknown error';
+  }
+
+  private readTelegramErrorDescription(e: unknown): string | undefined {
+    if (typeof e !== 'object' || e === null || !('response' in e)) {
+      return undefined;
+    }
+    const response = e.response;
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      !('data' in response)
+    ) {
+      return undefined;
+    }
+    const data = response.data;
+    if (typeof data !== 'object' || data === null || !('description' in data)) {
+      return undefined;
+    }
+    return typeof data.description === 'string' ? data.description : undefined;
+  }
+
+  private readBadRequestMessage(e: BadRequestException): string {
+    const res = e.getResponse();
+    if (typeof res === 'string') {
+      return res;
+    }
+    if (typeof res === 'object' && res !== null && 'message' in res) {
+      const message = res.message;
+      if (Array.isArray(message)) {
+        return message.map(String).join(', ');
+      }
+      if (message !== undefined && message !== null) {
+        return String(message);
+      }
+    }
+    return e.message;
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
