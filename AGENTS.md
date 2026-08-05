@@ -74,7 +74,8 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code stays strongly typed.
 - Avoid `as any` entirely.
 
-- Prefer `readonly` where immutability is appropriate, especially for DTOs, config objects, and constants.
+- Do **not** use `readonly` by default on DTOs, params, domain types, or props. Omit it unless there is a real need to prevent mutation at the type level for callers that would otherwise mutate shared state.
+- Add `readonly` only when immutability is part of the contract and the risk is concrete (for example a shared config object, a cached snapshot, or an API surface where callers must not reassign fields). If there is no such risk, leave fields mutable in the type.
 
 - Prefer named types for public APIs such as service methods, controller responses, and module exports.
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
