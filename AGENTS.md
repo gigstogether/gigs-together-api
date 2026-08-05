@@ -126,6 +126,56 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
 - When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
 
+## Module data layer
+
+Persistence for a domain module follows a repository boundary. Canonical reference: `src/modules/translation/` (also applied in `src/modules/locale/`).
+
+Call chain:
+
+```text
+controller → service → repository interface → mongo repository → schema / DB
+```
+
+### Required layout inside a domain module that owns a collection
+
+```text
+src/modules/<feature>/
+  <feature>.module.ts
+  <feature>.controller.ts          # optional if the module has no HTTP surface
+  <feature>.service.ts
+  <feature>.schema.ts              # how data is stored in MongoDB
+  types/
+    <feature>.types.ts             # domain / application types (not Mongo-specific)
+    requests/                      # HTTP DTOs when the module exposes endpoints
+  repositories/
+    <feature>.repository.ts        # Symbol token + repository interface
+    mongo-<feature>.repository.ts  # Mongoose implementation
+    <feature>.repository.mapper.ts # Mongo document → domain type
+```
+
+### Responsibilities
+
+- **`types/<feature>.types.ts`** — how the application understands the entity. No Mongoose types, no `ObjectId`, no query operators.
+- **`repositories/<feature>.repository.ts`** — persistence contract only: `export const <FEATURE>_REPOSITORY = Symbol('...')` and `interface <Feature>Repository { ... }`. Method params and return types use domain types. Do **not** put Mongo details here (`$in`, `$or`, `$exists`, `lean`, `Model`, `ObjectId`, filters shaped like Mongo queries).
+- **`repositories/mongo-<feature>.repository.ts`** — the only place that talks to Mongoose for that collection (`@InjectModel`, `find`, `lean`, query operators, etc.). Implements the repository interface and maps results through the mapper.
+- **`repositories/<feature>.repository.mapper.ts`** — maps lean Mongo documents to domain types. Keep mapping pure and free of DB I/O.
+- **`<feature>.schema.ts`** — storage shape and indexes. Domain code outside the mongo repository and mapper should not depend on schema document types for business logic.
+- **Service** — business logic only. Inject the repository via `@Inject(<FEATURE>_REPOSITORY)`. Do **not** inject `@InjectModel(...)` for collections owned by the module.
+- **Module wiring** — register the Mongo implementation against the Symbol token:
+
+```ts
+{
+  provide: <FEATURE>_REPOSITORY,
+  useClass: Mongo<Feature>Repository,
+}
+```
+
+### Scope and migration
+
+- Apply this pattern to **new** persistence code and when touching an existing module's data access in a meaningful way.
+- Modules that still call Mongoose from services are legacy relative to this rule; migrate them toward the repository layout rather than extending direct `@InjectModel` usage in services.
+- Infrastructure modules that wrap external APIs (Telegram, Calendar, Bucket, AI) are not Mongo repositories; keep their client/adapter boundaries as they are unless they also own a Mongo collection.
+
 ## File placement
 
 - Do not add a new file when the code has a **single call site** — colocate it in the existing module artifact (service, controller, guard, pipe, mapper, or parser) instead.
