@@ -3,5 +3,6 @@ export enum Action {
   Post = 'post',
   Reject = 'reject',
   Rejected = 'rejected',
-  Status = 'status',
+  AcceptCandidate = 'acceptCandidate',
+  RejectCandidate = 'rejectCandidate',
 }

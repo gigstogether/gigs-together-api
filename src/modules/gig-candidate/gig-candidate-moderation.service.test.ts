@@ -142,49 +142,40 @@ describe('GigCandidateModerationService', () => {
     });
   });
 
-  describe('rejectIfGigCandidate', () => {
-    it('should return false when GigCandidate does not exist', async () => {
-      gigCandidateServiceMock.findById.mockResolvedValue(null);
-
-      const isHandled = await service.rejectIfGigCandidate({ gigCandidateId });
-
-      expect(isHandled).toBe(false);
-    });
-
-    it('should mark Rejected and return true when GigCandidate is Pending', async () => {
-      gigCandidateServiceMock.findById.mockResolvedValue(
+  describe('reject', () => {
+    it('should mark Rejected when GigCandidate is Pending', async () => {
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(
         buildGigCandidateRecord(),
       );
       gigCandidateServiceMock.markRejected.mockResolvedValue(
         buildGigCandidateRecord({ status: GigCandidateStatus.Rejected }),
       );
 
-      const isHandled = await service.rejectIfGigCandidate({ gigCandidateId });
+      await service.reject({ gigCandidateId });
 
-      expect(isHandled).toBe(true);
       expect(gigCandidateServiceMock.markRejected).toHaveBeenCalledWith({
         id: gigCandidateId,
       });
     });
 
     it('should throw BadRequestException when GigCandidate is already Accepted', async () => {
-      gigCandidateServiceMock.findById.mockResolvedValue(
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(
         buildGigCandidateRecord({ status: GigCandidateStatus.Accepted }),
       );
 
-      await expect(
-        service.rejectIfGigCandidate({ gigCandidateId }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.reject({ gigCandidateId })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when GigCandidate is already Rejected', async () => {
-      gigCandidateServiceMock.findById.mockResolvedValue(
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(
         buildGigCandidateRecord({ status: GigCandidateStatus.Rejected }),
       );
 
-      await expect(
-        service.rejectIfGigCandidate({ gigCandidateId }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.reject({ gigCandidateId })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 });

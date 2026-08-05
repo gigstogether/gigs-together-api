@@ -7,6 +7,7 @@ import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { Action } from '../telegram/types/action.enum';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { GigCandidateModerationService } from '../gig-candidate/gig-candidate-moderation.service';
 import { Messenger } from '../gig/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
@@ -43,6 +44,11 @@ describe('ReceiverService', () => {
     rejectGig: vi.fn(),
   };
 
+  const mockGigCandidateModerationService = {
+    accept: vi.fn(),
+    reject: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.unstubAllEnvs();
 
@@ -60,6 +66,10 @@ describe('ReceiverService', () => {
         {
           provide: GigModerationService,
           useValue: mockGigModerationService,
+        },
+        {
+          provide: GigCandidateModerationService,
+          useValue: mockGigCandidateModerationService,
         },
       ],
     }).compile();
@@ -343,6 +353,98 @@ describe('ReceiverService', () => {
         text: 'Done!',
         show_alert: false,
       });
+    });
+
+    it('should accept GigCandidate when accept callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-accept',
+        data: `${Action.AcceptCandidate}:507f1f77bcf86cd799439011`,
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100999, type: 'channel' },
+        },
+      };
+
+      mockGigCandidateModerationService.accept.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigCandidateModerationService.accept).toHaveBeenCalledWith({
+        gigCandidateId: '507f1f77bcf86cd799439011',
+        suggestionPost: {
+          messageId: 42,
+          chatId: -100999,
+        },
+      });
+    });
+
+    it('should reject GigCandidate when rejectCandidate callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-reject-candidate',
+        data: `${Action.RejectCandidate}:507f1f77bcf86cd799439011`,
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100999, type: 'channel' },
+        },
+      };
+
+      mockGigCandidateModerationService.reject.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigCandidateModerationService.reject).toHaveBeenCalledWith({
+        gigCandidateId: '507f1f77bcf86cd799439011',
+        suggestionPost: {
+          messageId: 42,
+          chatId: -100999,
+        },
+      });
+      expect(mockGigModerationService.rejectGig).not.toHaveBeenCalled();
+    });
+
+    it('should reject Gig when reject callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-reject-gig',
+        data: `${Action.Reject}:507f1f77bcf86cd799439011`,
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      mockGigModerationService.rejectGig.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigModerationService.rejectGig).toHaveBeenCalledWith({
+        gigId: '507f1f77bcf86cd799439011',
+        moderationPost: {
+          messageId: 42,
+          chatId: -100123,
+        },
+      });
+      expect(mockGigCandidateModerationService.reject).not.toHaveBeenCalled();
     });
   });
 

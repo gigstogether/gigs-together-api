@@ -15,6 +15,7 @@ import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 import { GigModerationService } from '../gig/gig-moderation.service';
+import { GigCandidateModerationService } from '../gig-candidate/gig-candidate-moderation.service';
 import { envBool } from '../../shared/utils/env';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
@@ -34,6 +35,7 @@ export class ReceiverService {
     private readonly telegramService: TelegramService,
     private readonly gigService: GigService,
     private readonly gigModerationService: GigModerationService,
+    private readonly gigCandidateModerationService: GigCandidateModerationService,
   ) {}
 
   private readonly logger = new Logger(ReceiverService.name);
@@ -155,19 +157,31 @@ export class ReceiverService {
         });
         break;
       }
+      case Action.AcceptCandidate: {
+        await this.gigCandidateModerationService.accept({
+          gigCandidateId: callbackPayload,
+          suggestionPost: {
+            messageId: message.message_id,
+            chatId: message.chat.id,
+          },
+        });
+        break;
+      }
+      case Action.RejectCandidate: {
+        await this.gigCandidateModerationService.reject({
+          gigCandidateId: callbackPayload,
+          suggestionPost: {
+            messageId: message.message_id,
+            chatId: message.chat.id,
+          },
+        });
+        break;
+      }
       case Action.Rejected: {
         const text = "There's no action for Rejected yet.";
         await this.telegramService.answerCallbackQuery({
           callback_query_id: callbackQuery.id,
           text,
-          show_alert: false,
-        });
-        return;
-      }
-      case Action.Status: {
-        await this.telegramService.answerCallbackQuery({
-          callback_query_id: callbackQuery.id,
-          text: callbackPayload ? `Status is ${callbackPayload}` : undefined,
           show_alert: false,
         });
         return;

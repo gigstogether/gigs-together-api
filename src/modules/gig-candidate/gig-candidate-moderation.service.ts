@@ -123,19 +123,10 @@ export class GigCandidateModerationService {
     );
   }
 
-  /**
-   * Rejects a GigCandidate when the callback id belongs to one.
-   * @returns true when handled as GigCandidate; false when the id is not a GigCandidate.
-   */
-  async rejectIfGigCandidate(
-    params: ModerateGigCandidateParams,
-  ): Promise<boolean> {
-    const gigCandidate = await this.gigCandidateService.findById(
+  async reject(params: ModerateGigCandidateParams): Promise<void> {
+    const gigCandidate = await this.gigCandidateService.getByIdOrThrow(
       params.gigCandidateId,
     );
-    if (!gigCandidate) {
-      return false;
-    }
 
     if (gigCandidate.status === GigCandidateStatus.Rejected) {
       throw new BadRequestException('GigCandidate is already rejected');
@@ -159,7 +150,6 @@ export class GigCandidateModerationService {
     });
 
     this.logger.log(`GigCandidate ${gigCandidate.id} rejected`);
-    return true;
   }
 
   private async updateSuggestionMessage(
