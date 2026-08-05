@@ -13,7 +13,12 @@ import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import { Action } from './types/action.enum';
+import {
+  CallbackScope,
+  encodeCallbackData,
+  GigCallbackAction,
+  GigCandidateCallbackAction,
+} from './callback-action';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
 import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
@@ -166,7 +171,11 @@ describe('TelegramPostComposer', () => {
           [
             {
               text: '📢 Post',
-              callback_data: `${Action.Post}:gig-a`,
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.Gig,
+                action: GigCallbackAction.Post,
+                id: 'gig-a',
+              }),
             },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
           ],
@@ -694,11 +703,19 @@ describe('TelegramPostComposer', () => {
         [
           {
             text: '✅ Accept',
-            callback_data: 'acceptCandidate:507f1f77bcf86cd799439099',
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.GigCandidate,
+              action: GigCandidateCallbackAction.Accept,
+              id: '507f1f77bcf86cd799439099',
+            }),
           },
           {
             text: '❌ Reject',
-            callback_data: 'rejectCandidate:507f1f77bcf86cd799439099',
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.GigCandidate,
+              action: GigCandidateCallbackAction.Reject,
+              id: '507f1f77bcf86cd799439099',
+            }),
           },
         ],
       ]);

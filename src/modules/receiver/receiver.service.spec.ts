@@ -5,7 +5,12 @@ import { TelegramService } from '../telegram/telegram.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
-import { Action } from '../telegram/types/action.enum';
+import {
+  CallbackScope,
+  encodeCallbackData,
+  GigCallbackAction,
+  GigCandidateCallbackAction,
+} from '../telegram/callback-action';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { GigCandidateModerationService } from '../gig-candidate/gig-candidate-moderation.service';
 import { Messenger } from '../gig/types/messenger.enum';
@@ -323,7 +328,11 @@ describe('ReceiverService', () => {
     it('should publish main Telegram post when publish callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-1',
-        data: `${Action.Post}:507f1f77bcf86cd799439011`,
+        data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Post,
+          id: '507f1f77bcf86cd799439011',
+        }),
         from: {
           id: 1,
           is_bot: false,
@@ -358,7 +367,11 @@ describe('ReceiverService', () => {
     it('should accept GigCandidate when accept callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-accept',
-        data: `${Action.AcceptCandidate}:507f1f77bcf86cd799439011`,
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Accept,
+          id: '507f1f77bcf86cd799439011',
+        }),
         from: {
           id: 1,
           is_bot: false,
@@ -385,10 +398,14 @@ describe('ReceiverService', () => {
       });
     });
 
-    it('should reject GigCandidate when rejectCandidate callback is received', async () => {
+    it('should reject GigCandidate when gigCandidate reject callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-reject-candidate',
-        data: `${Action.RejectCandidate}:507f1f77bcf86cd799439011`,
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Reject,
+          id: '507f1f77bcf86cd799439011',
+        }),
         from: {
           id: 1,
           is_bot: false,
@@ -419,7 +436,11 @@ describe('ReceiverService', () => {
     it('should reject Gig when reject callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-reject-gig',
-        data: `${Action.Reject}:507f1f77bcf86cd799439011`,
+        data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Reject,
+          id: '507f1f77bcf86cd799439011',
+        }),
         from: {
           id: 1,
           is_bot: false,
@@ -445,6 +466,34 @@ describe('ReceiverService', () => {
         },
       });
       expect(mockGigCandidateModerationService.reject).not.toHaveBeenCalled();
+    });
+
+    it('should answer with an error when legacy flat callback_data is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-legacy',
+        data: 'approve:507f1f77bcf86cd799439011',
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigModerationService.approveGig).not.toHaveBeenCalled();
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-legacy',
+        text: 'Something unexpected happened, I dunno what to do',
+        show_alert: true,
+      });
     });
   });
 

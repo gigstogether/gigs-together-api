@@ -10,7 +10,12 @@ import type { PlainGig } from '../gig/types/gig.types';
 import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import { Status } from '../gig/types/status.enum';
-import { Action } from './types/action.enum';
+import {
+  CallbackScope,
+  encodeCallbackData,
+  GigCallbackAction,
+  GigCandidateCallbackAction,
+} from './callback-action';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../gig/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
@@ -607,13 +612,21 @@ export class TelegramPostComposerService {
             text: this.postTemplates.getText(
               TELEGRAM_TEMPLATE_KEYS.buttonAccept,
             ),
-            callback_data: `${Action.AcceptCandidate}:${gigCandidate.id}`,
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.GigCandidate,
+              action: GigCandidateCallbackAction.Accept,
+              id: gigCandidate.id,
+            }),
           },
           {
             text: this.postTemplates.getText(
               TELEGRAM_TEMPLATE_KEYS.buttonReject,
             ),
-            callback_data: `${Action.RejectCandidate}:${gigCandidate.id}`,
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.GigCandidate,
+              action: GigCandidateCallbackAction.Reject,
+              id: gigCandidate.id,
+            }),
           },
         ],
       ],
@@ -679,6 +692,7 @@ export class TelegramPostComposerService {
     gig: PlainGig,
   ): TGInlineKeyboardMarkup {
     const editGigUrl = this.buildEditGigUrl(gig.publicId);
+    const gigId = String(gig._id);
 
     return {
       inline_keyboard: [
@@ -687,7 +701,11 @@ export class TelegramPostComposerService {
             text: this.postTemplates.getText(
               TELEGRAM_TEMPLATE_KEYS.buttonApprove,
             ),
-            callback_data: `${Action.Approve}:${gig._id}`,
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.Gig,
+              action: GigCallbackAction.Approve,
+              id: gigId,
+            }),
           },
           ...(editGigUrl
             ? [
@@ -703,7 +721,11 @@ export class TelegramPostComposerService {
             text: this.postTemplates.getText(
               TELEGRAM_TEMPLATE_KEYS.buttonReject,
             ),
-            callback_data: `${Action.Reject}:${gig._id}`,
+            callback_data: encodeCallbackData({
+              scope: CallbackScope.Gig,
+              action: GigCallbackAction.Reject,
+              id: gigId,
+            }),
           },
         ],
       ],
@@ -729,7 +751,11 @@ export class TelegramPostComposerService {
     if (!publishPostUrl && gigId !== undefined) {
       row.push({
         text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonPost),
-        callback_data: `${Action.Post}:${String(gigId)}`,
+        callback_data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Post,
+          id: String(gigId),
+        }),
       });
     }
     if (editGigUrl) {

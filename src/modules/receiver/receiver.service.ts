@@ -4,7 +4,12 @@ import { GigService } from '../gig/gig.service';
 import { Status } from '../gig/types/status.enum';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
-import { Action } from '../telegram/types/action.enum';
+import {
+  CallbackScope,
+  GigCallbackAction,
+  GigCandidateCallbackAction,
+  parseCallbackData,
+} from '../telegram/callback-action';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
@@ -124,75 +129,77 @@ export class ReceiverService {
       return;
     }
 
-    const [action, callbackPayload] = data.split(':');
+    const parsed = parseCallbackData(data);
+    if (!parsed) {
+      await this.telegramService.answerCallbackQuery({
+        callback_query_id: callbackQuery.id,
+        text: 'Something unexpected happened, I dunno what to do',
+        show_alert: true,
+      });
+      return;
+    }
+
     // TODO: some more security?
-    switch (action) {
-      case Action.Approve: {
-        await this.gigModerationService.approveGig({
-          gigId: callbackPayload,
-          moderationPost: {
-            messageId: message.message_id,
-            chatId: message.chat.id,
-          },
-        });
+    switch (parsed.scope) {
+      case CallbackScope.Gig: {
+        switch (parsed.action) {
+          case GigCallbackAction.Approve: {
+            await this.gigModerationService.approveGig({
+              gigId: parsed.id,
+              moderationPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+          case GigCallbackAction.Post: {
+            await this.gigModerationService.publishGigPost({
+              gigId: parsed.id,
+              moderationPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+          case GigCallbackAction.Reject: {
+            await this.gigModerationService.rejectGig({
+              gigId: parsed.id,
+              moderationPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+        }
         break;
       }
-      case Action.Post: {
-        await this.gigModerationService.publishGigPost({
-          gigId: callbackPayload,
-          moderationPost: {
-            messageId: message.message_id,
-            chatId: message.chat.id,
-          },
-        });
+      case CallbackScope.GigCandidate: {
+        switch (parsed.action) {
+          case GigCandidateCallbackAction.Accept: {
+            await this.gigCandidateModerationService.accept({
+              gigCandidateId: parsed.id,
+              suggestionPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+          case GigCandidateCallbackAction.Reject: {
+            await this.gigCandidateModerationService.reject({
+              gigCandidateId: parsed.id,
+              suggestionPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+        }
         break;
-      }
-      case Action.Reject: {
-        await this.gigModerationService.rejectGig({
-          gigId: callbackPayload,
-          moderationPost: {
-            messageId: message.message_id,
-            chatId: message.chat.id,
-          },
-        });
-        break;
-      }
-      case Action.AcceptCandidate: {
-        await this.gigCandidateModerationService.accept({
-          gigCandidateId: callbackPayload,
-          suggestionPost: {
-            messageId: message.message_id,
-            chatId: message.chat.id,
-          },
-        });
-        break;
-      }
-      case Action.RejectCandidate: {
-        await this.gigCandidateModerationService.reject({
-          gigCandidateId: callbackPayload,
-          suggestionPost: {
-            messageId: message.message_id,
-            chatId: message.chat.id,
-          },
-        });
-        break;
-      }
-      case Action.Rejected: {
-        const text = "There's no action for Rejected yet.";
-        await this.telegramService.answerCallbackQuery({
-          callback_query_id: callbackQuery.id,
-          text,
-          show_alert: false,
-        });
-        return;
-      }
-      default: {
-        await this.telegramService.answerCallbackQuery({
-          callback_query_id: callbackQuery.id,
-          text: 'Something unexpected happened, I dunno what to do',
-          show_alert: true,
-        });
-        return;
       }
     }
 
