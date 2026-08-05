@@ -12,19 +12,19 @@ import type {
 } from './types/gig-candidate.types';
 import { GigCandidateService } from './gig-candidate.service';
 
-interface GigCandidateSuggestionPostRef {
+interface GigCandidatePostRef {
   messageId: number;
   chatId: number;
 }
 
 interface ModerateGigCandidateParams {
   gigCandidateId: string;
-  suggestionPost?: GigCandidateSuggestionPostRef;
+  suggestionPost?: GigCandidatePostRef;
 }
 
 interface UpdateSuggestionMessageParams {
   gigCandidate: GigCandidateRecord;
-  suggestionPost?: GigCandidateSuggestionPostRef;
+  suggestionPost?: GigCandidatePostRef;
 }
 
 @Injectable()
@@ -175,7 +175,7 @@ export class GigCandidateModerationService {
     );
 
     try {
-      await this.telegramService.updateGigCandidateSuggestionPost({
+      await this.telegramService.updateGigCandidatePost({
         gigCandidate,
         chatId: post.chatId,
         messageId: post.messageId,
@@ -183,7 +183,7 @@ export class GigCandidateModerationService {
       });
     } catch (e) {
       this.logger.warn(
-        `updateGigCandidateSuggestionPost failed for GigCandidate ${gigCandidate.id}: ${JSON.stringify(
+        `updateGigCandidatePost failed for GigCandidate ${gigCandidate.id}: ${JSON.stringify(
           e instanceof Error ? e.message : e,
         )}`,
       );
@@ -192,7 +192,7 @@ export class GigCandidateModerationService {
 
   private resolveSuggestionPostRef(
     posts: GigCandidatePost[],
-  ): GigCandidateSuggestionPostRef | undefined {
+  ): GigCandidatePostRef | undefined {
     const suggestionPost = posts.find(
       (post) =>
         post.to === Messenger.Telegram &&

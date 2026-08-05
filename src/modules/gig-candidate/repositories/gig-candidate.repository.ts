@@ -1,5 +1,5 @@
 import type {
-  AppendGigCandidateSuggestionPostParams,
+  AppendGigCandidatePostParams,
   CreateGigCandidateRecordParams,
   MarkGigCandidateAcceptedParams,
   MarkGigCandidateRejectedParams,
@@ -16,7 +16,7 @@ export interface GigCandidateRepository {
   findById(id: string): Promise<GigCandidateRecord | null>;
 
   appendSuggestionPost(
-    params: AppendGigCandidateSuggestionPostParams,
+    params: AppendGigCandidatePostParams,
   ): Promise<GigCandidateRecord | null>;
 
   markAccepted(

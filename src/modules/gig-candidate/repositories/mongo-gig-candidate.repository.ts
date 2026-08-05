@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import type { Model } from 'mongoose';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
-  AppendGigCandidateSuggestionPostParams,
+  AppendGigCandidatePostParams,
   CreateGigCandidateRecordParams,
   MarkGigCandidateAcceptedParams,
   MarkGigCandidateRejectedParams,
@@ -103,7 +103,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
   }
 
   async appendSuggestionPost(
-    params: AppendGigCandidateSuggestionPostParams,
+    params: AppendGigCandidatePostParams,
   ): Promise<GigCandidateRecord | null> {
     if (!Types.ObjectId.isValid(params.id)) {
       return null;

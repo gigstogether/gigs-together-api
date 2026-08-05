@@ -50,7 +50,7 @@ describe('GigCandidateModerationService', () => {
 
   const telegramServiceMock = {
     sendToModeration: vi.fn(),
-    updateGigCandidateSuggestionPost: vi.fn(),
+    updateGigCandidatePost: vi.fn(),
   };
 
   beforeEach(async () => {

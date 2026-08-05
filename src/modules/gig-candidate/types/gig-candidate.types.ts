@@ -51,7 +51,7 @@ export interface CreateGigCandidateRecordParams {
   suggestedBy: GigSuggestedBy;
 }
 
-export interface AppendGigCandidateSuggestionPostParams {
+export interface AppendGigCandidatePostParams {
   id: string;
   post: GigCandidatePost;
 }
