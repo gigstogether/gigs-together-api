@@ -3,7 +3,7 @@ import {
   TELEGRAM_INIT_DATA_EXPIRED_CODE,
   TelegramInitDataAuthExpiredError,
 } from './telegram-init-data.errors';
-import { TelegramService } from './telegram.service';
+import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import type { User } from '../auth/types/user.types';
 import type { TGUser } from './types/user.types';
 import { AuthorizationService } from '../auth/authorization.service';
@@ -14,7 +14,7 @@ import { AuthorizationService } from '../auth/authorization.service';
 @Injectable()
 export class TelegramInitDataAuthService {
   constructor(
-    private readonly telegramService: TelegramService,
+    private readonly telegramInitDataValidationService: TelegramInitDataValidationService,
     private readonly authorizationService: AuthorizationService,
   ) {}
 
@@ -23,14 +23,14 @@ export class TelegramInitDataAuthService {
   ): Promise<User> {
     try {
       const { parsedData, dataCheckString } =
-        this.telegramService.parseTelegramInitDataString(
+        this.telegramInitDataValidationService.parseTelegramInitDataString(
           telegramInitDataString,
         );
-      this.telegramService.validateTelegramInitData(
+      this.telegramInitDataValidationService.validateTelegramInitData(
         dataCheckString,
         parsedData.hash,
       );
-      this.telegramService.validateTelegramInitDataAuthDate(
+      this.telegramInitDataValidationService.validateTelegramInitDataAuthDate(
         parsedData.auth_date,
       );
 

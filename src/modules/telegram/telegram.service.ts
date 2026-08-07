@@ -6,7 +6,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramAuthService } from './telegram-auth.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
@@ -27,7 +26,6 @@ import {
 export class TelegramService {
   constructor(
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
-    private readonly telegramAuthService: TelegramAuthService,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramPostComposerService: TelegramPostComposerService,
   ) {}
@@ -48,31 +46,6 @@ export class TelegramService {
   readonly pickTgPost: TelegramPostComposerService['pickTgPost'] =
     this.telegramPostComposerService.pickTgPost.bind(
       this.telegramPostComposerService,
-    );
-
-  readonly parseTelegramInitDataString: TelegramAuthService['parseTelegramInitDataString'] =
-    this.telegramAuthService.parseTelegramInitDataString.bind(
-      this.telegramAuthService,
-    );
-
-  readonly validateTelegramInitData: TelegramAuthService['validateTelegramInitData'] =
-    this.telegramAuthService.validateTelegramInitData.bind(
-      this.telegramAuthService,
-    );
-
-  readonly validateTelegramInitDataAuthDate: TelegramAuthService['validateTelegramInitDataAuthDate'] =
-    this.telegramAuthService.validateTelegramInitDataAuthDate.bind(
-      this.telegramAuthService,
-    );
-
-  readonly validateTelegramLoginWidget: TelegramAuthService['validateTelegramLoginWidget'] =
-    this.telegramAuthService.validateTelegramLoginWidget.bind(
-      this.telegramAuthService,
-    );
-
-  readonly validateTelegramLoginWidgetAuthDate: TelegramAuthService['validateTelegramLoginWidgetAuthDate'] =
-    this.telegramAuthService.validateTelegramLoginWidgetAuthDate.bind(
-      this.telegramAuthService,
     );
 
   readonly getPostUrl: TelegramPostComposerService['getPostUrl'] =

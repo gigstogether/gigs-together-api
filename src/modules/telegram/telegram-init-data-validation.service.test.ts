@@ -1,14 +1,13 @@
-import { ForbiddenException } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TelegramAuthService } from './telegram-auth.service';
+import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
-describe('TelegramAuthService', () => {
-  let service: TelegramAuthService;
+describe('TelegramInitDataValidationService', () => {
+  let service: TelegramInitDataValidationService;
 
   beforeEach(() => {
-    service = new TelegramAuthService();
+    service = new TelegramInitDataValidationService();
     process.env.BOT_TOKEN = 'unit-test-bot-token';
     delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
   });
@@ -77,76 +76,6 @@ describe('TelegramAuthService', () => {
       expect(() =>
         service.validateTelegramInitDataAuthDate(String(authDateSec)),
       ).not.toThrow();
-    });
-  });
-
-  describe('validateTelegramLoginWidget', () => {
-    it('should throw ForbiddenException when BOT_TOKEN is empty', () => {
-      delete process.env.BOT_TOKEN;
-
-      expect(() =>
-        service.validateTelegramLoginWidget({
-          id: 1,
-          first_name: 'A',
-          auth_date: 1,
-          hash: 'x',
-        }),
-      ).toThrow(ForbiddenException);
-    });
-
-    it('should not throw when hash matches Login Widget algorithm', () => {
-      const botToken = process.env.BOT_TOKEN ?? '';
-      const auth_date = 1_700_000_000;
-      const payload = {
-        id: 42,
-        first_name: 'Ada',
-        auth_date,
-      };
-
-      const pairs: [string, string][] = [
-        ['auth_date', String(auth_date)],
-        ['first_name', payload.first_name],
-        ['id', String(payload.id)],
-      ];
-      pairs.sort((a, b) => a[0].localeCompare(b[0]));
-      const dataCheckString = pairs.map(([k, v]) => `${k}=${v}`).join('\n');
-      const secretKey = crypto.createHash('sha256').update(botToken).digest();
-      const hash = crypto
-        .createHmac('sha256', secretKey)
-        .update(dataCheckString)
-        .digest('hex');
-
-      expect(() =>
-        service.validateTelegramLoginWidget({ ...payload, hash }),
-      ).not.toThrow();
-    });
-
-    it('should throw ForbiddenException when hash is wrong', () => {
-      expect(() =>
-        service.validateTelegramLoginWidget({
-          id: 1,
-          first_name: 'A',
-          auth_date: 1,
-          hash: 'wrong',
-        }),
-      ).toThrow(ForbiddenException);
-    });
-  });
-
-  describe('validateTelegramLoginWidgetAuthDate', () => {
-    it('should throw ForbiddenException when auth_date is not finite', () => {
-      expect(() =>
-        service.validateTelegramLoginWidgetAuthDate(Number.NaN),
-      ).toThrow(ForbiddenException);
-    });
-
-    it('should throw TelegramInitDataAuthExpiredError when auth_date is expired', () => {
-      const authDateSec = 1_700_000_000;
-      vi.spyOn(Date, 'now').mockReturnValue((authDateSec + 86_400 + 10) * 1000);
-
-      expect(() =>
-        service.validateTelegramLoginWidgetAuthDate(authDateSec),
-      ).toThrow(TelegramInitDataAuthExpiredError);
     });
   });
 });
