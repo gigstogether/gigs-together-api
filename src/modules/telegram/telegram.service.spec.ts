@@ -11,7 +11,7 @@ import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
-import { TelegramAuthService } from './telegram-auth.service';
+import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
@@ -116,7 +116,7 @@ describe('TelegramService', () => {
     testingModule = await Test.createTestingModule({
       providers: [
         TelegramService,
-        TelegramAuthService,
+        TelegramInitDataValidationService,
         TelegramBotClient,
         TelegramPostComposerService,
         {

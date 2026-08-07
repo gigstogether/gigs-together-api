@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TelegramAuthService } from './telegram-auth.service';
+import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
@@ -33,7 +33,7 @@ import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
   ],
   controllers: [TelegramAuthController],
   providers: [
-    TelegramAuthService,
+    TelegramInitDataValidationService,
     TelegramBotClient,
     TelegramTemplateService,
     TelegramPostComposerService,
