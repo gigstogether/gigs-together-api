@@ -13,7 +13,7 @@ import { TranslationModule } from '../translation/translation.module';
 import { TelegramAuthController } from './telegram-auth.controller';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
-import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
+import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
 
 @Module({
   imports: [
@@ -40,7 +40,7 @@ import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.ser
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
-    TelegramLoginWidgetAuthService,
+    TelegramOidcAuthService,
   ],
   exports: [TelegramService, TelegramInitDataAuthService],
 })

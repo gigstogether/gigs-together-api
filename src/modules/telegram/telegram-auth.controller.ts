@@ -11,10 +11,10 @@ import type { Response } from 'express';
 import { AuthenticationService } from '../auth/authentication.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
-import { TelegramLoginWidgetAuthService } from './telegram-login-widget-auth.service';
+import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
 import type { V1TelegramExchangeResponseBody } from './types/requests/v1-telegram-exchange-response';
-import { V1TelegramLoginWidgetBodyDto } from './types/requests/v1-telegram-login-widget-body';
 import { V1TelegramWebAppBodyDto } from './types/requests/v1-telegram-web-app-body';
+import { V1TelegramOidcBodyDto } from './types/requests/v1-telegram-oidc-body';
 
 @Controller('auth')
 export class TelegramAuthController {
@@ -22,23 +22,20 @@ export class TelegramAuthController {
     private readonly authenticationService: AuthenticationService,
     private readonly telegramAccessExchangeService: TelegramAccessExchangeService,
     private readonly telegramInitDataAuthService: TelegramInitDataAuthService,
-    private readonly telegramLoginWidgetAuthService: TelegramLoginWidgetAuthService,
+    private readonly telegramOidcAuthService: TelegramOidcAuthService,
   ) {}
 
-  /**
-   * Mini App: exchange validated Web App `initData` (JSON body) for an access JWT.
-   */
+  /** Browser: exchange a verified Telegram OIDC ID token for the application session. */
   @Version('1')
-  @Post('telegram/web-app')
+  @Post('telegram/oidc')
   @HttpCode(HttpStatus.OK)
-  async exchangeWebApp(
-    @Body() body: V1TelegramWebAppBodyDto,
+  async exchangeOidc(
+    @Body() body: V1TelegramOidcBodyDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<V1TelegramExchangeResponseBody> {
-    const user =
-      await this.telegramInitDataAuthService.resolveUserFromInitDataString(
-        body.initData,
-      );
+    const user = await this.telegramOidcAuthService.resolveUserFromIdToken(
+      body.idToken,
+    );
     const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(user);
     this.authenticationService.setAccessTokenCookie(
@@ -55,18 +52,18 @@ export class TelegramAuthController {
   }
 
   /**
-   * Browser: exchange Telegram Login Widget callback payload for an access JWT.
+   * Mini App: exchange validated Web App `initData` (JSON body) for an access JWT.
    */
   @Version('1')
-  @Post('telegram/login-widget')
+  @Post('telegram/web-app')
   @HttpCode(HttpStatus.OK)
-  async exchangeLoginWidget(
-    @Body() body: V1TelegramLoginWidgetBodyDto,
+  async exchangeWebApp(
+    @Body() body: V1TelegramWebAppBodyDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<V1TelegramExchangeResponseBody> {
     const user =
-      await this.telegramLoginWidgetAuthService.resolveUserFromLoginWidget(
-        body,
+      await this.telegramInitDataAuthService.resolveUserFromInitDataString(
+        body.initData,
       );
     const exchange =
       await this.telegramAccessExchangeService.buildAccessTokenExchange(user);

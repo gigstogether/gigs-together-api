@@ -71,7 +71,7 @@ Install the following before you start:
 2. npm `11.17.0`
 3. Docker Desktop or Docker Engine
 4. Access to required external credentials if you need full integration testing:
-   - Telegram bot token and webhook secret
+   - Telegram bot token, Web Login Client ID, and webhook secret
    - MongoDB connection details
    - Google Calendar credentials
    - S3-compatible storage credentials
@@ -128,6 +128,7 @@ Current variables defined in `.env.example`:
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
 | `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
 | `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                      |
+| `TELEGRAM_OIDC_CLIENT_ID`                       | For browser auth                             | Telegram Login Client ID from BotFather > Bot Settings > Web Login.      |
 | `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                 |
 | `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                               |
 | `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production. |

@@ -67,16 +67,6 @@ export class TelegramService {
       this.telegramAuthService,
     );
 
-  readonly validateTelegramLoginWidget: TelegramAuthService['validateTelegramLoginWidget'] =
-    this.telegramAuthService.validateTelegramLoginWidget.bind(
-      this.telegramAuthService,
-    );
-
-  readonly validateTelegramLoginWidgetAuthDate: TelegramAuthService['validateTelegramLoginWidgetAuthDate'] =
-    this.telegramAuthService.validateTelegramLoginWidgetAuthDate.bind(
-      this.telegramAuthService,
-    );
-
   readonly getPostUrl: TelegramPostComposerService['getPostUrl'] =
     this.telegramPostComposerService.getPostUrl.bind(
       this.telegramPostComposerService,
