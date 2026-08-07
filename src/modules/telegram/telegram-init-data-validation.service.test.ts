@@ -1,13 +1,13 @@
 import * as crypto from 'crypto';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { TelegramAuthService } from './telegram-auth.service';
+import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
-describe('TelegramAuthService', () => {
-  let service: TelegramAuthService;
+describe('TelegramInitDataValidationService', () => {
+  let service: TelegramInitDataValidationService;
 
   beforeEach(() => {
-    service = new TelegramAuthService();
+    service = new TelegramInitDataValidationService();
     process.env.BOT_TOKEN = 'unit-test-bot-token';
     delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
   });

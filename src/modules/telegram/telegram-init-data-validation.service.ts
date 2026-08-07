@@ -8,7 +8,7 @@ export interface TelegramInitDataParseResult {
 }
 
 @Injectable()
-export class TelegramAuthService {
+export class TelegramInitDataValidationService {
   parseTelegramInitDataString(initData: string): TelegramInitDataParseResult {
     const pairs = initData.split('&');
     const parsedData: Record<string, string> = {};
