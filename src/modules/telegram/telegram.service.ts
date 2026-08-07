@@ -6,7 +6,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
 import { Status } from '../gig/types/status.enum';
@@ -29,7 +28,6 @@ import {
 export class TelegramService {
   constructor(
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
-    private readonly telegramInitDataValidationService: TelegramInitDataValidationService,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramPostComposerService: TelegramPostComposerService,
   ) {}
@@ -50,21 +48,6 @@ export class TelegramService {
   readonly pickTgPost: TelegramPostComposerService['pickTgPost'] =
     this.telegramPostComposerService.pickTgPost.bind(
       this.telegramPostComposerService,
-    );
-
-  readonly parseTelegramInitDataString: TelegramInitDataValidationService['parseTelegramInitDataString'] =
-    this.telegramInitDataValidationService.parseTelegramInitDataString.bind(
-      this.telegramInitDataValidationService,
-    );
-
-  readonly validateTelegramInitData: TelegramInitDataValidationService['validateTelegramInitData'] =
-    this.telegramInitDataValidationService.validateTelegramInitData.bind(
-      this.telegramInitDataValidationService,
-    );
-
-  readonly validateTelegramInitDataAuthDate: TelegramInitDataValidationService['validateTelegramInitDataAuthDate'] =
-    this.telegramInitDataValidationService.validateTelegramInitDataAuthDate.bind(
-      this.telegramInitDataValidationService,
     );
 
   readonly getPostUrl: TelegramPostComposerService['getPostUrl'] =
