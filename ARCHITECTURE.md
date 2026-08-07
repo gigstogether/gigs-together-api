@@ -149,7 +149,7 @@ Responsibilities:
 - configures an HTTP client with `BOT_TOKEN`
 - uses cache for Telegram-related operations
 - can interact with bucket storage
-- validates Web App `initData` and Login Widget payloads, exchanges them for JWTs (with `AuthModule` services)
+- validates Web App `initData` and Telegram OIDC ID tokens, then exchanges them for application JWTs (with `AuthModule` services)
 - imports `AuthModule` and `AdminModule` for token signing and admin checks; does **not** re-export `AuthModule` (consumers import `AuthModule` explicitly when they need JWT guards or services)
 
 Main files:
