@@ -111,6 +111,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Do **not** default to quick-and-dirty, "good enough for now", or compromise solutions when a clearly better alternative exists for this project.
 - Do **not** recommend the smallest refactor, the fastest patch, or the simplest workaround **instead of** the more correct design unless the user explicitly asks for that tradeoff.
 - **Do** research and propose best practices, proven patterns, and the most appropriate architecture for the task before implementation.
+- Base decisions on the latest available official guidance and best practices for the versions actually used by this project. When newer guidance supersedes an older recommendation, follow the newer guidance and do not rely on the outdated approach; verify current version-specific documentation when behavior may have changed.
 - **Do** propose refactoring when the current structure blocks the correct solution or would accumulate avoidable technical debt.
 - Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt, limits).
 - Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts must be conscious and explicit, not silent defaults.
