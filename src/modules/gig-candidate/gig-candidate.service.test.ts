@@ -101,6 +101,68 @@ describe('GigCandidateService', () => {
       ).rejects.toThrow(/date must be in YYYY-MM-DD/);
     });
 
+    it('should throw BadRequestException when date does not exist in the calendar', async () => {
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'Band',
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-02-31',
+            },
+          },
+          user: {
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).rejects.toThrow(/date must be a valid date/);
+    });
+
+    it('should throw BadRequestException when endDate is before date', async () => {
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'Band',
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-08-10',
+              endDate: '2026-08-09',
+            },
+          },
+          user: {
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).rejects.toThrow(/endDate must be on or after date/);
+    });
+
+    it('should reject posterUrl while external poster downloads are disabled', async () => {
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'Band',
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-08-01',
+              posterUrl: 'https://cdn.example/poster.jpg',
+            },
+          },
+          user: {
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).rejects.toThrow(/posterUrl is temporarily disabled/);
+    });
+
     it('should throw BadRequestException when ticketsUrl is invalid', async () => {
       await expect(
         service.handleSubmit({

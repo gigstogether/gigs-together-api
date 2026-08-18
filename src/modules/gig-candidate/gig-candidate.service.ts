@@ -214,6 +214,10 @@ export class GigCandidateService {
       throw new BadRequestException('endDate must be in YYYY-MM-DD format');
     }
 
+    if (endDate !== undefined && endDate < date) {
+      throw new BadRequestException('endDate must be on or after date');
+    }
+
     const venue = this.optionalNonEmptyString(raw.venue);
     const ticketsUrl = this.optionalNonEmptyString(raw.ticketsUrl);
     if (ticketsUrl !== undefined) {
@@ -225,6 +229,11 @@ export class GigCandidateService {
     }
 
     const posterUrl = this.optionalNonEmptyString(raw.posterUrl);
+    // TODO: Allow posterUrl again after external downloads reject private-network targets,
+    //  validate every redirect, and enforce a response-size limit.
+    if (posterUrl !== undefined) {
+      throw new BadRequestException('posterUrl is temporarily disabled');
+    }
 
     return {
       title,
@@ -257,8 +266,9 @@ export class GigCandidateService {
   }
 
   private parseRequiredDateMs(ymd: string, field: string): number {
-    const ms = new Date(`${ymd}T00:00:00.000Z`).getTime();
-    if (!Number.isFinite(ms)) {
+    const parsed = new Date(`${ymd}T00:00:00.000Z`);
+    const ms = parsed.getTime();
+    if (!Number.isFinite(ms) || parsed.toISOString().slice(0, 10) !== ymd) {
       throw new BadRequestException(`${field} must be a valid date`);
     }
     return ms;

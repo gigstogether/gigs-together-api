@@ -8,20 +8,20 @@ export type GigId = string | Types.ObjectId;
 
 /** Plain gig payload from MongoDB. */
 export interface PlainGig {
-  readonly _id: Types.ObjectId;
-  readonly publicId: string;
-  readonly title: string;
-  readonly date: number;
-  readonly endDate?: number;
-  readonly city: string;
-  readonly country: string;
-  readonly venue: string;
-  readonly ticketsUrl: string;
-  readonly poster?: GigPoster;
-  readonly status: Status;
-  readonly posts: GigPost[];
-  readonly suggestedBy: GigSuggestedBy;
-  readonly gigCandidateId?: Types.ObjectId;
+  _id: Types.ObjectId;
+  publicId: string;
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  poster?: GigPoster;
+  status: Status;
+  posts: GigPost[];
+  suggestedBy: GigSuggestedBy;
+  gigCandidateId?: Types.ObjectId;
 }
 
 export interface V1GetGigsResponseBodyGig {
