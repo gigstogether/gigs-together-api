@@ -125,7 +125,9 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## NestJS Patterns
 
+- **Treat the HTTP API as a REST API.** Design new endpoints and contract changes according to current REST API standards and established best practices, including resource-oriented URIs, correct HTTP method semantics, status codes, idempotency, error responses, pagination, filtering, and versioning. Verify current authoritative guidance when a design decision is ambiguous or practices may have evolved; do not copy an existing project endpoint when it conflicts with the better REST design.
 - **Version HTTP endpoints by default** using Nest `@Version(...)` (for example `@Version('1')` → `/v1/...`). Exceptions are rare and must be justified (health checks, webhooks with a fixed external URL, static assets, or similar). When adding an unversioned route, note why in the controller or module doc.
+- **Use plural resource names for new REST endpoints**, consistently for both collections and individual resources (for example `GET /v1/admin/gig-candidates` and `GET /v1/admin/gig-candidates/:id`). Do not switch to a singular segment for detail, update, delete, or resource-action routes. Existing singular routes are legacy inconsistencies and must not be used as precedent for new endpoints.
 - Prefer DTOs for request and response shapes.
 - Keep controllers thin and move business logic into services.
 - Use dependency injection consistently.
