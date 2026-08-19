@@ -6,12 +6,10 @@ import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.ty
 import { GigService } from '../gig/gig.service';
 import { Messenger } from '../gig/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import type { V1AdminGigCandidatesGetQueryDto } from './types/requests/v1-admin-gig-candidates-get-query';
-import { mapAdminGigCandidateStatusQuery } from './types/requests/v1-admin-gig-candidates-get-query';
 import type {
-  V1AdminGigCandidateResponseBody,
-  V1AdminGigCandidatesListResponseBody,
-} from './types/requests/v1-admin-gig-candidates-response';
+  AdminGigCandidateDetails,
+  GetAdminGigCandidatesParams,
+} from './admin-gig-candidate.types';
 
 @Injectable()
 export class AdminGigCandidateService {
@@ -22,29 +20,25 @@ export class AdminGigCandidateService {
   ) {}
 
   async getList(
-    query: V1AdminGigCandidatesGetQueryDto,
-  ): Promise<V1AdminGigCandidatesListResponseBody> {
+    params: GetAdminGigCandidatesParams,
+  ): Promise<AdminGigCandidateDetails[]> {
     const records = await this.gigCandidateService.findMany({
-      status: mapAdminGigCandidateStatusQuery(query.status),
-      limit: query.limit ?? 100,
-      sortBy: query.sortBy,
-      sortOrder: query.sortOrder,
+      status: params.status,
+      limit: params.limit,
+      sortBy: params.sortBy,
+      sortOrder: params.sortOrder,
     });
-    const gigCandidates = await Promise.all(
-      records.map((record) => this.resolve(record)),
-    );
-
-    return { gigCandidates };
+    return Promise.all(records.map((record) => this.resolve(record)));
   }
 
-  async getById(id: string): Promise<V1AdminGigCandidateResponseBody> {
+  async getById(id: string): Promise<AdminGigCandidateDetails> {
     const record = await this.gigCandidateService.getByIdOrThrow(id);
     return this.resolve(record);
   }
 
   private async resolve(
     record: GigCandidateRecord,
-  ): Promise<V1AdminGigCandidateResponseBody> {
+  ): Promise<AdminGigCandidateDetails> {
     const suggestionPost = record.posts.find(
       (post) =>
         post.to === Messenger.Telegram &&
@@ -64,11 +58,8 @@ export class AdminGigCandidateService {
       id: record.id,
       source: record.source,
       title: record.title,
-      date: this.formatDate(record.date),
-      endDate:
-        record.endDate !== undefined
-          ? this.formatDate(record.endDate)
-          : undefined,
+      date: record.date,
+      endDate: record.endDate,
       city: record.city,
       country: record.country,
       venue: record.venue,
@@ -79,12 +70,8 @@ export class AdminGigCandidateService {
       suggestionPostUrl,
       suggestionPostDate: suggestionPost?.date,
       linkedGigPublicId: linkedGig?.publicId,
-      createdAt: record.createdAt.toISOString(),
-      updatedAt: record.updatedAt.toISOString(),
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
     };
-  }
-
-  private formatDate(value: number): string {
-    return new Date(value).toISOString().slice(0, 10);
   }
 }

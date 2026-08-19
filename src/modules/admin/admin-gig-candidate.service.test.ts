@@ -77,21 +77,19 @@ describe('AdminGigCandidateService', () => {
 
       await expect(
         service.getList({
-          status: 'pending',
+          status: GigCandidateStatus.Pending,
           limit: 20,
           sortBy: AdminGigCandidateListSortBy.EventDate,
           sortOrder: AdminGigCandidateListSortOrder.Asc,
         }),
-      ).resolves.toEqual({
-        gigCandidates: [
-          expect.objectContaining({
-            id: record.id,
-            date: '2026-08-20',
-            posterUrl: 'https://cdn.example/poster.jpg',
-            createdAt: '2026-08-01T10:00:00.000Z',
-          }),
-        ],
-      });
+      ).resolves.toEqual([
+        expect.objectContaining({
+          id: record.id,
+          date: record.date,
+          posterUrl: 'https://cdn.example/poster.jpg',
+          createdAt: record.createdAt,
+        }),
+      ]);
       expect(gigCandidateServiceMock.findMany).toHaveBeenCalledWith({
         status: GigCandidateStatus.Pending,
         limit: 20,

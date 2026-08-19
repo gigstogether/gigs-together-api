@@ -135,6 +135,22 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
 - When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
 
+## HTTP boundary mapping
+
+Keep endpoint contracts at the HTTP boundary. The default call chain for controllers is:
+
+```text
+request DTO -> pure request mapper -> application service -> pure response mapper -> response DTO
+```
+
+- Controllers own NestJS routing, guards, status codes, request DTOs, and response DTOs. Keep them concise, but allow them to call pure request and response mapper functions directly; this small amount of explicit boundary orchestration is preferred over a pass-through facade.
+- Application and domain services must not accept versioned endpoint DTOs or return versioned response DTOs. Define named application params and result types that use domain/application representations such as `Date` and numeric timestamps rather than serialized HTTP strings.
+- Request mappers translate validated HTTP DTOs into application params. Response mappers translate application results into the exact versioned wire contract, including date/string serialization and response wrappers.
+- Keep HTTP mappers pure: no database access, external API calls, dependency injection, logging, or business decisions. Data enrichment and cross-module orchestration belong in an application/query service before response mapping.
+- Prefer colocated mapper functions in an established feature mapper file. Do not introduce an injectable mapper service for pure transformations.
+- Do not add an HTTP facade merely to hide mapper calls. Add a facade or dedicated endpoint handler only when it owns meaningful reusable orchestration beyond request mapping, one application-service call, and response mapping.
+- Apply this structure to new controllers and when refactoring existing endpoints; do not perform unrelated wholesale migrations solely to conform existing code.
+
 ## Module data layer
 
 Persistence for a domain module follows a repository boundary. Canonical reference: `src/modules/translation/` (also applied in `src/modules/locale/`).

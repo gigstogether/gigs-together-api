@@ -45,6 +45,11 @@ import type {
   V1AdminGigCandidateResponseBody,
   V1AdminGigCandidatesListResponseBody,
 } from './types/requests/v1-admin-gig-candidates-response';
+import {
+  mapV1AdminGigCandidateResponse,
+  mapV1AdminGigCandidatesListResponse,
+  mapV1AdminGigCandidatesQuery,
+} from './admin-gig.mapper';
 
 /** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
@@ -89,19 +94,23 @@ export class AdminController {
   @Version('1')
   @Get('gig-candidates')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  getGigCandidates(
+  async getGigCandidates(
     @Query() query: V1AdminGigCandidatesGetQueryDto,
   ): Promise<V1AdminGigCandidatesListResponseBody> {
-    return this.adminGigCandidateService.getList(query);
+    const candidates = await this.adminGigCandidateService.getList(
+      mapV1AdminGigCandidatesQuery(query),
+    );
+    return mapV1AdminGigCandidatesListResponse(candidates);
   }
 
   @Version('1')
   @Get('gig-candidates/:id')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  getGigCandidateById(
+  async getGigCandidateById(
     @Param('id') id: string,
   ): Promise<V1AdminGigCandidateResponseBody> {
-    return this.adminGigCandidateService.getById(id);
+    const candidate = await this.adminGigCandidateService.getById(id);
+    return mapV1AdminGigCandidateResponse(candidate);
   }
 
   @Version('1')
