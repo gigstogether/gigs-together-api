@@ -8,6 +8,8 @@ import { AdminController } from './admin.controller';
 import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminGigService } from './admin-gig.service';
 import { TelegramModule } from '../telegram/telegram.module';
+import { GigCandidateModule } from '../gig-candidate/gig-candidate.module';
+import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
 @Module({
   imports: [
@@ -17,9 +19,10 @@ import { TelegramModule } from '../telegram/telegram.module';
     LocaleModule,
     TranslationModule,
     TelegramModule,
+    GigCandidateModule,
   ],
   controllers: [AdminController],
-  providers: [AdminDashboardService, AdminGigService],
-  exports: [AdminDashboardService, AdminGigService],
+  providers: [AdminDashboardService, AdminGigService, AdminGigCandidateService],
+  exports: [AdminDashboardService, AdminGigService, AdminGigCandidateService],
 })
 export class AdminModule {}

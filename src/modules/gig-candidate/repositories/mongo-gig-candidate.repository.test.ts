@@ -7,17 +7,23 @@ import { Types } from 'mongoose';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import { GigCandidate } from '../gig-candidate.schema';
 import { MongoGigCandidateRepository } from './mongo-gig-candidate.repository';
+import {
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from '../gig-candidate-list-sort';
 
 describe('MongoGigCandidateRepository', () => {
   let repository: MongoGigCandidateRepository;
 
   const createMock = vi.fn();
   const findByIdMock = vi.fn();
+  const findMock = vi.fn();
   const findByIdAndUpdateMock = vi.fn();
 
   beforeEach(async () => {
     createMock.mockReset();
     findByIdMock.mockReset();
+    findMock.mockReset();
     findByIdAndUpdateMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -28,6 +34,7 @@ describe('MongoGigCandidateRepository', () => {
           useValue: {
             create: createMock,
             findById: findByIdMock,
+            find: findMock,
             findByIdAndUpdate: findByIdAndUpdateMock,
           },
         },
@@ -35,6 +42,66 @@ describe('MongoGigCandidateRepository', () => {
     }).compile();
 
     repository = module.get(MongoGigCandidateRepository);
+  });
+
+  describe('findMany', () => {
+    it('should filter by status and sort by event date', async () => {
+      const sortMock = vi.fn();
+      const limitMock = vi.fn();
+      const leanMock = vi.fn();
+      const execMock = vi.fn().mockResolvedValue([
+        {
+          _id: '507f1f77bcf86cd799439099',
+          source: GigCandidateSource.User,
+          title: 'Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          status: GigCandidateStatus.Pending,
+          posts: [],
+          suggestedBy: { userId: 1 },
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        },
+      ]);
+      findMock.mockReturnValue({ sort: sortMock });
+      sortMock.mockReturnValue({ limit: limitMock });
+      limitMock.mockReturnValue({ lean: leanMock });
+      leanMock.mockReturnValue({ exec: execMock });
+
+      const result = await repository.findMany({
+        status: GigCandidateStatus.Pending,
+        limit: 20,
+        sortBy: AdminGigCandidateListSortBy.EventDate,
+        sortOrder: AdminGigCandidateListSortOrder.Asc,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(findMock).toHaveBeenCalledWith(
+        { status: GigCandidateStatus.Pending },
+        expect.objectContaining({ title: 1, status: 1 }),
+      );
+      expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+      expect(limitMock).toHaveBeenCalledWith(20);
+    });
+
+    it('should cap limit and default to newest creation date', async () => {
+      const sortMock = vi.fn();
+      const limitMock = vi.fn();
+      const leanMock = vi.fn();
+      findMock.mockReturnValue({ sort: sortMock });
+      sortMock.mockReturnValue({ limit: limitMock });
+      limitMock.mockReturnValue({ lean: leanMock });
+      leanMock.mockReturnValue({ exec: vi.fn().mockResolvedValue([]) });
+
+      await repository.findMany({
+        status: GigCandidateStatus.Accepted,
+        limit: 500,
+      });
+
+      expect(sortMock).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
+      expect(limitMock).toHaveBeenCalledWith(100);
+    });
   });
 
   describe('createId', () => {

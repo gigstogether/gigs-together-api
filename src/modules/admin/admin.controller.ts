@@ -39,6 +39,12 @@ import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
+import { AdminGigCandidateService } from './admin-gig-candidate.service';
+import { V1AdminGigCandidatesGetQueryDto } from './types/requests/v1-admin-gig-candidates-get-query';
+import type {
+  V1AdminGigCandidateResponseBody,
+  V1AdminGigCandidatesListResponseBody,
+} from './types/requests/v1-admin-gig-candidates-response';
 
 /** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
@@ -52,6 +58,7 @@ export class AdminController {
     private readonly gigModerationService: GigModerationService,
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly digestService: DigestService,
+    private readonly adminGigCandidateService: AdminGigCandidateService,
   ) {}
 
   @Version('1')
@@ -77,6 +84,24 @@ export class AdminController {
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<GigFormData> {
     return this.adminGigService.getGigByPublicId(params.publicId);
+  }
+
+  @Version('1')
+  @Get('gig-candidates')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getGigCandidates(
+    @Query() query: V1AdminGigCandidatesGetQueryDto,
+  ): Promise<V1AdminGigCandidatesListResponseBody> {
+    return this.adminGigCandidateService.getList(query);
+  }
+
+  @Version('1')
+  @Get('gig-candidates/:id')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  getGigCandidateById(
+    @Param('id') id: string,
+  ): Promise<V1AdminGigCandidateResponseBody> {
+    return this.adminGigCandidateService.getById(id);
   }
 
   @Version('1')

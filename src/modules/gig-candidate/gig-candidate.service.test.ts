@@ -17,6 +17,7 @@ describe('GigCandidateService', () => {
     createId: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
     appendSuggestionPost: ReturnType<typeof vi.fn>;
     markAccepted: ReturnType<typeof vi.fn>;
     markRejected: ReturnType<typeof vi.fn>;
@@ -24,6 +25,7 @@ describe('GigCandidateService', () => {
     createId: vi.fn(),
     create: vi.fn(),
     findById: vi.fn(),
+    findMany: vi.fn(),
     appendSuggestionPost: vi.fn(),
     markAccepted: vi.fn(),
     markRejected: vi.fn(),

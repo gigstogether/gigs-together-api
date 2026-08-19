@@ -7,6 +7,7 @@ import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
 import type { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 import type { TranslationService } from '../translation/translation.service';
+import type { AdminGigCandidateService } from './admin-gig-candidate.service';
 
 describe('AdminController', () => {
   const adminDashboardService = {
@@ -107,6 +108,14 @@ describe('AdminController', () => {
     publish: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<DigestService, 'publish'>;
 
+  const adminGigCandidateService = {
+    getList: vi.fn().mockResolvedValue({ gigCandidates: [] }),
+    getById: vi.fn().mockResolvedValue({
+      id: '507f1f77bcf86cd799439099',
+      title: 'Band',
+    }),
+  } satisfies Pick<AdminGigCandidateService, 'getList' | 'getById'>;
+
   const controller = new AdminController(
     adminDashboardService as unknown as AdminDashboardService,
     adminGigService as unknown as AdminGigService,
@@ -116,6 +125,7 @@ describe('AdminController', () => {
     gigModerationService as unknown as GigModerationService,
     feedRevalidateService as unknown as FeedRevalidateService,
     digestService as unknown as DigestService,
+    adminGigCandidateService as unknown as AdminGigCandidateService,
   );
 
   beforeEach(() => {
@@ -156,6 +166,29 @@ describe('AdminController', () => {
       });
 
       expect(adminGigService.getGigByPublicId).toHaveBeenCalledWith('gig-42');
+    });
+  });
+
+  describe('getGigCandidates', () => {
+    it('should return gig candidates from admin gig candidate service', async () => {
+      const query = { status: 'pending' as const, limit: 20 };
+
+      await expect(controller.getGigCandidates(query)).resolves.toEqual({
+        gigCandidates: [],
+      });
+      expect(adminGigCandidateService.getList).toHaveBeenCalledWith(query);
+    });
+  });
+
+  describe('getGigCandidateById', () => {
+    it('should return a gig candidate by id', async () => {
+      const id = '507f1f77bcf86cd799439099';
+
+      await expect(controller.getGigCandidateById(id)).resolves.toEqual({
+        id,
+        title: 'Band',
+      });
+      expect(adminGigCandidateService.getById).toHaveBeenCalledWith(id);
     });
   });
 

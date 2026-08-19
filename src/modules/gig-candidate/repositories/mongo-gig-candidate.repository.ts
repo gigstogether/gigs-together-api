@@ -9,7 +9,13 @@ import type {
   MarkGigCandidateAcceptedParams,
   MarkGigCandidateRejectedParams,
   GigCandidateRecord,
+  FindGigCandidatesParams,
 } from '../types/gig-candidate.types';
+import {
+  ADMIN_GIG_CANDIDATE_LIST_DEFAULT_SORT_ORDER,
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from '../gig-candidate-list-sort';
 import { GigCandidate } from '../gig-candidate.schema';
 import type { GigCandidateDocument } from '../gig-candidate.schema';
 import type { GigCandidateRepository } from './gig-candidate.repository';
@@ -37,6 +43,8 @@ const GIG_CANDIDATE_LEAN_PROJECTION = {
 
 @Injectable()
 export class MongoGigCandidateRepository implements GigCandidateRepository {
+  private static readonly MAX_LIST_LIMIT = 100;
+
   constructor(
     @InjectModel(GigCandidate.name)
     private readonly gigCandidateModel: Model<GigCandidateDocument>,
@@ -100,6 +108,34 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     }
 
     return GigCandidateRepositoryMapper.toGigCandidateRecord(doc);
+  }
+
+  async findMany(
+    params: FindGigCandidatesParams,
+  ): Promise<GigCandidateRecord[]> {
+    const limit = Math.min(
+      Math.max(1, params.limit),
+      MongoGigCandidateRepository.MAX_LIST_LIMIT,
+    );
+    const sortOrder =
+      params.sortOrder ?? ADMIN_GIG_CANDIDATE_LIST_DEFAULT_SORT_ORDER;
+    const sortDirection: 1 | -1 =
+      sortOrder === AdminGigCandidateListSortOrder.Asc ? 1 : -1;
+    const sort: Record<string, 1 | -1> =
+      params.sortBy === AdminGigCandidateListSortBy.EventDate
+        ? { date: sortDirection, _id: sortDirection }
+        : { createdAt: sortDirection, _id: sortDirection };
+
+    const docs = await this.gigCandidateModel
+      .find({ status: params.status }, GIG_CANDIDATE_LEAN_PROJECTION)
+      .sort(sort)
+      .limit(limit)
+      .lean<GigCandidateLeanDocument[]>()
+      .exec();
+
+    return docs.map((doc) =>
+      GigCandidateRepositoryMapper.toGigCandidateRecord(doc),
+    );
   }
 
   async appendSuggestionPost(

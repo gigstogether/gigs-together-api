@@ -3,6 +3,10 @@ import type { Messenger } from '../../gig/types/messenger.enum';
 import type { GigCandidatePostType } from './gig-candidate-post-type.enum';
 import type { GigCandidateSource } from './gig-candidate-source.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
+import type {
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from '../gig-candidate-list-sort';
 
 export interface GigCandidatePoster {
   bucketPath?: string;
@@ -63,4 +67,11 @@ export interface MarkGigCandidateAcceptedParams {
 
 export interface MarkGigCandidateRejectedParams {
   id: string;
+}
+
+export interface FindGigCandidatesParams {
+  status: GigCandidateStatus;
+  limit: number;
+  sortBy?: AdminGigCandidateListSortBy;
+  sortOrder?: AdminGigCandidateListSortOrder;
 }

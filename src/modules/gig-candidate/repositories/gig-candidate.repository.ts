@@ -4,6 +4,7 @@ import type {
   MarkGigCandidateAcceptedParams,
   MarkGigCandidateRejectedParams,
   GigCandidateRecord,
+  FindGigCandidatesParams,
 } from '../types/gig-candidate.types';
 
 export const GIG_CANDIDATE_REPOSITORY = Symbol('GIG_CANDIDATE_REPOSITORY');
@@ -14,6 +15,8 @@ export interface GigCandidateRepository {
   create(params: CreateGigCandidateRecordParams): Promise<GigCandidateRecord>;
 
   findById(id: string): Promise<GigCandidateRecord | null>;
+
+  findMany(params: FindGigCandidatesParams): Promise<GigCandidateRecord[]>;
 
   appendSuggestionPost(
     params: AppendGigCandidatePostParams,

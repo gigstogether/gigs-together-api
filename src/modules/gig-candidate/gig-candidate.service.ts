@@ -19,6 +19,7 @@ import type {
   MarkGigCandidateAcceptedParams,
   MarkGigCandidateRejectedParams,
   GigCandidateRecord,
+  FindGigCandidatesParams,
 } from './types/gig-candidate.types';
 import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
 import { GigCandidateSource } from './types/gig-candidate-source.enum';
@@ -114,6 +115,10 @@ export class GigCandidateService {
 
   findById(id: string): Promise<GigCandidateRecord | null> {
     return this.gigCandidateRepository.findById(id);
+  }
+
+  findMany(params: FindGigCandidatesParams): Promise<GigCandidateRecord[]> {
+    return this.gigCandidateRepository.findMany(params);
   }
 
   async markAccepted(
