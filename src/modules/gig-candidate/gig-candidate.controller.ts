@@ -31,7 +31,7 @@ const PosterFileInterceptor = FileInterceptor('posterFile', {
   },
 });
 
-@Controller('gig-candidate')
+@Controller('gig-candidates')
 export class GigCandidateController {
   constructor(private readonly gigCandidateService: GigCandidateService) {}
 
