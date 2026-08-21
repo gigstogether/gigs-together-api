@@ -198,7 +198,10 @@ If you are onboarding from scratch, use this order:
 
 ## Running MongoDB locally
 
-The repo includes a simple Docker Compose file for MongoDB.
+The repo includes a Docker Compose file that runs MongoDB as a single-member
+replica set named `rs0`. This supports local multi-document transactions while
+keeping one MongoDB container. The container healthcheck initializes the
+replica set once and waits until its member becomes writable.
 
 Before starting it, make sure your env file contains:
 
@@ -210,6 +213,13 @@ Start MongoDB:
 ```bash
 docker-compose up -d
 ```
+
+Before recreating an existing standalone container, create a local backup.
+MongoDB data and configuration are stored in the named
+`gigs-together-mongodb-data` and `gigs-together-mongodb-config` volumes, so a
+regular `docker-compose down` followed by `docker-compose up -d` preserves the
+database. Do not use `docker-compose down -v`, because `-v` removes those named
+volumes and their data.
 
 Stop MongoDB:
 
@@ -226,14 +236,27 @@ docker ps
 Default connection shape expected by the app:
 
 ```text
-mongodb://<HOST>:<PORT>/<DBNAME>
+mongodb://<HOST>:<PORT>/<DBNAME>?replicaSet=rs0&directConnection=true
 ```
 
 Example local value:
 
 ```text
-MONGO_URI=mongodb://localhost:27017/gigs-together
+MONGO_URI=mongodb://localhost:27017/gigs-together?replicaSet=rs0&directConnection=true
 ```
+
+`directConnection=true` is required for this local Docker setup because only
+one replica-set endpoint is exposed to the host. It is a development setting;
+do not add it to Atlas replica-set or sharded-cluster connection strings.
+
+Verify the local topology after startup:
+
+```bash
+docker exec mongodb-gigs mongosh --quiet --eval "const hello = db.adminCommand({ hello: 1 }); printjson({ setName: hello.setName, isWritablePrimary: hello.isWritablePrimary })"
+```
+
+The expected result contains `setName: 'rs0'` and
+`isWritablePrimary: true`.
 
 ## Running the application
 

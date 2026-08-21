@@ -5,12 +5,43 @@
 # 2. Make sure you have the variables in your .env
 # 3. Run 'docker-compose up -d'.
 
+x-mongodb-healthcheck-script: &mongodb-healthcheck-script |-
+  const hello = db.hello();
+
+  if (hello.setName === undefined) {
+    const result = rs.initiate({
+      _id: 'rs0',
+      members: [{ _id: 0, host: 'mongodb:27017' }],
+    });
+
+    if (result.ok !== 1) quit(1);
+    quit(1);
+  }
+
+  if (hello.isWritablePrimary !== true) quit(1);
+
 services:
   mongodb:
     container_name: mongodb-gigs
     image: mongodb/mongodb-community-server
+    command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
       - '${MONGO_PORT}:27017'
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-config:/data/configdb
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', *mongodb-healthcheck-script]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
     restart: unless-stopped
+
+volumes:
+  mongodb-data:
+    name: gigs-together-mongodb-data
+  mongodb-config:
+    name: gigs-together-mongodb-config
