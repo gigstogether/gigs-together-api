@@ -100,7 +100,7 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getById', () => {
-    it('should include suggestion post and linked gig URLs', async () => {
+    it('should include candidate post and linked gig URLs', async () => {
       const record = buildRecord({
         status: GigCandidateStatus.Accepted,
         gigId: '507f1f77bcf86cd799439011',
@@ -121,8 +121,8 @@ describe('AdminGigCandidateService', () => {
 
       await expect(service.getById(record.id)).resolves.toEqual(
         expect.objectContaining({
-          suggestionPostUrl: 'https://t.me/c/123/77',
-          suggestionPostDate: 1_700_000_000_000,
+          postUrl: 'https://t.me/c/123/77',
+          postDate: 1_700_000_000_000,
           linkedGigPublicId: 'band-2026',
         }),
       );

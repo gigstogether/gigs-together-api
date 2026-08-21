@@ -15,8 +15,8 @@ export interface V1AdminGigCandidateResponseBody {
   posterUrl?: string;
   status: GigCandidateStatus;
   suggestedBy: GigSuggestedBy;
-  suggestionPostUrl?: string;
-  suggestionPostDate?: number;
+  postUrl?: string;
+  postDate?: number;
   linkedGigPublicId?: string;
   createdAt: string;
   updatedAt: string;

@@ -25,8 +25,8 @@ export interface AdminGigCandidateDetails {
   posterUrl?: string;
   status: GigCandidateRecord['status'];
   suggestedBy: GigCandidateRecord['suggestedBy'];
-  suggestionPostUrl?: string;
-  suggestionPostDate?: number;
+  postUrl?: string;
+  postDate?: number;
   linkedGigPublicId?: string;
   createdAt: Date;
   updatedAt: Date;
