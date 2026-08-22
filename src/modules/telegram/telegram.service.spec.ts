@@ -206,6 +206,8 @@ describe('TelegramService', () => {
         text: mockPostTemplates.getText(
           TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
         ),
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
       });
     });
 
