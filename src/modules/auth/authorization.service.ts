@@ -10,9 +10,12 @@ import { Model } from 'mongoose';
 import { Admin, AdminDocument } from './schemas/admin.schema';
 import type {
   AccessTokenIdentityPayload,
+  ResolvedTelegramAccessTokenIdentity,
   VerifiedAccessToken,
 } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
+import { UserService } from '../user/user.service';
+import { Messenger } from '../gig/types/messenger.enum';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
@@ -30,6 +33,7 @@ export class AuthorizationService {
     @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
     private readonly authenticationService: AuthenticationService,
     private readonly configService: ConfigService,
+    private readonly userService: UserService,
   ) {
     const raw = this.configService.get<string>('ADMIN_CACHE_TTL_MS');
     const parsed = raw?.trim() ? Number.parseInt(raw.trim(), 10) : Number.NaN;
@@ -102,10 +106,34 @@ export class AuthorizationService {
           throw new ForbiddenException('Bots are not allowed');
         }
         const isAdmin = await this.isAdmin(identity.telegramUserId);
-        return { identity, isAdmin };
+        const resolvedIdentity = await this.resolveTelegramIdentity(identity);
+        return {
+          identity: resolvedIdentity,
+          userId: resolvedIdentity.userId,
+          isAdmin,
+        };
       }
       default:
         throw new UnauthorizedException('Unsupported access token identity');
     }
+  }
+
+  private async resolveTelegramIdentity(
+    identity: AccessTokenIdentityPayload,
+  ): Promise<ResolvedTelegramAccessTokenIdentity> {
+    const existingUserId =
+      typeof identity.userId === 'string' ? identity.userId.trim() : '';
+    if (existingUserId) {
+      return { ...identity, userId: existingUserId };
+    }
+
+    const user = await this.userService.findOrCreateMessengerUser({
+      messenger: Messenger.Telegram,
+      externalUserId: String(identity.telegramUserId),
+      username: identity.snapshot.username,
+      displayName: identity.snapshot.firstName,
+    });
+
+    return { ...identity, userId: user.id };
   }
 }

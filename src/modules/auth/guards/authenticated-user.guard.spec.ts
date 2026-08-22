@@ -20,6 +20,7 @@ describe('AuthenticatedUserGuard', () => {
   it('returns true when req.user is set', () => {
     const guard = new AuthenticatedUserGuard();
     const user: User = {
+      userId: '66a000000000000000000000001',
       tgUser: { id: 1, first_name: 'X' },
       isAdmin: false,
     };

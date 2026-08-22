@@ -75,6 +75,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -95,6 +96,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -115,6 +117,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -136,6 +139,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -157,6 +161,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -178,6 +183,7 @@ describe('GigCandidateService', () => {
             },
           },
           user: {
+            userId: '66a000000000000000000000001',
             tgUser: { id: 1, first_name: 'A' },
             isAdmin: false,
           },
@@ -219,6 +225,7 @@ describe('GigCandidateService', () => {
           },
         },
         user: {
+          userId: '66a000000000000000000000099',
           tgUser: {
             id: 99,
             username: 'fan',
@@ -286,6 +293,7 @@ describe('GigCandidateService', () => {
           },
         },
         user: {
+          userId: '66a000000000000000000000001',
           tgUser: { id: 1, first_name: 'A' },
           isAdmin: false,
         },

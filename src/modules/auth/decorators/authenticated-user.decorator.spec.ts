@@ -6,6 +6,7 @@ import { getAuthenticatedUserFromContext } from './authenticated-user.decorator'
 describe('getAuthenticatedUserFromContext', () => {
   it('returns req.user when present', () => {
     const user: User = {
+      userId: '66a000000000000000000000002',
       tgUser: { id: 2, first_name: 'Y' },
       isAdmin: false,
     };

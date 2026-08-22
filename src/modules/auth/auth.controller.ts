@@ -36,7 +36,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard)
   me(@AuthenticatedUser() user: User): AuthClientProfileResponseBody {
-    const identity = tgUserToTelegramAccessIdentity(user.tgUser);
+    const identity = tgUserToTelegramAccessIdentity(user.tgUser, user.userId);
     return {
       profile: authClientProfileFromAccessTokenIdentity(identity, user.isAdmin),
     };
