@@ -7,7 +7,7 @@ import {
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
 } from './admin-gig.mapper';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';

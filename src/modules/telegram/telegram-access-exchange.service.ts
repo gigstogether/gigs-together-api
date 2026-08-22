@@ -5,7 +5,7 @@ import type { TGUser } from './types/user.types';
 import type { V1TelegramAccessTokenExchangeResult } from './types/requests/v1-telegram-exchange-response';
 import { authClientProfileFromAccessTokenIdentity } from '../auth/mappers/auth-client-profile-from-identity';
 import { UserService } from '../user/user.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
 /**

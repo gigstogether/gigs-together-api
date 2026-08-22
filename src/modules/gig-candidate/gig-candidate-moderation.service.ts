@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { GigService } from '../gig/gig.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { TGMessage } from '../telegram/types/message.types';

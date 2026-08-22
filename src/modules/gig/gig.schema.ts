@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { Status } from './types/status.enum';
-import { Messenger } from './types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { GigSuggestedBy } from './types/gig.types';
 import { PostType } from './types/postType.enum';
 

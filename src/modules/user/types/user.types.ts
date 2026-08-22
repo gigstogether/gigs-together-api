@@ -1,4 +1,4 @@
-import type { Messenger } from '../../gig/types/messenger.enum';
+import type { Messenger } from '../../../shared/types/messenger.enum';
 
 export type UserStatus = 'active' | 'anonymized';
 

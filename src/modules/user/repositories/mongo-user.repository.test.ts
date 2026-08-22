@@ -1,6 +1,6 @@
 import type { Model } from 'mongoose';
 import { Types } from 'mongoose';
-import { Messenger } from '../../gig/types/messenger.enum';
+import { Messenger } from '../../../shared/types/messenger.enum';
 import type { UserDocument } from '../user.schema';
 import type { UserLeanDocument } from './user.repository.mapper';
 import { MongoUserRepository } from './mongo-user.repository';

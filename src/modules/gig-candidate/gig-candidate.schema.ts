@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { GigPoster, GigPosterSchema } from '../gig/gig.schema';
 import type { GigSuggestedBy } from '../gig/types/gig.types';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
 import { GigCandidateSource } from './types/gig-candidate-source.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';

@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { UserStatus } from './types/user.types';
 
 const USER_STATUSES = ['active', 'anonymized'] as const;

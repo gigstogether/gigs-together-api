@@ -15,7 +15,7 @@ import type {
 } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 import { UserService } from '../user/user.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.

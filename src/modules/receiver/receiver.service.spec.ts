@@ -13,7 +13,7 @@ import {
 } from '../telegram/callback-action';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { GigCandidateModerationService } from '../gig-candidate/gig-candidate-moderation.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 

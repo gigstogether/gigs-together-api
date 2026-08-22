@@ -4,7 +4,7 @@ import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
 import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import type {
   AdminGigCandidateDetails,

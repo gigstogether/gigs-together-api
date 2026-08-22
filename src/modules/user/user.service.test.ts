@@ -1,4 +1,4 @@
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { User } from './types/user.types';
 import type { UserRepository } from './repositories/user.repository';
 import { UserService } from './user.service';

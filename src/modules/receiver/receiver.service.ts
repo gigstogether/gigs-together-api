@@ -14,7 +14,7 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import type { V1ReceiverCreateGigResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';

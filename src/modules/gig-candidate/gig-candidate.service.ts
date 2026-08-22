@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { TGMessage } from '../telegram/types/message.types';

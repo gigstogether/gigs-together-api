@@ -17,7 +17,7 @@ import {
   GigCandidateCallbackAction,
 } from './callback-action';
 import { PostType } from '../gig/types/postType.enum';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';

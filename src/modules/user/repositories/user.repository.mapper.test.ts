@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { Messenger } from '../../gig/types/messenger.enum';
+import { Messenger } from '../../../shared/types/messenger.enum';
 import { UserRepositoryMapper } from './user.repository.mapper';
 import type { UserLeanDocument } from './user.repository.mapper';
 
