@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { Messenger } from '../../gig/types/messenger.enum';
+import { Messenger } from '../../../shared/types/messenger.enum';
 import type {
   User,
   UserMessengerIdentity,

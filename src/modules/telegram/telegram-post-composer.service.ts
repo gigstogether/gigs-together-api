@@ -10,7 +10,7 @@ import type { PlainGig } from '../gig/types/gig.types';
 import { Status } from '../gig/types/status.enum';
 import { Action } from './types/action.enum';
 import { PostType } from '../gig/types/postType.enum';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';

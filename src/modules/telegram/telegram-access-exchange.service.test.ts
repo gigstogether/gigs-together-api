@@ -1,4 +1,4 @@
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type { AuthenticationService } from '../auth/authentication.service';
 import type { UserService } from '../user/user.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
