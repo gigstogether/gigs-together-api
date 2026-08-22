@@ -4,9 +4,9 @@ import {
   TelegramInitDataAuthExpiredError,
 } from './telegram-init-data.errors';
 import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
-import type { User } from '../auth/types/user.types';
 import type { TGUser } from './types/user.types';
 import { AuthorizationService } from '../auth/authorization.service';
+import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
 /**
  * Validates Telegram WebApp `initData` (query-string form) and builds a `User`.
@@ -20,7 +20,7 @@ export class TelegramInitDataAuthService {
 
   async resolveUserFromInitDataString(
     telegramInitDataString: string,
-  ): Promise<User> {
+  ): Promise<TelegramAuthenticationResult> {
     try {
       const { parsedData, dataCheckString } =
         this.telegramInitDataValidationService.parseTelegramInitDataString(

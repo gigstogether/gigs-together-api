@@ -25,6 +25,7 @@ function telegramAccessIdentityToTgUser(
 export function verifiedAccessTokenToUser(verified: VerifiedAccessToken): User {
   if (verified.identity.kind === 'telegram') {
     return {
+      userId: verified.userId,
       tgUser: telegramAccessIdentityToTgUser(verified.identity),
       isAdmin: verified.isAdmin,
     };

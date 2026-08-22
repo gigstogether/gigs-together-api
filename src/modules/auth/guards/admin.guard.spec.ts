@@ -20,6 +20,7 @@ describe('AdminGuard', () => {
   it('should throw ForbiddenException when req.user.isAdmin is false', () => {
     const guard = new AdminGuard();
     const user: User = {
+      userId: '66a000000000000000000000001',
       tgUser: { id: 1, first_name: 'X' },
       isAdmin: false,
     };
@@ -31,6 +32,7 @@ describe('AdminGuard', () => {
   it('should return true when req.user.isAdmin is true', () => {
     const guard = new AdminGuard();
     const user: User = {
+      userId: '66a000000000000000000000001',
       tgUser: { id: 1, first_name: 'X' },
       isAdmin: true,
     };

@@ -6,6 +6,7 @@ describe('AuthController', () => {
       const controller = new AuthController({} as never, {} as never);
 
       const result = controller.me({
+        userId: '66a000000000000000000000042',
         tgUser: {
           id: 42,
           first_name: 'Ada',
@@ -26,6 +27,7 @@ describe('AuthController', () => {
       const controller = new AuthController({} as never, {} as never);
 
       const result = controller.me({
+        userId: '66a000000000000000000000007',
         tgUser: {
           id: 7,
           first_name: 'Guest',

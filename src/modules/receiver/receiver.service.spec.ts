@@ -176,6 +176,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',
@@ -214,6 +215,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'user',
@@ -251,6 +253,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',
@@ -291,6 +294,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',

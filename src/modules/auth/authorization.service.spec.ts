@@ -7,12 +7,18 @@ import { Admin } from './schemas/admin.schema';
 import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
+import { UserService } from '../user/user.service';
 
 describe('AuthorizationService', () => {
   let service: AuthorizationService;
   let authenticationService: {
     authenticateAccessToken: ReturnType<typeof vi.fn>;
     authenticateRefreshToken: ReturnType<typeof vi.fn>;
+  };
+  const userService = {
+    findOrCreateMessengerUser: vi
+      .fn()
+      .mockResolvedValue({ id: '66a000000000000000000001' }),
   };
 
   const mockAdmins = [
@@ -50,6 +56,10 @@ describe('AuthorizationService', () => {
         {
           provide: ConfigService,
           useValue: configServiceMock,
+        },
+        {
+          provide: UserService,
+          useValue: userService,
         },
       ],
     }).compile();
@@ -134,7 +144,32 @@ describe('AuthorizationService', () => {
       expect(
         authenticationService.authenticateAccessToken,
       ).toHaveBeenCalledWith('jwt');
-      expect(result).toEqual({ identity, isAdmin: true });
+      expect(result).toEqual({
+        identity: { ...identity, userId: '66a000000000000000000001' },
+        userId: '66a000000000000000000001',
+        isAdmin: true,
+      });
+      expect(userService.findOrCreateMessengerUser).toHaveBeenCalledWith({
+        messenger: 'Telegram',
+        externalUserId: '123',
+        username: undefined,
+        displayName: 'Ada',
+      });
+    });
+
+    it('should use internal userId from a current access token', async () => {
+      const currentIdentity = {
+        ...identity,
+        userId: '66a000000000000000000000009',
+      };
+      authenticationService.authenticateAccessToken.mockResolvedValue(
+        currentIdentity,
+      );
+
+      const result = await service.verifyAccessToken('jwt');
+
+      expect(result.userId).toBe('66a000000000000000000000009');
+      expect(userService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
     it('should reject bot telegram snapshot', async () => {
@@ -173,7 +208,11 @@ describe('AuthorizationService', () => {
       expect(
         authenticationService.authenticateRefreshToken,
       ).toHaveBeenCalledWith('jwt');
-      expect(result).toEqual({ identity, isAdmin: false });
+      expect(result).toEqual({
+        identity: { ...identity, userId: '66a000000000000000000001' },
+        userId: '66a000000000000000000001',
+        isAdmin: false,
+      });
     });
 
     it('should reject bot telegram snapshot', async () => {

@@ -9,9 +9,11 @@ import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { AuthController } from './auth.controller';
 import { AuthorizationService } from './authorization.service';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
+    UserModule,
     MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

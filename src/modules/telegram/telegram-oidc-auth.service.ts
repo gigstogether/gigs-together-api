@@ -2,9 +2,9 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { AuthorizationService } from '../auth/authorization.service';
-import type { User } from '../auth/types/user.types';
 import type { TGUser } from './types/user.types';
 import { isRecord } from '../../shared/utils/is-record';
+import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
 const TELEGRAM_OIDC_ISSUER = 'https://oauth.telegram.org';
 const TELEGRAM_OIDC_JWKS = createRemoteJWKSet(
@@ -22,7 +22,9 @@ export class TelegramOidcAuthService {
     private readonly authorizationService: AuthorizationService,
   ) {}
 
-  async resolveUserFromIdToken(idToken: string): Promise<User> {
+  async resolveUserFromIdToken(
+    idToken: string,
+  ): Promise<TelegramAuthenticationResult> {
     const clientId = this.requireClientId();
     const tgUser = await this.verifyIdToken(idToken, clientId);
     const isAdmin = await this.authorizationService.isAdmin(tgUser.id);

@@ -2,7 +2,10 @@ import { UnauthorizedException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
-import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
+import type {
+  ResolvedAccessTokenIdentityPayload,
+  ResolvedTelegramAccessTokenIdentity,
+} from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 
 const ACCESS_SECRET = 'test-access-secret-at-least-32-chars!!';
@@ -15,19 +18,21 @@ function mockConfig(map: Record<string, string>): ConfigService {
 }
 
 function telegramIdentity(
-  overrides: Partial<AccessTokenIdentityPayload> = {},
-): AccessTokenIdentityPayload {
+  overrides: Partial<ResolvedTelegramAccessTokenIdentity> = {},
+): ResolvedTelegramAccessTokenIdentity {
   return {
     kind: 'telegram',
+    userId: '66a000000000000000000000042',
     telegramUserId: 4242,
     snapshot: { firstName: 'Ada', isBot: false },
     ...overrides,
   };
 }
 
-function refreshTelegramIdentity(): AccessTokenIdentityPayload {
+function refreshTelegramIdentity(): ResolvedAccessTokenIdentityPayload {
   return {
     kind: 'telegram',
+    userId: '66a000000000000000000009001',
     telegramUserId: 9001,
     snapshot: { firstName: 'Ryu', isBot: false },
   };
