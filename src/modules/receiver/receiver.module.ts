@@ -10,9 +10,16 @@ import { ConsoleLogger } from '@nestjs/common';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
 import { GigBodyPipe } from './pipes/gig-body.pipe';
+import { UserModule } from '../user/user.module';
 
 @Module({
-  imports: [GigModule, TelegramModule, AuthModule, GigCandidateModule],
+  imports: [
+    GigModule,
+    TelegramModule,
+    AuthModule,
+    GigCandidateModule,
+    UserModule,
+  ],
   controllers: [ReceiverController],
   providers: [
     ReceiverService,

@@ -5,7 +5,6 @@ import {
 } from './telegram-init-data.errors';
 import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import type { TGUser } from './types/user.types';
-import { AuthorizationService } from '../auth/authorization.service';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
 /**
@@ -15,7 +14,6 @@ import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 export class TelegramInitDataAuthService {
   constructor(
     private readonly telegramInitDataValidationService: TelegramInitDataValidationService,
-    private readonly authorizationService: AuthorizationService,
   ) {}
 
   async resolveUserFromInitDataString(
@@ -41,8 +39,7 @@ export class TelegramInitDataAuthService {
         throw new ForbiddenException('Bots are not allowed');
       }
 
-      const isAdmin = await this.authorizationService.isAdmin(tgUser.id);
-      return { tgUser, isAdmin };
+      return { tgUser };
     } catch (e) {
       if (e instanceof TelegramInitDataAuthExpiredError) {
         throw new ForbiddenException({

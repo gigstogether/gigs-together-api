@@ -19,4 +19,15 @@ describe('UserSchema', () => {
       },
     ]);
   });
+
+  it('should define the active User role lookup index', () => {
+    const roleIndex = UserSchema.indexes().find(
+      ([fields]) => fields.status === 1 && fields.roles === 1,
+    );
+
+    expect(roleIndex).toEqual([
+      { status: 1, roles: 1 },
+      { name: 'users_status_roles' },
+    ]);
+  });
 });

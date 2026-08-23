@@ -2,11 +2,13 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import type { User } from './types/user.types';
 import type { UserRepository } from './repositories/user.repository';
 import { UserService } from './user.service';
+import { UserRole } from './types/user-role.enum';
 
 function domainUser(status: User['status'] = 'active'): User {
   return {
     id: '66a000000000000000000001',
     status,
+    roles: [],
     identities: [
       {
         type: 'messenger',
@@ -21,11 +23,13 @@ function domainUser(status: User['status'] = 'active'): User {
 
 describe('UserService', () => {
   const upsertMessengerUser = vi.fn();
-  const repository = { upsertMessengerUser };
+  const findActiveUserIdsByRole = vi.fn();
+  const repository = { upsertMessengerUser, findActiveUserIdsByRole };
   const service = new UserService(repository as UserRepository);
 
   beforeEach(() => {
     upsertMessengerUser.mockReset();
+    findActiveUserIdsByRole.mockReset();
   });
 
   it('should normalize messenger identity and profile fields before upsert', async () => {
@@ -67,5 +71,14 @@ describe('UserService', () => {
         externalUserId: '   ',
       }),
     ).toThrow('externalUserId is required');
+  });
+
+  it('should load active User ids by role', async () => {
+    findActiveUserIdsByRole.mockResolvedValue(['66a000000000000000000001']);
+
+    await expect(
+      service.findActiveUserIdsByRole(UserRole.Admin),
+    ).resolves.toEqual(['66a000000000000000000001']);
+    expect(findActiveUserIdsByRole).toHaveBeenCalledWith(UserRole.Admin);
   });
 });

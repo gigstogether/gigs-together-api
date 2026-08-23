@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { FindOrCreateMessengerUserParams, User } from './types/user.types';
 import { USER_REPOSITORY } from './repositories/user.repository';
 import type { UserRepository } from './repositories/user.repository';
+import type { UserRole } from './types/user-role.enum';
 
 @Injectable()
 export class UserService {
@@ -27,6 +28,10 @@ export class UserService {
       ...(username !== undefined ? { username } : {}),
       ...(displayName !== undefined ? { displayName } : {}),
     });
+  }
+
+  findActiveUserIdsByRole(role: UserRole): Promise<string[]> {
+    return this.userRepository.findActiveUserIdsByRole(role);
   }
 
   private normalizeOptionalField(

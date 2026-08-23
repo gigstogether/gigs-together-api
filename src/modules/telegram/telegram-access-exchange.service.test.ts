@@ -2,6 +2,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import type { AuthenticationService } from '../auth/authentication.service';
 import type { UserService } from '../user/user.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
+import type { AuthorizationService } from '../auth/authorization.service';
 
 describe('TelegramAccessExchangeService', () => {
   const authenticationService = {
@@ -11,9 +12,11 @@ describe('TelegramAccessExchangeService', () => {
     getRefreshExpiresInSeconds: vi.fn(),
   };
   const userService = { findOrCreateMessengerUser: vi.fn() };
+  const authorizationService = { isAdmin: vi.fn() };
   const service = new TelegramAccessExchangeService(
     authenticationService as unknown as AuthenticationService,
     userService as unknown as UserService,
+    authorizationService as unknown as AuthorizationService,
   );
 
   beforeEach(() => {
@@ -21,6 +24,7 @@ describe('TelegramAccessExchangeService', () => {
     userService.findOrCreateMessengerUser.mockResolvedValue({
       id: '66a000000000000000000001',
       status: 'active',
+      roles: [],
       identities: [],
       createdAt: new Date('2026-08-22T10:00:00.000Z'),
       updatedAt: new Date('2026-08-22T10:00:00.000Z'),
@@ -29,6 +33,7 @@ describe('TelegramAccessExchangeService', () => {
     authenticationService.signRefreshToken.mockResolvedValue('refresh');
     authenticationService.getAccessExpiresInSeconds.mockReturnValue(3_600);
     authenticationService.getRefreshExpiresInSeconds.mockReturnValue(86_400);
+    authorizationService.isAdmin.mockResolvedValue(true);
   });
 
   it('should upsert User and include its internal id in issued tokens', async () => {
@@ -39,7 +44,6 @@ describe('TelegramAccessExchangeService', () => {
         last_name: 'Goodboy',
         username: 'arina',
       },
-      isAdmin: true,
     });
 
     expect(userService.findOrCreateMessengerUser).toHaveBeenCalledWith({
@@ -48,6 +52,9 @@ describe('TelegramAccessExchangeService', () => {
       username: 'arina',
       displayName: 'Arina Goodboy',
     });
+    expect(authorizationService.isAdmin).toHaveBeenCalledWith(
+      '66a000000000000000000001',
+    );
     expect(authenticationService.signAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'telegram',

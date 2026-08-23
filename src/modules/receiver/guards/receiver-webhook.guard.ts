@@ -2,6 +2,9 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import type { TGUpdate } from '../../telegram/types/update.types';
 import { AuthorizationService } from '../../auth/authorization.service';
+import { UserService } from '../../user/user.service';
+import { Messenger } from '../../../shared/types/messenger.enum';
+import type { TGUser } from '../../telegram/types/user.types';
 
 export type ReceiverWebhookRequest = Request & {
   telegramWebhook?: {
@@ -19,7 +22,10 @@ export type ReceiverWebhookRequest = Request & {
  */
 @Injectable()
 export class ReceiverWebhookGuard implements CanActivate {
-  constructor(private readonly authorizationService: AuthorizationService) {}
+  constructor(
+    private readonly authorizationService: AuthorizationService,
+    private readonly userService: UserService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<ReceiverWebhookRequest>();
@@ -37,11 +43,9 @@ export class ReceiverWebhookGuard implements CanActivate {
     }
 
     const update: TGUpdate = request.body;
-    const telegramId =
-      update?.message?.from?.id || update?.callback_query?.from?.id;
-
-    const isAdmin = telegramId
-      ? await this.authorizationService.isAdmin(telegramId)
+    const telegramUser = update?.message?.from ?? update?.callback_query?.from;
+    const isAdmin = telegramUser
+      ? await this.resolveIsAdmin(telegramUser)
       : false;
 
     // TODO: open some features for other users
@@ -51,5 +55,20 @@ export class ReceiverWebhookGuard implements CanActivate {
     };
 
     return true;
+  }
+
+  private async resolveIsAdmin(telegramUser: TGUser): Promise<boolean> {
+    const user = await this.userService.findOrCreateMessengerUser({
+      messenger: Messenger.Telegram,
+      externalUserId: String(telegramUser.id),
+      username: telegramUser.username,
+      displayName: [telegramUser.first_name, telegramUser.last_name]
+        .filter(
+          (part): part is string => typeof part === 'string' && !!part.trim(),
+        )
+        .map((part) => part.trim())
+        .join(' '),
+    });
+    return this.authorizationService.isAdmin(user.id);
   }
 }
