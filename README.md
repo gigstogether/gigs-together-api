@@ -123,7 +123,6 @@ Current variables defined in `.env.example`:
 | Variable                                        | Required                                     | Purpose                                                                  |
 | ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                         |
-| `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                |
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                            |
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
 | `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
@@ -474,21 +473,41 @@ npx nest g s modules/example
 
 ## Database migrations
 
+List migration states with:
+
+```bash
+npm run migrate:list
+```
+
 Apply pending migrations with:
 
 ```bash
 npm run migrate:up
 ```
 
-Dry-run pending migrations with:
+Run one migration by name with:
 
 ```bash
-npm run migrate:up:dry
+npm run migrate:up -- example-migration --single
 ```
 
-Migration files live in `migrations/`.
+Dry-run one migration by name with:
+
+```bash
+npm run migrate:up:dry -- example-migration --single
+```
+
+Use the migration name without the numeric filename timestamp. For example,
+`1234567890000-example-migration.ts` is run as `example-migration`.
+
+Migration files and their unit tests live in `migrations/`. Only actual
+migrations start with a numeric timestamp; colocated `*.test.ts` files must not.
 
 The dry-run flow is opt-in inside each migration. `npm run migrate:up:dry` only sets `DRY_RUN=true`; a migration must check `isMigrationDryRun()` and call `finishMigrationDryRun()` to avoid being marked as applied.
+
+A successful dry run currently ends with `MigrationDryRunCompleteError`. This is
+the expected completion signal that keeps the migration in the pending state;
+review the JSON report printed immediately before it.
 
 Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is available there before running migrations.
 

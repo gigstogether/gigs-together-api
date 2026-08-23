@@ -23,6 +23,7 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "node --inspect-brk ./node_modules/vitest/vitest.mjs run",
     "test:e2e": "vitest run test/app.e2e-spec.ts",
+    "migrate:list": "npx ts-migrate-mongoose list",
     "migrate:up": "npx ts-migrate-mongoose up",
     "migrate:up:dry": "cross-env DRY_RUN=true npx ts-migrate-mongoose up",
     "prepare": "husky"
