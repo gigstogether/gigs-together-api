@@ -6,14 +6,20 @@ import type {
   UserStatus,
 } from '../types/user.types';
 import { isRecord } from '../../../shared/utils/is-record';
+import { UserRole } from '../types/user-role.enum';
 
 export interface UserLeanDocument {
   _id: unknown;
   status: unknown;
+  roles: unknown;
   identities: unknown;
   displayName?: unknown;
   createdAt: unknown;
   updatedAt: unknown;
+}
+
+export interface UserIdLeanDocument {
+  _id: unknown;
 }
 
 export class UserRepositoryMapper {
@@ -25,6 +31,11 @@ export class UserRepositoryMapper {
       UserRepositoryMapper.toMessengerIdentity(identity),
     );
     UserRepositoryMapper.assertUniqueIdentities(identities);
+    const status = UserRepositoryMapper.toStatus(doc.status);
+    const roles = UserRepositoryMapper.toRoles(doc.roles);
+    if (status === 'anonymized' && roles.length > 0) {
+      throw new Error('An anonymized User cannot have roles');
+    }
     const displayName = UserRepositoryMapper.toOptionalString(
       'displayName',
       doc.displayName,
@@ -32,12 +43,17 @@ export class UserRepositoryMapper {
 
     return {
       id: UserRepositoryMapper.toId(doc._id),
-      status: UserRepositoryMapper.toStatus(doc.status),
+      status,
+      roles,
       identities,
       ...(displayName !== undefined ? { displayName } : {}),
       createdAt: UserRepositoryMapper.toDate('createdAt', doc.createdAt),
       updatedAt: UserRepositoryMapper.toDate('updatedAt', doc.updatedAt),
     };
+  }
+
+  static toUserId(doc: UserIdLeanDocument): string {
+    return UserRepositoryMapper.toId(doc._id);
   }
 
   private static toMessengerIdentity(identity: unknown): UserMessengerIdentity {
@@ -86,6 +102,19 @@ export class UserRepositoryMapper {
       return status;
     }
     throw new Error('Unsupported user status');
+  }
+
+  private static toRoles(roles: unknown): UserRole[] {
+    if (!Array.isArray(roles)) {
+      throw new Error('User roles must be an array');
+    }
+    if (roles.some((role) => role !== UserRole.Admin)) {
+      throw new Error('Unsupported User role');
+    }
+    if (new Set(roles).size !== roles.length) {
+      throw new Error('User roles must be unique');
+    }
+    return roles;
   }
 
   private static toDate(field: string, value: unknown): Date {

@@ -7,6 +7,7 @@ import { authClientProfileFromAccessTokenIdentity } from '../auth/mappers/auth-c
 import { UserService } from '../user/user.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
+import { AuthorizationService } from '../auth/authorization.service';
 
 /**
  * Builds the access + refresh token exchange for Telegram Web App and Login Widget flows.
@@ -16,6 +17,7 @@ export class TelegramAccessExchangeService {
   constructor(
     private readonly authenticationService: AuthenticationService,
     private readonly userService: UserService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
   /**
@@ -34,6 +36,7 @@ export class TelegramAccessExchangeService {
       user.tgUser,
       internalUser.id,
     );
+    const isAdmin = await this.authorizationService.isAdmin(internalUser.id);
     const accessToken =
       await this.authenticationService.signAccessToken(identity);
     const refreshToken =
@@ -42,10 +45,7 @@ export class TelegramAccessExchangeService {
       this.authenticationService.getAccessExpiresInSeconds();
     const refreshExpiresIn =
       this.authenticationService.getRefreshExpiresInSeconds();
-    const profile = authClientProfileFromAccessTokenIdentity(
-      identity,
-      user.isAdmin,
-    );
+    const profile = authClientProfileFromAccessTokenIdentity(identity, isAdmin);
     return {
       accessToken,
       accessExpiresIn,

@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { jwtVerify } from 'jose';
-import { AuthorizationService } from '../auth/authorization.service';
 import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
 
 vi.mock('jose', () => ({
@@ -13,7 +12,6 @@ vi.mock('jose', () => ({
 
 describe('TelegramOidcAuthService', () => {
   const configServiceMock = { get: vi.fn(() => '123456') };
-  const authorizationServiceMock = { isAdmin: vi.fn() };
   let service: TelegramOidcAuthService;
 
   beforeEach(async () => {
@@ -22,7 +20,6 @@ describe('TelegramOidcAuthService', () => {
       providers: [
         TelegramOidcAuthService,
         { provide: ConfigService, useValue: configServiceMock },
-        { provide: AuthorizationService, useValue: authorizationServiceMock },
       ],
     }).compile();
     service = moduleRef.get(TelegramOidcAuthService);
@@ -38,8 +35,6 @@ describe('TelegramOidcAuthService', () => {
       },
       protectedHeader: { alg: 'RS256' },
     });
-    authorizationServiceMock.isAdmin.mockResolvedValue(true);
-
     const result = await service.resolveUserFromIdToken('signed-token');
 
     expect(result).toEqual({
@@ -50,7 +45,6 @@ describe('TelegramOidcAuthService', () => {
         username: 'arina',
         photo_url: 'https://example.com/avatar.jpg',
       },
-      isAdmin: true,
     });
   });
 

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
-import { User, UserDocument } from '../user.schema';
+import { User } from '../user.schema';
+import type { UserDocument } from '../user.schema';
 import type {
   FindOrCreateMessengerUserParams,
   User as DomainUser,
@@ -9,11 +10,16 @@ import type {
 } from '../types/user.types';
 import type { UserRepository } from './user.repository';
 import { UserRepositoryMapper } from './user.repository.mapper';
-import type { UserLeanDocument } from './user.repository.mapper';
+import type {
+  UserIdLeanDocument,
+  UserLeanDocument,
+} from './user.repository.mapper';
+import type { UserRole } from '../types/user-role.enum';
 
 const USER_PROJECTION = {
   _id: 1,
   status: 1,
+  roles: 1,
   identities: 1,
   displayName: 1,
   createdAt: 1,
@@ -47,6 +53,7 @@ export class MongoUserRepository implements UserRepository {
           {
             $setOnInsert: {
               status: 'active',
+              roles: [],
               identities: [identity],
               ...(params.displayName !== undefined
                 ? { displayName: params.displayName }
@@ -87,6 +94,16 @@ export class MongoUserRepository implements UserRepository {
     }
 
     return this.refreshActiveProfile(user.id, params);
+  }
+
+  async findActiveUserIdsByRole(role: UserRole): Promise<string[]> {
+    const users = await this.userModel
+      .find({ status: 'active', roles: role })
+      .select({ _id: 1 })
+      .lean<UserIdLeanDocument[]>()
+      .exec();
+
+    return users.map((user) => UserRepositoryMapper.toUserId(user));
   }
 
   private async findByMessengerIdentity(

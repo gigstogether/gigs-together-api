@@ -4,6 +4,7 @@ import { Messenger } from '../../../shared/types/messenger.enum';
 import type { UserDocument } from '../user.schema';
 import type { UserLeanDocument } from './user.repository.mapper';
 import { MongoUserRepository } from './mongo-user.repository';
+import { UserRole } from '../types/user-role.enum';
 
 function storedUser(
   overrides: Partial<UserLeanDocument> = {},
@@ -11,6 +12,7 @@ function storedUser(
   return {
     _id: new Types.ObjectId('66a000000000000000000001'),
     status: 'active',
+    roles: [],
     identities: [
       {
         type: 'messenger',
@@ -26,7 +28,7 @@ function storedUser(
   };
 }
 
-function queryResult(value: UserLeanDocument) {
+function queryResult<T>(value: T) {
   return {
     select: vi.fn().mockReturnValue({
       lean: vi.fn().mockReturnValue({
@@ -39,7 +41,8 @@ function queryResult(value: UserLeanDocument) {
 describe('MongoUserRepository', () => {
   const findOneAndUpdate = vi.fn();
   const findOne = vi.fn();
-  const model = { findOneAndUpdate, findOne };
+  const find = vi.fn();
+  const model = { findOneAndUpdate, findOne, find };
   const repository = new MongoUserRepository(
     model as unknown as Model<UserDocument>,
   );
@@ -47,6 +50,7 @@ describe('MongoUserRepository', () => {
   beforeEach(() => {
     findOneAndUpdate.mockReset();
     findOne.mockReset();
+    find.mockReset();
   });
 
   it('should use an atomic indexed upsert and return the existing User', async () => {
@@ -74,6 +78,7 @@ describe('MongoUserRepository', () => {
       expect.objectContaining({
         $setOnInsert: expect.objectContaining({
           status: 'active',
+          roles: [],
           identities: [
             {
               type: 'messenger',
@@ -217,5 +222,19 @@ describe('MongoUserRepository', () => {
       }),
     ).rejects.toBe(mongoError);
     expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it('should find active User ids by role', async () => {
+    find.mockReturnValue(
+      queryResult([{ _id: new Types.ObjectId('66a000000000000000000001') }]),
+    );
+
+    await expect(
+      repository.findActiveUserIdsByRole(UserRole.Admin),
+    ).resolves.toEqual(['66a000000000000000000001']);
+    expect(find).toHaveBeenCalledWith({
+      status: 'active',
+      roles: UserRole.Admin,
+    });
   });
 });

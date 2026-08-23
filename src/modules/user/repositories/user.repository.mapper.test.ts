@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { UserRepositoryMapper } from './user.repository.mapper';
 import type { UserLeanDocument } from './user.repository.mapper';
+import { UserRole } from '../types/user-role.enum';
 
 function userDocument(
   overrides: Partial<UserLeanDocument> = {},
@@ -9,6 +10,7 @@ function userDocument(
   return {
     _id: new Types.ObjectId('66a000000000000000000001'),
     status: 'active',
+    roles: [],
     identities: [
       {
         type: 'messenger',
@@ -31,6 +33,7 @@ describe('UserRepositoryMapper', () => {
     expect(user).toEqual({
       id: '66a000000000000000000001',
       status: 'active',
+      roles: [],
       identities: [
         {
           type: 'messenger',
@@ -77,5 +80,24 @@ describe('UserRepositoryMapper', () => {
         userDocument({ identities: [identity, { ...identity }] }),
       ),
     ).toThrow('User messenger identities must be unique');
+  });
+
+  it('should map the Admin role for an active User', () => {
+    const user = UserRepositoryMapper.toUser(
+      userDocument({ roles: [UserRole.Admin] }),
+    );
+
+    expect(user.roles).toEqual([UserRole.Admin]);
+  });
+
+  it('should reject roles on an anonymized User', () => {
+    expect(() =>
+      UserRepositoryMapper.toUser(
+        userDocument({
+          status: 'anonymized',
+          roles: [UserRole.Admin],
+        }),
+      ),
+    ).toThrow('An anonymized User cannot have roles');
   });
 });

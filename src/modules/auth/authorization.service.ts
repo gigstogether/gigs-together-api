@@ -5,9 +5,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Admin, AdminDocument } from './schemas/admin.schema';
 import type {
   AccessTokenIdentityPayload,
   ResolvedTelegramAccessTokenIdentity,
@@ -16,6 +13,7 @@ import type {
 import { AuthenticationService } from './authentication.service';
 import { UserService } from '../user/user.service';
 import { Messenger } from '../../shared/types/messenger.enum';
+import { UserRole } from '../user/types/user-role.enum';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
@@ -23,14 +21,13 @@ import { Messenger } from '../../shared/types/messenger.enum';
  */
 @Injectable()
 export class AuthorizationService {
-  private adminsCache: AdminDocument[] | undefined;
+  private adminUserIdsCache: Set<string> | undefined;
   private cacheLoadedAtMs = 0;
   private loadInFlight: Promise<void> | undefined;
   private readonly cacheTtlMs: number;
   private readonly logger = new Logger(AuthorizationService.name);
 
   constructor(
-    @InjectModel(Admin.name) private readonly adminModel: Model<AdminDocument>,
     private readonly authenticationService: AuthenticationService,
     private readonly configService: ConfigService,
     private readonly userService: UserService,
@@ -43,10 +40,18 @@ export class AuthorizationService {
   }
 
   private async pullAdmins(): Promise<void> {
-    const admins = await this.adminModel.find({ isActive: true }).exec();
-    this.adminsCache = admins;
+    const adminUserIds = await this.userService.findActiveUserIdsByRole(
+      UserRole.Admin,
+    );
+    const uniqueAdminUserIds = new Set(adminUserIds);
+    if (uniqueAdminUserIds.size !== adminUserIds.length) {
+      throw new Error('Active Admin userIds must be unique');
+    }
+    this.adminUserIdsCache = uniqueAdminUserIds;
     this.cacheLoadedAtMs = Date.now();
-    this.logger.log(`Admins cache refreshed: ${admins.length} admin(s) found.`);
+    this.logger.log(
+      `Admins cache refreshed: ${adminUserIds.length} admin(s) found.`,
+    );
   }
 
   /**
@@ -57,7 +62,7 @@ export class AuthorizationService {
   }
 
   private needsRefresh(): boolean {
-    if (this.adminsCache === undefined) {
+    if (this.adminUserIdsCache === undefined) {
       return true;
     }
     return Date.now() - this.cacheLoadedAtMs >= this.cacheTtlMs;
@@ -76,13 +81,13 @@ export class AuthorizationService {
     }
   }
 
-  async isAdmin(telegramId: number): Promise<boolean> {
+  async isAdmin(userId: string): Promise<boolean> {
     await this.ensureFreshCache();
-    const cache = this.adminsCache;
+    const cache = this.adminUserIdsCache;
     if (!cache) {
       throw new Error('Admins cache is empty after refresh');
     }
-    return cache.some((admin) => admin.telegramId === telegramId);
+    return cache.has(userId);
   }
 
   async verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
@@ -105,8 +110,8 @@ export class AuthorizationService {
         if (identity.snapshot.isBot === true) {
           throw new ForbiddenException('Bots are not allowed');
         }
-        const isAdmin = await this.isAdmin(identity.telegramUserId);
         const resolvedIdentity = await this.resolveTelegramIdentity(identity);
+        const isAdmin = await this.isAdmin(resolvedIdentity.userId);
         return {
           identity: resolvedIdentity,
           userId: resolvedIdentity.userId,

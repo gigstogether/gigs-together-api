@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
 import { Messenger } from '../../shared/types/messenger.enum';
 import type { UserStatus } from './types/user.types';
+import { UserRole } from './types/user-role.enum';
 
 const USER_STATUSES = ['active', 'anonymized'] as const;
 
@@ -33,6 +34,19 @@ export class User {
     default: 'active',
   })
   status: UserStatus;
+
+  @Prop({
+    type: [String],
+    enum: UserRole,
+    required: true,
+    default: [],
+    validate: {
+      validator: (roles: UserRole[]): boolean =>
+        new Set(roles).size === roles.length,
+      message: 'user roles must be unique',
+    },
+  })
+  roles: UserRole[];
 
   @Prop({
     type: [UserMessengerIdentitySchema],
@@ -76,3 +90,5 @@ UserSchema.index(
     name: 'users_messenger_external_user_id_unique',
   },
 );
+
+UserSchema.index({ status: 1, roles: 1 }, { name: 'users_status_roles' });
