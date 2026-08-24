@@ -5,7 +5,7 @@ import path from 'node:path';
 import type { AnyBulkWriteOperation } from 'mongoose';
 import { GigSchema } from '../src/modules/gig/gig.schema';
 import type { Gig } from '../src/modules/gig/gig.schema';
-import { Messenger } from '../src/modules/gig/types/messenger.enum';
+import { Messenger } from '../src/shared/types/messenger.enum';
 import { PostType } from '../src/modules/gig/types/postType.enum';
 import { Status } from '../src/modules/gig/types/status.enum';
 import { BadRequestException } from '@nestjs/common';

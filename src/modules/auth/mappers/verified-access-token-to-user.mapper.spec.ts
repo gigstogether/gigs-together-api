@@ -7,13 +7,16 @@ describe('verifiedAccessTokenToUser', () => {
     const verified: VerifiedAccessToken = {
       identity: {
         kind: 'telegram',
+        userId: '66a000000000000000000000009',
         telegramUserId: 9,
         snapshot: { firstName: 'Z', username: 'z' },
       },
+      userId: '66a000000000000000000000009',
       isAdmin: true,
     };
     const user = verifiedAccessTokenToUser(verified);
     expect(user.isAdmin).toBe(true);
+    expect(user.userId).toBe('66a000000000000000000000009');
     expect(user.tgUser.id).toBe(9);
     expect(user.tgUser.first_name).toBe('Z');
     expect(user.tgUser.username).toBe('z');

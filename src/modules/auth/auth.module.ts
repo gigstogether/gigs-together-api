@@ -1,18 +1,17 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { Admin, AdminSchema } from './schemas/admin.schema';
 import { AuthenticationService } from './authentication.service';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { AdminGuard } from './guards/admin.guard';
 import { AuthController } from './auth.controller';
 import { AuthorizationService } from './authorization.service';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Admin.name, schema: AdminSchema }]),
+    UserModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

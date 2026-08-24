@@ -55,9 +55,11 @@ describe('AccessJwtAuthGuard', () => {
     authorizationService.verifyAccessToken.mockResolvedValue({
       identity: {
         kind: 'telegram',
+        userId: '66a000000000000000000000001',
         telegramUserId: 1,
         snapshot: { firstName: 'A' },
       },
+      userId: '66a000000000000000000000001',
       isAdmin: true,
     });
     const req = asRequestWithCookies({ cookies: { gt_access: 'jwt-here' } });
@@ -67,6 +69,7 @@ describe('AccessJwtAuthGuard', () => {
       'jwt-here',
     );
     expect(req.user).toEqual({
+      userId: '66a000000000000000000000001',
       tgUser: expect.objectContaining({ id: 1, first_name: 'A' }),
       isAdmin: true,
     });

@@ -5,6 +5,7 @@ import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
+  ResolvedAccessTokenIdentityPayload,
 } from './types/access-token-identity.types';
 
 /** Payload shape returned by `verifyAsync` before narrowing to {@link AccessTokenPayload}. */
@@ -17,7 +18,7 @@ interface AccessTokenPayloadShape {
 interface RefreshTokenJwtPayload {
   readonly sub: string;
   readonly typ: 'refresh';
-  readonly identity: AccessTokenIdentityPayload;
+  readonly identity: ResolvedAccessTokenIdentityPayload;
 }
 
 /** Shared Express `res.cookie` options except `maxAge` / value. */
@@ -74,7 +75,9 @@ export class AuthenticationService {
     );
   }
 
-  async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {
+  async signAccessToken(
+    identity: ResolvedAccessTokenIdentityPayload,
+  ): Promise<string> {
     const secret = this.requireAccessSecret();
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: AccessTokenPayload = { sub, typ: 'access', identity };
@@ -121,7 +124,7 @@ export class AuthenticationService {
   }
 
   async signRefreshToken(
-    identity: AccessTokenIdentityPayload,
+    identity: ResolvedAccessTokenIdentityPayload,
   ): Promise<string> {
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: RefreshTokenJwtPayload = { sub, typ: 'refresh', identity };

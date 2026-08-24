@@ -7,7 +7,7 @@ import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { Action } from '../telegram/types/action.enum';
 import { GigModerationService } from '../gig/gig-moderation.service';
-import { Messenger } from '../gig/types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 
@@ -176,6 +176,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',
@@ -214,6 +215,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'user',
@@ -251,6 +253,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',
@@ -291,6 +294,7 @@ describe('ReceiverService', () => {
           },
         },
         {
+          userId: '66a000000000000000000012345',
           tgUser: {
             id: 12345,
             username: 'admin',

@@ -6,7 +6,7 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import type { Gig, GigPost } from './gig.schema';
 import { GigService } from './gig.service';
-import { Messenger } from './types/messenger.enum';
+import { Messenger } from '../../shared/types/messenger.enum';
 import type {
   GigModerationPostRef,
   ModerateGigParams,
