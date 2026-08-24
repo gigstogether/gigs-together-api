@@ -2,7 +2,8 @@ import type {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate/gig-candidate-list-sort';
-import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
+import type { GigCandidateSource } from '../gig-candidate/types/gig-candidate.types';
+import type { GigData } from '../gig/types/gig.types';
 import type { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 
 export interface GetAdminGigCandidatesParams {
@@ -14,20 +15,18 @@ export interface GetAdminGigCandidatesParams {
 
 export interface AdminGigCandidateDetails {
   id: string;
-  source: GigCandidateRecord['source'];
-  title: string;
-  date: number;
-  endDate?: number;
-  city: string;
-  country: string;
-  venue?: string;
-  ticketsUrl?: string;
+  source: GigCandidateSource;
+  gigDraft: Partial<GigData>;
+  version: number;
   posterUrl?: string;
-  status: GigCandidateRecord['status'];
-  suggestedBy: GigCandidateRecord['suggestedBy'];
+  status: GigCandidateStatus;
   postUrl?: string;
   postDate?: number;
   linkedGigPublicId?: string;
+  approvedAt?: Date;
+  approvedByUserId?: string;
+  rejectedAt?: Date;
+  rejectedByUserId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

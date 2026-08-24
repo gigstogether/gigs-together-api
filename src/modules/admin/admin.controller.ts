@@ -97,10 +97,10 @@ export class AdminController {
   async getGigCandidates(
     @Query() query: V1AdminGigCandidatesGetQueryDto,
   ): Promise<V1AdminGigCandidatesListResponseBody> {
-    const candidates = await this.adminGigCandidateService.getList(
+    const gigCandidates = await this.adminGigCandidateService.getList(
       mapV1AdminGigCandidatesQuery(query),
     );
-    return mapV1AdminGigCandidatesListResponse(candidates);
+    return mapV1AdminGigCandidatesListResponse(gigCandidates);
   }
 
   @Version('1')
@@ -109,8 +109,8 @@ export class AdminController {
   async getGigCandidateById(
     @Param('id') id: string,
   ): Promise<V1AdminGigCandidateResponseBody> {
-    const candidate = await this.adminGigCandidateService.getById(id);
-    return mapV1AdminGigCandidateResponse(candidate);
+    const gigCandidate = await this.adminGigCandidateService.getById(id);
+    return mapV1AdminGigCandidateResponse(gigCandidate);
   }
 
   @Version('1')

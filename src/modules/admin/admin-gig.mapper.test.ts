@@ -11,7 +11,6 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
-import { GigCandidateSource } from '../gig-candidate/types/gig-candidate-source.enum';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
@@ -77,16 +76,22 @@ describe('mapGigToFormDataByPublicId', () => {
   });
 });
 
-function buildCandidateDetails(): AdminGigCandidateDetails {
+function buildGigCandidateDetails(): AdminGigCandidateDetails {
   return {
     id: '507f1f77bcf86cd799439099',
-    source: GigCandidateSource.User,
-    title: 'Band',
-    date: Date.parse('2026-08-20T00:00:00.000Z'),
-    city: 'Barcelona',
-    country: 'ES',
+    source: {
+      type: 'user',
+      userId: '66a000000000000000000000042',
+      origin: { type: 'form' },
+    },
+    gigDraft: {
+      title: 'Band',
+      date: Date.parse('2026-08-20T00:00:00.000Z'),
+      city: 'Barcelona',
+      country: 'ES',
+    },
+    version: 0,
     status: GigCandidateStatus.Pending,
-    suggestedBy: { userId: 42, username: 'fan' },
     createdAt: new Date('2026-08-01T10:00:00.000Z'),
     updatedAt: new Date('2026-08-02T10:00:00.000Z'),
   };
@@ -105,9 +110,9 @@ describe('mapV1AdminGigCandidatesQuery', () => {
 
 describe('mapV1AdminGigCandidateResponse', () => {
   it('should serialize application dates for the HTTP response', () => {
-    expect(mapV1AdminGigCandidateResponse(buildCandidateDetails())).toEqual(
+    expect(mapV1AdminGigCandidateResponse(buildGigCandidateDetails())).toEqual(
       expect.objectContaining({
-        date: '2026-08-20',
+        gigDraft: expect.objectContaining({ date: '2026-08-20' }),
         createdAt: '2026-08-01T10:00:00.000Z',
         updatedAt: '2026-08-02T10:00:00.000Z',
       }),
@@ -118,7 +123,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
 describe('mapV1AdminGigCandidatesListResponse', () => {
   it('should wrap mapped candidates in the versioned response shape', () => {
     expect(
-      mapV1AdminGigCandidatesListResponse([buildCandidateDetails()]),
+      mapV1AdminGigCandidatesListResponse([buildGigCandidateDetails()]),
     ).toEqual({
       gigCandidates: [
         expect.objectContaining({ id: '507f1f77bcf86cd799439099' }),

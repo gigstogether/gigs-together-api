@@ -1,7 +1,6 @@
-import type { GigSuggestedBy } from '../../gig/types/gig.types';
+import type { GigData } from '../../gig/types/gig.types';
 import type { Messenger } from '../../../shared/types/messenger.enum';
 import type { GigCandidatePostType } from './gig-candidate-post-type.enum';
-import type { GigCandidateSource } from './gig-candidate-source.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
 import type {
   AdminGigCandidateListSortBy,
@@ -22,51 +21,86 @@ export interface GigCandidatePost {
   fileId?: string;
 }
 
-export interface GigCandidateRecord {
+export type GigCandidateAttachment = Record<string, unknown>;
+
+export interface GigCandidateSourceUserFormOrigin {
+  type: 'form';
+}
+
+export interface GigCandidateSourceUserAdminOrigin {
+  type: 'admin';
+}
+
+export interface GigCandidateSourceUserMessengerOrigin {
+  type: 'messenger';
+  messenger: Messenger;
+  conversationId: string;
+  messageId: string;
+}
+
+export type GigCandidateSourceUserOrigin =
+  | GigCandidateSourceUserFormOrigin
+  | GigCandidateSourceUserAdminOrigin
+  | GigCandidateSourceUserMessengerOrigin;
+
+export interface GigCandidateSourceUser {
+  type: 'user';
+  userId: string;
+  origin: GigCandidateSourceUserOrigin;
+  originalText?: string;
+  attachments?: GigCandidateAttachment[];
+}
+
+export interface ProviderReference {
+  name: 'setlistFm';
+  externalEventId: string;
+  externalVersionId?: string;
+  sourceUrl: string;
+  fetchedAt: Date;
+  providerUpdatedAt?: Date;
+}
+
+export interface GigCandidateSourceProvider {
+  type: 'provider';
+  provider: ProviderReference;
+}
+
+export type GigCandidateSource =
+  GigCandidateSourceUser | GigCandidateSourceProvider;
+
+export interface GigCandidate {
   id: string;
-  source: GigCandidateSource;
-  title: string;
-  date: number;
-  endDate?: number;
-  city: string;
-  country: string;
-  venue?: string;
-  ticketsUrl?: string;
-  poster?: GigCandidatePoster;
   status: GigCandidateStatus;
+  version: number;
+  source: GigCandidateSource;
+  gigDraft: Partial<GigData>;
   posts: GigCandidatePost[];
-  suggestedBy: GigSuggestedBy;
   gigId?: string;
+  approvedAt?: Date;
+  approvedByUserId?: string;
+  rejectedAt?: Date;
+  rejectedByUserId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateGigCandidateRecordParams {
-  id: string;
-  source: GigCandidateSource;
-  title: string;
-  date: number;
-  endDate?: number;
-  city: string;
-  country: string;
-  venue?: string;
-  ticketsUrl?: string;
-  poster?: GigCandidatePoster;
-  suggestedBy: GigSuggestedBy;
+export interface CreateGigCandidateParams {
+  gigCandidateId: string;
+  status: GigCandidateStatus.Pending | GigCandidateStatus.Reviewing;
+  source: GigCandidateSourceUser;
+  gigDraft: Partial<GigData>;
+}
+
+export interface UpdateGigCandidateDraftParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
 }
 
 export interface AppendGigCandidatePostParams {
-  id: string;
+  gigCandidateId: string;
+  expectedVersion: number;
   post: GigCandidatePost;
-}
-
-export interface MarkGigCandidateAcceptedParams {
-  id: string;
-  gigId: string;
-}
-
-export interface MarkGigCandidateRejectedParams {
-  id: string;
 }
 
 export interface FindGigCandidatesParams {

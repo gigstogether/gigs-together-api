@@ -8,7 +8,6 @@ import type { LocaleService } from '../locale/locale.service';
 import type { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 import type { TranslationService } from '../translation/translation.service';
 import type { AdminGigCandidateService } from './admin-gig-candidate.service';
-import { GigCandidateSource } from '../gig-candidate/types/gig-candidate-source.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 
 describe('AdminController', () => {
@@ -114,13 +113,19 @@ describe('AdminController', () => {
     getList: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue({
       id: '507f1f77bcf86cd799439099',
-      source: GigCandidateSource.User,
-      title: 'Band',
-      date: Date.parse('2026-08-20T00:00:00.000Z'),
-      city: 'Barcelona',
-      country: 'ES',
+      source: {
+        type: 'user',
+        userId: '66a000000000000000000000042',
+        origin: { type: 'form' },
+      },
+      gigDraft: {
+        title: 'Band',
+        date: Date.parse('2026-08-20T00:00:00.000Z'),
+        city: 'Barcelona',
+        country: 'ES',
+      },
+      version: 0,
       status: GigCandidateStatus.Pending,
-      suggestedBy: { userId: 42 },
       createdAt: new Date('2026-08-01T10:00:00.000Z'),
       updatedAt: new Date('2026-08-02T10:00:00.000Z'),
     }),
@@ -201,20 +206,30 @@ describe('AdminController', () => {
 
       await expect(controller.getGigCandidateById(id)).resolves.toEqual({
         id,
-        source: GigCandidateSource.User,
-        title: 'Band',
-        date: '2026-08-20',
-        endDate: undefined,
-        city: 'Barcelona',
-        country: 'ES',
-        venue: undefined,
-        ticketsUrl: undefined,
-        posterUrl: undefined,
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: '2026-08-20',
+          endDate: undefined,
+          city: 'Barcelona',
+          country: 'ES',
+          venue: undefined,
+          ticketsUrl: undefined,
+          posterUrl: undefined,
+        },
+        version: 0,
         status: GigCandidateStatus.Pending,
-        suggestedBy: { userId: 42 },
         postUrl: undefined,
         postDate: undefined,
         linkedGigPublicId: undefined,
+        approvedAt: undefined,
+        approvedByUserId: undefined,
+        rejectedAt: undefined,
+        rejectedByUserId: undefined,
         createdAt: '2026-08-01T10:00:00.000Z',
         updatedAt: '2026-08-02T10:00:00.000Z',
       });

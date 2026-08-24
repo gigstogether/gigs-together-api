@@ -5,11 +5,10 @@ import type { Model } from 'mongoose';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
   AppendGigCandidatePostParams,
-  CreateGigCandidateRecordParams,
-  MarkGigCandidateAcceptedParams,
-  MarkGigCandidateRejectedParams,
-  GigCandidateRecord,
+  CreateGigCandidateParams,
+  GigCandidate as GigCandidateDomain,
   FindGigCandidatesParams,
+  UpdateGigCandidateDraftParams,
 } from '../types/gig-candidate.types';
 import {
   ADMIN_GIG_CANDIDATE_LIST_DEFAULT_SORT_ORDER,
@@ -25,18 +24,15 @@ import type { GigCandidateLeanDocument } from './gig-candidate.repository.mapper
 const GIG_CANDIDATE_LEAN_PROJECTION = {
   _id: 1,
   source: 1,
-  title: 1,
-  date: 1,
-  endDate: 1,
-  city: 1,
-  country: 1,
-  venue: 1,
-  ticketsUrl: 1,
-  poster: 1,
+  gigDraft: 1,
+  version: 1,
   status: 1,
   posts: 1,
-  suggestedBy: 1,
   gigId: 1,
+  approvedAt: 1,
+  approvedByUserId: 1,
+  rejectedAt: 1,
+  rejectedByUserId: 1,
   createdAt: 1,
   updatedAt: 1,
 } as const;
@@ -54,65 +50,78 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     return new Types.ObjectId().toString();
   }
 
-  async create(
-    params: CreateGigCandidateRecordParams,
-  ): Promise<GigCandidateRecord> {
-    if (!Types.ObjectId.isValid(params.id)) {
-      throw new Error(`Invalid GigCandidate id: ${params.id}`);
+  async createGigCandidate(
+    params: CreateGigCandidateParams,
+  ): Promise<GigCandidateDomain> {
+    if (!Types.ObjectId.isValid(params.gigCandidateId)) {
+      throw new Error(`Invalid GigCandidate id: ${params.gigCandidateId}`);
     }
 
     const created = await this.gigCandidateModel.create({
-      _id: new Types.ObjectId(params.id),
-      source: params.source,
-      title: params.title,
-      date: params.date,
-      ...(params.endDate !== undefined ? { endDate: params.endDate } : {}),
-      city: params.city,
-      country: params.country,
-      ...(params.venue !== undefined ? { venue: params.venue } : {}),
-      ...(params.ticketsUrl !== undefined
-        ? { ticketsUrl: params.ticketsUrl }
-        : {}),
-      ...(params.poster !== undefined ? { poster: params.poster } : {}),
-      status: GigCandidateStatus.Pending,
+      _id: new Types.ObjectId(params.gigCandidateId),
+      source: {
+        ...params.source,
+        userId: new Types.ObjectId(params.source.userId),
+      },
+      gigDraft: params.gigDraft,
+      version: 0,
+      status: params.status,
       posts: [],
-      suggestedBy: params.suggestedBy,
     });
 
-    const lean = await this.gigCandidateModel
-      .findById(created._id, GIG_CANDIDATE_LEAN_PROJECTION)
+    return GigCandidateRepositoryMapper.toGigCandidate(
+      created.toObject<GigCandidateLeanDocument>(),
+    );
+  }
+
+  async updateGigCandidateDraft(
+    params: UpdateGigCandidateDraftParams,
+  ): Promise<GigCandidateDomain | null> {
+    if (
+      !Types.ObjectId.isValid(params.gigCandidateId) ||
+      !Number.isInteger(params.expectedVersion) ||
+      params.expectedVersion < 0
+    ) {
+      return null;
+    }
+    const updated = await this.gigCandidateModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(params.gigCandidateId),
+          status: GigCandidateStatus.Reviewing,
+          version: params.expectedVersion,
+        },
+        {
+          $set: { gigDraft: params.gigDraft },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      )
+      .select(GIG_CANDIDATE_LEAN_PROJECTION)
       .lean<GigCandidateLeanDocument>()
       .exec();
 
-    if (!lean) {
-      throw new Error(
-        `GigCandidate create succeeded but document ${params.id} was not found.`,
-      );
-    }
-
-    return GigCandidateRepositoryMapper.toGigCandidateRecord(lean);
+    return updated
+      ? GigCandidateRepositoryMapper.toGigCandidate(updated)
+      : null;
   }
 
-  async findById(id: string): Promise<GigCandidateRecord | null> {
-    if (!Types.ObjectId.isValid(id)) {
+  async findById(gigCandidateId: string): Promise<GigCandidateDomain | null> {
+    if (!Types.ObjectId.isValid(gigCandidateId)) {
       return null;
     }
 
     const doc = await this.gigCandidateModel
-      .findById(id, GIG_CANDIDATE_LEAN_PROJECTION)
+      .findById(gigCandidateId, GIG_CANDIDATE_LEAN_PROJECTION)
       .lean<GigCandidateLeanDocument>()
       .exec();
 
-    if (!doc) {
-      return null;
-    }
-
-    return GigCandidateRepositoryMapper.toGigCandidateRecord(doc);
+    return doc ? GigCandidateRepositoryMapper.toGigCandidate(doc) : null;
   }
 
   async findMany(
     params: FindGigCandidatesParams,
-  ): Promise<GigCandidateRecord[]> {
+  ): Promise<GigCandidateDomain[]> {
     const limit = Math.min(
       Math.max(1, params.limit),
       MongoGigCandidateRepository.MAX_LIST_LIMIT,
@@ -123,7 +132,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
       sortOrder === AdminGigCandidateListSortOrder.Asc ? 1 : -1;
     const sort: Record<string, 1 | -1> =
       params.sortBy === AdminGigCandidateListSortBy.EventDate
-        ? { date: sortDirection, _id: sortDirection }
+        ? { 'gigDraft.date': sortDirection, _id: sortDirection }
         : { createdAt: sortDirection, _id: sortDirection };
 
     const docs = await this.gigCandidateModel
@@ -133,88 +142,38 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
       .lean<GigCandidateLeanDocument[]>()
       .exec();
 
-    return docs.map((doc) =>
-      GigCandidateRepositoryMapper.toGigCandidateRecord(doc),
-    );
+    return docs.map((doc) => GigCandidateRepositoryMapper.toGigCandidate(doc));
   }
 
-  async appendSuggestionPost(
+  async appendGigCandidatePost(
     params: AppendGigCandidatePostParams,
-  ): Promise<GigCandidateRecord | null> {
-    if (!Types.ObjectId.isValid(params.id)) {
-      return null;
-    }
-
-    const updated = await this.gigCandidateModel
-      .findByIdAndUpdate(
-        params.id,
-        { $push: { posts: params.post } },
-        { returnDocument: 'after' },
-      )
-      .select(GIG_CANDIDATE_LEAN_PROJECTION)
-      .lean<GigCandidateLeanDocument>()
-      .exec();
-
-    if (!updated) {
-      return null;
-    }
-
-    return GigCandidateRepositoryMapper.toGigCandidateRecord(updated);
-  }
-
-  async markAccepted(
-    params: MarkGigCandidateAcceptedParams,
-  ): Promise<GigCandidateRecord | null> {
+  ): Promise<GigCandidateDomain | null> {
     if (
-      !Types.ObjectId.isValid(params.id) ||
-      !Types.ObjectId.isValid(params.gigId)
+      !Types.ObjectId.isValid(params.gigCandidateId) ||
+      !Number.isInteger(params.expectedVersion) ||
+      params.expectedVersion < 0
     ) {
       return null;
     }
 
     const updated = await this.gigCandidateModel
-      .findByIdAndUpdate(
-        params.id,
+      .findOneAndUpdate(
         {
-          $set: {
-            status: GigCandidateStatus.Accepted,
-            gigId: new Types.ObjectId(params.gigId),
-          },
+          _id: new Types.ObjectId(params.gigCandidateId),
+          version: params.expectedVersion,
         },
-        { returnDocument: 'after' },
+        {
+          $push: { posts: params.post },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
       )
       .select(GIG_CANDIDATE_LEAN_PROJECTION)
       .lean<GigCandidateLeanDocument>()
       .exec();
 
-    if (!updated) {
-      return null;
-    }
-
-    return GigCandidateRepositoryMapper.toGigCandidateRecord(updated);
-  }
-
-  async markRejected(
-    params: MarkGigCandidateRejectedParams,
-  ): Promise<GigCandidateRecord | null> {
-    if (!Types.ObjectId.isValid(params.id)) {
-      return null;
-    }
-
-    const updated = await this.gigCandidateModel
-      .findByIdAndUpdate(
-        params.id,
-        { $set: { status: GigCandidateStatus.Rejected } },
-        { returnDocument: 'after' },
-      )
-      .select(GIG_CANDIDATE_LEAN_PROJECTION)
-      .lean<GigCandidateLeanDocument>()
-      .exec();
-
-    if (!updated) {
-      return null;
-    }
-
-    return GigCandidateRepositoryMapper.toGigCandidateRecord(updated);
+    return updated
+      ? GigCandidateRepositoryMapper.toGigCandidate(updated)
+      : null;
   }
 }

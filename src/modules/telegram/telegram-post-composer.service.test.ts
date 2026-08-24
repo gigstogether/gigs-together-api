@@ -1,4 +1,3 @@
-import { GigCandidateSource } from '../gig-candidate/types/gig-candidate-source.enum';
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -17,7 +16,6 @@ import {
   CallbackScope,
   encodeCallbackData,
   GigCallbackAction,
-  GigCandidateCallbackAction,
 } from './callback-action';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
 import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
@@ -680,45 +678,32 @@ describe('TelegramPostComposer', () => {
       delete process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
     });
 
-    it('should compose suggestion post with Accept and Reject buttons only', () => {
+    it('should compose a target-model suggestion post without legacy actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       const payload = composer.composeGigCandidatePost({
         id: '507f1f77bcf86cd799439099',
-        source: GigCandidateSource.User,
-        title: 'Suggested Band',
-        date: new Date('2026-08-01T00:00:00.000Z').getTime(),
-        city: 'Barcelona',
-        country: 'ES',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
+        },
+        version: 0,
         status: GigCandidateStatus.Pending,
         posts: [],
-        suggestedBy: { userId: 42, username: 'fan', name: 'Fan User' },
-        poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
         createdAt: new Date(),
         updatedAt: new Date(),
       });
 
       expect(payload.chat_id).toBe('-3001');
-      expect(payload.reply_markup?.inline_keyboard).toEqual([
-        [
-          {
-            text: '✅ Accept',
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.GigCandidate,
-              action: GigCandidateCallbackAction.Accept,
-              id: '507f1f77bcf86cd799439099',
-            }),
-          },
-          {
-            text: '❌ Reject',
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.GigCandidate,
-              action: GigCandidateCallbackAction.Reject,
-              id: '507f1f77bcf86cd799439099',
-            }),
-          },
-        ],
-      ]);
+      expect(payload.reply_markup).toBeUndefined();
     });
 
     it('should throw BadRequestException when GIG_CANDIDATE_MODERATION_CHANNEL_ID is missing', () => {
@@ -728,15 +713,21 @@ describe('TelegramPostComposer', () => {
       expect(() =>
         composer.composeGigCandidatePost({
           id: '507f1f77bcf86cd799439099',
-          source: GigCandidateSource.User,
-          title: 'Suggested Band',
-          date: 1,
-          city: 'Barcelona',
-          country: 'ES',
+          source: {
+            type: 'user',
+            userId: '66a000000000000000000000042',
+            origin: { type: 'form' },
+          },
+          gigDraft: {
+            title: 'Suggested Band',
+            date: 1,
+            city: 'Barcelona',
+            country: 'ES',
+            poster: { bucketPath: 'gigs/x' },
+          },
+          version: 0,
           status: GigCandidateStatus.Pending,
           posts: [],
-          suggestedBy: { userId: 42 },
-          poster: { bucketPath: 'gigs/x' },
           createdAt: new Date(),
           updatedAt: new Date(),
         }),

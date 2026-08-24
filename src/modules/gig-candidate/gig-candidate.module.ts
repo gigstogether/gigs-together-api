@@ -7,7 +7,6 @@ import { GigCandidateBodyPipe } from './pipes/gig-candidate-body.pipe';
 import { MongoGigCandidateRepository } from './repositories/mongo-gig-candidate.repository';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import { GigCandidateController } from './gig-candidate.controller';
-import { GigCandidateModerationService } from './gig-candidate-moderation.service';
 import { GigCandidate, GigCandidateSchema } from './gig-candidate.schema';
 import { GigCandidateService } from './gig-candidate.service';
 
@@ -23,13 +22,12 @@ import { GigCandidateService } from './gig-candidate.service';
   controllers: [GigCandidateController],
   providers: [
     GigCandidateService,
-    GigCandidateModerationService,
     GigCandidateBodyPipe,
     {
       provide: GIG_CANDIDATE_REPOSITORY,
       useClass: MongoGigCandidateRepository,
     },
   ],
-  exports: [GigCandidateService, GigCandidateModerationService],
+  exports: [GigCandidateService],
 })
 export class GigCandidateModule {}

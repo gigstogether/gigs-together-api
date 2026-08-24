@@ -16,13 +16,11 @@ import type { GigCandidateRepository } from './repositories/gig-candidate.reposi
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import type {
-  MarkGigCandidateAcceptedParams,
-  MarkGigCandidateRejectedParams,
-  GigCandidateRecord,
+  GigCandidate,
   FindGigCandidatesParams,
 } from './types/gig-candidate.types';
 import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
-import { GigCandidateSource } from './types/gig-candidate-source.enum';
+import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -81,22 +79,29 @@ export class GigCandidateService {
 
     if (tgSuggestionPost && suggestionChatId && suggestionMessageId) {
       try {
-        await this.gigCandidateRepository.appendSuggestionPost({
-          id: saved.id,
-          post: {
-            id: suggestionMessageId,
-            chatId: suggestionChatId,
-            ...(biggestTgPhotoFileId !== undefined
-              ? { fileId: biggestTgPhotoFileId }
-              : {}),
-            to: Messenger.Telegram,
-            type: GigCandidatePostType.Suggestion,
-            date: tgSuggestionPost.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
-          },
-        });
+        const updated =
+          await this.gigCandidateRepository.appendGigCandidatePost({
+            gigCandidateId: saved.id,
+            expectedVersion: saved.version,
+            post: {
+              id: suggestionMessageId,
+              chatId: suggestionChatId,
+              ...(biggestTgPhotoFileId !== undefined
+                ? { fileId: biggestTgPhotoFileId }
+                : {}),
+              to: Messenger.Telegram,
+              type: GigCandidatePostType.Suggestion,
+              date: tgSuggestionPost.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
+            },
+          });
+        if (!updated) {
+          throw new Error(
+            `GigCandidate ${saved.id} changed before its suggestion post was stored.`,
+          );
+        }
       } catch (e) {
         this.logger.error(
-          'appendSuggestionPost after suggestion channel post failed',
+          'appendGigCandidatePost after suggestion channel post failed',
           e instanceof Error ? e.stack : undefined,
         );
       }
@@ -105,7 +110,7 @@ export class GigCandidateService {
     return { id: saved.id };
   }
 
-  async getByIdOrThrow(id: string): Promise<GigCandidateRecord> {
+  async getByIdOrThrow(id: string): Promise<GigCandidate> {
     const record = await this.gigCandidateRepository.findById(id);
     if (!record) {
       throw new NotFoundException(`GigCandidate with ID ${id} not found`);
@@ -113,41 +118,17 @@ export class GigCandidateService {
     return record;
   }
 
-  findById(id: string): Promise<GigCandidateRecord | null> {
+  findById(id: string): Promise<GigCandidate | null> {
     return this.gigCandidateRepository.findById(id);
   }
 
-  findMany(params: FindGigCandidatesParams): Promise<GigCandidateRecord[]> {
+  findMany(params: FindGigCandidatesParams): Promise<GigCandidate[]> {
     return this.gigCandidateRepository.findMany(params);
-  }
-
-  async markAccepted(
-    params: MarkGigCandidateAcceptedParams,
-  ): Promise<GigCandidateRecord> {
-    const updated = await this.gigCandidateRepository.markAccepted(params);
-    if (!updated) {
-      throw new NotFoundException(
-        `GigCandidate with ID ${params.id} not found`,
-      );
-    }
-    return updated;
-  }
-
-  async markRejected(
-    params: MarkGigCandidateRejectedParams,
-  ): Promise<GigCandidateRecord> {
-    const updated = await this.gigCandidateRepository.markRejected(params);
-    if (!updated) {
-      throw new NotFoundException(
-        `GigCandidate with ID ${params.id} not found`,
-      );
-    }
-    return updated;
   }
 
   private async createGigCandidate(
     params: HandleGigCandidateSubmitParams,
-  ): Promise<GigCandidateRecord> {
+  ): Promise<GigCandidate> {
     const { body, user, posterFile } = params;
     const gig = this.parseAndValidateCreateBody(body.gig);
 
@@ -177,26 +158,24 @@ export class GigCandidateService {
       },
     });
 
-    const suggestedBy = {
-      userId: user.tgUser.id,
-      username: user.tgUser.username,
-      name: [user.tgUser.first_name, user.tgUser.last_name]
-        .filter(Boolean)
-        .join(' '),
-    };
-
-    return this.gigCandidateRepository.create({
-      id,
-      source: GigCandidateSource.User,
-      title: gig.title,
-      date: dateMs,
-      ...(endDateMs !== undefined ? { endDate: endDateMs } : {}),
-      city: gig.city,
-      country: gig.country,
-      ...(gig.venue !== undefined ? { venue: gig.venue } : {}),
-      ...(gig.ticketsUrl !== undefined ? { ticketsUrl: gig.ticketsUrl } : {}),
-      ...(poster !== undefined ? { poster } : {}),
-      suggestedBy,
+    return this.gigCandidateRepository.createGigCandidate({
+      gigCandidateId: id,
+      status: GigCandidateStatus.Pending,
+      source: {
+        type: 'user',
+        userId: user.userId,
+        origin: { type: 'form' },
+      },
+      gigDraft: {
+        title: gig.title,
+        date: dateMs,
+        ...(endDateMs !== undefined ? { endDate: endDateMs } : {}),
+        city: gig.city,
+        country: gig.country,
+        ...(gig.venue !== undefined ? { venue: gig.venue } : {}),
+        ...(gig.ticketsUrl !== undefined ? { ticketsUrl: gig.ticketsUrl } : {}),
+        ...(poster !== undefined ? { poster } : {}),
+      },
     });
   }
 

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
-import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
@@ -22,24 +22,27 @@ export class AdminGigCandidateService {
   async getList(
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
-    const records = await this.gigCandidateService.findMany({
+    const gigCandidates = await this.gigCandidateService.findMany({
       status: params.status,
       limit: params.limit,
       sortBy: params.sortBy,
       sortOrder: params.sortOrder,
     });
-    return Promise.all(records.map((record) => this.resolve(record)));
+    return Promise.all(
+      gigCandidates.map((gigCandidate) => this.resolve(gigCandidate)),
+    );
   }
 
-  async getById(id: string): Promise<AdminGigCandidateDetails> {
-    const record = await this.gigCandidateService.getByIdOrThrow(id);
-    return this.resolve(record);
+  async getById(gigCandidateId: string): Promise<AdminGigCandidateDetails> {
+    const gigCandidate =
+      await this.gigCandidateService.getByIdOrThrow(gigCandidateId);
+    return this.resolve(gigCandidate);
   }
 
   private async resolve(
-    record: GigCandidateRecord,
+    gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const suggestionPost = record.posts.find(
+    const suggestionPost = gigCandidate.posts.find(
       (post) =>
         post.to === Messenger.Telegram &&
         post.type === GigCandidatePostType.Suggestion,
@@ -50,28 +53,28 @@ export class AdminGigCandidateService {
           messageId: suggestionPost.id,
         })
       : undefined;
-    const linkedGig = record.gigId
-      ? await this.gigService.getGigById(record.gigId)
+    const linkedGig = gigCandidate.gigId
+      ? await this.gigService.getGigById(gigCandidate.gigId)
       : undefined;
 
     return {
-      id: record.id,
-      source: record.source,
-      title: record.title,
-      date: record.date,
-      endDate: record.endDate,
-      city: record.city,
-      country: record.country,
-      venue: record.venue,
-      ticketsUrl: record.ticketsUrl,
-      posterUrl: this.gigService.resolveGigPosterPublicUrl(record.poster),
-      status: record.status,
-      suggestedBy: record.suggestedBy,
+      id: gigCandidate.id,
+      source: gigCandidate.source,
+      gigDraft: gigCandidate.gigDraft,
+      version: gigCandidate.version,
+      posterUrl: this.gigService.resolveGigPosterPublicUrl(
+        gigCandidate.gigDraft.poster,
+      ),
+      status: gigCandidate.status,
       postUrl: suggestionPostUrl,
       postDate: suggestionPost?.date,
       linkedGigPublicId: linkedGig?.publicId,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
+      approvedAt: gigCandidate.approvedAt,
+      approvedByUserId: gigCandidate.approvedByUserId,
+      rejectedAt: gigCandidate.rejectedAt,
+      rejectedByUserId: gigCandidate.rejectedByUserId,
+      createdAt: gigCandidate.createdAt,
+      updatedAt: gigCandidate.updatedAt,
     };
   }
 }

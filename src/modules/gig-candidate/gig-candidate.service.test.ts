@@ -1,4 +1,3 @@
-import { GigCandidateSource } from './types/gig-candidate-source.enum';
 import { BadRequestException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -8,27 +7,23 @@ import { TelegramService } from '../telegram/telegram.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
-import type { GigCandidateRecord } from './types/gig-candidate.types';
+import type { GigCandidate } from './types/gig-candidate.types';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
 
   const gigCandidateRepositoryMock: {
     createId: ReturnType<typeof vi.fn>;
-    create: ReturnType<typeof vi.fn>;
+    createGigCandidate: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
-    appendSuggestionPost: ReturnType<typeof vi.fn>;
-    markAccepted: ReturnType<typeof vi.fn>;
-    markRejected: ReturnType<typeof vi.fn>;
+    appendGigCandidatePost: ReturnType<typeof vi.fn>;
   } = {
     createId: vi.fn(),
-    create: vi.fn(),
+    createGigCandidate: vi.fn(),
     findById: vi.fn(),
     findMany: vi.fn(),
-    appendSuggestionPost: vi.fn(),
-    markAccepted: vi.fn(),
-    markRejected: vi.fn(),
+    appendGigCandidatePost: vi.fn(),
   };
 
   const gigPosterServiceMock = {
@@ -193,24 +188,30 @@ describe('GigCandidateService', () => {
     });
 
     it('should create GigCandidate and return id when required fields are valid', async () => {
-      const created: GigCandidateRecord = {
+      const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
-        source: GigCandidateSource.User,
-        title: 'Band',
-        date: Date.parse('2026-08-01T00:00:00.000Z'),
-        city: 'Barcelona',
-        country: 'ES',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000099',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
+        },
+        version: 0,
         status: GigCandidateStatus.Pending,
         posts: [],
-        suggestedBy: { userId: 99, username: 'fan', name: 'Fan User' },
-        poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
-      gigPosterServiceMock.upload.mockResolvedValue(created.poster);
-      gigCandidateRepositoryMock.create.mockResolvedValue(created);
+      gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateToSuggestion.mockResolvedValue(
         undefined,
       );
@@ -237,16 +238,21 @@ describe('GigCandidateService', () => {
         posterFile: undefined,
       });
 
-      expect(gigCandidateRepositoryMock.create).toHaveBeenCalledWith(
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: created.id,
-          title: 'Band',
-          country: 'ES',
-          suggestedBy: {
-            userId: 99,
-            username: 'fan',
-            name: 'Fan User',
+          gigCandidateId: created.id,
+          status: GigCandidateStatus.Pending,
+          source: {
+            type: 'user',
+            userId: '66a000000000000000000000099',
+            origin: { type: 'form' },
           },
+          gigDraft: expect.objectContaining({
+            title: 'Band',
+            country: 'ES',
+          }),
         }),
       );
       expect(result).toEqual({ id: created.id });
@@ -256,32 +262,39 @@ describe('GigCandidateService', () => {
     });
 
     it('should append suggestion post when Telegram returns a message', async () => {
-      const created: GigCandidateRecord = {
+      const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
-        source: GigCandidateSource.User,
-        title: 'Band',
-        date: Date.parse('2026-08-01T00:00:00.000Z'),
-        city: 'Barcelona',
-        country: 'ES',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000001',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/ug' },
+        },
+        version: 0,
         status: GigCandidateStatus.Pending,
         posts: [],
-        suggestedBy: { userId: 1, name: 'A' },
-        poster: { bucketPath: 'gigs/ug' },
         createdAt: new Date(),
         updatedAt: new Date(),
       };
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
-      gigPosterServiceMock.upload.mockResolvedValue(created.poster);
-      gigCandidateRepositoryMock.create.mockResolvedValue(created);
+      gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateToSuggestion.mockResolvedValue({
         message_id: 55,
         date: 1_700_000_000,
         chat: { id: -200 },
         photo: [{ file_id: 'photo-1', width: 1, height: 1 }],
       });
-      gigCandidateRepositoryMock.appendSuggestionPost.mockResolvedValue(
-        created,
-      );
+      gigCandidateRepositoryMock.appendGigCandidatePost.mockResolvedValue({
+        ...created,
+        version: 1,
+      });
 
       await service.handleSubmit({
         body: {
@@ -301,10 +314,11 @@ describe('GigCandidateService', () => {
       });
 
       expect(
-        gigCandidateRepositoryMock.appendSuggestionPost,
+        gigCandidateRepositoryMock.appendGigCandidatePost,
       ).toHaveBeenCalledWith(
         expect.objectContaining({
-          id: created.id,
+          gigCandidateId: created.id,
+          expectedVersion: 0,
           post: expect.objectContaining({
             id: 55,
             chatId: -200,
@@ -321,29 +335,6 @@ describe('GigCandidateService', () => {
 
       await expect(
         service.getByIdOrThrow('507f1f77bcf86cd799439099'),
-      ).rejects.toThrow(/GigCandidate with ID/);
-    });
-  });
-
-  describe('markAccepted', () => {
-    it('should throw NotFoundException when repository returns null', async () => {
-      gigCandidateRepositoryMock.markAccepted.mockResolvedValue(null);
-
-      await expect(
-        service.markAccepted({
-          id: '507f1f77bcf86cd799439099',
-          gigId: '507f1f77bcf86cd799439011',
-        }),
-      ).rejects.toThrow(/GigCandidate with ID/);
-    });
-  });
-
-  describe('markRejected', () => {
-    it('should throw NotFoundException when repository returns null', async () => {
-      gigCandidateRepositoryMock.markRejected.mockResolvedValue(null);
-
-      await expect(
-        service.markRejected({ id: '507f1f77bcf86cd799439099' }),
       ).rejects.toThrow(/GigCandidate with ID/);
     });
   });

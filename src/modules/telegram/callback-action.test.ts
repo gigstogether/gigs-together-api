@@ -2,7 +2,6 @@ import {
   CallbackScope,
   encodeCallbackData,
   GigCallbackAction,
-  GigCandidateCallbackAction,
   parseCallbackData,
   TELEGRAM_CALLBACK_DATA_MAX_CHARS,
 } from './callback-action';
@@ -16,16 +15,6 @@ describe('encodeCallbackData', () => {
         id: '507f1f77bcf86cd799439011',
       }),
     ).toBe('gig:approve:507f1f77bcf86cd799439011');
-  });
-
-  it('should encode gigCandidate accept callback as scope:action:id', () => {
-    expect(
-      encodeCallbackData({
-        scope: CallbackScope.GigCandidate,
-        action: GigCandidateCallbackAction.Accept,
-        id: '507f1f77bcf86cd799439099',
-      }),
-    ).toBe('gigCandidate:accept:507f1f77bcf86cd799439099');
   });
 
   it('should throw when id is empty', () => {
@@ -72,14 +61,10 @@ describe('parseCallbackData', () => {
     });
   });
 
-  it('should parse a valid gigCandidate reject callback', () => {
+  it('should reject the removed unreleased gigCandidate callback contract', () => {
     expect(
       parseCallbackData('gigCandidate:reject:507f1f77bcf86cd799439099'),
-    ).toEqual({
-      scope: CallbackScope.GigCandidate,
-      action: GigCandidateCallbackAction.Reject,
-      id: '507f1f77bcf86cd799439099',
-    });
+    ).toBeNull();
   });
 
   it('should return null for legacy flat action:id payloads', () => {

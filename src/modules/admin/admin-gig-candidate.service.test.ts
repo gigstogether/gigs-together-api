@@ -3,34 +3,37 @@ import { Test } from '@nestjs/testing';
 
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
-import { GigCandidateSource } from '../gig-candidate/types/gig-candidate-source.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate/gig-candidate-list-sort';
-import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
-function buildRecord(
-  overrides: Partial<GigCandidateRecord> = {},
-): GigCandidateRecord {
+function buildRecord(overrides: Partial<GigCandidate> = {}): GigCandidate {
   return {
     id: '507f1f77bcf86cd799439099',
-    source: GigCandidateSource.User,
-    title: 'Band',
-    date: Date.parse('2026-08-20T00:00:00.000Z'),
-    city: 'Barcelona',
-    country: 'ES',
-    venue: 'Razzmatazz',
-    ticketsUrl: 'https://example.com/tickets',
-    poster: { bucketPath: 'gigs/poster' },
+    source: {
+      type: 'user',
+      userId: '66a000000000000000000000042',
+      origin: { type: 'form' },
+    },
+    gigDraft: {
+      title: 'Band',
+      date: Date.parse('2026-08-20T00:00:00.000Z'),
+      city: 'Barcelona',
+      country: 'ES',
+      venue: 'Razzmatazz',
+      ticketsUrl: 'https://example.com/tickets',
+      poster: { bucketPath: 'gigs/poster' },
+    },
+    version: 0,
     status: GigCandidateStatus.Pending,
     posts: [],
-    suggestedBy: { userId: 42, username: 'fan' },
     createdAt: new Date('2026-08-01T10:00:00.000Z'),
     updatedAt: new Date('2026-08-02T10:00:00.000Z'),
     ...overrides,
@@ -85,7 +88,7 @@ describe('AdminGigCandidateService', () => {
       ).resolves.toEqual([
         expect.objectContaining({
           id: record.id,
-          date: record.date,
+          gigDraft: record.gigDraft,
           posterUrl: 'https://cdn.example/poster.jpg',
           createdAt: record.createdAt,
         }),
@@ -102,7 +105,7 @@ describe('AdminGigCandidateService', () => {
   describe('getById', () => {
     it('should include candidate post and linked gig URLs', async () => {
       const record = buildRecord({
-        status: GigCandidateStatus.Accepted,
+        status: GigCandidateStatus.Approved,
         gigId: '507f1f77bcf86cd799439011',
         posts: [
           {

@@ -7,14 +7,12 @@ import type {
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { GigPost, GigPoster } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
-import type { GigCandidateRecord } from '../gig-candidate/types/gig-candidate.types';
-import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { Status } from '../gig/types/status.enum';
 import {
   CallbackScope,
   encodeCallbackData,
   GigCallbackAction,
-  GigCandidateCallbackAction,
 } from './callback-action';
 import { PostType } from '../gig/types/postType.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -34,7 +32,6 @@ import {
   BuildRejectedModerationCaptionPayload,
   BuildSubmissionFeedbackCaptionPayload,
   ComposedText,
-  ComposeGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
   PostEditKind,
@@ -529,7 +526,7 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeGigCandidatePost(gigCandidate: GigCandidateRecord): TGSendPhoto {
+  composeGigCandidatePost(gigCandidate: GigCandidate): TGSendPhoto {
     const chatIdRaw = process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -542,13 +539,11 @@ export class TelegramPostComposerService {
       );
     }
 
-    const replyMarkup = this.buildGigCandidateReplyMarkup(gigCandidate);
     const fullCaption = this.buildGigCandidateCaption({
       gigCandidate,
-      status: GigCandidateStatus.Pending,
     });
 
-    const poster = this.getPosterUrl(gigCandidate.poster);
+    const poster = this.getPosterUrl(gigCandidate.gigDraft.poster);
 
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
@@ -561,83 +556,16 @@ export class TelegramPostComposerService {
       photo: poster,
       caption: fullCaption,
       parse_mode: TGParseMode.HTML,
-      reply_markup: replyMarkup,
-    };
-  }
-
-  composeGigCandidatePostEdit(
-    params: ComposeGigCandidatePostEditParams,
-  ): TelegramGigPostEditComposition {
-    const { gigCandidate, chatId, messageId, fileId } = params;
-    const fullCaption = this.buildGigCandidateCaption({
-      gigCandidate,
-      status: gigCandidate.status,
-    });
-    const replyMarkup: TGInlineKeyboardMarkup = { inline_keyboard: [] };
-
-    if (fileId) {
-      return {
-        kind: PostEditKind.Caption,
-        payload: {
-          chatId,
-          messageId,
-          caption: fullCaption,
-          parseMode: TGParseMode.HTML,
-          disableWebPagePreview: true,
-          replyMarkup,
-        },
-      };
-    }
-
-    return {
-      kind: PostEditKind.Text,
-      payload: {
-        chatId,
-        messageId,
-        text: fullCaption,
-        parseMode: TGParseMode.HTML,
-        disableWebPagePreview: true,
-        replyMarkup,
-      },
-    };
-  }
-
-  private buildGigCandidateReplyMarkup(
-    gigCandidate: GigCandidateRecord,
-  ): TGInlineKeyboardMarkup {
-    return {
-      inline_keyboard: [
-        [
-          {
-            text: this.postTemplates.getText(
-              TELEGRAM_TEMPLATE_KEYS.buttonAccept,
-            ),
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.GigCandidate,
-              action: GigCandidateCallbackAction.Accept,
-              id: gigCandidate.id,
-            }),
-          },
-          {
-            text: this.postTemplates.getText(
-              TELEGRAM_TEMPLATE_KEYS.buttonReject,
-            ),
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.GigCandidate,
-              action: GigCandidateCallbackAction.Reject,
-              id: gigCandidate.id,
-            }),
-          },
-        ],
-      ],
     };
   }
 
   private buildGigCandidateCaption(
     params: BuildGigCandidateCaptionParams,
   ): string {
-    const { gigCandidate, status } = params;
-    const statusLabel = this.buildGigCandidateStatusLabel(status);
+    const { gigCandidate } = params;
+    const statusLabel = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.statusPending,
+    );
     const body = this.buildGigCandidateBodyCaption(gigCandidate);
 
     return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigCandidate, {
@@ -646,46 +574,31 @@ export class TelegramPostComposerService {
     });
   }
 
-  private buildGigCandidateBodyCaption(
-    gigCandidate: GigCandidateRecord,
-  ): string {
-    const suggestedBy = gigCandidate.suggestedBy;
-    const suggestedByLabel = [
-      suggestedBy.name,
-      suggestedBy.username ? `@${suggestedBy.username}` : undefined,
-      `id:${suggestedBy.userId}`,
-    ]
-      .filter(Boolean)
-      .join(' ');
+  private buildGigCandidateBodyCaption(gigCandidate: GigCandidate): string {
+    const { gigDraft, source } = gigCandidate;
+    if (gigDraft.title === undefined || gigDraft.date === undefined) {
+      throw new BadRequestException(
+        'Cannot compose gig-candidate suggestion post: gigDraft title and date are required.',
+      );
+    }
+    const sourceLabel =
+      source.type === 'user'
+        ? `userId:${source.userId}`
+        : `provider:${source.provider.name}`;
 
-    const locationLine = [gigCandidate.country, gigCandidate.city]
+    const locationLine = [gigDraft.country, gigDraft.city]
       .filter(Boolean)
       .join(' / ');
 
     const body = this.buildCaption({
-      title: gigCandidate.title,
-      ticketsUrl: gigCandidate.ticketsUrl ?? '',
-      venue: gigCandidate.venue ?? '',
-      date: gigCandidate.date,
-      endDate: gigCandidate.endDate,
+      title: gigDraft.title,
+      ticketsUrl: gigDraft.ticketsUrl ?? '',
+      venue: gigDraft.venue ?? '',
+      date: gigDraft.date,
+      endDate: gigDraft.endDate,
     });
 
-    return `${body}\n${locationLine}\nSuggested by: ${suggestedByLabel}`;
-  }
-
-  private buildGigCandidateStatusLabel(status: GigCandidateStatus): string {
-    switch (status) {
-      case GigCandidateStatus.Pending:
-        return this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.statusPending);
-      case GigCandidateStatus.Rejected:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.statusRejected,
-        );
-      case GigCandidateStatus.Accepted:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.statusAccepted,
-        );
-    }
+    return `${body}\n${locationLine}\nSource: ${sourceLabel}`;
   }
 
   private buildModerationPostReplyMarkup(

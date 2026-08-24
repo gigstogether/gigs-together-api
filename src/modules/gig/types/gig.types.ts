@@ -43,6 +43,17 @@ export interface GigPosterInput {
   externalUrl?: string;
 }
 
+export interface GigData {
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  poster?: GigPosterInput;
+}
+
 export interface CreateGigInput {
   title: string;
   publicId: string;

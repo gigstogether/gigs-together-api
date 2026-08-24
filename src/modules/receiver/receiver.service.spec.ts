@@ -9,10 +9,8 @@ import {
   CallbackScope,
   encodeCallbackData,
   GigCallbackAction,
-  GigCandidateCallbackAction,
 } from '../telegram/callback-action';
 import { GigModerationService } from '../gig/gig-moderation.service';
-import { GigCandidateModerationService } from '../gig-candidate/gig-candidate-moderation.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
@@ -49,11 +47,6 @@ describe('ReceiverService', () => {
     rejectGig: vi.fn(),
   };
 
-  const mockGigCandidateModerationService = {
-    accept: vi.fn(),
-    reject: vi.fn(),
-  };
-
   beforeEach(async () => {
     vi.unstubAllEnvs();
 
@@ -71,10 +64,6 @@ describe('ReceiverService', () => {
         {
           provide: GigModerationService,
           useValue: mockGigModerationService,
-        },
-        {
-          provide: GigCandidateModerationService,
-          useValue: mockGigCandidateModerationService,
         },
       ],
     }).compile();
@@ -368,75 +357,6 @@ describe('ReceiverService', () => {
       });
     });
 
-    it('should accept GigCandidate when accept callback is received', async () => {
-      const callbackQuery: TGCallbackQuery = {
-        id: 'callback-accept',
-        data: encodeCallbackData({
-          scope: CallbackScope.GigCandidate,
-          action: GigCandidateCallbackAction.Accept,
-          id: '507f1f77bcf86cd799439011',
-        }),
-        from: {
-          id: 1,
-          is_bot: false,
-          first_name: 'Arina',
-        },
-        message: {
-          message_id: 42,
-          date: Date.now(),
-          chat: { id: -100999, type: 'channel' },
-        },
-      };
-
-      mockGigCandidateModerationService.accept.mockResolvedValue(undefined);
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
-
-      await service.handleCallbackQuery(callbackQuery);
-
-      expect(mockGigCandidateModerationService.accept).toHaveBeenCalledWith({
-        gigCandidateId: '507f1f77bcf86cd799439011',
-        suggestionPost: {
-          messageId: 42,
-          chatId: -100999,
-        },
-      });
-    });
-
-    it('should reject GigCandidate when gigCandidate reject callback is received', async () => {
-      const callbackQuery: TGCallbackQuery = {
-        id: 'callback-reject-candidate',
-        data: encodeCallbackData({
-          scope: CallbackScope.GigCandidate,
-          action: GigCandidateCallbackAction.Reject,
-          id: '507f1f77bcf86cd799439011',
-        }),
-        from: {
-          id: 1,
-          is_bot: false,
-          first_name: 'Arina',
-        },
-        message: {
-          message_id: 42,
-          date: Date.now(),
-          chat: { id: -100999, type: 'channel' },
-        },
-      };
-
-      mockGigCandidateModerationService.reject.mockResolvedValue(undefined);
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
-
-      await service.handleCallbackQuery(callbackQuery);
-
-      expect(mockGigCandidateModerationService.reject).toHaveBeenCalledWith({
-        gigCandidateId: '507f1f77bcf86cd799439011',
-        suggestionPost: {
-          messageId: 42,
-          chatId: -100999,
-        },
-      });
-      expect(mockGigModerationService.rejectGig).not.toHaveBeenCalled();
-    });
-
     it('should reject Gig when reject callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-reject-gig',
@@ -469,7 +389,6 @@ describe('ReceiverService', () => {
           chatId: -100123,
         },
       });
-      expect(mockGigCandidateModerationService.reject).not.toHaveBeenCalled();
     });
 
     it('should answer with an error when legacy flat callback_data is received', async () => {

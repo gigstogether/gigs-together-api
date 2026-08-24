@@ -10,7 +10,8 @@ import {
 
 export const ADMIN_GIG_CANDIDATE_STATUS_QUERY_VALUES = [
   'pending',
-  'accepted',
+  'reviewing',
+  'approved',
   'rejected',
 ] as const;
 
@@ -23,8 +24,10 @@ export function mapAdminGigCandidateStatusQuery(
   switch (status) {
     case 'pending':
       return GigCandidateStatus.Pending;
-    case 'accepted':
-      return GigCandidateStatus.Accepted;
+    case 'reviewing':
+      return GigCandidateStatus.Reviewing;
+    case 'approved':
+      return GigCandidateStatus.Approved;
     case 'rejected':
       return GigCandidateStatus.Rejected;
   }

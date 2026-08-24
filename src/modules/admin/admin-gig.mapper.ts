@@ -73,40 +73,41 @@ export function mapV1AdminGigCandidatesQuery(
 }
 
 export function mapV1AdminGigCandidateResponse(
-  candidate: AdminGigCandidateDetails,
+  gigCandidate: AdminGigCandidateDetails,
 ): V1AdminGigCandidateResponseBody {
-  const date = msToYmd(candidate.date);
-  if (!date) {
-    throw new Error(
-      `GigCandidate ${candidate.id} is missing a valid event date`,
-    );
-  }
+  const { gigDraft } = gigCandidate;
 
   return {
-    id: candidate.id,
-    source: candidate.source,
-    title: candidate.title,
-    date,
-    endDate: msToYmd(candidate.endDate),
-    city: candidate.city,
-    country: candidate.country,
-    venue: candidate.venue,
-    ticketsUrl: candidate.ticketsUrl,
-    posterUrl: candidate.posterUrl,
-    status: candidate.status,
-    suggestedBy: candidate.suggestedBy,
-    postUrl: candidate.postUrl,
-    postDate: candidate.postDate,
-    linkedGigPublicId: candidate.linkedGigPublicId,
-    createdAt: candidate.createdAt.toISOString(),
-    updatedAt: candidate.updatedAt.toISOString(),
+    id: gigCandidate.id,
+    source: gigCandidate.source,
+    gigDraft: {
+      title: gigDraft.title,
+      date: msToYmd(gigDraft.date),
+      endDate: msToYmd(gigDraft.endDate),
+      city: gigDraft.city,
+      country: gigDraft.country,
+      venue: gigDraft.venue,
+      ticketsUrl: gigDraft.ticketsUrl,
+      posterUrl: gigCandidate.posterUrl,
+    },
+    status: gigCandidate.status,
+    version: gigCandidate.version,
+    postUrl: gigCandidate.postUrl,
+    postDate: gigCandidate.postDate,
+    linkedGigPublicId: gigCandidate.linkedGigPublicId,
+    approvedAt: gigCandidate.approvedAt?.toISOString(),
+    approvedByUserId: gigCandidate.approvedByUserId,
+    rejectedAt: gigCandidate.rejectedAt?.toISOString(),
+    rejectedByUserId: gigCandidate.rejectedByUserId,
+    createdAt: gigCandidate.createdAt.toISOString(),
+    updatedAt: gigCandidate.updatedAt.toISOString(),
   };
 }
 
 export function mapV1AdminGigCandidatesListResponse(
-  candidates: AdminGigCandidateDetails[],
+  gigCandidates: AdminGigCandidateDetails[],
 ): V1AdminGigCandidatesListResponseBody {
   return {
-    gigCandidates: candidates.map(mapV1AdminGigCandidateResponse),
+    gigCandidates: gigCandidates.map(mapV1AdminGigCandidateResponse),
   };
 }

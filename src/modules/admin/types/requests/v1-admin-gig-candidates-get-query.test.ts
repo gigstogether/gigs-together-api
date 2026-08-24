@@ -4,7 +4,8 @@ import { mapAdminGigCandidateStatusQuery } from './v1-admin-gig-candidates-get-q
 describe('mapAdminGigCandidateStatusQuery', () => {
   it.each([
     ['pending', GigCandidateStatus.Pending],
-    ['accepted', GigCandidateStatus.Accepted],
+    ['reviewing', GigCandidateStatus.Reviewing],
+    ['approved', GigCandidateStatus.Approved],
     ['rejected', GigCandidateStatus.Rejected],
   ] as const)('should map %s status to the domain enum', (status, expected) => {
     expect(mapAdminGigCandidateStatusQuery(status)).toBe(expected);

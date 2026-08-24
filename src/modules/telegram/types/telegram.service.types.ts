@@ -1,5 +1,4 @@
 import type { Status } from '../../gig/types/status.enum';
-import type { GigCandidateRecord } from '../../gig-candidate/types/gig-candidate.types';
 import type { TGChatId, TGMessage } from './message.types';
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
 
@@ -39,11 +38,4 @@ export interface HandlePostRejectPayload {
 
 export interface WeeklyDigestMainChannelPublishResult {
   readonly postUrl: string;
-}
-
-export interface UpdateGigCandidatePostParams {
-  gigCandidate: GigCandidateRecord;
-  chatId: number;
-  messageId: number;
-  fileId?: string;
 }

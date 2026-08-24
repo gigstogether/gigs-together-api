@@ -1,7 +1,6 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
 import type { Status } from '../../gig/types/status.enum';
-import type { GigCandidateRecord } from '../../gig-candidate/types/gig-candidate.types';
-import type { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
+import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
 import type {
   TGChatId,
   TGEditMessageCaption,
@@ -120,16 +119,8 @@ export interface BuildRejectedModerationCaptionPayload {
   readonly adminGigUrl?: string;
 }
 
-export interface ComposeGigCandidatePostEditParams {
-  gigCandidate: GigCandidateRecord;
-  chatId: number;
-  messageId: number;
-  fileId?: string;
-}
-
 export interface BuildGigCandidateCaptionParams {
-  gigCandidate: GigCandidateRecord;
-  status: GigCandidateStatus;
+  gigCandidate: GigCandidate;
 }
 
 export interface ComposedText {

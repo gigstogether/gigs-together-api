@@ -1,10 +1,9 @@
 import type {
   AppendGigCandidatePostParams,
-  CreateGigCandidateRecordParams,
-  MarkGigCandidateAcceptedParams,
-  MarkGigCandidateRejectedParams,
-  GigCandidateRecord,
+  CreateGigCandidateParams,
+  GigCandidate,
   FindGigCandidatesParams,
+  UpdateGigCandidateDraftParams,
 } from '../types/gig-candidate.types';
 
 export const GIG_CANDIDATE_REPOSITORY = Symbol('GIG_CANDIDATE_REPOSITORY');
@@ -12,21 +11,17 @@ export const GIG_CANDIDATE_REPOSITORY = Symbol('GIG_CANDIDATE_REPOSITORY');
 export interface GigCandidateRepository {
   createId(): string;
 
-  create(params: CreateGigCandidateRecordParams): Promise<GigCandidateRecord>;
+  createGigCandidate(params: CreateGigCandidateParams): Promise<GigCandidate>;
 
-  findById(id: string): Promise<GigCandidateRecord | null>;
+  updateGigCandidateDraft(
+    params: UpdateGigCandidateDraftParams,
+  ): Promise<GigCandidate | null>;
 
-  findMany(params: FindGigCandidatesParams): Promise<GigCandidateRecord[]>;
+  findById(gigCandidateId: string): Promise<GigCandidate | null>;
 
-  appendSuggestionPost(
+  findMany(params: FindGigCandidatesParams): Promise<GigCandidate[]>;
+
+  appendGigCandidatePost(
     params: AppendGigCandidatePostParams,
-  ): Promise<GigCandidateRecord | null>;
-
-  markAccepted(
-    params: MarkGigCandidateAcceptedParams,
-  ): Promise<GigCandidateRecord | null>;
-
-  markRejected(
-    params: MarkGigCandidateRejectedParams,
-  ): Promise<GigCandidateRecord | null>;
+  ): Promise<GigCandidate | null>;
 }

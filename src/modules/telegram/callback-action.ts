@@ -3,7 +3,6 @@ export const TELEGRAM_CALLBACK_DATA_MAX_CHARS = 64;
 
 export enum CallbackScope {
   Gig = 'gig',
-  GigCandidate = 'gigCandidate',
 }
 
 export enum GigCallbackAction {
@@ -12,25 +11,13 @@ export enum GigCallbackAction {
   Post = 'post',
 }
 
-export enum GigCandidateCallbackAction {
-  Accept = 'accept',
-  Reject = 'reject',
-}
-
 export interface GigCallbackData {
   scope: CallbackScope.Gig;
   action: GigCallbackAction;
   id: string;
 }
 
-export interface GigCandidateCallbackData {
-  scope: CallbackScope.GigCandidate;
-  action: GigCandidateCallbackAction;
-  id: string;
-}
-
-export type EncodeCallbackDataParams =
-  GigCallbackData | GigCandidateCallbackData;
+export type EncodeCallbackDataParams = GigCallbackData;
 
 export type ParsedCallbackData = EncodeCallbackDataParams;
 
@@ -39,15 +26,6 @@ function isGigCallbackAction(value: string): value is GigCallbackAction {
     value === GigCallbackAction.Approve ||
     value === GigCallbackAction.Reject ||
     value === GigCallbackAction.Post
-  );
-}
-
-function isGigCandidateCallbackAction(
-  value: string,
-): value is GigCandidateCallbackAction {
-  return (
-    value === GigCandidateCallbackAction.Accept ||
-    value === GigCandidateCallbackAction.Reject
   );
 }
 
@@ -85,17 +63,6 @@ export function parseCallbackData(data: string): ParsedCallbackData | null {
   if (scopeRaw === CallbackScope.Gig && isGigCallbackAction(actionRaw)) {
     return {
       scope: CallbackScope.Gig,
-      action: actionRaw,
-      id,
-    };
-  }
-
-  if (
-    scopeRaw === CallbackScope.GigCandidate &&
-    isGigCandidateCallbackAction(actionRaw)
-  ) {
-    return {
-      scope: CallbackScope.GigCandidate,
       action: actionRaw,
       id,
     };
