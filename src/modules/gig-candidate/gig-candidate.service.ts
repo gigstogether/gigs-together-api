@@ -18,9 +18,17 @@ import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-creat
 import type {
   GigCandidate,
   FindGigCandidatesParams,
+  RejectGigCandidateParams,
+  SendGigCandidateToModerationParams,
+  UpdateGigCandidateDraftParams,
 } from './types/gig-candidate.types';
 import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
+import {
+  GigCandidateCommand,
+  GigCandidateConflictError,
+  getGigCandidateTransitionPolicy,
+} from './gig-candidate-state-machine';
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -124,6 +132,138 @@ export class GigCandidateService {
 
   findMany(params: FindGigCandidatesParams): Promise<GigCandidate[]> {
     return this.gigCandidateRepository.findMany(params);
+  }
+
+  async sendGigCandidateToModeration(
+    params: SendGigCandidateToModerationParams,
+  ): Promise<GigCandidate> {
+    const command = GigCandidateCommand.SendToModeration;
+    this.assertExpectedVersionIsValid(
+      params.gigCandidateId,
+      params.expectedVersion,
+      command,
+    );
+
+    const gigCandidate = await this.getByIdOrThrow(params.gigCandidateId);
+    const policy = getGigCandidateTransitionPolicy({
+      gigCandidateId: gigCandidate.id,
+      status: gigCandidate.status,
+      command,
+    });
+    if (policy.isIdempotent) {
+      return gigCandidate;
+    }
+    this.assertExpectedVersionMatches(
+      gigCandidate,
+      params.expectedVersion,
+      command,
+    );
+
+    const updated =
+      await this.gigCandidateRepository.sendGigCandidateToModeration(params);
+    if (updated) {
+      return updated;
+    }
+
+    const latest = await this.getByIdOrThrow(params.gigCandidateId);
+    const latestPolicy = getGigCandidateTransitionPolicy({
+      gigCandidateId: latest.id,
+      status: latest.status,
+      command,
+    });
+    if (latestPolicy.isIdempotent) {
+      return latest;
+    }
+
+    return this.throwConditionalWriteConflict(
+      latest,
+      params.expectedVersion,
+      command,
+    );
+  }
+
+  async rejectGigCandidate(
+    params: RejectGigCandidateParams,
+  ): Promise<GigCandidate> {
+    const command = GigCandidateCommand.Reject;
+    this.assertExpectedVersionIsValid(
+      params.gigCandidateId,
+      params.expectedVersion,
+      command,
+    );
+
+    const gigCandidate = await this.getByIdOrThrow(params.gigCandidateId);
+    getGigCandidateTransitionPolicy({
+      gigCandidateId: gigCandidate.id,
+      status: gigCandidate.status,
+      command,
+    });
+    this.assertExpectedVersionMatches(
+      gigCandidate,
+      params.expectedVersion,
+      command,
+    );
+
+    const updated = await this.gigCandidateRepository.rejectGigCandidate({
+      ...params,
+      rejectedAt: new Date(),
+    });
+    if (updated) {
+      return updated;
+    }
+
+    const latest = await this.getByIdOrThrow(params.gigCandidateId);
+    getGigCandidateTransitionPolicy({
+      gigCandidateId: latest.id,
+      status: latest.status,
+      command,
+    });
+    return this.throwConditionalWriteConflict(
+      latest,
+      params.expectedVersion,
+      command,
+    );
+  }
+
+  async updateGigCandidateDraft(
+    params: UpdateGigCandidateDraftParams,
+  ): Promise<GigCandidate> {
+    const command = GigCandidateCommand.UpdateDraft;
+    this.assertExpectedVersionIsValid(
+      params.gigCandidateId,
+      params.expectedVersion,
+      command,
+    );
+
+    const gigCandidate = await this.getByIdOrThrow(params.gigCandidateId);
+    getGigCandidateTransitionPolicy({
+      gigCandidateId: gigCandidate.id,
+      status: gigCandidate.status,
+      command,
+    });
+    this.assertExpectedVersionMatches(
+      gigCandidate,
+      params.expectedVersion,
+      command,
+    );
+
+    const updated =
+      await this.gigCandidateRepository.updateGigCandidateDraft(params);
+    if (updated) {
+      return updated;
+    }
+
+    const latest = await this.getByIdOrThrow(params.gigCandidateId);
+    getGigCandidateTransitionPolicy({
+      gigCandidateId: latest.id,
+      status: latest.status,
+      command,
+    });
+    return this.throwConditionalWriteConflict(
+      latest,
+      params.expectedVersion,
+      command,
+    );
   }
 
   private async createGigCandidate(
@@ -256,5 +396,56 @@ export class GigCandidateService {
       throw new BadRequestException(`${field} must be a valid date`);
     }
     return ms;
+  }
+
+  private assertExpectedVersionIsValid(
+    gigCandidateId: string,
+    expectedVersion: number,
+    command: GigCandidateCommand,
+  ): void {
+    if (Number.isInteger(expectedVersion) && expectedVersion >= 0) {
+      return;
+    }
+
+    throw new GigCandidateConflictError({
+      gigCandidateId,
+      command,
+      reason: 'versionConflict',
+      message: `Expected version for GigCandidate ${gigCandidateId} must be a non-negative integer.`,
+    });
+  }
+
+  private assertExpectedVersionMatches(
+    gigCandidate: GigCandidate,
+    expectedVersion: number,
+    command: GigCandidateCommand,
+  ): void {
+    if (gigCandidate.version === expectedVersion) {
+      return;
+    }
+
+    throw new GigCandidateConflictError({
+      gigCandidateId: gigCandidate.id,
+      command,
+      reason: 'versionConflict',
+      message: `GigCandidate ${gigCandidate.id} version conflict: expected ${expectedVersion}, current ${gigCandidate.version}.`,
+    });
+  }
+
+  private throwConditionalWriteConflict(
+    gigCandidate: GigCandidate,
+    expectedVersion: number,
+    command: GigCandidateCommand,
+  ): never {
+    if (gigCandidate.version !== expectedVersion) {
+      this.assertExpectedVersionMatches(gigCandidate, expectedVersion, command);
+    }
+
+    throw new GigCandidateConflictError({
+      gigCandidateId: gigCandidate.id,
+      command,
+      reason: 'concurrentModification',
+      message: `GigCandidate ${gigCandidate.id} changed concurrently during ${command}.`,
+    });
   }
 }

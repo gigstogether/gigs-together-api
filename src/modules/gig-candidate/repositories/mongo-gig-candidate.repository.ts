@@ -8,6 +8,8 @@ import type {
   CreateGigCandidateParams,
   GigCandidate as GigCandidateDomain,
   FindGigCandidatesParams,
+  RejectGigCandidateRecordParams,
+  SendGigCandidateToModerationParams,
   UpdateGigCandidateDraftParams,
 } from '../types/gig-candidate.types';
 import {
@@ -106,6 +108,74 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
       : null;
   }
 
+  async sendGigCandidateToModeration(
+    params: SendGigCandidateToModerationParams,
+  ): Promise<GigCandidateDomain | null> {
+    if (!this.isValidConditionalUpdate(params)) {
+      return null;
+    }
+
+    const updated = await this.gigCandidateModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(params.gigCandidateId),
+          status: GigCandidateStatus.Pending,
+          version: params.expectedVersion,
+        },
+        {
+          $set: { status: GigCandidateStatus.Reviewing },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      )
+      .select(GIG_CANDIDATE_LEAN_PROJECTION)
+      .lean<GigCandidateLeanDocument>()
+      .exec();
+
+    return updated
+      ? GigCandidateRepositoryMapper.toGigCandidate(updated)
+      : null;
+  }
+
+  async rejectGigCandidate(
+    params: RejectGigCandidateRecordParams,
+  ): Promise<GigCandidateDomain | null> {
+    if (
+      !this.isValidConditionalUpdate(params) ||
+      !Types.ObjectId.isValid(params.rejectedByUserId) ||
+      Number.isNaN(params.rejectedAt.getTime())
+    ) {
+      return null;
+    }
+
+    const updated = await this.gigCandidateModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(params.gigCandidateId),
+          status: {
+            $in: [GigCandidateStatus.Pending, GigCandidateStatus.Reviewing],
+          },
+          version: params.expectedVersion,
+        },
+        {
+          $set: {
+            status: GigCandidateStatus.Rejected,
+            rejectedAt: params.rejectedAt,
+            rejectedByUserId: new Types.ObjectId(params.rejectedByUserId),
+          },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      )
+      .select(GIG_CANDIDATE_LEAN_PROJECTION)
+      .lean<GigCandidateLeanDocument>()
+      .exec();
+
+    return updated
+      ? GigCandidateRepositoryMapper.toGigCandidate(updated)
+      : null;
+  }
+
   async findById(gigCandidateId: string): Promise<GigCandidateDomain | null> {
     if (!Types.ObjectId.isValid(gigCandidateId)) {
       return null;
@@ -175,5 +245,15 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     return updated
       ? GigCandidateRepositoryMapper.toGigCandidate(updated)
       : null;
+  }
+
+  private isValidConditionalUpdate(
+    params: SendGigCandidateToModerationParams,
+  ): boolean {
+    return (
+      Types.ObjectId.isValid(params.gigCandidateId) &&
+      Number.isInteger(params.expectedVersion) &&
+      params.expectedVersion >= 0
+    );
   }
 }

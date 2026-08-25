@@ -97,6 +97,21 @@ export interface UpdateGigCandidateDraftParams {
   gigDraft: Partial<GigData>;
 }
 
+export interface SendGigCandidateToModerationParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+}
+
+export interface RejectGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  rejectedByUserId: string;
+}
+
+export interface RejectGigCandidateRecordParams extends RejectGigCandidateParams {
+  rejectedAt: Date;
+}
+
 export interface AppendGigCandidatePostParams {
   gigCandidateId: string;
   expectedVersion: number;

@@ -159,6 +159,119 @@ describe('MongoGigCandidateRepository', () => {
     });
   });
 
+  describe('sendGigCandidateToModeration', () => {
+    it('should conditionally transition only Pending status and increment version', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      findOneAndUpdateMock.mockReturnValue(
+        updateQueryResult({
+          _id: gigCandidateId,
+          source: {
+            type: 'user',
+            userId: '507f1f77bcf86cd799439088',
+            origin: { type: 'form' },
+          },
+          gigDraft: {},
+          version: 1,
+          status: GigCandidateStatus.Reviewing,
+          posts: [],
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      );
+
+      const result = await repository.sendGigCandidateToModeration({
+        gigCandidateId,
+        expectedVersion: 0,
+      });
+
+      expect(result?.status).toBe(GigCandidateStatus.Reviewing);
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: expect.any(Types.ObjectId),
+          status: GigCandidateStatus.Pending,
+          version: 0,
+        },
+        {
+          $set: { status: GigCandidateStatus.Reviewing },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      );
+    });
+  });
+
+  describe('rejectGigCandidate', () => {
+    it('should conditionally reject Pending or Reviewing with audit fields', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const rejectedByUserId = '507f1f77bcf86cd799439077';
+      const rejectedAt = new Date('2026-08-24T12:00:00.000Z');
+      findOneAndUpdateMock.mockReturnValue(
+        updateQueryResult({
+          _id: gigCandidateId,
+          source: {
+            type: 'user',
+            userId: '507f1f77bcf86cd799439088',
+            origin: { type: 'form' },
+          },
+          gigDraft: {},
+          version: 1,
+          status: GigCandidateStatus.Rejected,
+          posts: [],
+          rejectedAt,
+          rejectedByUserId,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      );
+
+      const result = await repository.rejectGigCandidate({
+        gigCandidateId,
+        expectedVersion: 0,
+        rejectedAt,
+        rejectedByUserId,
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          status: GigCandidateStatus.Rejected,
+          version: 1,
+          rejectedAt,
+          rejectedByUserId,
+        }),
+      );
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: expect.any(Types.ObjectId),
+          status: {
+            $in: [GigCandidateStatus.Pending, GigCandidateStatus.Reviewing],
+          },
+          version: 0,
+        },
+        {
+          $set: {
+            status: GigCandidateStatus.Rejected,
+            rejectedAt,
+            rejectedByUserId: expect.any(Types.ObjectId),
+          },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      );
+    });
+
+    it('should return null without writing when reviewer id is invalid', async () => {
+      const result = await repository.rejectGigCandidate({
+        gigCandidateId: '507f1f77bcf86cd799439099',
+        expectedVersion: 0,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: 'invalid-user-id',
+      });
+
+      expect(result).toBeNull();
+      expect(findOneAndUpdateMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findById', () => {
     it('should return null when gigCandidateId is invalid', async () => {
       await expect(repository.findById('not-an-id')).resolves.toBeNull();

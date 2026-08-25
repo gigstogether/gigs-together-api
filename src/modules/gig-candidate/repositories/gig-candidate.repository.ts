@@ -3,6 +3,8 @@ import type {
   CreateGigCandidateParams,
   GigCandidate,
   FindGigCandidatesParams,
+  RejectGigCandidateRecordParams,
+  SendGigCandidateToModerationParams,
   UpdateGigCandidateDraftParams,
 } from '../types/gig-candidate.types';
 
@@ -15,6 +17,14 @@ export interface GigCandidateRepository {
 
   updateGigCandidateDraft(
     params: UpdateGigCandidateDraftParams,
+  ): Promise<GigCandidate | null>;
+
+  sendGigCandidateToModeration(
+    params: SendGigCandidateToModerationParams,
+  ): Promise<GigCandidate | null>;
+
+  rejectGigCandidate(
+    params: RejectGigCandidateRecordParams,
   ): Promise<GigCandidate | null>;
 
   findById(gigCandidateId: string): Promise<GigCandidate | null>;

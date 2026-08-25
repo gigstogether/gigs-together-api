@@ -5,6 +5,10 @@ import { Test } from '@nestjs/testing';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
+import {
+  GigCandidateCommand,
+  GigCandidateConflictError,
+} from './gig-candidate-state-machine';
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
@@ -18,12 +22,18 @@ describe('GigCandidateService', () => {
     findById: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     appendGigCandidatePost: ReturnType<typeof vi.fn>;
+    sendGigCandidateToModeration: ReturnType<typeof vi.fn>;
+    rejectGigCandidate: ReturnType<typeof vi.fn>;
+    updateGigCandidateDraft: ReturnType<typeof vi.fn>;
   } = {
     createId: vi.fn(),
     createGigCandidate: vi.fn(),
     findById: vi.fn(),
     findMany: vi.fn(),
     appendGigCandidatePost: vi.fn(),
+    sendGigCandidateToModeration: vi.fn(),
+    rejectGigCandidate: vi.fn(),
+    updateGigCandidateDraft: vi.fn(),
   };
 
   const gigPosterServiceMock = {
@@ -338,4 +348,225 @@ describe('GigCandidateService', () => {
       ).rejects.toThrow(/GigCandidate with ID/);
     });
   });
+
+  describe('sendGigCandidateToModeration', () => {
+    it('should conditionally transition Pending to Reviewing', async () => {
+      const pending = buildGigCandidate();
+      const reviewing = {
+        ...pending,
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+      };
+      gigCandidateRepositoryMock.findById.mockResolvedValue(pending);
+      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
+        reviewing,
+      );
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: pending.id,
+          expectedVersion: 0,
+        }),
+      ).resolves.toEqual(reviewing);
+      expect(
+        gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: pending.id,
+        expectedVersion: 0,
+      });
+    });
+
+    it('should return Reviewing GigCandidate for an idempotent retry', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+        }),
+      ).resolves.toEqual(reviewing);
+      expect(
+        gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should return concurrent Reviewing transition as an idempotent retry', async () => {
+      const pending = buildGigCandidate();
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+      });
+      gigCandidateRepositoryMock.findById
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(reviewing);
+      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: pending.id,
+          expectedVersion: 0,
+        }),
+      ).resolves.toEqual(reviewing);
+    });
+  });
+
+  describe('rejectGigCandidate', () => {
+    it('should conditionally reject Pending GigCandidate with audit fields', async () => {
+      const pending = buildGigCandidate();
+      const rejectedByUserId = '507f1f77bcf86cd799439077';
+      const rejected = buildGigCandidate({
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(pending);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+
+      await expect(
+        service.rejectGigCandidate({
+          gigCandidateId: pending.id,
+          expectedVersion: 0,
+          rejectedByUserId,
+        }),
+      ).resolves.toEqual(rejected);
+      expect(
+        gigCandidateRepositoryMock.rejectGigCandidate,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: pending.id,
+        expectedVersion: 0,
+        rejectedByUserId: rejected.rejectedByUserId,
+        rejectedAt: expect.any(Date),
+      });
+    });
+
+    it('should return illegal-transition conflict for repeated rejection', async () => {
+      const rejectedByUserId = '507f1f77bcf86cd799439077';
+      const rejected = buildGigCandidate({
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(rejected);
+
+      await expect(
+        service.rejectGigCandidate({
+          gigCandidateId: rejected.id,
+          expectedVersion: 1,
+          rejectedByUserId,
+        }),
+      ).rejects.toMatchObject({
+        name: GigCandidateConflictError.name,
+        command: GigCandidateCommand.Reject,
+        reason: 'illegalTransition',
+      });
+      expect(
+        gigCandidateRepositoryMock.rejectGigCandidate,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateGigCandidateDraft', () => {
+    it('should conditionally update Reviewing gigDraft', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+      });
+      const updated = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+        gigDraft: { title: 'Updated title' },
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+        updated,
+      );
+
+      await expect(
+        service.updateGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigDraft: { title: 'Updated title' },
+        }),
+      ).resolves.toEqual(updated);
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateDraft,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: reviewing.id,
+        expectedVersion: 0,
+        gigDraft: { title: 'Updated title' },
+      });
+    });
+
+    it('should return version conflict before a stale draft update', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+
+      await expect(
+        service.updateGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 1,
+          gigDraft: { title: 'Stale title' },
+        }),
+      ).rejects.toMatchObject({
+        name: GigCandidateConflictError.name,
+        command: GigCandidateCommand.UpdateDraft,
+        reason: 'versionConflict',
+      });
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateDraft,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should return explicit conflict when a conditional draft update loses a race', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.updateGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigDraft: { title: 'Updated title' },
+        }),
+      ).rejects.toMatchObject({
+        name: GigCandidateConflictError.name,
+        command: GigCandidateCommand.UpdateDraft,
+        reason: 'concurrentModification',
+      });
+    });
+  });
 });
+
+function buildGigCandidate(
+  overrides: Partial<GigCandidate> = {},
+): GigCandidate {
+  return {
+    id: '507f1f77bcf86cd799439099',
+    source: {
+      type: 'user',
+      userId: '507f1f77bcf86cd799439088',
+      origin: { type: 'form' },
+    },
+    gigDraft: {},
+    version: 0,
+    status: GigCandidateStatus.Pending,
+    posts: [],
+    createdAt: new Date('2026-08-24T10:00:00.000Z'),
+    updatedAt: new Date('2026-08-24T10:00:00.000Z'),
+    ...overrides,
+  };
+}
