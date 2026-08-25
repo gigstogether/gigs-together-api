@@ -1,17 +1,10 @@
 import { Types } from 'mongoose';
 
-import type { PlainGig } from '../gig/types/gig.types';
-import {
-  mapGigToFormData,
-  mapV1AdminGigCandidateResponse,
-  mapV1AdminGigCandidatesListResponse,
-  mapV1AdminGigCandidatesQuery,
-} from './admin-gig.mapper';
 import { Messenger } from '../../shared/types/messenger.enum';
+import type { PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../gig/types/postType.enum';
 import { Status } from '../gig/types/status.enum';
-import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
-import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
+import { mapGigToFormData } from './admin-gig.mapper';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
@@ -72,62 +65,6 @@ describe('mapGigToFormDataByPublicId', () => {
       publishPostDate,
       moderationPostUrl: 'https://t.me/c/123/42',
       moderationPostDate,
-    });
-  });
-});
-
-function buildGigCandidateDetails(): AdminGigCandidateDetails {
-  return {
-    id: '507f1f77bcf86cd799439099',
-    source: {
-      type: 'user',
-      userId: '66a000000000000000000000042',
-      origin: { type: 'form' },
-    },
-    gigDraft: {
-      title: 'Band',
-      date: Date.parse('2026-08-20T00:00:00.000Z'),
-      city: 'Barcelona',
-      country: 'ES',
-    },
-    version: 0,
-    status: GigCandidateStatus.Pending,
-    createdAt: new Date('2026-08-01T10:00:00.000Z'),
-    updatedAt: new Date('2026-08-02T10:00:00.000Z'),
-  };
-}
-
-describe('mapV1AdminGigCandidatesQuery', () => {
-  it('should map the HTTP status and default limit to application params', () => {
-    expect(mapV1AdminGigCandidatesQuery({ status: 'pending' })).toEqual({
-      status: GigCandidateStatus.Pending,
-      limit: 100,
-      sortBy: undefined,
-      sortOrder: undefined,
-    });
-  });
-});
-
-describe('mapV1AdminGigCandidateResponse', () => {
-  it('should serialize application dates for the HTTP response', () => {
-    expect(mapV1AdminGigCandidateResponse(buildGigCandidateDetails())).toEqual(
-      expect.objectContaining({
-        gigDraft: expect.objectContaining({ date: '2026-08-20' }),
-        createdAt: '2026-08-01T10:00:00.000Z',
-        updatedAt: '2026-08-02T10:00:00.000Z',
-      }),
-    );
-  });
-});
-
-describe('mapV1AdminGigCandidatesListResponse', () => {
-  it('should wrap mapped candidates in the versioned response shape', () => {
-    expect(
-      mapV1AdminGigCandidatesListResponse([buildGigCandidateDetails()]),
-    ).toEqual({
-      gigCandidates: [
-        expect.objectContaining({ id: '507f1f77bcf86cd799439099' }),
-      ],
     });
   });
 });

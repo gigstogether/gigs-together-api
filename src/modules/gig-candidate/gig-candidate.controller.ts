@@ -48,7 +48,9 @@ export class GigCandidateController {
     return this.gigCandidateService.handleSubmit({
       body,
       user,
-      posterFile,
+      posterFile: posterFile
+        ? { buffer: posterFile.buffer, mimetype: posterFile.mimetype }
+        : undefined,
     });
   }
 }

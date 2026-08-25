@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 
 import { GigPosterService } from '../gig/gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { AiService } from '../ai/ai.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import {
   GigCandidateCommand,
@@ -44,6 +45,10 @@ describe('GigCandidateService', () => {
     sendGigCandidateToSuggestion: vi.fn(),
   };
 
+  const aiServiceMock = {
+    lookupGigV1: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
 
@@ -56,6 +61,7 @@ describe('GigCandidateService', () => {
         },
         { provide: GigPosterService, useValue: gigPosterServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: AiService, useValue: aiServiceMock },
       ],
     }).compile();
 
@@ -345,7 +351,115 @@ describe('GigCandidateService', () => {
 
       await expect(
         service.getByIdOrThrow('507f1f77bcf86cd799439099'),
-      ).rejects.toThrow(/GigCandidate with ID/);
+      ).rejects.toThrow(/Gig Candidate with ID/);
+    });
+  });
+
+  describe('createAdminGigCandidate', () => {
+    it('should create Reviewing GigCandidate with admin origin', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const userId = '507f1f77bcf86cd799439088';
+      const created = buildGigCandidate({
+        id: gigCandidateId,
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId,
+          origin: { type: 'admin' },
+        },
+        gigDraft: { title: 'Band' },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
+      gigPosterServiceMock.upload.mockResolvedValue(undefined);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+
+      await expect(
+        service.createAdminGigCandidate({
+          userId,
+          gigDraft: { title: 'Band' },
+        }),
+      ).resolves.toEqual(created);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith({
+        gigCandidateId,
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId,
+          origin: { type: 'admin' },
+        },
+        gigDraft: { title: 'Band' },
+      });
+      expect(
+        telegramServiceMock.sendGigCandidateToSuggestion,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateAdminGigCandidateDraft', () => {
+    it('should preserve stored poster when update has no new poster input', async () => {
+      const poster = { bucketPath: 'gigCandidate/poster.jpg' };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: { title: 'Old title', poster },
+      });
+      const updated = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+        gigDraft: { title: 'New title', poster },
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+        updated,
+      );
+
+      await expect(
+        service.updateAdminGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigDraft: { title: 'New title' },
+        }),
+      ).resolves.toEqual(updated);
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateDraft,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: reviewing.id,
+        expectedVersion: 0,
+        gigDraft: { title: 'New title', poster },
+      });
+      expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lookupGigCandidateDraft', () => {
+    it('should return AI lookup data without writing GigCandidate state', async () => {
+      const lookupResult = {
+        title: 'Band',
+        date: '2026-09-20',
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+        ticketsUrl: 'https://tickets.example/gig',
+      };
+      aiServiceMock.lookupGigV1.mockResolvedValue(lookupResult);
+
+      await expect(
+        service.lookupGigCandidateDraft({
+          title: 'Band',
+          location: 'Barcelona, ES',
+        }),
+      ).resolves.toEqual(lookupResult);
+      expect(aiServiceMock.lookupGigV1).toHaveBeenCalledWith({
+        name: 'Band',
+        location: 'Barcelona, ES',
+      });
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateDraft,
+      ).not.toHaveBeenCalled();
     });
   });
 

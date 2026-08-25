@@ -6,6 +6,7 @@ import type {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate-list-sort';
+import type { GigPosterFile } from '../../gig/types/gig-poster.types';
 
 export interface GigCandidatePoster {
   bucketPath?: string;
@@ -123,4 +124,35 @@ export interface FindGigCandidatesParams {
   limit: number;
   sortBy?: AdminGigCandidateListSortBy;
   sortOrder?: AdminGigCandidateListSortOrder;
+}
+
+export interface CreateAdminGigCandidateParams {
+  userId: string;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface UpdateAdminGigCandidateDraftParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface LookupGigCandidateDraftParams {
+  title: string;
+  location: string;
+}
+
+export interface GigCandidateDraftLookupResult {
+  title: string;
+  date: string;
+  endDate?: string;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  posterUrl?: string;
 }

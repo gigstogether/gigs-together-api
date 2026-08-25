@@ -7,8 +7,6 @@ import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
 import type { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 import type { TranslationService } from '../translation/translation.service';
-import type { AdminGigCandidateService } from './admin-gig-candidate.service';
-import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 
 describe('AdminController', () => {
   const adminDashboardService = {
@@ -109,28 +107,6 @@ describe('AdminController', () => {
     publish: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<DigestService, 'publish'>;
 
-  const adminGigCandidateService = {
-    getList: vi.fn().mockResolvedValue([]),
-    getById: vi.fn().mockResolvedValue({
-      id: '507f1f77bcf86cd799439099',
-      source: {
-        type: 'user',
-        userId: '66a000000000000000000000042',
-        origin: { type: 'form' },
-      },
-      gigDraft: {
-        title: 'Band',
-        date: Date.parse('2026-08-20T00:00:00.000Z'),
-        city: 'Barcelona',
-        country: 'ES',
-      },
-      version: 0,
-      status: GigCandidateStatus.Pending,
-      createdAt: new Date('2026-08-01T10:00:00.000Z'),
-      updatedAt: new Date('2026-08-02T10:00:00.000Z'),
-    }),
-  } satisfies Pick<AdminGigCandidateService, 'getList' | 'getById'>;
-
   const controller = new AdminController(
     adminDashboardService as unknown as AdminDashboardService,
     adminGigService as unknown as AdminGigService,
@@ -140,7 +116,6 @@ describe('AdminController', () => {
     gigModerationService as unknown as GigModerationService,
     feedRevalidateService as unknown as FeedRevalidateService,
     digestService as unknown as DigestService,
-    adminGigCandidateService as unknown as AdminGigCandidateService,
   );
 
   beforeEach(() => {
@@ -181,59 +156,6 @@ describe('AdminController', () => {
       });
 
       expect(adminGigService.getGigByPublicId).toHaveBeenCalledWith('gig-42');
-    });
-  });
-
-  describe('getGigCandidates', () => {
-    it('should return gig candidates from admin gig candidate service', async () => {
-      const query = { status: 'pending' as const, limit: 20 };
-
-      await expect(controller.getGigCandidates(query)).resolves.toEqual({
-        gigCandidates: [],
-      });
-      expect(adminGigCandidateService.getList).toHaveBeenCalledWith({
-        status: GigCandidateStatus.Pending,
-        limit: 20,
-        sortBy: undefined,
-        sortOrder: undefined,
-      });
-    });
-  });
-
-  describe('getGigCandidateById', () => {
-    it('should return a gig candidate by id', async () => {
-      const id = '507f1f77bcf86cd799439099';
-
-      await expect(controller.getGigCandidateById(id)).resolves.toEqual({
-        id,
-        source: {
-          type: 'user',
-          userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
-        },
-        gigDraft: {
-          title: 'Band',
-          date: '2026-08-20',
-          endDate: undefined,
-          city: 'Barcelona',
-          country: 'ES',
-          venue: undefined,
-          ticketsUrl: undefined,
-          posterUrl: undefined,
-        },
-        version: 0,
-        status: GigCandidateStatus.Pending,
-        postUrl: undefined,
-        postDate: undefined,
-        linkedGigPublicId: undefined,
-        approvedAt: undefined,
-        approvedByUserId: undefined,
-        rejectedAt: undefined,
-        rejectedByUserId: undefined,
-        createdAt: '2026-08-01T10:00:00.000Z',
-        updatedAt: '2026-08-02T10:00:00.000Z',
-      });
-      expect(adminGigCandidateService.getById).toHaveBeenCalledWith(id);
     });
   });
 

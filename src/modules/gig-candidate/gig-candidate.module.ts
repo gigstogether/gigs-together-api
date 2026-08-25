@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
+import { AiModule } from '../ai/ai.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { GigCandidateBodyPipe } from './pipes/gig-candidate-body.pipe';
@@ -18,6 +19,7 @@ import { GigCandidateService } from './gig-candidate.service';
     GigModule,
     TelegramModule,
     AuthModule,
+    AiModule,
   ],
   controllers: [GigCandidateController],
   providers: [

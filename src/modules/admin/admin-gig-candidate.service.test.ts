@@ -1,20 +1,22 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
+import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
-import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate/gig-candidate-list-sort';
+import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
+import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
-import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
-function buildRecord(overrides: Partial<GigCandidate> = {}): GigCandidate {
+function buildGigCandidate(
+  overrides: Partial<GigCandidate> = {},
+): GigCandidate {
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
@@ -71,8 +73,8 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getList', () => {
-    it('should return resolved candidates for the requested status and sorting', async () => {
-      const record = buildRecord();
+    it('should return resolved GigCandidates for the requested status and sorting', async () => {
+      const record = buildGigCandidate();
       gigCandidateServiceMock.findMany.mockResolvedValue([record]);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
@@ -103,8 +105,8 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getById', () => {
-    it('should include candidate post and linked gig URLs', async () => {
-      const record = buildRecord({
+    it('should include the GigCandidate post and linked Gig URLs', async () => {
+      const record = buildGigCandidate({
         status: GigCandidateStatus.Approved,
         gigId: '507f1f77bcf86cd799439011',
         posts: [

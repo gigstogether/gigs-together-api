@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-  Version,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, Version } from '@nestjs/common';
 import { GigService } from './gig.service';
 import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
@@ -17,16 +6,8 @@ import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-req
 import type { V1GigDatesGetResponseBody } from './types/requests/v1-gig-dates-get-request';
 import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-request';
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
-import type {
-  V1GigLookupFields,
-  V1GigLookupResponseBody,
-} from './types/requests/v1-gig-lookup-request';
-import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
 import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
-import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
-import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
 
 @Controller('gig')
 export class GigController {
@@ -74,19 +55,5 @@ export class GigController {
     return this.gigService.getGigDateByPublicId({
       publicId: params.publicId,
     });
-  }
-
-  /**
-   * Looks up gig details (future gigs only) by "name + place"
-   * and returns a draft object compatible with `GigDto`.
-   */
-  @Version('1')
-  @Post('lookup')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  async lookupGigV1(
-    @Body(GigLookupBodyPipe) fields: V1GigLookupFields,
-  ): Promise<V1GigLookupResponseBody> {
-    return this.gigService.lookupGigV1(fields);
   }
 }

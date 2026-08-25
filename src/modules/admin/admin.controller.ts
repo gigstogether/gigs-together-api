@@ -39,17 +39,6 @@ import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
-import { AdminGigCandidateService } from './admin-gig-candidate.service';
-import { V1AdminGigCandidatesGetQueryDto } from './types/requests/v1-admin-gig-candidates-get-query';
-import type {
-  V1AdminGigCandidateResponseBody,
-  V1AdminGigCandidatesListResponseBody,
-} from './types/requests/v1-admin-gig-candidates-response';
-import {
-  mapV1AdminGigCandidateResponse,
-  mapV1AdminGigCandidatesListResponse,
-  mapV1AdminGigCandidatesQuery,
-} from './admin-gig.mapper';
 
 /** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
@@ -63,7 +52,6 @@ export class AdminController {
     private readonly gigModerationService: GigModerationService,
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly digestService: DigestService,
-    private readonly adminGigCandidateService: AdminGigCandidateService,
   ) {}
 
   @Version('1')
@@ -89,28 +77,6 @@ export class AdminController {
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<GigFormData> {
     return this.adminGigService.getGigByPublicId(params.publicId);
-  }
-
-  @Version('1')
-  @Get('gig-candidates')
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  async getGigCandidates(
-    @Query() query: V1AdminGigCandidatesGetQueryDto,
-  ): Promise<V1AdminGigCandidatesListResponseBody> {
-    const gigCandidates = await this.adminGigCandidateService.getList(
-      mapV1AdminGigCandidatesQuery(query),
-    );
-    return mapV1AdminGigCandidatesListResponse(gigCandidates);
-  }
-
-  @Version('1')
-  @Get('gig-candidates/:id')
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  async getGigCandidateById(
-    @Param('id') id: string,
-  ): Promise<V1AdminGigCandidateResponseBody> {
-    const gigCandidate = await this.adminGigCandidateService.getById(id);
-    return mapV1AdminGigCandidateResponse(gigCandidate);
   }
 
   @Version('1')

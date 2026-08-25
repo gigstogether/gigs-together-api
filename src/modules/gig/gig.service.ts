@@ -16,7 +16,6 @@ import type {
 import { Gig, GigPoster } from './gig.schema';
 import type { GigDocument } from './gig.schema';
 import { Status } from './types/status.enum';
-import { AiService } from '../ai/ai.service';
 import type {
   V1GigGetRequestQuery,
   V1GetGigsResponseBody,
@@ -37,10 +36,6 @@ import {
   buildFeedVisibleDateClause,
   startOfTodayMs,
 } from './types/requests/v1-gig-date-range.shared';
-import type {
-  V1GigLookupFields,
-  V1GigLookupResponseBody,
-} from './types/requests/v1-gig-lookup-request';
 import { envBool } from '../../shared/utils/env';
 import { CalendarService } from '../calendar/calendar.service';
 import type { CalendarishEvent } from '../calendar/calendar.service';
@@ -107,7 +102,6 @@ export class GigService {
 
   constructor(
     @InjectModel(Gig.name) private gigModel: Model<Gig>,
-    private readonly aiService: AiService,
     private readonly calendarService: CalendarService,
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
@@ -941,14 +935,6 @@ export class GigService {
       end: endDateTime,
       timeZone,
     };
-  }
-
-  async lookupGigV1(
-    fields: V1GigLookupFields,
-  ): Promise<V1GigLookupResponseBody> {
-    const { name, location } = fields;
-    const gig = await this.aiService.lookupGigV1({ name, location });
-    return { gig: gig ?? null };
   }
 
   private uploadPoster: GigPosterService['upload'] =

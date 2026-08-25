@@ -11,17 +11,23 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { TGMessage } from '../telegram/types/message.types';
+import { AiService } from '../ai/ai.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import type {
   GigCandidate,
+  CreateAdminGigCandidateParams,
   FindGigCandidatesParams,
+  GigCandidateDraftLookupResult,
+  LookupGigCandidateDraftParams,
   RejectGigCandidateParams,
   SendGigCandidateToModerationParams,
+  UpdateAdminGigCandidateDraftParams,
   UpdateGigCandidateDraftParams,
 } from './types/gig-candidate.types';
+import type { GigPosterFile } from '../gig/types/gig-poster.types';
 import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import {
@@ -35,7 +41,16 @@ const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 interface HandleGigCandidateSubmitParams {
   body: V1CreateGigCandidateRequestBody;
   user: User;
-  posterFile: Express.Multer.File | undefined;
+  posterFile: GigPosterFile | undefined;
+}
+
+interface PrepareGigCandidateDraftPosterParams {
+  gigCandidateId: string;
+  gigDraft: Partial<GigCandidate['gigDraft']>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+  existingPoster?: GigCandidate['gigDraft']['poster'];
+  shouldUseDefaultPoster: boolean;
 }
 
 interface ParsedCreateGigCandidateFields {
@@ -56,6 +71,7 @@ export class GigCandidateService {
     private readonly gigCandidateRepository: GigCandidateRepository,
     private readonly gigPosterService: GigPosterService,
     private readonly telegramService: TelegramService,
+    private readonly aiService: AiService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -104,7 +120,7 @@ export class GigCandidateService {
           });
         if (!updated) {
           throw new Error(
-            `GigCandidate ${saved.id} changed before its suggestion post was stored.`,
+            `Gig Candidate ${saved.id} changed before its suggestion post was stored.`,
           );
         }
       } catch (e) {
@@ -121,7 +137,7 @@ export class GigCandidateService {
   async getByIdOrThrow(id: string): Promise<GigCandidate> {
     const record = await this.gigCandidateRepository.findById(id);
     if (!record) {
-      throw new NotFoundException(`GigCandidate with ID ${id} not found`);
+      throw new NotFoundException(`Gig Candidate with ID ${id} not found`);
     }
     return record;
   }
@@ -132,6 +148,79 @@ export class GigCandidateService {
 
   findMany(params: FindGigCandidatesParams): Promise<GigCandidate[]> {
     return this.gigCandidateRepository.findMany(params);
+  }
+
+  async createAdminGigCandidate(
+    params: CreateAdminGigCandidateParams,
+  ): Promise<GigCandidate> {
+    const gigCandidateId = this.gigCandidateRepository.createId();
+    const gigDraft = await this.prepareGigCandidateDraftPoster({
+      gigCandidateId,
+      gigDraft: params.gigDraft,
+      posterUrl: params.posterUrl,
+      posterFile: params.posterFile,
+      shouldUseDefaultPoster: true,
+    });
+
+    return this.gigCandidateRepository.createGigCandidate({
+      gigCandidateId,
+      status: GigCandidateStatus.Reviewing,
+      source: {
+        type: 'user',
+        userId: params.userId,
+        origin: { type: 'admin' },
+      },
+      gigDraft,
+    });
+  }
+
+  async updateAdminGigCandidateDraft(
+    params: UpdateAdminGigCandidateDraftParams,
+  ): Promise<GigCandidate> {
+    const command = GigCandidateCommand.UpdateDraft;
+    this.assertExpectedVersionIsValid(
+      params.gigCandidateId,
+      params.expectedVersion,
+      command,
+    );
+    const currentGigCandidate = await this.getByIdOrThrow(
+      params.gigCandidateId,
+    );
+    getGigCandidateTransitionPolicy({
+      gigCandidateId: currentGigCandidate.id,
+      status: currentGigCandidate.status,
+      command,
+    });
+    this.assertExpectedVersionMatches(
+      currentGigCandidate,
+      params.expectedVersion,
+      command,
+    );
+
+    const gigDraft = await this.prepareGigCandidateDraftPoster({
+      gigCandidateId: currentGigCandidate.id,
+      gigDraft: params.gigDraft,
+      posterUrl: params.posterUrl,
+      posterFile: params.posterFile,
+      existingPoster: currentGigCandidate.gigDraft.poster,
+      shouldUseDefaultPoster: false,
+    });
+
+    return this.updateGigCandidateDraft({
+      gigCandidateId: params.gigCandidateId,
+      expectedVersion: params.expectedVersion,
+      gigDraft,
+    });
+  }
+
+  async lookupGigCandidateDraft(
+    params: LookupGigCandidateDraftParams,
+  ): Promise<GigCandidateDraftLookupResult | null> {
+    const gigDraft = await this.aiService.lookupGigV1({
+      name: params.title,
+      location: params.location,
+    });
+    return gigDraft ? { ...gigDraft } : null;
   }
 
   async sendGigCandidateToModeration(
@@ -398,6 +487,38 @@ export class GigCandidateService {
     return ms;
   }
 
+  private async prepareGigCandidateDraftPoster(
+    params: PrepareGigCandidateDraftPosterParams,
+  ): Promise<Partial<GigCandidate['gigDraft']>> {
+    const gigDraft = { ...params.gigDraft };
+    delete gigDraft.poster;
+
+    const explicitPosterUrl = params.posterUrl?.trim() || undefined;
+    const defaultPosterUrl = params.shouldUseDefaultPoster
+      ? process.env.DEFAULT_GIG_POSTER_URL?.trim() || undefined
+      : undefined;
+    const posterUrl =
+      explicitPosterUrl ?? (params.posterFile ? undefined : defaultPosterUrl);
+    const poster =
+      params.posterFile || posterUrl
+        ? await this.gigPosterService.upload({
+            url: posterUrl,
+            file: params.posterFile,
+            context: {
+              date: gigDraft.date ?? new Date(),
+              city: gigDraft.city ?? 'unknown',
+              country: gigDraft.country ?? 'unknown',
+              publicId: `gc-${params.gigCandidateId}`,
+            },
+          })
+        : params.existingPoster;
+
+    return {
+      ...gigDraft,
+      ...(poster !== undefined ? { poster } : {}),
+    };
+  }
+
   private assertExpectedVersionIsValid(
     gigCandidateId: string,
     expectedVersion: number,
@@ -411,7 +532,7 @@ export class GigCandidateService {
       gigCandidateId,
       command,
       reason: 'versionConflict',
-      message: `Expected version for GigCandidate ${gigCandidateId} must be a non-negative integer.`,
+      message: `Expected version for Gig Candidate ${gigCandidateId} must be a non-negative integer.`,
     });
   }
 
@@ -428,7 +549,7 @@ export class GigCandidateService {
       gigCandidateId: gigCandidate.id,
       command,
       reason: 'versionConflict',
-      message: `GigCandidate ${gigCandidate.id} version conflict: expected ${expectedVersion}, current ${gigCandidate.version}.`,
+      message: `Gig Candidate ${gigCandidate.id} version conflict: expected ${expectedVersion}, current ${gigCandidate.version}.`,
     });
   }
 
@@ -445,7 +566,7 @@ export class GigCandidateService {
       gigCandidateId: gigCandidate.id,
       command,
       reason: 'concurrentModification',
-      message: `GigCandidate ${gigCandidate.id} changed concurrently during ${command}.`,
+      message: `Gig Candidate ${gigCandidate.id} changed concurrently during ${command}.`,
     });
   }
 }
