@@ -107,7 +107,7 @@ export class GigCandidateService {
   async getByIdOrThrow(id: string): Promise<GigCandidate> {
     const record = await this.gigCandidateRepository.findById(id);
     if (!record) {
-      throw new NotFoundException(`Gig Candidate with ID ${id} not found`);
+      throw new NotFoundException(`GigCandidate with ID ${id} not found`);
     }
     return record;
   }
@@ -648,7 +648,7 @@ export class GigCandidateService {
       gigCandidateId,
       command,
       reason: 'versionConflict',
-      message: `Expected version for Gig Candidate ${gigCandidateId} must be a non-negative integer.`,
+      message: `Expected version for GigCandidate ${gigCandidateId} must be a non-negative integer.`,
     });
   }
 
@@ -665,7 +665,7 @@ export class GigCandidateService {
       gigCandidateId: gigCandidate.id,
       command,
       reason: 'versionConflict',
-      message: `Gig Candidate ${gigCandidate.id} version conflict: expected ${expectedVersion}, current ${gigCandidate.version}.`,
+      message: `GigCandidate ${gigCandidate.id} version conflict: expected ${expectedVersion}, current ${gigCandidate.version}.`,
     });
   }
 
@@ -682,7 +682,7 @@ export class GigCandidateService {
       gigCandidateId: gigCandidate.id,
       command,
       reason: 'concurrentModification',
-      message: `Gig Candidate ${gigCandidate.id} changed concurrently during ${command}.`,
+      message: `GigCandidate ${gigCandidate.id} changed concurrently during ${command}.`,
     });
   }
 }

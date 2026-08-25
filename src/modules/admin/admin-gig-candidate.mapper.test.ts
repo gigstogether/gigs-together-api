@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 
+import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
 import {
@@ -91,6 +92,33 @@ describe('mapV1AdminGigCandidateResponse', () => {
         sourceUrl: 'https://provider.example/event-1',
         fetchedAt: '2026-08-01T00:00:00.000Z',
         providerUpdatedAt: '2026-07-31T00:00:00.000Z',
+      },
+    });
+  });
+
+  it('should serialize messenger origin with chatId', () => {
+    const response = mapV1AdminGigCandidateResponse({
+      ...buildGigCandidateDetails(),
+      source: {
+        type: 'user',
+        userId: '66a000000000000000000000042',
+        origin: {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
+          chatId: 'chat-1',
+          messageId: 'message-1',
+        },
+      },
+    });
+
+    expect(response.source).toEqual({
+      type: 'user',
+      userId: '66a000000000000000000000042',
+      origin: {
+        type: 'messenger',
+        messenger: Messenger.Telegram,
+        chatId: 'chat-1',
+        messageId: 'message-1',
       },
     });
   });

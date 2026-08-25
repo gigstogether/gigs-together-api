@@ -526,7 +526,7 @@ describe('ReceiverService', () => {
       ).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-gigCandidate-approve',
-        text: 'Gig Candidate approval is not available yet',
+        text: 'GigCandidate approval is not available yet',
         show_alert: true,
       });
     });

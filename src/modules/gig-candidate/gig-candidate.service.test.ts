@@ -358,7 +358,7 @@ describe('GigCandidateService', () => {
 
       await expect(
         service.getByIdOrThrow('507f1f77bcf86cd799439099'),
-      ).rejects.toThrow(/Gig Candidate with ID/);
+      ).rejects.toThrow(/GigCandidate with ID/);
     });
   });
 

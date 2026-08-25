@@ -101,6 +101,6 @@ export function getGigCandidateTransitionPolicy(
     gigCandidateId,
     command,
     reason: 'illegalTransition',
-    message: `Cannot execute ${command} for Gig Candidate ${gigCandidateId} in ${status} status.`,
+    message: `Cannot execute ${command} for GigCandidate ${gigCandidateId} in ${status} status.`,
   });
 }

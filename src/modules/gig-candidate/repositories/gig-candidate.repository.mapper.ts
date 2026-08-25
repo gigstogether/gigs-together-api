@@ -17,6 +17,13 @@ type GigCandidateLeanUserSource = Omit<GigCandidateSourceUser, 'userId'> & {
 type GigCandidateLeanSource =
   GigCandidateLeanUserSource | GigCandidateSourceProvider;
 
+const GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS = new Set([
+  'type',
+  'messenger',
+  'chatId',
+  'messageId',
+]);
+
 export interface GigCandidateLeanDocument {
   _id: MongoId;
   source: GigCandidateLeanSource;
@@ -147,7 +154,27 @@ export class GigCandidateRepositoryMapper {
         if (!Object.values(Messenger).includes(origin.messenger)) {
           throw new Error(`GigCandidate ${id} source messenger is invalid.`);
         }
-        return { ...origin };
+        if (
+          Object.keys(origin).some(
+            (key) => !GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS.has(key),
+          )
+        ) {
+          throw new Error(
+            `GigCandidate ${id} source messenger origin is inconsistent.`,
+          );
+        }
+        if (typeof origin.chatId !== 'string' || !origin.chatId.trim()) {
+          throw new Error(`GigCandidate ${id} source chatId is invalid.`);
+        }
+        if (typeof origin.messageId !== 'string' || !origin.messageId.trim()) {
+          throw new Error(`GigCandidate ${id} source messageId is invalid.`);
+        }
+        return {
+          type: 'messenger',
+          messenger: origin.messenger,
+          chatId: origin.chatId,
+          messageId: origin.messageId,
+        };
       default:
         throw new Error(`GigCandidate ${id} source origin type is invalid.`);
     }

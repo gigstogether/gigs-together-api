@@ -12,7 +12,7 @@ export interface V1AdminGigCandidateUserAdminOriginResponseBody {
 export interface V1AdminGigCandidateUserMessengerOriginResponseBody {
   type: 'messenger';
   messenger: Messenger;
-  conversationId: string;
+  chatId: string;
   messageId: string;
 }
 

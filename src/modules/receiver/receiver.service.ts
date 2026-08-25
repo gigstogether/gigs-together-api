@@ -227,7 +227,7 @@ export class ReceiverService {
           case GigCandidateCallbackAction.Approve: {
             await this.telegramService.answerCallbackQuery({
               callback_query_id: callbackQuery.id,
-              text: 'Gig Candidate approval is not available yet',
+              text: 'GigCandidate approval is not available yet',
               show_alert: true,
             });
             return;
