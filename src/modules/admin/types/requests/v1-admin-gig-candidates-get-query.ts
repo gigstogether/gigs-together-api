@@ -9,7 +9,7 @@ import {
 } from '../../../gig-candidate/gig-candidate-list-sort';
 
 export const ADMIN_GIG_CANDIDATE_STATUS_QUERY_VALUES = [
-  'pending',
+  'new',
   'reviewing',
   'approved',
   'rejected',
@@ -22,8 +22,8 @@ export function mapAdminGigCandidateStatusQuery(
   status: AdminGigCandidateStatusQuery,
 ): GigCandidateStatus {
   switch (status) {
-    case 'pending':
-      return GigCandidateStatus.Pending;
+    case 'new':
+      return GigCandidateStatus.New;
     case 'reviewing':
       return GigCandidateStatus.Reviewing;
     case 'approved':

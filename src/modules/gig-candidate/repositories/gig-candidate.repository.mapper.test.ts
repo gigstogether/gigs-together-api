@@ -19,7 +19,7 @@ function buildTargetDocument(
     },
     gigDraft: {},
     version: 0,
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     posts: [],
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     updatedAt: new Date('2026-01-02T00:00:00.000Z'),
@@ -40,7 +40,7 @@ describe('GigCandidateRepositoryMapper', () => {
   describe('toGigCandidate', () => {
     it.each([
       {
-        name: 'Pending',
+        name: 'New',
         document: buildTargetDocument(),
       },
       {
@@ -77,7 +77,7 @@ describe('GigCandidateRepositoryMapper', () => {
 
     it.each([
       {
-        name: 'Pending with gigId',
+        name: 'New with gigId',
         document: buildTargetDocument({ gigId: GIG_ID }),
       },
       {
@@ -89,7 +89,7 @@ describe('GigCandidateRepositoryMapper', () => {
         }),
       },
       {
-        name: 'Pending with rejection audit',
+        name: 'New with rejection audit',
         document: buildTargetDocument({
           rejectedAt: new Date('2026-01-03T00:00:00.000Z'),
           rejectedByUserId: USER_ID,

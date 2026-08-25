@@ -118,10 +118,10 @@ describe('AdminGigCandidateController', () => {
 
   it('should return mapped GigCandidates from the query service', async () => {
     await expect(
-      controller.getGigCandidates({ status: 'pending', limit: 20 }),
+      controller.getGigCandidates({ status: 'new', limit: 20 }),
     ).resolves.toEqual({ gigCandidates: [] });
     expect(adminGigCandidateService.getList).toHaveBeenCalledWith({
-      status: GigCandidateStatus.Pending,
+      status: GigCandidateStatus.New,
       limit: 20,
       sortBy: undefined,
       sortOrder: undefined,

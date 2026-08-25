@@ -27,7 +27,7 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
       country: 'ES',
     },
     version: 0,
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     createdAt: new Date('2026-08-01T10:00:00.000Z'),
     updatedAt: new Date('2026-08-02T10:00:00.000Z'),
   };
@@ -35,8 +35,8 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
 
 describe('mapV1AdminGigCandidatesQuery', () => {
   it('should map the HTTP status and default limit to application params', () => {
-    expect(mapV1AdminGigCandidatesQuery({ status: 'pending' })).toEqual({
-      status: GigCandidateStatus.Pending,
+    expect(mapV1AdminGigCandidatesQuery({ status: 'new' })).toEqual({
+      status: GigCandidateStatus.New,
       limit: 100,
       sortBy: undefined,
       sortOrder: undefined,

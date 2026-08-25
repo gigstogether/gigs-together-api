@@ -87,7 +87,7 @@ export interface GigCandidate {
 
 export interface CreateGigCandidateParams {
   gigCandidateId: string;
-  status: GigCandidateStatus.Pending | GigCandidateStatus.Reviewing;
+  status: GigCandidateStatus.New | GigCandidateStatus.Reviewing;
   source: GigCandidateSourceUser;
   gigDraft: Partial<GigData>;
 }

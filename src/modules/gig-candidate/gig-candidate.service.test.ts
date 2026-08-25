@@ -219,7 +219,7 @@ describe('GigCandidateService', () => {
           poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
         },
         version: 0,
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
         posts: [],
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -259,7 +259,7 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining({
           gigCandidateId: created.id,
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           source: {
             type: 'user',
             userId: '66a000000000000000000000099',
@@ -293,7 +293,7 @@ describe('GigCandidateService', () => {
           poster: { bucketPath: 'gigs/ug' },
         },
         version: 0,
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
         posts: [],
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -464,28 +464,28 @@ describe('GigCandidateService', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
-    it('should conditionally transition Pending to Reviewing', async () => {
-      const pending = buildGigCandidate();
+    it('should conditionally transition New to Reviewing', async () => {
+      const newGigCandidate = buildGigCandidate();
       const reviewing = {
-        ...pending,
+        ...newGigCandidate,
         status: GigCandidateStatus.Reviewing,
         version: 1,
       };
-      gigCandidateRepositoryMock.findById.mockResolvedValue(pending);
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
       gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
         reviewing,
       );
 
       await expect(
         service.sendGigCandidateToModeration({
-          gigCandidateId: pending.id,
+          gigCandidateId: newGigCandidate.id,
           expectedVersion: 0,
         }),
       ).resolves.toEqual(reviewing);
       expect(
         gigCandidateRepositoryMock.sendGigCandidateToModeration,
       ).toHaveBeenCalledWith({
-        gigCandidateId: pending.id,
+        gigCandidateId: newGigCandidate.id,
         expectedVersion: 0,
       });
     });
@@ -509,13 +509,13 @@ describe('GigCandidateService', () => {
     });
 
     it('should return concurrent Reviewing transition as an idempotent retry', async () => {
-      const pending = buildGigCandidate();
+      const newGigCandidate = buildGigCandidate();
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         version: 1,
       });
       gigCandidateRepositoryMock.findById
-        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(newGigCandidate)
         .mockResolvedValueOnce(reviewing);
       gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
         null,
@@ -523,7 +523,7 @@ describe('GigCandidateService', () => {
 
       await expect(
         service.sendGigCandidateToModeration({
-          gigCandidateId: pending.id,
+          gigCandidateId: newGigCandidate.id,
           expectedVersion: 0,
         }),
       ).resolves.toEqual(reviewing);
@@ -531,8 +531,8 @@ describe('GigCandidateService', () => {
   });
 
   describe('rejectGigCandidate', () => {
-    it('should conditionally reject Pending GigCandidate with audit fields', async () => {
-      const pending = buildGigCandidate();
+    it('should conditionally reject New GigCandidate with audit fields', async () => {
+      const newGigCandidate = buildGigCandidate();
       const rejectedByUserId = '507f1f77bcf86cd799439077';
       const rejected = buildGigCandidate({
         status: GigCandidateStatus.Rejected,
@@ -540,12 +540,12 @@ describe('GigCandidateService', () => {
         rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
         rejectedByUserId,
       });
-      gigCandidateRepositoryMock.findById.mockResolvedValue(pending);
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
       gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
 
       await expect(
         service.rejectGigCandidate({
-          gigCandidateId: pending.id,
+          gigCandidateId: newGigCandidate.id,
           expectedVersion: 0,
           rejectedByUserId,
         }),
@@ -553,7 +553,7 @@ describe('GigCandidateService', () => {
       expect(
         gigCandidateRepositoryMock.rejectGigCandidate,
       ).toHaveBeenCalledWith({
-        gigCandidateId: pending.id,
+        gigCandidateId: newGigCandidate.id,
         expectedVersion: 0,
         rejectedByUserId: rejected.rejectedByUserId,
         rejectedAt: expect.any(Date),
@@ -677,7 +677,7 @@ function buildGigCandidate(
     },
     gigDraft: {},
     version: 0,
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     posts: [],
     createdAt: new Date('2026-08-24T10:00:00.000Z'),
     updatedAt: new Date('2026-08-24T10:00:00.000Z'),

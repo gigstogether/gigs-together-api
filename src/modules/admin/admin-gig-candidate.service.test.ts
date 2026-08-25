@@ -34,7 +34,7 @@ function buildGigCandidate(
       poster: { bucketPath: 'gigs/poster' },
     },
     version: 0,
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     posts: [],
     createdAt: new Date('2026-08-01T10:00:00.000Z'),
     updatedAt: new Date('2026-08-02T10:00:00.000Z'),
@@ -82,7 +82,7 @@ describe('AdminGigCandidateService', () => {
 
       await expect(
         service.getList({
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           limit: 20,
           sortBy: AdminGigCandidateListSortBy.EventDate,
           sortOrder: AdminGigCandidateListSortOrder.Asc,
@@ -96,7 +96,7 @@ describe('AdminGigCandidateService', () => {
         }),
       ]);
       expect(gigCandidateServiceMock.findMany).toHaveBeenCalledWith({
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
         limit: 20,
         sortBy: AdminGigCandidateListSortBy.EventDate,
         sortOrder: AdminGigCandidateListSortOrder.Asc,

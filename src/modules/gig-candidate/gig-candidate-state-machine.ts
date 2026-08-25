@@ -50,7 +50,7 @@ export function getGigCandidateTransitionPolicy(
 
   switch (command) {
     case GigCandidateCommand.SendToModeration:
-      if (status === GigCandidateStatus.Pending) {
+      if (status === GigCandidateStatus.New) {
         return {
           toStatus: GigCandidateStatus.Reviewing,
           isIdempotent: false,
@@ -67,7 +67,7 @@ export function getGigCandidateTransitionPolicy(
       break;
     case GigCandidateCommand.Reject:
       if (
-        status === GigCandidateStatus.Pending ||
+        status === GigCandidateStatus.New ||
         status === GigCandidateStatus.Reviewing
       ) {
         return {

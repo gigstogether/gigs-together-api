@@ -68,7 +68,7 @@ describe('MongoGigCandidateRepository', () => {
           source,
           gigDraft: {},
           version: 0,
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           posts: [],
           createdAt,
           updatedAt,
@@ -79,7 +79,7 @@ describe('MongoGigCandidateRepository', () => {
         gigCandidateId,
         source,
         gigDraft: {},
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
       });
 
       expect(result).toEqual(
@@ -98,7 +98,7 @@ describe('MongoGigCandidateRepository', () => {
         },
         gigDraft: {},
         version: 0,
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
         posts: [],
       });
       expect(findByIdMock).not.toHaveBeenCalled();
@@ -160,7 +160,7 @@ describe('MongoGigCandidateRepository', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
-    it('should conditionally transition only Pending status and increment version', async () => {
+    it('should conditionally transition only New status and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       findOneAndUpdateMock.mockReturnValue(
         updateQueryResult({
@@ -188,7 +188,7 @@ describe('MongoGigCandidateRepository', () => {
       expect(findOneAndUpdateMock).toHaveBeenCalledWith(
         {
           _id: expect.any(Types.ObjectId),
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           version: 0,
         },
         {
@@ -201,7 +201,7 @@ describe('MongoGigCandidateRepository', () => {
   });
 
   describe('rejectGigCandidate', () => {
-    it('should conditionally reject Pending or Reviewing with audit fields', async () => {
+    it('should conditionally reject New or Reviewing with audit fields', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       const rejectedByUserId = '507f1f77bcf86cd799439077';
       const rejectedAt = new Date('2026-08-24T12:00:00.000Z');
@@ -243,7 +243,7 @@ describe('MongoGigCandidateRepository', () => {
         {
           _id: expect.any(Types.ObjectId),
           status: {
-            $in: [GigCandidateStatus.Pending, GigCandidateStatus.Reviewing],
+            $in: [GigCandidateStatus.New, GigCandidateStatus.Reviewing],
           },
           version: 0,
         },
@@ -291,7 +291,7 @@ describe('MongoGigCandidateRepository', () => {
             },
             gigDraft: { title: 'Band' },
             version: 0,
-            status: GigCandidateStatus.Pending,
+            status: GigCandidateStatus.New,
             posts: [],
             createdAt: new Date('2026-01-01T00:00:00.000Z'),
             updatedAt: new Date('2026-01-02T00:00:00.000Z'),
@@ -302,7 +302,7 @@ describe('MongoGigCandidateRepository', () => {
       await expect(repository.findById(gigCandidateId)).resolves.toEqual(
         expect.objectContaining({
           id: gigCandidateId,
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           gigDraft: { title: 'Band' },
         }),
       );
@@ -320,14 +320,14 @@ describe('MongoGigCandidateRepository', () => {
       leanMock.mockReturnValue({ exec: vi.fn().mockResolvedValue([]) });
 
       await repository.findMany({
-        status: GigCandidateStatus.Pending,
+        status: GigCandidateStatus.New,
         limit: 20,
         sortBy: AdminGigCandidateListSortBy.EventDate,
         sortOrder: AdminGigCandidateListSortOrder.Asc,
       });
 
       expect(findMock).toHaveBeenCalledWith(
-        { status: GigCandidateStatus.Pending },
+        { status: GigCandidateStatus.New },
         expect.objectContaining({ gigDraft: 1, status: 1 }),
       );
       expect(sortMock).toHaveBeenCalledWith({
@@ -358,7 +358,7 @@ describe('MongoGigCandidateRepository', () => {
           },
           gigDraft: {},
           version: 1,
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           posts: [post],
           createdAt: new Date('2026-01-01T00:00:00.000Z'),
           updatedAt: new Date('2026-01-02T00:00:00.000Z'),

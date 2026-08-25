@@ -160,7 +160,7 @@ export class GigCandidateRepositoryMapper {
       params.rejectedAt !== undefined || params.rejectedByUserId !== undefined;
 
     switch (params.status) {
-      case GigCandidateStatus.Pending:
+      case GigCandidateStatus.New:
       case GigCandidateStatus.Reviewing:
         if (
           params.gigId !== undefined ||

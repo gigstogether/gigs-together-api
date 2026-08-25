@@ -119,7 +119,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
       .findOneAndUpdate(
         {
           _id: new Types.ObjectId(params.gigCandidateId),
-          status: GigCandidateStatus.Pending,
+          status: GigCandidateStatus.New,
           version: params.expectedVersion,
         },
         {
@@ -153,7 +153,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
         {
           _id: new Types.ObjectId(params.gigCandidateId),
           status: {
-            $in: [GigCandidateStatus.Pending, GigCandidateStatus.Reviewing],
+            $in: [GigCandidateStatus.New, GigCandidateStatus.Reviewing],
           },
           version: params.expectedVersion,
         },

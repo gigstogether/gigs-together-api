@@ -3,7 +3,7 @@ import { mapAdminGigCandidateStatusQuery } from './v1-admin-gig-candidates-get-q
 
 describe('mapAdminGigCandidateStatusQuery', () => {
   it.each([
-    ['pending', GigCandidateStatus.Pending],
+    ['new', GigCandidateStatus.New],
     ['reviewing', GigCandidateStatus.Reviewing],
     ['approved', GigCandidateStatus.Approved],
     ['rejected', GigCandidateStatus.Rejected],

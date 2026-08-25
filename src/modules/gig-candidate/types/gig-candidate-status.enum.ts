@@ -1,5 +1,5 @@
 export enum GigCandidateStatus {
-  Pending = 'Pending',
+  New = 'New',
   Reviewing = 'Reviewing',
   Approved = 'Approved',
   Rejected = 'Rejected',

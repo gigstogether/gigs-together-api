@@ -389,7 +389,7 @@ export class GigCandidateService {
 
     return this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
-      status: GigCandidateStatus.Pending,
+      status: GigCandidateStatus.New,
       source: {
         type: 'user',
         userId: user.userId,

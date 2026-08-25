@@ -17,7 +17,7 @@ const GIG_CANDIDATE_ID = '507f1f77bcf86cd799439099';
 
 const allowedTransitions: AllowedTransitionCase[] = [
   {
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     command: GigCandidateCommand.SendToModeration,
     toStatus: GigCandidateStatus.Reviewing,
     isIdempotent: false,
@@ -31,7 +31,7 @@ const allowedTransitions: AllowedTransitionCase[] = [
     isExecutable: true,
   },
   {
-    status: GigCandidateStatus.Pending,
+    status: GigCandidateStatus.New,
     command: GigCandidateCommand.Reject,
     toStatus: GigCandidateStatus.Rejected,
     isIdempotent: false,
