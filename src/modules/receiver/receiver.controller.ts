@@ -66,7 +66,10 @@ export class ReceiverController {
     }
 
     if (update.callback_query) {
-      return this.receiverService.handleCallbackQuery(update.callback_query);
+      return this.receiverService.handleCallbackQuery(
+        update.callback_query,
+        req.telegramWebhook.userId,
+      );
     }
     if (update.message) {
       return this.receiverService.handleMessage(update.message);

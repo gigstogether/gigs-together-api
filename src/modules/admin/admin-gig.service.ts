@@ -9,7 +9,7 @@ import type {
   V1AdminGigsListResponseBody,
 } from './types/requests/v1-admin-gigs-list-response';
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()

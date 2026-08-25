@@ -28,7 +28,7 @@ import type {
   UpdateGigCandidateDraftParams,
 } from './types/gig-candidate.types';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
-import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import {
   GigCandidateCommand,
@@ -64,6 +64,12 @@ interface ParsedCreateGigCandidateFields {
   posterUrl?: string;
 }
 
+interface StoreGigCandidateTelegramPostParams {
+  gigCandidate: GigCandidate;
+  postType: PostType.Intake | PostType.Moderation;
+  telegramMessage: TGMessage | undefined;
+}
+
 @Injectable()
 export class GigCandidateService {
   constructor(
@@ -81,55 +87,19 @@ export class GigCandidateService {
   ): Promise<V1CreateGigCandidateResponseBody> {
     const saved = await this.createGigCandidate(params);
 
-    let tgSuggestionPost: TGMessage | undefined;
+    let telegramIntakePost: TGMessage | undefined;
     try {
-      tgSuggestionPost =
-        await this.telegramService.sendGigCandidateToSuggestion(saved);
+      telegramIntakePost =
+        await this.telegramService.sendGigCandidateIntakePost(saved);
     } catch (e) {
-      this.logger.warn(
-        `sendGigCandidateToSuggestion failed: ${JSON.stringify(
-          e instanceof Error ? e.message : e,
-        )}`,
-      );
-      tgSuggestionPost = undefined;
+      this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
     }
 
-    const biggestTgPhotoFileId = getBiggestTgPhotoFileId(
-      tgSuggestionPost?.photo,
-    );
-    const suggestionChatId =
-      tgSuggestionPost?.sender_chat?.id ?? tgSuggestionPost?.chat?.id;
-    const suggestionMessageId = tgSuggestionPost?.message_id;
-
-    if (tgSuggestionPost && suggestionChatId && suggestionMessageId) {
-      try {
-        const updated =
-          await this.gigCandidateRepository.appendGigCandidatePost({
-            gigCandidateId: saved.id,
-            expectedVersion: saved.version,
-            post: {
-              id: suggestionMessageId,
-              chatId: suggestionChatId,
-              ...(biggestTgPhotoFileId !== undefined
-                ? { fileId: biggestTgPhotoFileId }
-                : {}),
-              to: Messenger.Telegram,
-              type: GigCandidatePostType.Suggestion,
-              date: tgSuggestionPost.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
-            },
-          });
-        if (!updated) {
-          throw new Error(
-            `Gig Candidate ${saved.id} changed before its suggestion post was stored.`,
-          );
-        }
-      } catch (e) {
-        this.logger.error(
-          'appendGigCandidatePost after suggestion channel post failed',
-          e instanceof Error ? e.stack : undefined,
-        );
-      }
-    }
+    await this.storeGigCandidateTelegramPostBestEffort({
+      gigCandidate: saved,
+      postType: PostType.Intake,
+      telegramMessage: telegramIntakePost,
+    });
 
     return { id: saved.id };
   }
@@ -162,7 +132,7 @@ export class GigCandidateService {
       shouldUseDefaultPoster: true,
     });
 
-    return this.gigCandidateRepository.createGigCandidate({
+    const saved = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId,
       status: GigCandidateStatus.Reviewing,
       source: {
@@ -172,6 +142,8 @@ export class GigCandidateService {
       },
       gigDraft,
     });
+
+    return this.ensureGigCandidateModerationPostBestEffort(saved);
   }
 
   async updateAdminGigCandidateDraft(
@@ -233,42 +205,54 @@ export class GigCandidateService {
       command,
     );
 
-    const gigCandidate = await this.getByIdOrThrow(params.gigCandidateId);
+    const currentGigCandidate = await this.getByIdOrThrow(
+      params.gigCandidateId,
+    );
     const policy = getGigCandidateTransitionPolicy({
-      gigCandidateId: gigCandidate.id,
-      status: gigCandidate.status,
+      gigCandidateId: currentGigCandidate.id,
+      status: currentGigCandidate.status,
       command,
     });
-    if (policy.isIdempotent) {
-      return gigCandidate;
-    }
-    this.assertExpectedVersionMatches(
-      gigCandidate,
-      params.expectedVersion,
-      command,
-    );
+    let reviewingGigCandidate = currentGigCandidate;
 
-    const updated =
-      await this.gigCandidateRepository.sendGigCandidateToModeration(params);
-    if (updated) {
-      return updated;
+    if (!policy.isIdempotent) {
+      this.assertExpectedVersionMatches(
+        currentGigCandidate,
+        params.expectedVersion,
+        command,
+      );
+
+      const updated =
+        await this.gigCandidateRepository.sendGigCandidateToModeration(params);
+      if (updated) {
+        reviewingGigCandidate = updated;
+      } else {
+        const latest = await this.getByIdOrThrow(params.gigCandidateId);
+        const latestPolicy = getGigCandidateTransitionPolicy({
+          gigCandidateId: latest.id,
+          status: latest.status,
+          command,
+        });
+        if (!latestPolicy.isIdempotent) {
+          return this.throwConditionalWriteConflict(
+            latest,
+            params.expectedVersion,
+            command,
+          );
+        }
+        reviewingGigCandidate = latest;
+      }
     }
 
-    const latest = await this.getByIdOrThrow(params.gigCandidateId);
-    const latestPolicy = getGigCandidateTransitionPolicy({
-      gigCandidateId: latest.id,
-      status: latest.status,
-      command,
-    });
-    if (latestPolicy.isIdempotent) {
-      return latest;
+    const withModerationPost =
+      await this.ensureGigCandidateModerationPostBestEffort(
+        reviewingGigCandidate,
+      );
+    if (this.findTelegramPost(withModerationPost, PostType.Moderation)) {
+      await this.removeGigCandidateIntakeActionsBestEffort(withModerationPost);
     }
 
-    return this.throwConditionalWriteConflict(
-      latest,
-      params.expectedVersion,
-      command,
-    );
+    return withModerationPost;
   }
 
   async rejectGigCandidate(
@@ -517,6 +501,138 @@ export class GigCandidateService {
       ...gigDraft,
       ...(poster !== undefined ? { poster } : {}),
     };
+  }
+
+  private async ensureGigCandidateModerationPostBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<GigCandidate> {
+    if (this.findTelegramPost(gigCandidate, PostType.Moderation)) {
+      return gigCandidate;
+    }
+
+    let telegramModerationPost: TGMessage | undefined;
+    try {
+      telegramModerationPost =
+        await this.telegramService.sendGigCandidateModerationPost(gigCandidate);
+    } catch (e) {
+      this.logTelegramFailure(
+        'sendGigCandidateModerationPost',
+        gigCandidate.id,
+        e,
+      );
+      return gigCandidate;
+    }
+
+    const stored = await this.storeGigCandidateTelegramPostBestEffort({
+      gigCandidate,
+      postType: PostType.Moderation,
+      telegramMessage: telegramModerationPost,
+    });
+    return stored ?? gigCandidate;
+  }
+
+  private async storeGigCandidateTelegramPostBestEffort(
+    params: StoreGigCandidateTelegramPostParams,
+  ): Promise<GigCandidate | null> {
+    const { gigCandidate, postType, telegramMessage } = params;
+    if (!telegramMessage) {
+      this.logger.warn(
+        `Telegram ${postType} send returned no message for gigCandidateId=${gigCandidate.id}`,
+      );
+      return null;
+    }
+
+    const chatId = telegramMessage.sender_chat?.id ?? telegramMessage.chat?.id;
+    const messageId = telegramMessage.message_id;
+    if (chatId === undefined || messageId === undefined) {
+      this.logger.error(
+        `Telegram ${postType} message reference is incomplete for gigCandidateId=${gigCandidate.id}`,
+      );
+      return null;
+    }
+    const biggestTelegramPhotoFileId = getBiggestTgPhotoFileId(
+      telegramMessage.photo,
+    );
+
+    try {
+      const updated =
+        await this.gigCandidateRepository.appendGigCandidatePostIfAbsent({
+          gigCandidateId: gigCandidate.id,
+          expectedVersion: gigCandidate.version,
+          post: {
+            id: messageId,
+            chatId,
+            ...(biggestTelegramPhotoFileId !== undefined
+              ? {
+                  fileId: biggestTelegramPhotoFileId,
+                }
+              : {}),
+            to: Messenger.Telegram,
+            type: postType,
+            date: telegramMessage.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
+          },
+        });
+      if (updated) {
+        return updated;
+      }
+
+      const latest = await this.getByIdOrThrow(gigCandidate.id);
+      if (this.findTelegramPost(latest, postType)) {
+        return latest;
+      }
+
+      this.logger.error(
+        `Telegram ${postType} reference was not stored for gigCandidateId=${gigCandidate.id} expectedVersion=${gigCandidate.version}`,
+      );
+      return latest;
+    } catch (e) {
+      this.logger.error(
+        `Persisting Telegram ${postType} reference failed for gigCandidateId=${gigCandidate.id}: ${this.formatErrorMessage(e)}`,
+      );
+      return null;
+    }
+  }
+
+  private async removeGigCandidateIntakeActionsBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<void> {
+    const intakePost = this.findTelegramPost(gigCandidate, PostType.Intake);
+    if (!intakePost) {
+      return;
+    }
+
+    try {
+      await this.telegramService.removeGigCandidateIntakeActions(intakePost);
+    } catch (e) {
+      this.logTelegramFailure(
+        'removeGigCandidateIntakeActions',
+        gigCandidate.id,
+        e,
+      );
+    }
+  }
+
+  private findTelegramPost(
+    gigCandidate: GigCandidate,
+    postType: PostType.Intake | PostType.Moderation,
+  ): GigCandidate['posts'][number] | undefined {
+    return gigCandidate.posts.find(
+      (post) => post.to === Messenger.Telegram && post.type === postType,
+    );
+  }
+
+  private logTelegramFailure(
+    operation: string,
+    gigCandidateId: string,
+    e: unknown,
+  ): void {
+    this.logger.warn(
+      `${operation} failed for gigCandidateId=${gigCandidateId}: ${this.formatErrorMessage(e)}`,
+    );
+  }
+
+  private formatErrorMessage(e: unknown): string {
+    return e instanceof Error ? e.message : 'unknown error';
   }
 
   private assertExpectedVersionIsValid(

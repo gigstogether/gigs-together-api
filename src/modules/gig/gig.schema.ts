@@ -3,7 +3,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { Status } from './types/status.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigSuggestedBy } from './types/gig.types';
-import { PostType } from './types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 
 @Schema({ _id: false })
 export class GigPost {

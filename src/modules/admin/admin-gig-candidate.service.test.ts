@@ -7,10 +7,10 @@ import {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate/gig-candidate-list-sort';
-import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
@@ -112,22 +112,33 @@ describe('AdminGigCandidateService', () => {
         posts: [
           {
             to: Messenger.Telegram,
-            type: GigCandidatePostType.Suggestion,
+            type: PostType.Intake,
             date: 1_700_000_000_000,
             id: 77,
             chatId: -100123,
+          },
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 78,
+            chatId: -100124,
           },
         ],
       });
       gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
       gigServiceMock.getGigById.mockResolvedValue({ publicId: 'band-2026' });
-      telegramServiceMock.getPostUrl.mockReturnValue('https://t.me/c/123/77');
+      telegramServiceMock.getPostUrl
+        .mockReturnValueOnce('https://t.me/c/123/77')
+        .mockReturnValueOnce('https://t.me/c/124/78');
 
       await expect(service.getById(record.id)).resolves.toEqual(
         expect.objectContaining({
-          postUrl: 'https://t.me/c/123/77',
-          postDate: 1_700_000_000_000,
+          intakePostUrl: 'https://t.me/c/123/77',
+          intakePostDate: 1_700_000_000_000,
+          moderationPostUrl: 'https://t.me/c/124/78',
+          moderationPostDate: 1_700_000_001_000,
           linkedGigPublicId: 'band-2026',
         }),
       );

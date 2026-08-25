@@ -1,6 +1,7 @@
 import {
   CallbackScope,
   encodeCallbackData,
+  GigCandidateCallbackAction,
   GigCallbackAction,
   parseCallbackData,
   TELEGRAM_CALLBACK_DATA_MAX_CHARS,
@@ -50,6 +51,17 @@ describe('encodeCallbackData', () => {
       `callback_data exceeds Telegram limit of ${TELEGRAM_CALLBACK_DATA_MAX_CHARS} characters`,
     );
   });
+
+  it('should encode GigCandidate expected version', () => {
+    expect(
+      encodeCallbackData({
+        scope: CallbackScope.GigCandidate,
+        action: GigCandidateCallbackAction.SendToModeration,
+        id: '507f1f77bcf86cd799439099',
+        expectedVersion: 7,
+      }),
+    ).toBe('gigCandidate:sendToModeration:507f1f77bcf86cd799439099:7');
+  });
 });
 
 describe('parseCallbackData', () => {
@@ -61,7 +73,18 @@ describe('parseCallbackData', () => {
     });
   });
 
-  it('should reject the removed unreleased gigCandidate callback contract', () => {
+  it('should parse GigCandidate callback with expected version', () => {
+    expect(
+      parseCallbackData('gigCandidate:reject:507f1f77bcf86cd799439099:4'),
+    ).toEqual({
+      scope: CallbackScope.GigCandidate,
+      action: GigCandidateCallbackAction.Reject,
+      id: '507f1f77bcf86cd799439099',
+      expectedVersion: 4,
+    });
+  });
+
+  it('should reject GigCandidate callback without expected version', () => {
     expect(
       parseCallbackData('gigCandidate:reject:507f1f77bcf86cd799439099'),
     ).toBeNull();
@@ -81,7 +104,7 @@ describe('parseCallbackData', () => {
     expect(parseCallbackData('gig:accept:507f1f77bcf86cd799439011')).toBeNull();
   });
 
-  it('should return null when segment count is not exactly three', () => {
+  it('should return null when segment count does not match the scope', () => {
     expect(parseCallbackData('gig:approve')).toBeNull();
     expect(
       parseCallbackData('gig:approve:507f1f77bcf86cd799439011:extra'),

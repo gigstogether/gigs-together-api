@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigDocument } from '../gig/gig.schema';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
@@ -15,6 +15,7 @@ import { TGInputMediaType, TGParseMode } from './types/message.types';
 import {
   CallbackScope,
   encodeCallbackData,
+  GigCandidateCallbackAction,
   GigCallbackAction,
 } from './callback-action';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
@@ -53,6 +54,7 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
+    [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -669,19 +671,23 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('composeGigCandidatePost', () => {
+  describe('GigCandidate post composition', () => {
     beforeEach(() => {
-      process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID = '-3001';
+      process.env.INTAKE_CHANNEL_ID = '-3001';
+      process.env.MODERATION_CHANNEL_ID = '-3002';
+      process.env.APP_BASE_URL = 'https://admin.example';
     });
 
     afterEach(() => {
-      delete process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
+      delete process.env.INTAKE_CHANNEL_ID;
+      delete process.env.MODERATION_CHANNEL_ID;
+      delete process.env.APP_BASE_URL;
     });
 
-    it('should compose a target-model suggestion post without legacy actions', () => {
+    it('should compose Intake with Send to moderation and Reject actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
-      const payload = composer.composeGigCandidatePost({
+      const payload = composer.composeGigCandidateIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -703,15 +709,89 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3001');
-      expect(payload.reply_markup).toBeUndefined();
+      expect(payload.reply_markup).toEqual({
+        inline_keyboard: [
+          [
+            {
+              text: '➡️ Send to moderation',
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.GigCandidate,
+                action: GigCandidateCallbackAction.SendToModeration,
+                id: '507f1f77bcf86cd799439099',
+                expectedVersion: 1,
+              }),
+            },
+            {
+              text: '❌ Reject',
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.GigCandidate,
+                action: GigCandidateCallbackAction.Reject,
+                id: '507f1f77bcf86cd799439099',
+                expectedVersion: 1,
+              }),
+            },
+          ],
+        ],
+      });
     });
 
-    it('should throw BadRequestException when GIG_CANDIDATE_MODERATION_CHANNEL_ID is missing', () => {
-      delete process.env.GIG_CANDIDATE_MODERATION_CHANNEL_ID;
+    it('should compose Moderation with inactive Approve, Reject, and Edit controls', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
+
+      const payload = composer.composeGigCandidateModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'admin' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/x' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.chat_id).toBe('-3002');
+      expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
+        {
+          text: '✅ Approve',
+          callback_data: encodeCallbackData({
+            scope: CallbackScope.GigCandidate,
+            action: GigCandidateCallbackAction.Approve,
+            id: '507f1f77bcf86cd799439099',
+            expectedVersion: 3,
+          }),
+        },
+        {
+          text: '❌ Reject',
+          callback_data: encodeCallbackData({
+            scope: CallbackScope.GigCandidate,
+            action: GigCandidateCallbackAction.Reject,
+            id: '507f1f77bcf86cd799439099',
+            expectedVersion: 3,
+          }),
+        },
+        {
+          text: '✏️ Edit',
+          url: 'https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099/edit',
+        },
+      ]);
+    });
+
+    it('should throw BadRequestException when INTAKE_CHANNEL_ID is missing', () => {
+      delete process.env.INTAKE_CHANNEL_ID;
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       expect(() =>
-        composer.composeGigCandidatePost({
+        composer.composeGigCandidateIntakePost({
           id: '507f1f77bcf86cd799439099',
           source: {
             type: 'user',

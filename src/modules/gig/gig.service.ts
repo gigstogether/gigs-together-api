@@ -42,7 +42,7 @@ import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
-import { PostType } from './types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import {
   ADMIN_GIG_LIST_DEFAULT_SORT_ORDER,

@@ -3,7 +3,9 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { GigPosterService } from '../gig/gig.poster.service';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import {
@@ -22,7 +24,7 @@ describe('GigCandidateService', () => {
     createGigCandidate: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
-    appendGigCandidatePost: ReturnType<typeof vi.fn>;
+    appendGigCandidatePostIfAbsent: ReturnType<typeof vi.fn>;
     sendGigCandidateToModeration: ReturnType<typeof vi.fn>;
     rejectGigCandidate: ReturnType<typeof vi.fn>;
     updateGigCandidateDraft: ReturnType<typeof vi.fn>;
@@ -31,7 +33,7 @@ describe('GigCandidateService', () => {
     createGigCandidate: vi.fn(),
     findById: vi.fn(),
     findMany: vi.fn(),
-    appendGigCandidatePost: vi.fn(),
+    appendGigCandidatePostIfAbsent: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
     updateGigCandidateDraft: vi.fn(),
@@ -42,7 +44,9 @@ describe('GigCandidateService', () => {
   };
 
   const telegramServiceMock = {
-    sendGigCandidateToSuggestion: vi.fn(),
+    sendGigCandidateIntakePost: vi.fn(),
+    sendGigCandidateModerationPost: vi.fn(),
+    removeGigCandidateIntakeActions: vi.fn(),
   };
 
   const aiServiceMock = {
@@ -228,7 +232,7 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
       gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
-      telegramServiceMock.sendGigCandidateToSuggestion.mockResolvedValue(
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
         undefined,
       );
 
@@ -273,11 +277,11 @@ describe('GigCandidateService', () => {
       );
       expect(result).toEqual({ id: created.id });
       expect(
-        telegramServiceMock.sendGigCandidateToSuggestion,
+        telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created);
     });
 
-    it('should append suggestion post when Telegram returns a message', async () => {
+    it('should append Intake post when Telegram returns a message', async () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
@@ -301,16 +305,18 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
       gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
-      telegramServiceMock.sendGigCandidateToSuggestion.mockResolvedValue({
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue({
         message_id: 55,
         date: 1_700_000_000,
         chat: { id: -200 },
         photo: [{ file_id: 'photo-1', width: 1, height: 1 }],
       });
-      gigCandidateRepositoryMock.appendGigCandidatePost.mockResolvedValue({
-        ...created,
-        version: 1,
-      });
+      gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
+        {
+          ...created,
+          version: 1,
+        },
+      );
 
       await service.handleSubmit({
         body: {
@@ -330,7 +336,7 @@ describe('GigCandidateService', () => {
       });
 
       expect(
-        gigCandidateRepositoryMock.appendGigCandidatePost,
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
       ).toHaveBeenCalledWith(
         expect.objectContaining({
           gigCandidateId: created.id,
@@ -339,6 +345,7 @@ describe('GigCandidateService', () => {
             id: 55,
             chatId: -200,
             fileId: 'photo-1',
+            type: PostType.Intake,
           }),
         }),
       );
@@ -372,6 +379,9 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
       gigPosterServiceMock.upload.mockResolvedValue(undefined);
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
 
       await expect(
         service.createAdminGigCandidate({
@@ -392,8 +402,61 @@ describe('GigCandidateService', () => {
         gigDraft: { title: 'Band' },
       });
       expect(
-        telegramServiceMock.sendGigCandidateToSuggestion,
+        telegramServiceMock.sendGigCandidateIntakePost,
       ).not.toHaveBeenCalled();
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(created);
+    });
+
+    it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
+      const created = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: 'admin' },
+        },
+      });
+      const stored = buildGigCandidate({
+        ...created,
+        version: 1,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 50,
+            chatId: -200,
+          },
+        ],
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue({
+        message_id: 50,
+        date: 1_700_000_001,
+        chat: { id: -200 },
+      });
+      gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
+        stored,
+      );
+
+      await expect(
+        service.createAdminGigCandidate({
+          userId: '507f1f77bcf86cd799439088',
+          gigDraft: {},
+        }),
+      ).resolves.toEqual(stored);
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigCandidateId: created.id,
+          expectedVersion: 0,
+          post: expect.objectContaining({ type: PostType.Moderation }),
+        }),
+      );
     });
   });
 
@@ -464,38 +527,122 @@ describe('GigCandidateService', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
-    it('should conditionally transition New to Reviewing', async () => {
-      const newGigCandidate = buildGigCandidate();
-      const reviewing = {
+    it('should transition once, store Moderation, and then remove Intake actions', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const newGigCandidate = buildGigCandidate({
+        version: 1,
+        posts: [intakePost],
+      });
+      const reviewing = buildGigCandidate({
         ...newGigCandidate,
         status: GigCandidateStatus.Reviewing,
-        version: 1,
+        version: 2,
+      });
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
       };
+      const stored = buildGigCandidate({
+        ...reviewing,
+        version: 3,
+        posts: [intakePost, moderationPost],
+      });
       gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
       gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
         reviewing,
+      );
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue({
+        message_id: moderationPost.id,
+        date: 1_700_000_001,
+        chat: { id: moderationPost.chatId },
+      });
+      gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
+        stored,
+      );
+      telegramServiceMock.removeGigCandidateIntakeActions.mockResolvedValue(
+        undefined,
       );
 
       await expect(
         service.sendGigCandidateToModeration({
           gigCandidateId: newGigCandidate.id,
-          expectedVersion: 0,
+          expectedVersion: 1,
         }),
-      ).resolves.toEqual(reviewing);
+      ).resolves.toEqual(stored);
       expect(
         gigCandidateRepositoryMock.sendGigCandidateToModeration,
       ).toHaveBeenCalledWith({
         gigCandidateId: newGigCandidate.id,
-        expectedVersion: 0,
+        expectedVersion: 1,
       });
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 2,
+          post: expect.objectContaining({ type: PostType.Moderation }),
+        }),
+      );
+      expect(
+        telegramServiceMock.removeGigCandidateIntakeActions,
+      ).toHaveBeenCalledWith(intakePost);
     });
 
-    it('should return Reviewing GigCandidate for an idempotent retry', async () => {
+    it('should leave Reviewing with Intake retry actions when Telegram send fails', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const newGigCandidate = buildGigCandidate({
+        version: 1,
+        posts: [intakePost],
+      });
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+        posts: [intakePost],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
+        reviewing,
+      );
+      telegramServiceMock.sendGigCandidateModerationPost.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 1,
+        }),
+      ).resolves.toEqual(reviewing);
+      expect(
+        telegramServiceMock.removeGigCandidateIntakeActions,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should not transition a Reviewing GigCandidate twice on repeated callback', async () => {
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         version: 2,
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
 
       await expect(
         service.sendGigCandidateToModeration({
@@ -508,25 +655,77 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should return concurrent Reviewing transition as an idempotent retry', async () => {
-      const newGigCandidate = buildGigCandidate();
+    it('should not duplicate an existing Moderation post', async () => {
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+      };
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
-        version: 1,
+        version: 3,
+        posts: [moderationPost],
       });
-      gigCandidateRepositoryMock.findById
-        .mockResolvedValueOnce(newGigCandidate)
-        .mockResolvedValueOnce(reviewing);
-      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
-        null,
-      );
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
 
       await expect(
         service.sendGigCandidateToModeration({
-          gigCandidateId: newGigCandidate.id,
-          expectedVersion: 0,
+          gigCandidateId: reviewing.id,
+          expectedVersion: 1,
         }),
       ).resolves.toEqual(reviewing);
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).not.toHaveBeenCalled();
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should retry only Intake action removal after its first failure', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 3,
+        posts: [
+          intakePost,
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 50,
+            chatId: -200,
+          },
+        ],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      telegramServiceMock.removeGigCandidateIntakeActions
+        .mockRejectedValueOnce(new Error('Telegram update failed'))
+        .mockResolvedValueOnce(undefined);
+
+      await service.sendGigCandidateToModeration({
+        gigCandidateId: reviewing.id,
+        expectedVersion: 1,
+      });
+      await service.sendGigCandidateToModeration({
+        gigCandidateId: reviewing.id,
+        expectedVersion: 1,
+      });
+
+      expect(
+        telegramServiceMock.removeGigCandidateIntakeActions,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).not.toHaveBeenCalled();
     });
   });
 

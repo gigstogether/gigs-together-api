@@ -3,9 +3,12 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
-import { GigCandidatePostType } from '../types/gig-candidate-post-type.enum';
+import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import type { GigCandidateSourceUser } from '../types/gig-candidate.types';
+import type {
+  GigCandidatePost,
+  GigCandidateSourceUser,
+} from '../types/gig-candidate.types';
 import { GigCandidate } from '../gig-candidate.schema';
 import {
   AdminGigCandidateListSortBy,
@@ -338,16 +341,16 @@ describe('MongoGigCandidateRepository', () => {
     });
   });
 
-  describe('appendGigCandidatePost', () => {
-    it('should conditionally append the post and increment version', async () => {
+  describe('appendGigCandidatePostIfAbsent', () => {
+    it('should conditionally append one post purpose and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       const post = {
         to: Messenger.Telegram,
-        type: GigCandidatePostType.Suggestion,
+        type: PostType.Intake,
         date: 1,
         id: 2,
         chatId: 3,
-      };
+      } satisfies GigCandidatePost;
       findOneAndUpdateMock.mockReturnValue(
         updateQueryResult({
           _id: gigCandidateId,
@@ -365,7 +368,7 @@ describe('MongoGigCandidateRepository', () => {
         }),
       );
 
-      const result = await repository.appendGigCandidatePost({
+      const result = await repository.appendGigCandidatePostIfAbsent({
         gigCandidateId,
         expectedVersion: 0,
         post,
@@ -373,7 +376,18 @@ describe('MongoGigCandidateRepository', () => {
 
       expect(result?.version).toBe(1);
       expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-        { _id: expect.any(Types.ObjectId), version: 0 },
+        {
+          _id: expect.any(Types.ObjectId),
+          version: 0,
+          posts: {
+            $not: {
+              $elemMatch: {
+                to: Messenger.Telegram,
+                type: PostType.Intake,
+              },
+            },
+          },
+        },
         { $push: { posts: post }, $inc: { version: 1 } },
         { returnDocument: 'after', runValidators: true },
       );

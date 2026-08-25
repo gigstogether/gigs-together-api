@@ -24,6 +24,7 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   buttonEdit: 'button.edit',
   buttonReject: 'button.reject',
   buttonPost: 'button.post',
+  buttonSendToModeration: 'button.sendToModeration',
   gigCandidate: 'gigCandidate',
 } as const;
 

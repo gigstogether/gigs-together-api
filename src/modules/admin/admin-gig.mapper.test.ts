@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import type { PlainGig } from '../gig/types/gig.types';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from '../gig/types/status.enum';
 import { mapGigToFormData } from './admin-gig.mapper';
 

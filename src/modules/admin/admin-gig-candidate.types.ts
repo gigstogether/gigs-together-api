@@ -20,8 +20,10 @@ export interface AdminGigCandidateDetails {
   version: number;
   posterUrl?: string;
   status: GigCandidateStatus;
-  postUrl?: string;
-  postDate?: number;
+  intakePostUrl?: string;
+  intakePostDate?: number;
+  moderationPostUrl?: string;
+  moderationPostDate?: number;
   linkedGigPublicId?: string;
   approvedAt?: Date;
   approvedByUserId?: string;

@@ -64,8 +64,10 @@ export interface V1AdminGigCandidateResponseBody {
   gigDraft: V1AdminGigCandidateGigDraftResponseBody;
   status: GigCandidateStatus;
   version: number;
-  postUrl?: string;
-  postDate?: number;
+  intakePostUrl?: string;
+  intakePostDate?: number;
+  moderationPostUrl?: string;
+  moderationPostDate?: number;
   linkedGigPublicId?: string;
   approvedAt?: string;
   approvedByUserId?: string;

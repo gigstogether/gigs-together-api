@@ -7,7 +7,7 @@ import { GigService } from '../gig/gig.service';
 import type { GigPost } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from '../gig/types/status.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';

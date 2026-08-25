@@ -9,6 +9,7 @@ import {
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
   mapV1AdminRejectGigCandidateRequest,
+  mapV1AdminSendGigCandidateToModerationRequest,
   mapV1AdminUpdateGigCandidateDraftRequest,
 } from './admin-gig-candidate.mapper';
 
@@ -46,9 +47,21 @@ describe('mapV1AdminGigCandidatesQuery', () => {
 
 describe('mapV1AdminGigCandidateResponse', () => {
   it('should serialize application dates for the HTTP response', () => {
-    expect(mapV1AdminGigCandidateResponse(buildGigCandidateDetails())).toEqual(
+    expect(
+      mapV1AdminGigCandidateResponse({
+        ...buildGigCandidateDetails(),
+        intakePostUrl: 'https://t.me/c/123/77',
+        intakePostDate: 1_700_000_000_000,
+        moderationPostUrl: 'https://t.me/c/124/78',
+        moderationPostDate: 1_700_000_001_000,
+      }),
+    ).toEqual(
       expect.objectContaining({
         gigDraft: expect.objectContaining({ date: '2026-08-20' }),
+        intakePostUrl: 'https://t.me/c/123/77',
+        intakePostDate: 1_700_000_000_000,
+        moderationPostUrl: 'https://t.me/c/124/78',
+        moderationPostDate: 1_700_000_001_000,
         createdAt: '2026-08-01T10:00:00.000Z',
         updatedAt: '2026-08-02T10:00:00.000Z',
       }),
@@ -166,6 +179,20 @@ describe('mapV1AdminRejectGigCandidateRequest', () => {
     ).toEqual({
       gigCandidateId: '507f1f77bcf86cd799439099',
       rejectedByUserId: '507f1f77bcf86cd799439088',
+      expectedVersion: 2,
+    });
+  });
+});
+
+describe('mapV1AdminSendGigCandidateToModerationRequest', () => {
+  it('should preserve GigCandidate id and expected version', () => {
+    expect(
+      mapV1AdminSendGigCandidateToModerationRequest({
+        gigCandidateId: '507f1f77bcf86cd799439099',
+        body: { expectedVersion: 2 },
+      }),
+    ).toEqual({
+      gigCandidateId: '507f1f77bcf86cd799439099',
       expectedVersion: 2,
     });
   });

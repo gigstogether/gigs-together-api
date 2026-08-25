@@ -7,6 +7,7 @@ import type {
   GigCandidateDraftLookupResult,
   LookupGigCandidateDraftParams,
   RejectGigCandidateParams,
+  SendGigCandidateToModerationParams,
   UpdateAdminGigCandidateDraftParams,
 } from '../gig-candidate/types/gig-candidate.types';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
@@ -22,6 +23,7 @@ import type {
   V1AdminGigCandidateLookupRequestBody,
   V1AdminGigCandidateLookupResponseBody,
   V1AdminRejectGigCandidateRequestBody,
+  V1AdminSendGigCandidateToModerationRequestBody,
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
@@ -46,6 +48,11 @@ interface MapV1AdminRejectGigCandidateRequestParams {
   body: V1AdminRejectGigCandidateRequestBody;
   gigCandidateId: string;
   rejectedByUserId: string;
+}
+
+interface MapV1AdminSendGigCandidateToModerationRequestParams {
+  body: V1AdminSendGigCandidateToModerationRequestBody;
+  gigCandidateId: string;
 }
 
 interface MappedV1AdminGigCandidateGigDraftRequest {
@@ -84,8 +91,10 @@ export function mapV1AdminGigCandidateResponse(
     },
     status: gigCandidate.status,
     version: gigCandidate.version,
-    postUrl: gigCandidate.postUrl,
-    postDate: gigCandidate.postDate,
+    intakePostUrl: gigCandidate.intakePostUrl,
+    intakePostDate: gigCandidate.intakePostDate,
+    moderationPostUrl: gigCandidate.moderationPostUrl,
+    moderationPostDate: gigCandidate.moderationPostDate,
     linkedGigPublicId: gigCandidate.linkedGigPublicId,
     approvedAt: gigCandidate.approvedAt?.toISOString(),
     approvedByUserId: gigCandidate.approvedByUserId,
@@ -128,6 +137,15 @@ export function mapV1AdminRejectGigCandidateRequest(
     gigCandidateId: params.gigCandidateId,
     expectedVersion: params.body.expectedVersion,
     rejectedByUserId: params.rejectedByUserId,
+  };
+}
+
+export function mapV1AdminSendGigCandidateToModerationRequest(
+  params: MapV1AdminSendGigCandidateToModerationRequestParams,
+): SendGigCandidateToModerationParams {
+  return {
+    gigCandidateId: params.gigCandidateId,
+    expectedVersion: params.body.expectedVersion,
   };
 }
 

@@ -7,10 +7,15 @@ import { Messenger } from '../../../shared/types/messenger.enum';
 import type { TGUser } from '../../telegram/types/user.types';
 
 export type ReceiverWebhookRequest = Request & {
-  telegramWebhook?: {
-    allowed: boolean;
-    reason?: string;
-  };
+  telegramWebhook?:
+    | {
+        allowed: true;
+        userId: string;
+      }
+    | {
+        allowed: false;
+        reason: string;
+      };
 };
 
 /**
@@ -44,20 +49,23 @@ export class ReceiverWebhookGuard implements CanActivate {
 
     const update: TGUpdate = request.body;
     const telegramUser = update?.message?.from ?? update?.callback_query?.from;
-    const isAdmin = telegramUser
-      ? await this.resolveIsAdmin(telegramUser)
-      : false;
+    const adminUserId = telegramUser
+      ? await this.resolveAdminUserId(telegramUser)
+      : undefined;
 
     // TODO: open some features for other users
     request.telegramWebhook = {
-      allowed: isAdmin === true,
-      reason: isAdmin === true ? undefined : 'Admin privileges required',
+      ...(adminUserId
+        ? { allowed: true, userId: adminUserId }
+        : { allowed: false, reason: 'Admin privileges required' }),
     };
 
     return true;
   }
 
-  private async resolveIsAdmin(telegramUser: TGUser): Promise<boolean> {
+  private async resolveAdminUserId(
+    telegramUser: TGUser,
+  ): Promise<string | undefined> {
     const user = await this.userService.findOrCreateMessengerUser({
       messenger: Messenger.Telegram,
       externalUserId: String(telegramUser.id),
@@ -69,6 +77,7 @@ export class ReceiverWebhookGuard implements CanActivate {
         .map((part) => part.trim())
         .join(' '),
     });
-    return this.authorizationService.isAdmin(user.id);
+    const isAdmin = await this.authorizationService.isAdmin(user.id);
+    return isAdmin ? user.id : undefined;
   }
 }

@@ -63,6 +63,7 @@ describe('AdminGigCandidateController', () => {
     createAdminGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     updateAdminGigCandidateDraft: vi.fn().mockResolvedValue(gigCandidate),
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
+    sendGigCandidateToModeration: vi.fn().mockResolvedValue(gigCandidate),
     lookupGigCandidateDraft: vi.fn().mockResolvedValue({
       title: 'Band',
       date: '2026-09-20',
@@ -76,6 +77,7 @@ describe('AdminGigCandidateController', () => {
     | 'createAdminGigCandidate'
     | 'updateAdminGigCandidateDraft'
     | 'rejectGigCandidate'
+    | 'sendGigCandidateToModeration'
     | 'lookupGigCandidateDraft'
   >;
   const adminGigCandidateService = {
@@ -180,6 +182,19 @@ describe('AdminGigCandidateController', () => {
       gigCandidateId: details.id,
       expectedVersion: 0,
       rejectedByUserId: user.userId,
+    });
+  });
+
+  it('should send GigCandidate to moderation at the expected version', async () => {
+    await controller.sendGigCandidateToModeration(details.id, {
+      expectedVersion: 0,
+    });
+
+    expect(
+      gigCandidateService.sendGigCandidateToModeration,
+    ).toHaveBeenCalledWith({
+      gigCandidateId: details.id,
+      expectedVersion: 0,
     });
   });
 

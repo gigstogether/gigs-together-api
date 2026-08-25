@@ -6,6 +6,7 @@ import type { TGCallbackQuery } from '../telegram/types/update.types';
 import { TelegramService } from '../telegram/telegram.service';
 import {
   CallbackScope,
+  GigCandidateCallbackAction,
   GigCallbackAction,
   parseCallbackData,
 } from '../telegram/callback-action';
@@ -14,12 +15,13 @@ import type { User } from '../auth/types/user.types';
 import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
 import type { V1ReceiverCreateGigResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import type { UpdateQuery } from 'mongoose';
 import type { Gig } from '../gig/gig.schema';
 import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { envBool } from '../../shared/utils/env';
+import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -38,6 +40,7 @@ export class ReceiverService {
     private readonly telegramService: TelegramService,
     private readonly gigService: GigService,
     private readonly gigModerationService: GigModerationService,
+    private readonly gigCandidateService: GigCandidateService,
   ) {}
 
   private readonly logger = new Logger(ReceiverService.name);
@@ -145,6 +148,7 @@ export class ReceiverService {
   // TODO: move to telegram module and use dependency injection?
   private async processCallbackQueryOrThrow(
     callbackQuery: TGCallbackQuery,
+    adminUserId: string,
   ): Promise<void> {
     const { data, message } = callbackQuery;
     if (!data || !message) {
@@ -203,6 +207,34 @@ export class ReceiverService {
         }
         break;
       }
+      case CallbackScope.GigCandidate: {
+        switch (parsed.action) {
+          case GigCandidateCallbackAction.SendToModeration: {
+            await this.gigCandidateService.sendGigCandidateToModeration({
+              gigCandidateId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
+            });
+            break;
+          }
+          case GigCandidateCallbackAction.Reject: {
+            await this.gigCandidateService.rejectGigCandidate({
+              gigCandidateId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
+              rejectedByUserId: adminUserId,
+            });
+            break;
+          }
+          case GigCandidateCallbackAction.Approve: {
+            await this.telegramService.answerCallbackQuery({
+              callback_query_id: callbackQuery.id,
+              text: 'Gig Candidate approval is not available yet',
+              show_alert: true,
+            });
+            return;
+          }
+        }
+        break;
+      }
     }
 
     await this.telegramService.answerCallbackQuery({
@@ -212,9 +244,12 @@ export class ReceiverService {
     });
   }
 
-  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
+  async handleCallbackQuery(
+    callbackQuery: TGCallbackQuery,
+    adminUserId: string,
+  ): Promise<void> {
     try {
-      await this.processCallbackQueryOrThrow(callbackQuery);
+      await this.processCallbackQueryOrThrow(callbackQuery, adminUserId);
     } catch (e) {
       this.logger.warn(
         `handleCallbackQuery failed: ${JSON.stringify(

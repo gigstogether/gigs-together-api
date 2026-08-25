@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import type { Model } from 'mongoose';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
-  AppendGigCandidatePostParams,
+  AppendGigCandidatePostIfAbsentParams,
   CreateGigCandidateParams,
   GigCandidate as GigCandidateDomain,
   FindGigCandidatesParams,
@@ -215,8 +215,8 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     return docs.map((doc) => GigCandidateRepositoryMapper.toGigCandidate(doc));
   }
 
-  async appendGigCandidatePost(
-    params: AppendGigCandidatePostParams,
+  async appendGigCandidatePostIfAbsent(
+    params: AppendGigCandidatePostIfAbsentParams,
   ): Promise<GigCandidateDomain | null> {
     if (
       !Types.ObjectId.isValid(params.gigCandidateId) ||
@@ -231,6 +231,14 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
         {
           _id: new Types.ObjectId(params.gigCandidateId),
           version: params.expectedVersion,
+          posts: {
+            $not: {
+              $elemMatch: {
+                to: params.post.to,
+                type: params.post.type,
+              },
+            },
+          },
         },
         {
           $push: { posts: params.post },

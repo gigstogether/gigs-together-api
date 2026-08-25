@@ -16,6 +16,7 @@ import {
   AdminGigCandidateDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
+  AdminGigCandidateSendToModerationBodyPipe,
 } from './pipes/admin-gig-candidate-body.pipe';
 import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.filter';
 
@@ -38,6 +39,7 @@ import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.fil
     AdminGigCandidateDraftUpdateBodyPipe,
     AdminGigCandidateLookupBodyPipe,
     AdminGigCandidateRejectBodyPipe,
+    AdminGigCandidateSendToModerationBodyPipe,
     GigCandidateConflictFilter,
   ],
   exports: [AdminDashboardService, AdminGigService],

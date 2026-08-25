@@ -22,6 +22,10 @@ export interface V1AdminRejectGigCandidateRequestBody {
   expectedVersion: number;
 }
 
+export interface V1AdminSendGigCandidateToModerationRequestBody {
+  expectedVersion: number;
+}
+
 export interface V1AdminGigCandidateLookupRequestBody {
   title: string;
   location: string;

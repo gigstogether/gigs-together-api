@@ -7,7 +7,7 @@ import type { TGMessage } from './types/message.types';
 import type { GigDocument } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
@@ -52,6 +52,7 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
+    [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {

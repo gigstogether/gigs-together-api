@@ -5,6 +5,7 @@ import type {
   V1AdminGigCandidateGigDraftRequestBody,
   V1AdminGigCandidateLookupRequestBody,
   V1AdminRejectGigCandidateRequestBody,
+  V1AdminSendGigCandidateToModerationRequestBody,
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from '../types/requests/v1-admin-gig-candidate-requests';
 
@@ -139,6 +140,18 @@ export class AdminGigCandidateRejectBodyPipe implements PipeTransform<
   V1AdminRejectGigCandidateRequestBody
 > {
   transform(bodyRaw: unknown): V1AdminRejectGigCandidateRequestBody {
+    const body = parseBody(bodyRaw);
+    assertOnlyFields(body, ['expectedVersion'], 'body');
+    return { expectedVersion: parseExpectedVersion(body.expectedVersion) };
+  }
+}
+
+@Injectable()
+export class AdminGigCandidateSendToModerationBodyPipe implements PipeTransform<
+  unknown,
+  V1AdminSendGigCandidateToModerationRequestBody
+> {
+  transform(bodyRaw: unknown): V1AdminSendGigCandidateToModerationRequestBody {
     const body = parseBody(bodyRaw);
     assertOnlyFields(body, ['expectedVersion'], 'body');
     return { expectedVersion: parseExpectedVersion(body.expectedVersion) };

@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import { GigCandidatePostType } from '../gig-candidate/types/gig-candidate-post-type.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import type {
   AdminGigCandidateDetails,
@@ -39,15 +39,23 @@ export class AdminGigCandidateService {
   async resolveGigCandidate(
     gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const suggestionPost = gigCandidate.posts.find(
-      (post) =>
-        post.to === Messenger.Telegram &&
-        post.type === GigCandidatePostType.Suggestion,
+    const intakePost = gigCandidate.posts.find(
+      (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
     );
-    const suggestionPostUrl = suggestionPost
+    const moderationPost = gigCandidate.posts.find(
+      (post) =>
+        post.to === Messenger.Telegram && post.type === PostType.Moderation,
+    );
+    const intakePostUrl = intakePost
       ? this.telegramService.getPostUrl({
-          chatId: suggestionPost.chatId,
-          messageId: suggestionPost.id,
+          chatId: intakePost.chatId,
+          messageId: intakePost.id,
+        })
+      : undefined;
+    const moderationPostUrl = moderationPost
+      ? this.telegramService.getPostUrl({
+          chatId: moderationPost.chatId,
+          messageId: moderationPost.id,
         })
       : undefined;
     const linkedGig = gigCandidate.gigId
@@ -63,8 +71,10 @@ export class AdminGigCandidateService {
         gigCandidate.gigDraft.poster,
       ),
       status: gigCandidate.status,
-      postUrl: suggestionPostUrl,
-      postDate: suggestionPost?.date,
+      intakePostUrl,
+      intakePostDate: intakePost?.date,
+      moderationPostUrl,
+      moderationPostDate: moderationPost?.date,
       linkedGigPublicId: linkedGig?.publicId,
       approvedAt: gigCandidate.approvedAt,
       approvedByUserId: gigCandidate.approvedByUserId,

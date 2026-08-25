@@ -2,8 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { GigPoster, GigPosterSchema } from '../gig/gig.schema';
 import type { GigData } from '../gig/types/gig.types';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { GigCandidatePostType } from './types/gig-candidate-post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type {
   GigCandidateSourceProvider,
@@ -19,8 +19,12 @@ export class GigCandidatePost {
   @Prop({ type: String, enum: Messenger, required: true })
   to: Messenger;
 
-  @Prop({ type: String, enum: GigCandidatePostType, required: true })
-  type: GigCandidatePostType;
+  @Prop({
+    type: String,
+    enum: [PostType.Intake, PostType.Moderation],
+    required: true,
+  })
+  type: PostType.Intake | PostType.Moderation;
 
   @Prop({ type: Number, required: true })
   date: number;

@@ -4,6 +4,7 @@ import {
   AdminGigCandidateDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
+  AdminGigCandidateSendToModerationBodyPipe,
 } from './admin-gig-candidate-body.pipe';
 
 describe('AdminGigCandidateCreateBodyPipe', () => {
@@ -66,6 +67,16 @@ describe('AdminGigCandidateDraftUpdateBodyPipe', () => {
 describe('AdminGigCandidateRejectBodyPipe', () => {
   it('should accept only expectedVersion', () => {
     const pipe = new AdminGigCandidateRejectBodyPipe();
+
+    expect(pipe.transform({ expectedVersion: 3 })).toEqual({
+      expectedVersion: 3,
+    });
+  });
+});
+
+describe('AdminGigCandidateSendToModerationBodyPipe', () => {
+  it('should accept only expectedVersion', () => {
+    const pipe = new AdminGigCandidateSendToModerationBodyPipe();
 
     expect(pipe.transform({ expectedVersion: 3 })).toEqual({
       expectedVersion: 3,

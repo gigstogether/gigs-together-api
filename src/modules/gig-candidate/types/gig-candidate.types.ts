@@ -1,6 +1,6 @@
 import type { GigData } from '../../gig/types/gig.types';
+import type { PostType } from '../../../shared/types/post-type.enum';
 import type { Messenger } from '../../../shared/types/messenger.enum';
-import type { GigCandidatePostType } from './gig-candidate-post-type.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
 import type {
   AdminGigCandidateListSortBy,
@@ -15,7 +15,7 @@ export interface GigCandidatePoster {
 
 export interface GigCandidatePost {
   to: Messenger;
-  type: GigCandidatePostType;
+  type: PostType.Intake | PostType.Moderation;
   date: number;
   id: number;
   chatId: number;
@@ -113,7 +113,7 @@ export interface RejectGigCandidateRecordParams extends RejectGigCandidateParams
   rejectedAt: Date;
 }
 
-export interface AppendGigCandidatePostParams {
+export interface AppendGigCandidatePostIfAbsentParams {
   gigCandidateId: string;
   expectedVersion: number;
   post: GigCandidatePost;

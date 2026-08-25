@@ -8,6 +8,7 @@ import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import type { GigCandidatePost } from '../gig-candidate/types/gig-candidate.types';
 import { Status } from '../gig/types/status.enum';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import {
@@ -195,12 +196,34 @@ export class TelegramService {
     );
   }
 
-  sendGigCandidateToSuggestion(
+  sendGigCandidateIntakePost(
     gigCandidate: GigCandidate,
   ): Promise<TGMessage | undefined> {
     const composed =
-      this.telegramPostComposerService.composeGigCandidatePost(gigCandidate);
+      this.telegramPostComposerService.composeGigCandidateIntakePost(
+        gigCandidate,
+      );
     return this.telegramBotClient.sendPhoto(composed, gigCandidate.id);
+  }
+
+  sendGigCandidateModerationPost(
+    gigCandidate: GigCandidate,
+  ): Promise<TGMessage | undefined> {
+    const composed =
+      this.telegramPostComposerService.composeGigCandidateModerationPost(
+        gigCandidate,
+      );
+    return this.telegramBotClient.sendPhoto(composed, gigCandidate.id);
+  }
+
+  async removeGigCandidateIntakeActions(
+    intakePost: GigCandidatePost,
+  ): Promise<void> {
+    await this.telegramBotClient.editMessageReplyMarkup({
+      chatId: intakePost.chatId,
+      messageId: intakePost.id,
+      replyMarkup: { inline_keyboard: [] },
+    });
   }
 
   async updateModerationPostAfterGigPublished(

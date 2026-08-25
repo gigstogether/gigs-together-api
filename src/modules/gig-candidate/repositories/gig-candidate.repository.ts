@@ -1,5 +1,5 @@
 import type {
-  AppendGigCandidatePostParams,
+  AppendGigCandidatePostIfAbsentParams,
   CreateGigCandidateParams,
   GigCandidate,
   FindGigCandidatesParams,
@@ -31,7 +31,7 @@ export interface GigCandidateRepository {
 
   findMany(params: FindGigCandidatesParams): Promise<GigCandidate[]>;
 
-  appendGigCandidatePost(
-    params: AppendGigCandidatePostParams,
+  appendGigCandidatePostIfAbsent(
+    params: AppendGigCandidatePostIfAbsentParams,
   ): Promise<GigCandidate | null>;
 }

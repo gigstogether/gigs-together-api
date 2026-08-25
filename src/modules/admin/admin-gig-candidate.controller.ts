@@ -33,6 +33,7 @@ import {
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
   mapV1AdminRejectGigCandidateRequest,
+  mapV1AdminSendGigCandidateToModerationRequest,
   mapV1AdminUpdateGigCandidateDraftRequest,
 } from './admin-gig-candidate.mapper';
 import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.filter';
@@ -41,12 +42,14 @@ import {
   AdminGigCandidateDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
+  AdminGigCandidateSendToModerationBodyPipe,
 } from './pipes/admin-gig-candidate-body.pipe';
 import type {
   V1AdminCreateGigCandidateRequestBody,
   V1AdminGigCandidateLookupRequestBody,
   V1AdminGigCandidateLookupResponseBody,
   V1AdminRejectGigCandidateRequestBody,
+  V1AdminSendGigCandidateToModerationRequestBody,
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import { V1AdminGigCandidatesGetQueryDto } from './types/requests/v1-admin-gig-candidates-get-query';
@@ -169,6 +172,27 @@ export class AdminGigCandidateController {
         rejectedByUserId: user.userId,
       }),
     );
+    const details =
+      await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
+    return mapV1AdminGigCandidateResponse(details);
+  }
+
+  @Version('1')
+  @Post(':id/send-to-moderation')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(GigCandidateConflictFilter)
+  async sendGigCandidateToModeration(
+    @Param('id') id: string,
+    @Body(AdminGigCandidateSendToModerationBodyPipe)
+    body: V1AdminSendGigCandidateToModerationRequestBody,
+  ): Promise<V1AdminGigCandidateResponseBody> {
+    const gigCandidate =
+      await this.gigCandidateService.sendGigCandidateToModeration(
+        mapV1AdminSendGigCandidateToModerationRequest({
+          body,
+          gigCandidateId: id,
+        }),
+      );
     const details =
       await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);

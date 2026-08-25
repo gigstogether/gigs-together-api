@@ -8,12 +8,14 @@ import type { TGCallbackQuery } from '../telegram/types/update.types';
 import {
   CallbackScope,
   encodeCallbackData,
+  GigCandidateCallbackAction,
   GigCallbackAction,
 } from '../telegram/callback-action';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../gig/types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from '../gig/types/status.enum';
+import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -47,6 +49,11 @@ describe('ReceiverService', () => {
     rejectGig: vi.fn(),
   };
 
+  const mockGigCandidateService = {
+    sendGigCandidateToModeration: vi.fn(),
+    rejectGigCandidate: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.unstubAllEnvs();
 
@@ -64,6 +71,10 @@ describe('ReceiverService', () => {
         {
           provide: GigModerationService,
           useValue: mockGigModerationService,
+        },
+        {
+          provide: GigCandidateService,
+          useValue: mockGigCandidateService,
         },
       ],
     }).compile();
@@ -341,7 +352,10 @@ describe('ReceiverService', () => {
       mockGigModerationService.publishGigPost.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(callbackQuery);
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
 
       expect(mockGigModerationService.publishGigPost).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
@@ -380,7 +394,10 @@ describe('ReceiverService', () => {
       mockGigModerationService.rejectGig.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(callbackQuery);
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
 
       expect(mockGigModerationService.rejectGig).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
@@ -409,12 +426,107 @@ describe('ReceiverService', () => {
 
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(callbackQuery);
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
 
       expect(mockGigModerationService.approveGig).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-legacy',
         text: 'Something unexpected happened, I dunno what to do',
+        show_alert: true,
+      });
+    });
+
+    it('should send GigCandidate to moderation with callback expected version', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-gigCandidate-send',
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.SendToModeration,
+          id: '507f1f77bcf86cd799439099',
+          expectedVersion: 3,
+        }),
+        from: { id: 1, is_bot: false, first_name: 'Arina' },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(
+        mockGigCandidateService.sendGigCandidateToModeration,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: '507f1f77bcf86cd799439099',
+        expectedVersion: 3,
+      });
+    });
+
+    it('should reject GigCandidate with internal admin user id', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-gigCandidate-reject',
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Reject,
+          id: '507f1f77bcf86cd799439099',
+          expectedVersion: 4,
+        }),
+        from: { id: 1, is_bot: false, first_name: 'Arina' },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(mockGigCandidateService.rejectGigCandidate).toHaveBeenCalledWith({
+        gigCandidateId: '507f1f77bcf86cd799439099',
+        expectedVersion: 4,
+        rejectedByUserId: '507f1f77bcf86cd799439088',
+      });
+    });
+
+    it('should keep GigCandidate Approve callback inactive before Stage 10', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-gigCandidate-approve',
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Approve,
+          id: '507f1f77bcf86cd799439099',
+          expectedVersion: 4,
+        }),
+        from: { id: 1, is_bot: false, first_name: 'Arina' },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(mockGigCandidateService.rejectGigCandidate).not.toHaveBeenCalled();
+      expect(
+        mockGigCandidateService.sendGigCandidateToModeration,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-gigCandidate-approve',
+        text: 'Gig Candidate approval is not available yet',
         show_alert: true,
       });
     });

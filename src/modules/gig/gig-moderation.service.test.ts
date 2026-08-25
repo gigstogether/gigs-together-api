@@ -8,7 +8,7 @@ import { FeedRevalidateService } from './feed-revalidate.service';
 import { GigModerationService } from './gig-moderation.service';
 import { GigService } from './gig.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from './types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from './types/status.enum';
 import type { GigDocument } from './gig.schema';
 

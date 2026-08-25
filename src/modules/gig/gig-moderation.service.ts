@@ -11,7 +11,7 @@ import type {
   GigModerationPostRef,
   ModerateGigParams,
 } from './types/gig-moderation.types';
-import { PostType } from './types/postType.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { Status } from './types/status.enum';
 import type { GigId, PlainGig } from './types/gig.types';
 
