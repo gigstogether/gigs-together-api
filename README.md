@@ -479,23 +479,27 @@ List migration states with:
 npm run migrate:list
 ```
 
-Apply pending migrations with:
+Dry-run pending migrations (the default) with:
 
 ```bash
 npm run migrate:up
 ```
 
-Run one migration by name with:
-
-```bash
-npm run migrate:up -- example-migration --single
-```
-
 Dry-run one migration by name with:
 
 ```bash
-npm run migrate:up:dry -- example-migration --single
+npm run migrate:up:single:dry -- example-migration
 ```
+
+Apply one migration by name only after reviewing its dry-run report with:
+
+```bash
+npm run migrate:up:single:apply -- example-migration
+```
+
+The single-migration scripts embed `--single` before the forwarded migration
+name. Do not append `--single` after `npm run ... --`; current npm versions may
+interpret it as npm configuration instead of forwarding it to the migrator.
 
 Use the migration name without the numeric filename timestamp. For example,
 `1234567890000-example-migration.ts` is run as `example-migration`.
@@ -503,7 +507,9 @@ Use the migration name without the numeric filename timestamp. For example,
 Migration files and their unit tests live in `migrations/`. Only actual
 migrations start with a numeric timestamp; colocated `*.test.ts` files must not.
 
-The dry-run flow is opt-in inside each migration. `npm run migrate:up:dry` only sets `DRY_RUN=true`; a migration must check `isMigrationDryRun()` and call `finishMigrationDryRun()` to avoid being marked as applied.
+Dry run is the default. `npm run migrate:up:apply` explicitly sets
+`DRY_RUN=false`; every migration must check `isMigrationDryRun()` and call
+`finishMigrationDryRun()` so a dry run is not marked as applied.
 
 A successful dry run currently ends with `MigrationDryRunCompleteError`. This is
 the expected completion signal that keeps the migration in the pending state;
