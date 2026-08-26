@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -60,8 +61,15 @@ interface ResolvePublicPostUrl {
 
 interface UpdateGigByPublicIdPayload {
   publicId: string;
+  expectedVersion: number;
   body: V1ReceiverCreateGigRequestBody;
   posterFile: Express.Multer.File | undefined;
+}
+
+export interface UpdateGigVisibilityByPublicIdParams {
+  publicId: string;
+  expectedVersion: number;
+  isVisible: boolean;
 }
 
 interface SaveGigPayload {
@@ -123,6 +131,27 @@ export class GigService {
       throw new BadRequestException('publicId has invalid characters');
     }
     return id;
+  }
+
+  private validateExpectedVersion(expectedVersion: number): void {
+    if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
+      throw new BadRequestException(
+        'expectedVersion must be a non-negative integer',
+      );
+    }
+  }
+
+  private async throwGigVersionConflictOrNotFound(
+    publicId: string,
+  ): Promise<never> {
+    const existingGig = await this.gigModel.exists({ publicId });
+    if (!existingGig) {
+      throw new NotFoundException(`Gig with publicId "${publicId}" not found`);
+    }
+
+    throw new ConflictException(
+      `Gig with publicId "${publicId}" has a newer version`,
+    );
   }
 
   private async generateUniquePublicId(
@@ -257,6 +286,8 @@ export class GigService {
       ticketsUrl: data.ticketsUrl,
       poster: data.poster,
       status: Status.New,
+      isVisible: false,
+      version: 0,
       posts: [],
       suggestedBy: data.suggestedBy,
     };
@@ -315,6 +346,8 @@ export class GigService {
       ticketsUrl: params.ticketsUrl ?? '',
       poster,
       status: Status.New,
+      isVisible: false,
+      version: 0,
       posts: [],
       suggestedBy: params.suggestedBy,
       gigCandidateId: new Types.ObjectId(params.gigCandidateId),
@@ -444,9 +477,10 @@ export class GigService {
   async updateGigByPublicId(
     payload: UpdateGigByPublicIdPayload,
   ): Promise<GigDocument> {
-    const { publicId, body, posterFile } = payload;
+    const { publicId, expectedVersion, body, posterFile } = payload;
 
     const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    this.validateExpectedVersion(expectedVersion);
 
     const dateMs = new Date(body.gig.date).getTime();
 
@@ -467,12 +501,15 @@ export class GigService {
     });
 
     const dataToUpdate: UpdateQuery<Gig> = {
-      title: body.gig.title,
-      date: dateMs,
-      city: body.gig.city,
-      country: body.gig.country,
-      venue: body.gig.venue,
-      ticketsUrl: body.gig.ticketsUrl,
+      $set: {
+        title: body.gig.title,
+        date: dateMs,
+        city: body.gig.city,
+        country: body.gig.country,
+        venue: body.gig.venue,
+        ticketsUrl: body.gig.ticketsUrl,
+      },
+      $inc: { version: 1 },
     };
 
     if (endDateMs) {
@@ -482,17 +519,38 @@ export class GigService {
     }
 
     if (poster) {
-      dataToUpdate.poster = poster;
+      dataToUpdate.$set = { ...dataToUpdate.$set, poster };
     }
 
     const updated = await this.gigModel.findOneAndUpdate(
-      { publicId: id },
+      { publicId: id, version: expectedVersion },
       dataToUpdate,
       { returnDocument: 'after' },
     );
     if (!updated) {
-      throw new NotFoundException(`Gig with publicId "${id}" not found`);
+      return this.throwGigVersionConflictOrNotFound(id);
     }
+    return updated;
+  }
+
+  async updateGigVisibilityByPublicId(
+    params: UpdateGigVisibilityByPublicIdParams,
+  ): Promise<GigDocument> {
+    const publicId = this.normalizeAndValidatePublicIdOrThrow(params.publicId);
+    this.validateExpectedVersion(params.expectedVersion);
+
+    const updated = await this.gigModel.findOneAndUpdate(
+      { publicId, version: params.expectedVersion },
+      {
+        $set: { isVisible: params.isVisible },
+        $inc: { version: 1 },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!updated) {
+      return this.throwGigVersionConflictOrNotFound(publicId);
+    }
+
     return updated;
   }
 
@@ -518,7 +576,13 @@ export class GigService {
   }
 
   updateGigStatus(gigId: GigId, status: Status): Promise<GigDocument> {
-    return this.updateGig(gigId, { status });
+    return this.updateGig(gigId, {
+      $set: {
+        status,
+        isVisible: status === Status.Published,
+      },
+      $inc: { version: 1 },
+    });
   }
 
   async resolvePublicPostUrl(

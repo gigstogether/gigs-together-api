@@ -11,6 +11,8 @@ export interface V1AdminGigListItem {
   readonly publicId: string;
   readonly title: string;
   readonly status: Status;
+  readonly isVisible: boolean;
+  readonly version: number;
   readonly date: string;
   readonly endDate?: string;
   readonly city: string;

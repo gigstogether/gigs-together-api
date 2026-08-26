@@ -3,6 +3,7 @@ import type { TGUser } from '../../telegram/types/user.types';
 import type { TGMessage } from '../../telegram/types/message.types';
 import type { Status } from './status.enum';
 import type { GigPost, GigPoster } from '../gig.schema';
+import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
 
 export type GigId = string | Types.ObjectId;
 
@@ -19,6 +20,8 @@ export interface PlainGig {
   ticketsUrl: string;
   poster?: GigPoster;
   status: Status;
+  isVisible: boolean;
+  version: number;
   posts: GigPost[];
   suggestedBy: GigSuggestedBy;
   gigCandidateId?: Types.ObjectId;
@@ -53,6 +56,23 @@ export interface GigData {
   ticketsUrl: string;
   poster?: GigPosterInput;
 }
+
+export interface GigSourceUserOrigin {
+  type: 'form' | 'admin' | 'messenger';
+}
+
+export interface GigSourceUser {
+  type: 'user';
+  userId: string;
+  origin: GigSourceUserOrigin;
+}
+
+export interface GigSourceProvider {
+  type: 'provider';
+  provider: ProviderReference;
+}
+
+export type GigSource = GigSourceUser | GigSourceProvider;
 
 export interface CreateGigInput {
   title: string;
@@ -116,6 +136,8 @@ export interface GigFormData {
   ticketsUrl: string;
   posterUrl?: string;
   status: Status;
+  isVisible: boolean;
+  version: number;
   suggestedBy: GigFormDataSuggestedBy;
   publishPostUrl?: string;
   publishPostDate?: number;

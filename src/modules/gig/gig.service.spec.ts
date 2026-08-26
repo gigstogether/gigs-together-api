@@ -39,6 +39,10 @@ describe('GigService', () => {
   const findOneExecMock = vi.fn();
   const findOneLeanMock = vi.fn().mockReturnValue({ exec: findOneExecMock });
   const findOneMock = vi.fn().mockReturnValue({ lean: findOneLeanMock });
+  const findOneAndUpdateMock = vi.fn();
+  const findByIdAndUpdateMock = vi.fn();
+  const existsMock = vi.fn();
+  const uploadPosterMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -47,6 +51,10 @@ describe('GigService', () => {
     countDocumentsMock.mockReturnValue({ exec: vi.fn().mockResolvedValue(0) });
     findByIdExecMock.mockResolvedValue(null);
     findOneExecMock.mockResolvedValue(null);
+    findOneAndUpdateMock.mockResolvedValue(null);
+    findByIdAndUpdateMock.mockResolvedValue(null);
+    existsMock.mockResolvedValue(null);
+    uploadPosterMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -57,6 +65,9 @@ describe('GigService', () => {
             find: findMock,
             findById: findByIdMock,
             findOne: findOneMock,
+            findOneAndUpdate: findOneAndUpdateMock,
+            findByIdAndUpdate: findByIdAndUpdateMock,
+            exists: existsMock,
             aggregate: aggregateMock,
             countDocuments: countDocumentsMock,
           },
@@ -68,7 +79,7 @@ describe('GigService', () => {
           },
         },
         { provide: CalendarService, useValue: {} },
-        { provide: GigPosterService, useValue: { upload: vi.fn() } },
+        { provide: GigPosterService, useValue: { upload: uploadPosterMock } },
         { provide: TelegramService, useValue: {} },
         { provide: BucketService, useValue: {} },
       ],
@@ -265,6 +276,119 @@ describe('GigService', () => {
       ).rejects.toMatchObject({
         message: 'Gig with publicId "missing-gig" not found',
       });
+    });
+  });
+
+  describe('updateGigByPublicId', () => {
+    const body = {
+      gig: {
+        title: 'Radiohead',
+        date: '2026-06-12',
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+      },
+    };
+
+    it('should conditionally edit a Gig and increment its version', async () => {
+      const updatedGig = { publicId: 'radiohead-2026-06-12', version: 5 };
+      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+
+      await expect(
+        service.updateGigByPublicId({
+          publicId: 'radiohead-2026-06-12',
+          expectedVersion: 4,
+          body,
+          posterFile: undefined,
+        }),
+      ).resolves.toBe(updatedGig);
+
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        { publicId: 'radiohead-2026-06-12', version: 4 },
+        {
+          $set: {
+            title: 'Radiohead',
+            date: new Date('2026-06-12').getTime(),
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Palau Sant Jordi',
+            ticketsUrl: 'https://tickets.example/radiohead',
+          },
+          $inc: { version: 1 },
+          $unset: { endDate: 1 },
+        },
+        { returnDocument: 'after' },
+      );
+    });
+
+    it('should return conflict when an edit uses a stale version', async () => {
+      existsMock.mockResolvedValue({ _id: new Types.ObjectId() });
+
+      await expect(
+        service.updateGigByPublicId({
+          publicId: 'radiohead-2026-06-12',
+          expectedVersion: 3,
+          body,
+          posterFile: undefined,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: 'Gig with publicId "radiohead-2026-06-12" has a newer version',
+      });
+    });
+  });
+
+  describe('updateGigVisibilityByPublicId', () => {
+    it('should conditionally change visibility and increment version', async () => {
+      const updatedGig = {
+        publicId: 'radiohead-2026-06-12',
+        isVisible: false,
+        version: 8,
+      };
+      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+
+      await expect(
+        service.updateGigVisibilityByPublicId({
+          publicId: 'radiohead-2026-06-12',
+          expectedVersion: 7,
+          isVisible: false,
+        }),
+      ).resolves.toBe(updatedGig);
+
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        { publicId: 'radiohead-2026-06-12', version: 7 },
+        {
+          $set: { isVisible: false },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after' },
+      );
+    });
+  });
+
+  describe('updateGigStatus', () => {
+    it('should dual-write published visibility and increment version', async () => {
+      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+      const updatedGig = {
+        _id: gigId,
+        status: Status.Published,
+        isVisible: true,
+      };
+      findByIdAndUpdateMock.mockResolvedValue(updatedGig);
+
+      await expect(
+        service.updateGigStatus(gigId, Status.Published),
+      ).resolves.toBe(updatedGig);
+
+      expect(findByIdAndUpdateMock).toHaveBeenCalledWith(
+        gigId,
+        {
+          $set: { status: Status.Published, isVisible: true },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after' },
+      );
     });
   });
 });

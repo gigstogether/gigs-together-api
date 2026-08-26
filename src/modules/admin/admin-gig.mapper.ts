@@ -38,6 +38,8 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     ticketsUrl,
     posterUrl,
     status: gig.status,
+    isVisible: gig.isVisible,
+    version: gig.version,
     suggestedBy: {
       userId: gig.suggestedBy.userId.toString(),
       username: gig.suggestedBy.username,

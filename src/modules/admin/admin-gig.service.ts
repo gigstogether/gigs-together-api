@@ -84,6 +84,8 @@ export class AdminGigService {
       publicId: formData.publicId,
       title: formData.title,
       status: formData.status,
+      isVisible: formData.isVisible,
+      version: formData.version,
       date: formData.date,
       endDate: formData.endDate,
       city: formData.city,

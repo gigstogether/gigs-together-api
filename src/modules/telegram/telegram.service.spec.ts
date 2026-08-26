@@ -433,6 +433,8 @@ describe('TelegramService', () => {
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           status: Status.Published,
+          isVisible: true,
+          version: 0,
           suggestedBy: {
             userId: 12345,
             feedbackMessageId: 99,
@@ -476,6 +478,8 @@ describe('TelegramService', () => {
         venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         status: Status.Rejected,
+        isVisible: false,
+        version: 0,
         suggestedBy: {
           userId: 12345,
         },
@@ -543,6 +547,8 @@ describe('TelegramService', () => {
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           status: Status.Rejected,
+          isVisible: false,
+          version: 0,
           suggestedBy: {
             userId: 12345,
           },

@@ -51,9 +51,30 @@ export class GigBodyPipe implements PipeTransform<
       throw new BadRequestException('Body must be an object');
     }
 
-    return {
+    const bodyWithGig = {
       ...body,
       gig: this.parseGig(body.gig),
     };
+
+    if (body.expectedVersion === undefined) {
+      return bodyWithGig;
+    }
+
+    const expectedVersion =
+      typeof body.expectedVersion === 'string' &&
+      body.expectedVersion.trim() !== ''
+        ? Number(body.expectedVersion)
+        : body.expectedVersion;
+    if (
+      typeof expectedVersion !== 'number' ||
+      !Number.isInteger(expectedVersion) ||
+      expectedVersion < 0
+    ) {
+      throw new BadRequestException(
+        'expectedVersion must be a non-negative integer',
+      );
+    }
+
+    return { ...bodyWithGig, expectedVersion };
   }
 }

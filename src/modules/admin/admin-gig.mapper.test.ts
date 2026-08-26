@@ -17,6 +17,8 @@ function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
     venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://example.com/tickets',
     status: Status.Pending,
+    isVisible: false,
+    version: 3,
     posts: [
       {
         to: Messenger.Telegram,
@@ -49,6 +51,8 @@ describe('mapGigToFormDataByPublicId', () => {
       publicId: 'radiohead-barcelona-2026-06-12',
       title: 'Radiohead',
       status: Status.Pending,
+      isVisible: false,
+      version: 3,
       date: '2026-06-12',
       endDate: undefined,
       city: 'barcelona',

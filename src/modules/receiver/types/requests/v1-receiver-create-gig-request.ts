@@ -12,4 +12,5 @@ export interface V1ReceiverCreateGigRequestBodyGig {
 
 export interface V1ReceiverCreateGigRequestBody {
   gig: V1ReceiverCreateGigRequestBodyGig;
+  expectedVersion?: number;
 }

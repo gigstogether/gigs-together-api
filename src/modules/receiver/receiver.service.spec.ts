@@ -533,6 +533,29 @@ describe('ReceiverService', () => {
   });
 
   describe('updateGigByPublicId', () => {
+    it('should reject an edit without expectedVersion before database access', async () => {
+      await expect(
+        service.updateGigByPublicId({
+          publicId: 'radiohead-barcelona-2026-06-12',
+          body: {
+            gig: {
+              title: 'Radiohead',
+              date: '2026-06-12',
+              city: 'Barcelona',
+              country: 'ES',
+              venue: 'Palau Sant Jordi',
+              ticketsUrl: 'https://tickets.example/radiohead',
+            },
+          },
+          posterFile: undefined,
+        }),
+      ).rejects.toMatchObject({
+        message: 'expectedVersion is required',
+      });
+
+      expect(mockGigService.updateGigByPublicId).not.toHaveBeenCalled();
+    });
+
     it('should edit main post for published gig before updating publish fileId', async () => {
       const updatedGig = {
         _id: '507f1f77bcf86cd799439011',
@@ -561,6 +584,7 @@ describe('ReceiverService', () => {
       await service.updateGigByPublicId({
         publicId: 'radiohead-barcelona-2026-06-12',
         body: {
+          expectedVersion: 4,
           gig: {
             title: 'Radiohead',
             date: '2026-06-12',

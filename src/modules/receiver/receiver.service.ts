@@ -351,9 +351,13 @@ export class ReceiverService {
     payload: UpdateGigByPublicIdPayload,
   ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
     const { publicId, body, posterFile } = payload;
+    if (body.expectedVersion === undefined) {
+      throw new BadRequestException('expectedVersion is required');
+    }
 
     const updatedGig = await this.gigService.updateGigByPublicId({
       publicId,
+      expectedVersion: body.expectedVersion,
       body,
       posterFile,
     });
