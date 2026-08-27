@@ -177,11 +177,11 @@ export class Gig {
 
   @Prop({
     type: SchemaTypes.Mixed,
-    required: false,
+    required: true,
     immutable: true,
     validate: isGigSource,
   })
-  source?: GigStoredSource;
+  source: GigStoredSource;
 
   @Prop({ type: [GigPostSchema], required: false, default: [] })
   posts: GigPost[];

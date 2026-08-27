@@ -97,6 +97,7 @@ export interface CreateGigFromGigCandidateParams {
   ticketsUrl?: string;
   poster?: GigPosterInput;
   suggestedBy: GigSuggestedBy;
+  source: GigSource;
   gigCandidateId: string;
 }
 

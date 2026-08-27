@@ -288,6 +288,11 @@ export class GigService {
       status: Status.New,
       isVisible: false,
       version: 0,
+      source: {
+        type: 'user',
+        userId: new Types.ObjectId(user.userId),
+        origin: { type: user.isAdmin ? 'admin' : 'form' },
+      },
       posts: [],
       suggestedBy: data.suggestedBy,
     };
@@ -348,6 +353,13 @@ export class GigService {
       status: Status.New,
       isVisible: false,
       version: 0,
+      source:
+        params.source.type === 'user'
+          ? {
+              ...params.source,
+              userId: new Types.ObjectId(params.source.userId),
+            }
+          : params.source,
       posts: [],
       suggestedBy: params.suggestedBy,
       gigCandidateId: new Types.ObjectId(params.gigCandidateId),

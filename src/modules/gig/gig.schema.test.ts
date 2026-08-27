@@ -15,12 +15,12 @@ describe('GigSchema', () => {
     expect(versionOptions.validate(2.5)).toBe(false);
   });
 
-  it('should keep optional source immutable as one discriminated union value', () => {
+  it('should require immutable source as one discriminated union value', () => {
     const sourcePath = GigSchema.path('source');
     const validate = sourcePath.options.validate;
 
     expect(sourcePath.instance).toBe('Mixed');
-    expect(sourcePath.options.required).toBe(false);
+    expect(sourcePath.options.required).toBe(true);
     expect(sourcePath.options.immutable).toBe(true);
     expect(validate).toEqual(expect.any(Function));
     expect(
