@@ -92,6 +92,60 @@ describe('GigService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('generateUniquePublicId', () => {
+    it('should preserve the existing Gig model uniqueness check by default', async () => {
+      const publicIdLookupLean = vi.fn().mockResolvedValue(null);
+      findOneMock.mockReturnValueOnce({ lean: publicIdLookupLean });
+
+      await expect(
+        service.generateUniquePublicId({
+          title: 'Radiohead',
+          yyyyMmDd: '2026-06-12',
+        }),
+      ).resolves.toBe('radiohead-2026-06-12');
+
+      expect(findOneMock).toHaveBeenCalledWith(
+        { publicId: 'radiohead-2026-06-12' },
+        { _id: 1 },
+      );
+    });
+
+    it('should use the supplied transaction-aware uniqueness check', async () => {
+      const isPublicIdTaken = vi
+        .fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await expect(
+        service.generateUniquePublicId({
+          title: 'Beyoncé & Friends',
+          yyyyMmDd: '2026-06-12',
+          isPublicIdTaken,
+        }),
+      ).resolves.toBe('beyonce-friends-2026-06-12-2');
+
+      expect(isPublicIdTaken).toHaveBeenNthCalledWith(
+        1,
+        'beyonce-friends-2026-06-12',
+      );
+      expect(isPublicIdTaken).toHaveBeenNthCalledWith(
+        2,
+        'beyonce-friends-2026-06-12-2',
+      );
+      expect(findOneMock).not.toHaveBeenCalled();
+    });
+
+    it('should keep a generated public ID within the schema limit', async () => {
+      await expect(
+        service.generateUniquePublicId({
+          title: 'A'.repeat(200),
+          yyyyMmDd: '2026-06-12',
+          isPublicIdTaken: vi.fn().mockResolvedValue(false),
+        }),
+      ).resolves.toHaveLength(64);
+    });
+  });
+
   describe('getPublishedGigDocumentsInInclusiveMsRange', () => {
     it('should query published gigs with inclusive date bounds when fromMs and toMs are given', async () => {
       const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();

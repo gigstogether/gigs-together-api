@@ -12,6 +12,7 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { AdminGigCandidateController } from './admin-gig-candidate.controller';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
+import type { GigApprovalResult } from '../gig-candidate/repositories/gig-candidate-approval.repository';
 
 function buildGigCandidate(
   overrides: Partial<GigCandidate> = {},
@@ -59,7 +60,25 @@ describe('AdminGigCandidateController', () => {
     tgUser: { id: 42, first_name: 'Admin' },
     isAdmin: true,
   };
+  const gigApprovalResult: GigApprovalResult = {
+    id: '507f1f77bcf86cd799439011',
+    publicId: 'band-2026-09-20',
+    title: 'Band',
+    date: Date.UTC(2026, 8, 20),
+    city: 'Barcelona',
+    country: 'ES',
+    venue: 'Venue',
+    ticketsUrl: 'https://tickets.example/gig',
+    source: {
+      type: 'user',
+      userId: user.userId,
+      origin: { type: 'admin' },
+    },
+    version: 0,
+    isVisible: true,
+  };
   const gigCandidateService = {
+    approveGigCandidate: vi.fn().mockResolvedValue(gigApprovalResult),
     createAdminGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     updateAdminGigCandidateDraft: vi.fn().mockResolvedValue(gigCandidate),
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
@@ -75,6 +94,7 @@ describe('AdminGigCandidateController', () => {
   } satisfies Pick<
     GigCandidateService,
     | 'createAdminGigCandidate'
+    | 'approveGigCandidate'
     | 'updateAdminGigCandidateDraft'
     | 'rejectGigCandidate'
     | 'sendGigCandidateToModeration'
@@ -183,6 +203,19 @@ describe('AdminGigCandidateController', () => {
       expectedVersion: 0,
       rejectedByUserId: user.userId,
     });
+  });
+
+  it('should approve with the expected version and authenticated internal user id', async () => {
+    await controller.approveGigCandidate(details.id, user, {
+      expectedVersion: 0,
+    });
+
+    expect(gigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
+      gigCandidateId: details.id,
+      expectedVersion: 0,
+      approvedByUserId: user.userId,
+    });
+    expect(adminGigCandidateService.getById).toHaveBeenCalledWith(details.id);
   });
 
   it('should send GigCandidate to moderation at the expected version', async () => {

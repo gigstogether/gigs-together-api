@@ -8,8 +8,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, UpdateQuery } from 'mongoose';
 import type {
-  CreateGigFromGigCandidateParams,
   CreateGigInput,
+  GigCalendarSource,
   GigId,
   PlainGig,
   SetPendingWithOptionalModerationPostParams,
@@ -78,10 +78,11 @@ interface SaveGigPayload {
   posterFile: Express.Multer.File | undefined;
 }
 
-interface GenerateUniquePublicIdPayload {
+export interface GenerateUniquePublicIdPayload {
   title: string;
   yyyyMmDd: string;
   excludeMongoId?: Types.ObjectId;
+  isPublicIdTaken?: (publicId: string) => Promise<boolean>;
 }
 
 interface GigPublishedBaseFilterParams {
@@ -154,7 +155,7 @@ export class GigService {
     );
   }
 
-  private async generateUniquePublicId(
+  async generateUniquePublicId(
     input: GenerateUniquePublicIdPayload,
   ): Promise<string> {
     const slugifyTitle = (rawTitle: string): string => {
@@ -202,18 +203,22 @@ export class GigService {
 
     for (let n = 0; n < 50; n++) {
       const candidate = buildCandidate(n);
-      const existing = await this.gigModel
-        .findOne(
-          {
-            publicId: candidate,
-            ...(input.excludeMongoId
-              ? { _id: { $ne: input.excludeMongoId } }
-              : {}),
-          },
-          { _id: 1 },
-        )
-        .lean();
-      if (!existing) return candidate;
+      const isTaken = input.isPublicIdTaken
+        ? await input.isPublicIdTaken(candidate)
+        : Boolean(
+            await this.gigModel
+              .findOne(
+                {
+                  publicId: candidate,
+                  ...(input.excludeMongoId
+                    ? { _id: { $ne: input.excludeMongoId } }
+                    : {}),
+                },
+                { _id: 1 },
+              )
+              .lean(),
+          );
+      if (!isTaken) return candidate;
     }
 
     // Extremely unlikely fallback: add a short random suffix.
@@ -298,74 +303,6 @@ export class GigService {
     };
     if (data.endDate) {
       mappedData.endDate = new Date(data.endDate).getTime();
-    }
-
-    const createdGig = new this.gigModel(mappedData);
-    return createdGig.save();
-  }
-
-  async createFromGigCandidate(
-    params: CreateGigFromGigCandidateParams,
-  ): Promise<GigDocument> {
-    if (!Types.ObjectId.isValid(params.gigCandidateId)) {
-      throw new BadRequestException(
-        `Invalid gigCandidateId MongoDB ID: ${params.gigCandidateId}`,
-      );
-    }
-
-    const date = new Date(params.date);
-    if (!Number.isFinite(date.getTime())) {
-      throw new BadRequestException(
-        'GigCandidate date must be a valid timestamp',
-      );
-    }
-    const yyyyMmDd = date.toISOString().split('T')[0];
-    const publicId = await this.generateUniquePublicId({
-      title: params.title,
-      yyyyMmDd,
-    });
-
-    let poster = params.poster;
-    if (!poster?.bucketPath) {
-      const defaultPosterUrl =
-        (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
-      poster = await this.uploadPoster({
-        url: defaultPosterUrl,
-        context: {
-          date: yyyyMmDd,
-          city: params.city,
-          country: params.country,
-          publicId,
-        },
-      });
-    }
-
-    // Schema requires venue/ticketsUrl strings; optional GigCandidate fields map to empty.
-    const mappedData: Gig = {
-      publicId,
-      title: params.title,
-      date: params.date,
-      city: params.city,
-      country: params.country,
-      venue: params.venue ?? '',
-      ticketsUrl: params.ticketsUrl ?? '',
-      poster,
-      status: Status.New,
-      isVisible: false,
-      version: 0,
-      source:
-        params.source.type === 'user'
-          ? {
-              ...params.source,
-              userId: new Types.ObjectId(params.source.userId),
-            }
-          : params.source,
-      posts: [],
-      suggestedBy: params.suggestedBy,
-      gigCandidateId: new Types.ObjectId(params.gigCandidateId),
-    };
-    if (params.endDate !== undefined) {
-      mappedData.endDate = params.endDate;
     }
 
     const createdGig = new this.gigModel(mappedData);
@@ -976,7 +913,7 @@ export class GigService {
     };
   }
 
-  gigToCalendarPayload(gig: GigDocument): CalendarishEvent {
+  gigToCalendarPayload(gig: GigCalendarSource): CalendarishEvent {
     const timeZone = 'Europe/Madrid';
 
     // Set start time to 8:00 PM

@@ -51,7 +51,7 @@ describe('GigModerationService', () => {
   const telegramServiceMock = {
     pickTgPost: vi.fn(),
     publishMain: vi.fn(),
-    updateModerationPostAfterGigPublished: vi.fn(),
+    updateGigModerationPost: vi.fn(),
     updatePublishedSubmissionFeedback: vi.fn(),
     handlePostReject: vi.fn(),
   };
@@ -119,9 +119,7 @@ describe('GigModerationService', () => {
         country: 'ES',
         city: 'barcelona',
       });
-      expect(
-        telegramServiceMock.updateModerationPostAfterGigPublished,
-      ).toHaveBeenCalledWith(
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith(
         expect.objectContaining({
           gigId,
           publicId: 'radiohead-barcelona-2026-06-12',
@@ -208,14 +206,12 @@ describe('GigModerationService', () => {
           }),
         }),
       );
-      expect(
-        telegramServiceMock.updateModerationPostAfterGigPublished,
-      ).toHaveBeenCalledWith(
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith(
         expect.objectContaining({
           gigId,
           publicId: 'radiohead-barcelona-2026-06-12',
           moderationPost: { chatId: -100123, messageId: 42 },
-          publishPost: {
+          mainPost: {
             chatId: -100456,
             messageId: 99,
           },

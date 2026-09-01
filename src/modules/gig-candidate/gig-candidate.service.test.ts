@@ -7,7 +7,11 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
+import { CalendarService } from '../calendar/calendar.service';
+import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { GigService } from '../gig/gig.service';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -15,6 +19,8 @@ import {
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
+import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
@@ -43,18 +49,52 @@ describe('GigCandidateService', () => {
     upload: vi.fn(),
   };
 
+  const approvalTransactionMock = {
+    createGigId: vi.fn(),
+    findGigCandidateById: vi.fn(),
+    findGigById: vi.fn(),
+    isGigPublicIdTaken: vi.fn(),
+    approveGigCandidate: vi.fn(),
+    createGig: vi.fn(),
+  };
+
+  const gigCandidateApprovalRepositoryMock = {
+    withTransaction: vi.fn(),
+  };
+
   const telegramServiceMock = {
     sendGigCandidateIntakePost: vi.fn(),
     sendGigCandidateModerationPost: vi.fn(),
     removeGigCandidateIntakeActions: vi.fn(),
+    updateGigModerationPost: vi.fn(),
   };
 
   const aiServiceMock = {
     lookupGigV1: vi.fn(),
   };
 
+  const calendarServiceMock = { addEvent: vi.fn() };
+  const feedRevalidateServiceMock = { revalidateFeedOrThrow: vi.fn() };
+  const gigServiceMock = {
+    generateUniquePublicId: vi.fn(),
+    gigToCalendarPayload: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
+    gigServiceMock.generateUniquePublicId.mockImplementation(
+      async (params: {
+        isPublicIdTaken?: (publicId: string) => Promise<boolean>;
+      }) => {
+        await params.isPublicIdTaken?.('radiohead-2026-06-12');
+        return 'radiohead-2026-06-12';
+      },
+    );
+    gigCandidateApprovalRepositoryMock.withTransaction.mockImplementation(
+      (
+        work: (transaction: typeof approvalTransactionMock) => Promise<unknown>,
+      ) => work(approvalTransactionMock),
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -63,9 +103,16 @@ describe('GigCandidateService', () => {
           provide: GIG_CANDIDATE_REPOSITORY,
           useValue: gigCandidateRepositoryMock,
         },
+        {
+          provide: GIG_CANDIDATE_APPROVAL_REPOSITORY,
+          useValue: gigCandidateApprovalRepositoryMock,
+        },
         { provide: GigPosterService, useValue: gigPosterServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
         { provide: AiService, useValue: aiServiceMock },
+        { provide: CalendarService, useValue: calendarServiceMock },
+        { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },
+        { provide: GigService, useValue: gigServiceMock },
       ],
     }).compile();
 
@@ -729,6 +776,275 @@ describe('GigCandidateService', () => {
     });
   });
 
+  describe('approveGigCandidate', () => {
+    it('should approve and create one complete visible Gig in the transaction', async () => {
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId: '507f1f77bcf86cd799439088',
+          origin: {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            chatId: '-100',
+            messageId: '22',
+          },
+          originalText: 'Private intake text',
+          attachments: [{ bucketPath: 'private/source.png' }],
+        },
+        gigDraft: {
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
+        },
+        posts: [moderationPost],
+      });
+      const approved = buildGigCandidate({
+        ...reviewing,
+        status: GigCandidateStatus.Approved,
+        version: 1,
+        gigId: '507f1f77bcf86cd799439011',
+        approvedAt: new Date('2026-09-01T12:00:00.000Z'),
+        approvedByUserId: '507f1f77bcf86cd799439077',
+      });
+      const gig = buildGigApprovalResult();
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      approvalTransactionMock.createGigId.mockReturnValue(gig.id);
+      approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
+      approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
+      approvalTransactionMock.createGig.mockResolvedValue(gig);
+      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: approved.approvedByUserId!,
+        }),
+      ).resolves.toEqual(gig);
+
+      expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigId: gig.id,
+          approvedByUserId: approved.approvedByUserId,
+          approvedAt: expect.any(Date),
+        }),
+      );
+      expect(approvalTransactionMock.createGig).toHaveBeenCalledWith({
+        gigId: gig.id,
+        publicId: gig.publicId,
+        title: 'Radiohead',
+        date: Date.UTC(2026, 5, 12),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+        poster: { bucketPath: 'posters/radiohead.jpg' },
+        source: {
+          type: 'user',
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: 'messenger' },
+        },
+      });
+      expect(gigServiceMock.generateUniquePublicId).toHaveBeenCalledWith({
+        title: 'Radiohead',
+        yyyyMmDd: '2026-06-12',
+        isPublicIdTaken: expect.any(Function),
+      });
+      expect(approvalTransactionMock.isGigPublicIdTaken).toHaveBeenCalledWith(
+        'radiohead-2026-06-12',
+      );
+      expect(
+        feedRevalidateServiceMock.revalidateFeedOrThrow,
+      ).toHaveBeenCalledWith({
+        country: gig.country,
+        city: gig.city,
+      });
+      expect(calendarServiceMock.addEvent).toHaveBeenCalledWith({
+        event: true,
+      });
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
+        gigId: gig.id,
+        title: gig.title,
+        publicId: gig.publicId,
+        moderationPost: { chatId: -200, messageId: 50 },
+      });
+    });
+
+    it('should abort before Gig allocation when expected version is stale', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 1,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toMatchObject({
+        name: GigCandidateConflictError.name,
+        reason: 'versionConflict',
+      });
+      expect(approvalTransactionMock.createGigId).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+    });
+
+    it('should leave Reviewing unchanged when gigDraft validation fails', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: { title: 'Incomplete' },
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toBeInstanceOf(GigCandidateApprovalValidationError);
+      expect(
+        approvalTransactionMock.approveGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+    });
+
+    it('should return the existing Gig for an already Approved GigCandidate', async () => {
+      const gig = buildGigApprovalResult();
+      const approved = buildGigCandidate({
+        status: GigCandidateStatus.Approved,
+        version: 1,
+        gigId: gig.id,
+        approvedAt: new Date('2026-09-01T12:00:00.000Z'),
+        approvedByUserId: '507f1f77bcf86cd799439077',
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(approved);
+      approvalTransactionMock.findGigById.mockResolvedValue(gig);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: approved.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).resolves.toEqual(gig);
+      expect(
+        approvalTransactionMock.approveGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+      expect(
+        feedRevalidateServiceMock.revalidateFeedOrThrow,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should not create a Gig when the conditional approval loses a race', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: {
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+        },
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      approvalTransactionMock.createGigId.mockReturnValue(
+        '507f1f77bcf86cd799439011',
+      );
+      approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
+      approvalTransactionMock.approveGigCandidate.mockResolvedValue(null);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toMatchObject({
+        name: GigCandidateConflictError.name,
+        reason: 'concurrentModification',
+      });
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+    });
+
+    it('should preserve approved state when every post-commit integration fails', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: {
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+        },
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 50,
+            chatId: -200,
+          },
+        ],
+      });
+      const gig = buildGigApprovalResult();
+      const approved = buildGigCandidate({
+        ...reviewing,
+        status: GigCandidateStatus.Approved,
+        version: 1,
+        gigId: gig.id,
+        approvedAt: new Date(),
+        approvedByUserId: '507f1f77bcf86cd799439077',
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      approvalTransactionMock.createGigId.mockReturnValue(gig.id);
+      approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
+      approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
+      approvalTransactionMock.createGig.mockResolvedValue(gig);
+      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+      feedRevalidateServiceMock.revalidateFeedOrThrow.mockRejectedValue(
+        new Error('Revalidation unavailable'),
+      );
+      calendarServiceMock.addEvent.mockRejectedValue(
+        new Error('Calendar unavailable'),
+      );
+      telegramServiceMock.updateGigModerationPost.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).resolves.toEqual(gig);
+      expect(calendarServiceMock.addEvent).toHaveBeenCalledOnce();
+      expect(
+        telegramServiceMock.updateGigModerationPost,
+      ).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('rejectGigCandidate', () => {
     it('should conditionally reject New GigCandidate with audit fields', async () => {
       const newGigCandidate = buildGigCandidate();
@@ -880,6 +1196,29 @@ function buildGigCandidate(
     posts: [],
     createdAt: new Date('2026-08-24T10:00:00.000Z'),
     updatedAt: new Date('2026-08-24T10:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function buildGigApprovalResult(
+  overrides: Partial<GigApprovalResult> = {},
+): GigApprovalResult {
+  return {
+    id: '507f1f77bcf86cd799439011',
+    publicId: 'radiohead-2026-06-12',
+    title: 'Radiohead',
+    date: Date.UTC(2026, 5, 12),
+    city: 'Barcelona',
+    country: 'ES',
+    venue: 'Palau Sant Jordi',
+    ticketsUrl: 'https://tickets.example/radiohead',
+    source: {
+      type: 'user',
+      userId: '507f1f77bcf86cd799439088',
+      origin: { type: 'messenger' },
+    },
+    version: 0,
+    isVisible: true,
     ...overrides,
   };
 }

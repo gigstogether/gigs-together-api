@@ -10,7 +10,7 @@ export interface EditSubmissionFeedbackPayload {
   url?: string;
 }
 
-export interface UpdateModerationPostAfterGigPublishedPayload {
+export interface UpdateGigModerationPostPayload {
   moderationPost: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
@@ -18,7 +18,7 @@ export interface UpdateModerationPostAfterGigPublishedPayload {
   gigId: GigId;
   title: string;
   publicId: string;
-  publishPost?: {
+  mainPost?: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };

@@ -32,7 +32,7 @@ describe('ReceiverService', () => {
     pickTgPost: vi.fn(),
     sendToModeration: vi.fn(),
     sendSubmissionFeedback: vi.fn(),
-    updateModerationPostAfterGigPublished: vi.fn(),
+    updateGigModerationPost: vi.fn(),
   };
 
   const mockGigService = {
@@ -50,6 +50,7 @@ describe('ReceiverService', () => {
   };
 
   const mockGigCandidateService = {
+    approveGigCandidate: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
   };
@@ -498,7 +499,7 @@ describe('ReceiverService', () => {
       });
     });
 
-    it('should keep GigCandidate Approve callback inactive before Stage 10', async () => {
+    it('should approve GigCandidate with expected version and internal admin user ID', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-gigCandidate-approve',
         data: encodeCallbackData({
@@ -520,14 +521,15 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigCandidateService.rejectGigCandidate).not.toHaveBeenCalled();
-      expect(
-        mockGigCandidateService.sendGigCandidateToModeration,
-      ).not.toHaveBeenCalled();
+      expect(mockGigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
+        gigCandidateId: '507f1f77bcf86cd799439099',
+        expectedVersion: 4,
+        approvedByUserId: '507f1f77bcf86cd799439088',
+      });
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-gigCandidate-approve',
-        text: 'GigCandidate approval is not available yet',
-        show_alert: true,
+        text: 'Done!',
+        show_alert: false,
       });
     });
   });

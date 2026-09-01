@@ -5,12 +5,9 @@ import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
 import {
   mapV1AdminCreateGigCandidateRequest,
-  mapV1AdminGigCandidateLookupRequest,
   mapV1AdminGigCandidateResponse,
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
-  mapV1AdminRejectGigCandidateRequest,
-  mapV1AdminSendGigCandidateToModerationRequest,
   mapV1AdminUpdateGigCandidateDraftRequest,
 } from './admin-gig-candidate.mapper';
 
@@ -193,47 +190,6 @@ describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {
       posterUrl: 'https://img.example/a',
       posterFile: undefined,
     });
-  });
-});
-
-describe('mapV1AdminRejectGigCandidateRequest', () => {
-  it('should use authenticated internal userId for rejection audit', () => {
-    expect(
-      mapV1AdminRejectGigCandidateRequest({
-        gigCandidateId: '507f1f77bcf86cd799439099',
-        rejectedByUserId: '507f1f77bcf86cd799439088',
-        body: { expectedVersion: 2 },
-      }),
-    ).toEqual({
-      gigCandidateId: '507f1f77bcf86cd799439099',
-      rejectedByUserId: '507f1f77bcf86cd799439088',
-      expectedVersion: 2,
-    });
-  });
-});
-
-describe('mapV1AdminSendGigCandidateToModerationRequest', () => {
-  it('should preserve GigCandidate id and expected version', () => {
-    expect(
-      mapV1AdminSendGigCandidateToModerationRequest({
-        gigCandidateId: '507f1f77bcf86cd799439099',
-        body: { expectedVersion: 2 },
-      }),
-    ).toEqual({
-      gigCandidateId: '507f1f77bcf86cd799439099',
-      expectedVersion: 2,
-    });
-  });
-});
-
-describe('mapV1AdminGigCandidateLookupRequest', () => {
-  it('should map only title and location', () => {
-    expect(
-      mapV1AdminGigCandidateLookupRequest({
-        title: 'Band',
-        location: 'Barcelona, ES',
-      }),
-    ).toEqual({ title: 'Band', location: 'Barcelona, ES' });
   });
 });
 

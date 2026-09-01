@@ -113,6 +113,18 @@ export interface RejectGigCandidateRecordParams extends RejectGigCandidateParams
   rejectedAt: Date;
 }
 
+export interface ApproveGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  approvedByUserId: string;
+}
+
+export interface ApproveGigCandidateRecordParams extends ApproveGigCandidateParams {
+  gigId: string;
+  approvedAt: Date;
+  gigDraft: GigData;
+}
+
 export interface AppendGigCandidatePostIfAbsentParams {
   gigCandidateId: string;
   expectedVersion: number;

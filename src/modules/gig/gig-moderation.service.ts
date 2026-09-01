@@ -67,7 +67,7 @@ export class GigModerationService {
     });
 
     if (moderationPost) {
-      await this.telegramService.updateModerationPostAfterGigPublished({
+      await this.telegramService.updateGigModerationPost({
         gigId,
         title: updatedGig.title,
         publicId: updatedGig.publicId,
@@ -75,7 +75,7 @@ export class GigModerationService {
       });
     } else {
       this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
+        `No moderation post linked for gig ${gigId}; skipping updateGigModerationPost`,
       );
     }
 
@@ -124,19 +124,19 @@ export class GigModerationService {
     await this.gigService.updateGig(gigId, updateGigPayload);
 
     if (moderationPost) {
-      await this.telegramService.updateModerationPostAfterGigPublished({
+      await this.telegramService.updateGigModerationPost({
         gigId,
         title: gig.title,
         publicId: gig.publicId,
         moderationPost,
-        publishPost: {
+        mainPost: {
           chatId: tgPublishPost.chat.id,
           messageId: tgPublishPost.message_id,
         },
       });
     } else {
       this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
+        `No moderation post linked for gig ${gigId}; skipping updateGigModerationPost`,
       );
     }
   }

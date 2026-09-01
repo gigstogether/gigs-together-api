@@ -11,10 +11,10 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import type { GigCandidatePost } from '../gig-candidate/types/gig-candidate.types';
 import { Status } from '../gig/types/status.enum';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
-import {
+import type {
   EditSubmissionFeedbackPayload,
   HandlePostRejectPayload,
-  UpdateModerationPostAfterGigPublishedPayload,
+  UpdateGigModerationPostPayload,
   UpdatePublishedSubmissionFeedbackPayload,
   WeeklyDigestMainChannelPublishResult,
 } from './types/telegram.service.types';
@@ -226,10 +226,10 @@ export class TelegramService {
     });
   }
 
-  async updateModerationPostAfterGigPublished(
-    payload: UpdateModerationPostAfterGigPublishedPayload,
+  async updateGigModerationPost(
+    payload: UpdateGigModerationPostPayload,
   ): Promise<void> {
-    const { moderationPost, publishPost, title, publicId, gigId } = payload;
+    const { moderationPost, mainPost, title, publicId, gigId } = payload;
 
     const editGigUrl =
       this.telegramPostComposerService.buildEditGigUrl(publicId);
@@ -243,10 +243,10 @@ export class TelegramService {
       publicId,
     });
 
-    const publishPostChatIdUrl = publishPost
+    const publishPostChatIdUrl = mainPost
       ? this.telegramPostComposerService.getPostUrl({
-          messageId: publishPost.messageId,
-          chatId: publishPost.chatId,
+          messageId: mainPost.messageId,
+          chatId: mainPost.chatId,
         })
       : undefined;
 

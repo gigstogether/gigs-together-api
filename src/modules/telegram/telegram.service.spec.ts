@@ -352,7 +352,7 @@ describe('TelegramService', () => {
     });
   });
 
-  describe('updateModerationPostAfterGigPublished', () => {
+  describe('updateGigModerationPost with main post', () => {
     it('should edit moderation caption with stable gig permalink', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
       process.env.EDIT_GIG_URL = 'https://app.example/edit';
@@ -366,7 +366,7 @@ describe('TelegramService', () => {
           chat: { id: -100123, type: 'channel' },
         });
 
-      await service.updateModerationPostAfterGigPublished({
+      await service.updateGigModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         title: 'Radiohead',
         publicId: 'radiohead-barcelona-2026-06-12',
@@ -374,7 +374,7 @@ describe('TelegramService', () => {
           chatId: -100123,
           messageId: 42,
         },
-        publishPost: {
+        mainPost: {
           chatId: -100456,
           messageId: 77,
         },
@@ -406,6 +406,41 @@ describe('TelegramService', () => {
           ],
         },
       });
+    });
+  });
+
+  describe('updateGigModerationPost without main post', () => {
+    it('should keep Post and Edit controls without a Main post', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue({
+          message_id: 42,
+          date: 1,
+          chat: { id: -100123, type: 'channel' },
+        });
+
+      await service.updateGigModerationPost({
+        gigId: '507f1f77bcf86cd799439011',
+        title: 'Radiohead',
+        publicId: 'radiohead-barcelona-2026-06-12',
+        moderationPost: { chatId: -100123, messageId: 42 },
+      });
+
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          replyMarkup: {
+            inline_keyboard: [
+              [
+                expect.objectContaining({ text: '📢 Post' }),
+                expect.objectContaining({ text: '✏️ Edit' }),
+              ],
+            ],
+          },
+        }),
+      );
     });
   });
 

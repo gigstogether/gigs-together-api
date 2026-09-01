@@ -166,7 +166,7 @@ export class Gig {
   })
   poster?: GigPoster;
 
-  @Prop({ type: String, enum: Status, default: Status.New })
+  @Prop({ type: String, enum: Status, required: false })
   status: Status;
 
   @Prop({ type: Boolean, required: true })
@@ -186,7 +186,7 @@ export class Gig {
   @Prop({ type: [GigPostSchema], required: false, default: [] })
   posts: GigPost[];
 
-  @Prop({ type: Object, required: true })
+  @Prop({ type: Object, required: false })
   suggestedBy: GigSuggestedBy;
 
   @Prop({ type: Types.ObjectId, required: false, ref: 'GigCandidate' })

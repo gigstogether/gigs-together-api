@@ -5,9 +5,6 @@ import { ADMIN_GIG_CANDIDATE_LIST_DEFAULT_LIMIT } from '../gig-candidate/gig-can
 import type {
   CreateAdminGigCandidateParams,
   GigCandidateDraftLookupResult,
-  LookupGigCandidateDraftParams,
-  RejectGigCandidateParams,
-  SendGigCandidateToModerationParams,
   UpdateAdminGigCandidateDraftParams,
 } from '../gig-candidate/types/gig-candidate.types';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
@@ -20,10 +17,7 @@ import { mapAdminGigCandidateStatusQuery } from './types/requests/v1-admin-gig-c
 import type {
   V1AdminCreateGigCandidateRequestBody,
   V1AdminGigCandidateGigDraftRequestBody,
-  V1AdminGigCandidateLookupRequestBody,
   V1AdminGigCandidateLookupResponseBody,
-  V1AdminRejectGigCandidateRequestBody,
-  V1AdminSendGigCandidateToModerationRequestBody,
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
@@ -42,17 +36,6 @@ interface MapV1AdminUpdateGigCandidateDraftRequestParams {
   body: V1AdminUpdateGigCandidateDraftRequestBody;
   gigCandidateId: string;
   posterFile?: Express.Multer.File;
-}
-
-interface MapV1AdminRejectGigCandidateRequestParams {
-  body: V1AdminRejectGigCandidateRequestBody;
-  gigCandidateId: string;
-  rejectedByUserId: string;
-}
-
-interface MapV1AdminSendGigCandidateToModerationRequestParams {
-  body: V1AdminSendGigCandidateToModerationRequestBody;
-  gigCandidateId: string;
 }
 
 interface MappedV1AdminGigCandidateGigDraftRequest {
@@ -128,31 +111,6 @@ export function mapV1AdminUpdateGigCandidateDraftRequest(
     posterUrl: mapped.posterUrl,
     posterFile: mapV1AdminGigCandidatePosterFile(params.posterFile),
   };
-}
-
-export function mapV1AdminRejectGigCandidateRequest(
-  params: MapV1AdminRejectGigCandidateRequestParams,
-): RejectGigCandidateParams {
-  return {
-    gigCandidateId: params.gigCandidateId,
-    expectedVersion: params.body.expectedVersion,
-    rejectedByUserId: params.rejectedByUserId,
-  };
-}
-
-export function mapV1AdminSendGigCandidateToModerationRequest(
-  params: MapV1AdminSendGigCandidateToModerationRequestParams,
-): SendGigCandidateToModerationParams {
-  return {
-    gigCandidateId: params.gigCandidateId,
-    expectedVersion: params.body.expectedVersion,
-  };
-}
-
-export function mapV1AdminGigCandidateLookupRequest(
-  body: V1AdminGigCandidateLookupRequestBody,
-): LookupGigCandidateDraftParams {
-  return { title: body.title, location: body.location };
 }
 
 export function mapV1AdminGigCandidateLookupResponse(

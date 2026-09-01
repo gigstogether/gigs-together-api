@@ -28,6 +28,7 @@ import { TelegramModule } from '../telegram/telegram.module';
     FeedRevalidateService,
   ],
   exports: [
+    MongooseModule,
     GigService,
     GigModerationService,
     FeedRevalidateService,

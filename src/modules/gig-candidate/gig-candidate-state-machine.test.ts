@@ -56,7 +56,14 @@ const allowedTransitions: AllowedTransitionCase[] = [
     command: GigCandidateCommand.Approve,
     toStatus: GigCandidateStatus.Approved,
     isIdempotent: false,
-    isExecutable: false,
+    isExecutable: true,
+  },
+  {
+    status: GigCandidateStatus.Approved,
+    command: GigCandidateCommand.Approve,
+    toStatus: GigCandidateStatus.Approved,
+    isIdempotent: true,
+    isExecutable: true,
   },
 ];
 

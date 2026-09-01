@@ -74,6 +74,16 @@ export interface GigSourceProvider {
 
 export type GigSource = GigSourceUser | GigSourceProvider;
 
+export interface GigCalendarSource {
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+}
+
 export interface CreateGigInput {
   title: string;
   publicId: string;
@@ -85,20 +95,6 @@ export interface CreateGigInput {
   ticketsUrl: string;
   poster?: GigPosterInput;
   suggestedBy: GigSuggestedBy;
-}
-
-export interface CreateGigFromGigCandidateParams {
-  title: string;
-  date: number;
-  endDate?: number;
-  city: string;
-  country: string;
-  venue?: string;
-  ticketsUrl?: string;
-  poster?: GigPosterInput;
-  suggestedBy: GigSuggestedBy;
-  source: GigSource;
-  gigCandidateId: string;
 }
 
 export interface GigModerationPostInput {

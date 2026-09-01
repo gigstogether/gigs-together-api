@@ -15,6 +15,15 @@ describe('GigSchema', () => {
     expect(versionOptions.validate(2.5)).toBe(false);
   });
 
+  it('should allow complete Stage 10 Gig creation without legacy moderation fields', () => {
+    const statusOptions = GigSchema.path('status').options;
+    const suggestedByOptions = GigSchema.path('suggestedBy').options;
+
+    expect(statusOptions.required).not.toBe(true);
+    expect(statusOptions.default).toBeUndefined();
+    expect(suggestedByOptions.required).not.toBe(true);
+  });
+
   it('should require immutable source as one discriminated union value', () => {
     const sourcePath = GigSchema.path('source');
     const validate = sourcePath.options.validate;

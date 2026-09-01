@@ -2,6 +2,7 @@ import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
   V1AdminCreateGigCandidateRequestBody,
+  V1AdminApproveGigCandidateRequestBody,
   V1AdminGigCandidateGigDraftRequestBody,
   V1AdminGigCandidateLookupRequestBody,
   V1AdminRejectGigCandidateRequestBody,
@@ -140,6 +141,18 @@ export class AdminGigCandidateRejectBodyPipe implements PipeTransform<
   V1AdminRejectGigCandidateRequestBody
 > {
   transform(bodyRaw: unknown): V1AdminRejectGigCandidateRequestBody {
+    const body = parseBody(bodyRaw);
+    assertOnlyFields(body, ['expectedVersion'], 'body');
+    return { expectedVersion: parseExpectedVersion(body.expectedVersion) };
+  }
+}
+
+@Injectable()
+export class AdminGigCandidateApproveBodyPipe implements PipeTransform<
+  unknown,
+  V1AdminApproveGigCandidateRequestBody
+> {
+  transform(bodyRaw: unknown): V1AdminApproveGigCandidateRequestBody {
     const body = parseBody(bodyRaw);
     assertOnlyFields(body, ['expectedVersion'], 'body');
     return { expectedVersion: parseExpectedVersion(body.expectedVersion) };

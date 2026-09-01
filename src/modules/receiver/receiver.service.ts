@@ -225,12 +225,12 @@ export class ReceiverService {
             break;
           }
           case GigCandidateCallbackAction.Approve: {
-            await this.telegramService.answerCallbackQuery({
-              callback_query_id: callbackQuery.id,
-              text: 'GigCandidate approval is not available yet',
-              show_alert: true,
+            await this.gigCandidateService.approveGigCandidate({
+              gigCandidateId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
+              approvedByUserId: adminUserId,
             });
-            return;
+            break;
           }
         }
         break;

@@ -27,17 +27,16 @@ import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import {
   mapV1AdminCreateGigCandidateRequest,
-  mapV1AdminGigCandidateLookupRequest,
   mapV1AdminGigCandidateLookupResponse,
   mapV1AdminGigCandidateResponse,
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
-  mapV1AdminRejectGigCandidateRequest,
-  mapV1AdminSendGigCandidateToModerationRequest,
   mapV1AdminUpdateGigCandidateDraftRequest,
 } from './admin-gig-candidate.mapper';
 import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.filter';
+import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-approval-validation.filter';
 import {
+  AdminGigCandidateApproveBodyPipe,
   AdminGigCandidateCreateBodyPipe,
   AdminGigCandidateDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
@@ -46,6 +45,7 @@ import {
 } from './pipes/admin-gig-candidate-body.pipe';
 import type {
   V1AdminCreateGigCandidateRequestBody,
+  V1AdminApproveGigCandidateRequestBody,
   V1AdminGigCandidateLookupRequestBody,
   V1AdminGigCandidateLookupResponseBody,
   V1AdminRejectGigCandidateRequestBody,
@@ -117,9 +117,8 @@ export class AdminGigCandidateController {
     @Body(AdminGigCandidateLookupBodyPipe)
     body: V1AdminGigCandidateLookupRequestBody,
   ): Promise<V1AdminGigCandidateLookupResponseBody> {
-    const gigDraft = await this.gigCandidateService.lookupGigCandidateDraft(
-      mapV1AdminGigCandidateLookupRequest(body),
-    );
+    const gigDraft =
+      await this.gigCandidateService.lookupGigCandidateDraft(body);
     return mapV1AdminGigCandidateLookupResponse(gigDraft);
   }
 
@@ -156,6 +155,25 @@ export class AdminGigCandidateController {
   }
 
   @Version('1')
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(GigCandidateConflictFilter, GigCandidateApprovalValidationFilter)
+  async approveGigCandidate(
+    @Param('id') id: string,
+    @AuthenticatedUser() user: User,
+    @Body(AdminGigCandidateApproveBodyPipe)
+    body: V1AdminApproveGigCandidateRequestBody,
+  ): Promise<V1AdminGigCandidateResponseBody> {
+    await this.gigCandidateService.approveGigCandidate({
+      gigCandidateId: id,
+      expectedVersion: body.expectedVersion,
+      approvedByUserId: user.userId,
+    });
+    const gigCandidate = await this.adminGigCandidateService.getById(id);
+    return mapV1AdminGigCandidateResponse(gigCandidate);
+  }
+
+  @Version('1')
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
   @UseFilters(GigCandidateConflictFilter)
@@ -165,13 +183,11 @@ export class AdminGigCandidateController {
     @Body(AdminGigCandidateRejectBodyPipe)
     body: V1AdminRejectGigCandidateRequestBody,
   ): Promise<V1AdminGigCandidateResponseBody> {
-    const gigCandidate = await this.gigCandidateService.rejectGigCandidate(
-      mapV1AdminRejectGigCandidateRequest({
-        body,
-        gigCandidateId: id,
-        rejectedByUserId: user.userId,
-      }),
-    );
+    const gigCandidate = await this.gigCandidateService.rejectGigCandidate({
+      gigCandidateId: id,
+      expectedVersion: body.expectedVersion,
+      rejectedByUserId: user.userId,
+    });
     const details =
       await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);
@@ -187,12 +203,10 @@ export class AdminGigCandidateController {
     body: V1AdminSendGigCandidateToModerationRequestBody,
   ): Promise<V1AdminGigCandidateResponseBody> {
     const gigCandidate =
-      await this.gigCandidateService.sendGigCandidateToModeration(
-        mapV1AdminSendGigCandidateToModerationRequest({
-          body,
-          gigCandidateId: id,
-        }),
-      );
+      await this.gigCandidateService.sendGigCandidateToModeration({
+        gigCandidateId: id,
+        expectedVersion: body.expectedVersion,
+      });
     const details =
       await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);

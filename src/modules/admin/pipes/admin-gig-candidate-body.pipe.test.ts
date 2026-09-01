@@ -1,11 +1,25 @@
 import { BadRequestException } from '@nestjs/common';
 import {
+  AdminGigCandidateApproveBodyPipe,
   AdminGigCandidateCreateBodyPipe,
   AdminGigCandidateDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
   AdminGigCandidateSendToModerationBodyPipe,
 } from './admin-gig-candidate-body.pipe';
+
+describe('AdminGigCandidateApproveBodyPipe', () => {
+  it('should accept only expectedVersion', () => {
+    const pipe = new AdminGigCandidateApproveBodyPipe();
+
+    expect(pipe.transform({ expectedVersion: '3' })).toEqual({
+      expectedVersion: 3,
+    });
+    expect(() =>
+      pipe.transform({ expectedVersion: 3, status: 'Approved' }),
+    ).toThrowError(/unsupported field/);
+  });
+});
 
 describe('AdminGigCandidateCreateBodyPipe', () => {
   it('should parse multipart gigDraft JSON', () => {

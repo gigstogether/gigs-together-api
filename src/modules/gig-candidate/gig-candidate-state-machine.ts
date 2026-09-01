@@ -91,7 +91,14 @@ export function getGigCandidateTransitionPolicy(
         return {
           toStatus: GigCandidateStatus.Approved,
           isIdempotent: false,
-          isExecutable: false,
+          isExecutable: true,
+        };
+      }
+      if (status === GigCandidateStatus.Approved) {
+        return {
+          toStatus: GigCandidateStatus.Approved,
+          isIdempotent: true,
+          isExecutable: true,
         };
       }
       break;
