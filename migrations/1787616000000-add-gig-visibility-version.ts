@@ -1,6 +1,7 @@
 import type { Connection } from 'mongoose';
 
-import { Status } from '../src/modules/gig/types/status.enum';
+import { LegacyGigStatus as Status } from './legacy-gig-status';
+import type { LegacyGigStatus } from './legacy-gig-status';
 import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
 
 const LEGACY_GIG_STATUSES = Object.values(Status);
@@ -29,7 +30,7 @@ export interface GigVisibilityVersionMigrationStore {
 
 export interface GigVisibilityVersionSnapshot {
   totalGigs: number;
-  statusCounts: Record<Status, number>;
+  statusCounts: Record<LegacyGigStatus, number>;
   missingVersion: number;
   integerVersion: number;
   invalidVersion: number;
@@ -66,7 +67,7 @@ export interface GigVisibilityVersionMigrationReport {
   rollback: string;
 }
 
-function createStatusCounts(): Record<Status, number> {
+function createStatusCounts(): Record<LegacyGigStatus, number> {
   return {
     [Status.New]: 0,
     [Status.Pending]: 0,
@@ -76,7 +77,7 @@ function createStatusCounts(): Record<Status, number> {
   };
 }
 
-function isKnownStatus(value: unknown): value is Status {
+function isKnownStatus(value: unknown): value is LegacyGigStatus {
   return LEGACY_GIG_STATUSES.some((status) => status === value);
 }
 

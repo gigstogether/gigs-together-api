@@ -1,4 +1,4 @@
-import { Status } from '../src/modules/gig/types/status.enum';
+import { LegacyGigStatus as Status } from './legacy-gig-status';
 import { runGigVisibilityVersionMigration } from './1787616000000-add-gig-visibility-version';
 import type {
   GigVisibilityVersionMigrationDocument,

@@ -128,7 +128,7 @@ function createStore(initialGigs: TestDocument[]): {
   return { store, state };
 }
 
-describe('Stage 9 legacy Gig to GigCandidate migration', () => {
+describe('legacy Gig to GigCandidate migration', () => {
   it('should report an exact dry-run without writing', async () => {
     const pendingGig = gig('66b000000000000000000001', 'Pending');
     const publishedGig = gig('66b000000000000000000002', 'Published');

@@ -569,14 +569,14 @@ export async function runStage9GigCandidateMigration(
       deleteConfirmation !== DELETE_CONFIRMATION
     ) {
       throw new Error(
-        `Destructive Stage 9 apply requires STAGE_9_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`,
+        `Destructive legacy Gig migration requires STAGE_9_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`,
       );
     }
     writes.backups = await store.backupGigs(analysis.backupDocumentsToCreate);
     if (
       writes.backups.upsertedCount !== analysis.backupDocumentsToCreate.length
     ) {
-      throw new Error('Stage 9 backup write count did not match the plan');
+      throw new Error('Backup write count did not match the migration plan');
     }
     writes.gigCandidates = await store.insertGigCandidates(
       analysis.gigCandidatesToCreate,
@@ -586,7 +586,7 @@ export async function runStage9GigCandidateMigration(
       analysis.gigCandidatesToCreate.length
     ) {
       throw new Error(
-        'Stage 9 GigCandidate write count did not match the plan',
+        'GigCandidate write count did not match the migration plan',
       );
     }
     writes.publishedGigs = await store.updatePublishedGigs(
@@ -597,14 +597,16 @@ export async function runStage9GigCandidateMigration(
       analysis.publishedGigsToUpdate.length
     ) {
       throw new Error(
-        'Stage 9 Published Gig write count did not match the plan',
+        'Published Gig write count did not match the migration plan',
       );
     }
     writes.legacyGigs = await store.deleteMigratedGigs(
       analysis.legacyGigsToDelete.map((gig) => gig._id),
     );
     if (writes.legacyGigs.deletedCount !== analysis.legacyGigsToDelete.length) {
-      throw new Error('Stage 9 legacy Gig delete count did not match the plan');
+      throw new Error(
+        'Legacy Gig delete count did not match the migration plan',
+      );
     }
   }
 
@@ -635,9 +637,7 @@ export async function runStage9GigCandidateMigration(
       after.totalBackups !==
         before.totalBackups + analysis.backupDocumentsToCreate.length)
   ) {
-    throw new Error(
-      'Stage 9 GigCandidate migration post-apply invariants failed',
-    );
+    throw new Error('GigCandidate migration post-apply invariants failed');
   }
 
   return {
@@ -768,7 +768,7 @@ async function verifyMongoTopologyIsInspectable(
 ): Promise<void> {
   if (connection.db === undefined) {
     throw new Error(
-      'Stage 9 apply blocked because the MongoDB topology is unavailable',
+      'Legacy Gig migration apply blocked because the MongoDB topology is unavailable',
     );
   }
   try {
@@ -776,7 +776,7 @@ async function verifyMongoTopologyIsInspectable(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Stage 9 apply blocked because the MongoDB topology could not be inspected: ${message}`,
+      `Legacy Gig migration apply blocked because the MongoDB topology could not be inspected: ${message}`,
     );
   }
 }
@@ -794,7 +794,7 @@ export async function up(connection: Connection): Promise<void> {
   console.info(JSON.stringify(report, null, 2));
   if (!report.canApply) {
     throw new Error(
-      `Stage 9 GigCandidate migration blocked for record IDs: ${report.blockingRecordIds.join(', ')}`,
+      `GigCandidate migration blocked for record IDs: ${report.blockingRecordIds.join(', ')}`,
     );
   }
   finishMigrationDryRun(isDryRun);
@@ -803,7 +803,7 @@ export async function up(connection: Connection): Promise<void> {
 export function down(_connection: Connection): Promise<void> {
   return Promise.reject(
     new Error(
-      'Stage 9 is intentionally one-way. Restore the verified backup while writes remain frozen instead of running an automatic down migration.',
+      'The legacy Gig migration is intentionally one-way. Restore the verified backup while writes remain frozen instead of running an automatic down migration.',
     ),
   );
 }
