@@ -100,7 +100,8 @@ function isGigSource(value: unknown): boolean {
         'fetchedAt',
         'providerUpdatedAt',
       ]) &&
-      provider.name === 'setlistFm' &&
+      typeof provider.name === 'string' &&
+      provider.name.length > 0 &&
       typeof provider.externalEventId === 'string' &&
       provider.externalEventId.length > 0 &&
       (provider.externalVersionId === undefined ||

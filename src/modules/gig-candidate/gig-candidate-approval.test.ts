@@ -100,9 +100,9 @@ describe('projectGigCandidateSource', () => {
       projectGigCandidateSource({
         type: 'provider',
         provider: {
-          name: 'setlistFm',
+          name: 'exampleProvider',
           externalEventId: 'provider-event-42',
-          sourceUrl: 'https://www.setlist.fm/setlist/example.html',
+          sourceUrl: 'https://provider.example/events/provider-event-42',
           fetchedAt,
           externalVersionId: 'revision-3',
         },
@@ -110,9 +110,9 @@ describe('projectGigCandidateSource', () => {
     ).toEqual({
       type: 'provider',
       provider: {
-        name: 'setlistFm',
+        name: 'exampleProvider',
         externalEventId: 'provider-event-42',
-        sourceUrl: 'https://www.setlist.fm/setlist/example.html',
+        sourceUrl: 'https://provider.example/events/provider-event-42',
         fetchedAt,
         externalVersionId: 'revision-3',
       },

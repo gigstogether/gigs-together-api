@@ -229,7 +229,7 @@ describe('GigCandidateRepositoryMapper', () => {
         source: {
           type: 'provider',
           provider: {
-            name: 'setlistFm',
+            name: 'exampleProvider',
             externalEventId: 'event-1',
             externalVersionId: 'version-1',
             sourceUrl: 'https://example.com/events/1',
@@ -250,7 +250,7 @@ describe('GigCandidateRepositoryMapper', () => {
           type: 'provider',
           userId: USER_ID,
           provider: {
-            name: 'setlistFm',
+            name: 'exampleProvider',
             externalEventId: 'event-1',
             sourceUrl: 'https://example.com/events/1',
             fetchedAt: new Date('2026-01-01T00:00:00.000Z'),

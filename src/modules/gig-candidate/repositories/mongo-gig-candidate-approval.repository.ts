@@ -263,7 +263,8 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
     if (source.type === 'provider' && this.isRecord(source.provider)) {
       const provider = source.provider;
       if (
-        provider.name === 'setlistFm' &&
+        typeof provider.name === 'string' &&
+        provider.name.length > 0 &&
         typeof provider.externalEventId === 'string' &&
         typeof provider.sourceUrl === 'string' &&
         provider.fetchedAt instanceof Date

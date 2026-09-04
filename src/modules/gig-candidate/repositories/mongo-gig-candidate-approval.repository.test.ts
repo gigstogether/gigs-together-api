@@ -184,6 +184,81 @@ describe('MongoGigCandidateApprovalRepository', () => {
     expect(session.endSession).toHaveBeenCalledOnce();
   });
 
+  it('should map a provider source with an arbitrary non-empty name', async () => {
+    const gigId = '507f1f77bcf86cd799439011';
+    const fetchedAt = new Date('2026-09-01T12:00:00.000Z');
+    gigFindById.mockReturnValue(
+      queryResult({
+        _id: new Types.ObjectId(gigId),
+        publicId: 'provider-gig-2026-09-20',
+        title: 'Provider Gig',
+        date: Date.UTC(2026, 8, 20),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+        ticketsUrl: 'https://tickets.example/provider-gig',
+        version: 0,
+        isVisible: true,
+        source: {
+          type: 'provider',
+          provider: {
+            name: 'exampleProvider',
+            externalEventId: 'event-42',
+            sourceUrl: 'https://provider.example/events/event-42',
+            fetchedAt,
+          },
+        },
+      }),
+    );
+
+    const result = await repository.withTransaction((transaction) =>
+      transaction.findGigById(gigId),
+    );
+
+    expect(result?.source).toEqual({
+      type: 'provider',
+      provider: {
+        name: 'exampleProvider',
+        externalEventId: 'event-42',
+        sourceUrl: 'https://provider.example/events/event-42',
+        fetchedAt,
+      },
+    });
+  });
+
+  it('should reject an empty provider name from persistence', async () => {
+    const gigId = '507f1f77bcf86cd799439011';
+    gigFindById.mockReturnValue(
+      queryResult({
+        _id: new Types.ObjectId(gigId),
+        publicId: 'provider-gig-2026-09-20',
+        title: 'Provider Gig',
+        date: Date.UTC(2026, 8, 20),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+        ticketsUrl: 'https://tickets.example/provider-gig',
+        version: 0,
+        isVisible: true,
+        source: {
+          type: 'provider',
+          provider: {
+            name: '',
+            externalEventId: 'event-42',
+            sourceUrl: 'https://provider.example/events/event-42',
+            fetchedAt: new Date('2026-09-01T12:00:00.000Z'),
+          },
+        },
+      }),
+    );
+
+    await expect(
+      repository.withTransaction((transaction) =>
+        transaction.findGigById(gigId),
+      ),
+    ).rejects.toThrow('Gig provider source is invalid.');
+  });
+
   it('should end the session and propagate a database failure for transaction rollback', async () => {
     gigCreate.mockRejectedValue(new Error('Gig insert failed'));
 

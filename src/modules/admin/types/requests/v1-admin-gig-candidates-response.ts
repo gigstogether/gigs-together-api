@@ -28,7 +28,7 @@ export interface V1AdminGigCandidateUserSourceResponseBody {
 }
 
 export interface V1AdminGigCandidateProviderReferenceResponseBody {
-  name: 'setlistFm';
+  name: string;
   externalEventId: string;
   externalVersionId?: string;
   sourceUrl: string;

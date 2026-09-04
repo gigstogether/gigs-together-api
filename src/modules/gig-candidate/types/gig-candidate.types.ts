@@ -35,6 +35,8 @@ export interface GigCandidateSourceUserAdminOrigin {
 export interface GigCandidateSourceUserMessengerOrigin {
   type: 'messenger';
   messenger: Messenger;
+  // chatId: string;
+  // messageId: string;
 }
 
 export type GigCandidateSourceUserOrigin =
@@ -51,7 +53,7 @@ export interface GigCandidateSourceUser {
 }
 
 export interface ProviderReference {
-  name: 'setlistFm';
+  name: string;
   externalEventId: string;
   externalVersionId?: string;
   sourceUrl: string;

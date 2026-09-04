@@ -72,7 +72,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
       source: {
         type: 'provider',
         provider: {
-          name: 'setlistFm',
+          name: 'exampleProvider',
           externalEventId: 'event-1',
           sourceUrl: 'https://provider.example/event-1',
           fetchedAt: new Date('2026-08-01T00:00:00.000Z'),
@@ -84,7 +84,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
     expect(response.source).toEqual({
       type: 'provider',
       provider: {
-        name: 'setlistFm',
+        name: 'exampleProvider',
         externalEventId: 'event-1',
         sourceUrl: 'https://provider.example/event-1',
         fetchedAt: '2026-08-01T00:00:00.000Z',

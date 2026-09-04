@@ -1094,7 +1094,7 @@ describe('GigCandidateService', () => {
       const source: GigCandidate['source'] = {
         type: 'provider',
         provider: {
-          name: 'setlistFm',
+          name: 'exampleProvider',
           externalEventId: 'event-1',
           sourceUrl: 'https://provider.example/events/1',
           fetchedAt: new Date(),

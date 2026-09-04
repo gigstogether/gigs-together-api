@@ -41,13 +41,24 @@ describe('GigSchema', () => {
       validate({
         type: 'provider',
         provider: {
-          name: 'setlistFm',
+          name: 'exampleProvider',
           externalEventId: 'event-1',
-          sourceUrl: 'https://www.setlist.fm/setlist/event-1',
+          sourceUrl: 'https://provider.example/events/event-1',
           fetchedAt: new Date('2026-08-25T10:00:00.000Z'),
         },
       }),
     ).toBe(true);
+    expect(
+      validate({
+        type: 'provider',
+        provider: {
+          name: '',
+          externalEventId: 'event-1',
+          sourceUrl: 'https://provider.example/events/event-1',
+          fetchedAt: new Date('2026-08-25T10:00:00.000Z'),
+        },
+      }),
+    ).toBe(false);
     expect(
       validate({
         type: 'user',
