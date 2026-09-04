@@ -35,8 +35,6 @@ export interface GigCandidateSourceUserAdminOrigin {
 export interface GigCandidateSourceUserMessengerOrigin {
   type: 'messenger';
   messenger: Messenger;
-  chatId: string;
-  messageId: string;
 }
 
 export type GigCandidateSourceUserOrigin =

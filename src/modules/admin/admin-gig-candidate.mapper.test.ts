@@ -102,8 +102,6 @@ describe('mapV1AdminGigCandidateResponse', () => {
         origin: {
           type: 'messenger',
           messenger: Messenger.Telegram,
-          chatId: 'chat-1',
-          messageId: 'message-1',
         },
       },
     });
@@ -114,8 +112,6 @@ describe('mapV1AdminGigCandidateResponse', () => {
       origin: {
         type: 'messenger',
         messenger: Messenger.Telegram,
-        chatId: 'chat-1',
-        messageId: 'message-1',
       },
     });
   });

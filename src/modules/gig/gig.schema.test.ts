@@ -15,12 +15,10 @@ describe('GigSchema', () => {
     expect(versionOptions.validate(2.5)).toBe(false);
   });
 
-  it('should allow complete Stage 10 Gig creation without legacy moderation fields', () => {
-    const statusOptions = GigSchema.path('status').options;
+  it('should remove Gig moderation status while retaining legacy suggestedBy', () => {
     const suggestedByOptions = GigSchema.path('suggestedBy').options;
 
-    expect(statusOptions.required).not.toBe(true);
-    expect(statusOptions.default).toBeUndefined();
+    expect(GigSchema.path('status')).toBeUndefined();
     expect(suggestedByOptions.required).not.toBe(true);
   });
 

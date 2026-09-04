@@ -21,6 +21,7 @@ import {
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
 import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -45,9 +46,6 @@ function createMockPostTemplates(): MockPostTemplates {
       "Here's what is happening this week:",
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
-    [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
-    [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
-    [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
     [TELEGRAM_TEMPLATE_KEYS.statusAccepted]: '🟢 Accepted',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
@@ -55,6 +53,16 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew]: '⚪ New',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
+      'Suggestion submitted',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
+      'Suggestion accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
+      'Suggestion rejected',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -64,8 +72,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
-    [TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks]:
-      '{statusLabel} | {statusLinks}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
+      'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -73,7 +81,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink]:
       '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink]: '{title}',
-    [TELEGRAM_TEMPLATE_KEYS.submissionFeedback]: '{statusLabel}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
       '<a href="{url}">{ticketsLabel}</a>',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
@@ -123,19 +130,19 @@ describe('TelegramPostComposer', () => {
     it('should return the Telegram post matching type when present', () => {
       const post = {
         to: Messenger.Telegram,
-        type: PostType.Publish,
+        type: PostType.Main,
         id: 7,
         chatId: -1001 as const,
         date: 1_700_000_000_000,
       };
 
-      const result = composer.pickTgPost([post], PostType.Publish);
+      const result = composer.pickTgPost([post], PostType.Main);
 
       expect(result).toBe(post);
     });
 
     it('should return undefined when posts array is missing matching Telegram post', () => {
-      expect(composer.pickTgPost(undefined, PostType.Publish)).toBeUndefined();
+      expect(composer.pickTgPost(undefined, PostType.Main)).toBeUndefined();
     });
   });
 
@@ -164,6 +171,7 @@ describe('TelegramPostComposer', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
           gigId: 'gig-a',
+          expectedVersion: 7,
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
@@ -175,6 +183,7 @@ describe('TelegramPostComposer', () => {
                 scope: CallbackScope.Gig,
                 action: GigCallbackAction.Post,
                 id: 'gig-a',
+                expectedVersion: 7,
               }),
             },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
@@ -187,6 +196,7 @@ describe('TelegramPostComposer', () => {
       expect(
         composer.buildAfterPublishModerationReplyMarkup({
           gigId: 'gig-a',
+          expectedVersion: 7,
           publishPostUrl: 'https://t.me/x/1',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
@@ -205,9 +215,7 @@ describe('TelegramPostComposer', () => {
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
         }),
-      ).toBe(
-        '🟢 Published\n\n<a href="https://app.example/gigs/concert">Concert</a>',
-      );
+      ).toBe('<a href="https://app.example/gigs/concert">Concert</a>');
     });
 
     it('should include Telegram post link when main post is published', () => {
@@ -219,37 +227,8 @@ describe('TelegramPostComposer', () => {
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '🟢 Published | <a href="https://t.me/gigs/42">See post</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+        '<a href="https://t.me/gigs/42">See post</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
       );
-    });
-  });
-
-  describe('buildRejectedModerationReplyMarkup', () => {
-    it('should build edit keyboard for moderation rejection', () => {
-      expect(
-        composer.buildRejectedModerationReplyMarkup(
-          'https://app.example/edit?startapp=gig-a',
-        ),
-      ).toEqual({
-        inline_keyboard: [
-          [
-            {
-              text: '✏️ Edit',
-              url: 'https://app.example/edit?startapp=gig-a',
-            },
-          ],
-        ],
-      });
-    });
-  });
-
-  describe('buildRejectedModerationCaption', () => {
-    it('should prepend rejected status to moderation body', () => {
-      expect(
-        composer.buildRejectedModerationCaption({
-          body: 'Concert\n\n🗓 Fri, 1 Jan 2027',
-        }),
-      ).toBe('🔴 Rejected\n\nConcert\n\n🗓 Fri, 1 Jan 2027');
     });
   });
 
@@ -375,163 +354,6 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
-    });
-  });
-
-  describe('composeModerationPost', () => {
-    beforeEach(() => {
-      process.env.MODERATION_CHANNEL_ID = '-2001';
-      process.env.APP_BASE_URL = 'https://app.example';
-    });
-
-    afterEach(() => {
-      delete process.env.MODERATION_CHANNEL_ID;
-      delete process.env.APP_BASE_URL;
-    });
-
-    it('should throw BadRequestException when MODERATION_CHANNEL_ID is not configured', () => {
-      delete process.env.MODERATION_CHANNEL_ID;
-
-      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
-
-      const gig = {
-        _id: 'gig-mod-env',
-        title: 'Show',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-        poster: { bucketPath: 'gigs/x.jpg' },
-      } as unknown as GigDocument;
-
-      expect(() => composer.composeModerationPost(gig)).toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should throw BadRequestException when gig has no poster URL', () => {
-      const gig = {
-        _id: 'gig-m1',
-        title: 'Show',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-      } as unknown as GigDocument;
-
-      expect(() => composer.composeModerationPost(gig)).toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should return TGSendPhoto with poster URL from bucket when present', () => {
-      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
-
-      const gig = {
-        _id: 'gig-m2',
-        title: 'Show',
-        publicId: 'gig-m2',
-        country: 'ES',
-        city: 'barcelona',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-        poster: { bucketPath: 'gigs/x.jpg' },
-      } as unknown as GigDocument;
-
-      const payload = composer.composeModerationPost(gig);
-
-      expect(payload.photo).toBe('https://cdn.example/p.jpg');
-      expect(payload.chat_id).toBe('-2001');
-      expect(payload.caption).toContain('🟡 Pending');
-      expect(payload.caption).not.toContain('Gig</a>');
-      expect(payload.parse_mode).toBe(TGParseMode.HTML);
-    });
-  });
-
-  describe('composeModerationPost admin link', () => {
-    it('should include admin link in pending moderation post caption', () => {
-      process.env.MODERATION_CHANNEL_ID = '-2001';
-      process.env.APP_BASE_URL = 'https://app.example';
-      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
-
-      const gig = {
-        _id: 'gig-m3',
-        title: 'Show',
-        publicId: 'gig-m3',
-        country: 'ES',
-        city: 'barcelona',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-        poster: { bucketPath: 'gigs/x.jpg' },
-      } as unknown as GigDocument;
-
-      const payload = composer.composeModerationPost(gig);
-
-      expect(payload.caption).toContain(
-        '<a href="https://app.example/admin/gigs/gig-m3">Open in admin</a>',
-      );
-
-      delete process.env.MODERATION_CHANNEL_ID;
-      delete process.env.APP_BASE_URL;
-    });
-  });
-  describe('composeSubmissionFeedbackPost', () => {
-    beforeEach(() => {
-      process.env.APP_BASE_URL = 'https://app.example';
-    });
-
-    afterEach(() => {
-      delete process.env.APP_BASE_URL;
-    });
-
-    it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
-      const gig = {
-        _id: 'gig-s1',
-        title: 'Show',
-        publicId: 'gig-s1',
-        country: 'ES',
-        city: 'barcelona',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-        posts: [],
-      } as unknown as GigDocument;
-
-      expect(() => composer.composeSubmissionFeedbackPost(gig, 999)).toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should use moderation Telegram file_id as photo when present', () => {
-      const gig = {
-        _id: 'gig-s2',
-        title: 'Show',
-        publicId: 'gig-s2',
-        country: 'ES',
-        city: 'barcelona',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: 86_400_000,
-        posts: [
-          {
-            to: Messenger.Telegram,
-            type: PostType.Moderation,
-            chatId: -100,
-            id: 3,
-            fileId: 'file-feedback',
-            date: 86_400_000,
-          },
-        ],
-      } as unknown as GigDocument;
-
-      const payload = composer.composeSubmissionFeedbackPost(gig, 424242);
-
-      expect(payload.photo).toBe('file-feedback');
-      expect(payload.chat_id).toBe(424242);
-      expect(payload.reply_markup).toBeUndefined();
-      expect(payload.caption).toContain('🟡 Pending');
-      expect(payload.caption).not.toContain('Gig</a>');
-      expect(payload.parse_mode).toBe(TGParseMode.HTML);
     });
   });
 
@@ -709,6 +531,7 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3001');
+      expect(payload.caption).toContain('⚪ New');
       expect(payload.reply_markup).toEqual({
         inline_keyboard: [
           [
@@ -760,6 +583,7 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3002');
+      expect(payload.caption).toContain('🟡 Reviewing');
       expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
         {
           text: '✅ Approve',
@@ -812,6 +636,78 @@ describe('TelegramPostComposer', () => {
           updatedAt: new Date(),
         }),
       ).toThrow(BadRequestException);
+    });
+
+    it.each([
+      ['submitted', 'Suggestion submitted'],
+      ['acceptedForModeration', 'Suggestion accepted for moderation'],
+      ['rejected', 'Suggestion rejected'],
+    ] as const)('should compose %s feedback', (kind, text) => {
+      expect(
+        composer.composeGigCandidateFeedbackMessage({ chatId: '42', kind }),
+      ).toEqual({
+        chat_id: '42',
+        text,
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: false,
+      });
+    });
+
+    it('should compose accepted feedback with the public Gig URL', () => {
+      expect(
+        composer.composeGigCandidateFeedbackMessage({
+          chatId: '42',
+          kind: 'acceptedWithPublicLink',
+          publicId: 'radiohead-2026-06-12',
+        }),
+      ).toMatchObject({
+        chat_id: '42',
+        text: expect.stringContaining(
+          'https://admin.example/gigs/radiohead-2026-06-12',
+        ),
+      });
+    });
+
+    it('should compose a rejected channel-post update without actions', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 1,
+        status: GigCandidateStatus.Rejected,
+        posts: [],
+        rejectedAt: new Date(),
+        rejectedByUserId: '66a000000000000000000000043',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      expect(
+        composer.composeRejectedGigCandidatePostEdit({
+          gigCandidate,
+          post: {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1,
+            id: 10,
+            chatId: -100,
+          },
+        }),
+      ).toMatchObject({
+        chatId: -100,
+        messageId: 10,
+        caption: expect.stringContaining('🔴 Rejected'),
+        replyMarkup: { inline_keyboard: [] },
+      });
     });
   });
 });

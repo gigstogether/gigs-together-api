@@ -21,6 +21,7 @@ import {
 } from './pipes/admin-gig-candidate-body.pipe';
 import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.filter';
 import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-approval-validation.filter';
+import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-ap
     AdminGigCandidateSendToModerationBodyPipe,
     GigCandidateConflictFilter,
     GigCandidateApprovalValidationFilter,
+    AdminGigUpdateBodyPipe,
   ],
   exports: [AdminDashboardService, AdminGigService],
 })

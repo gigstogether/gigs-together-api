@@ -10,6 +10,8 @@ import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
+import { UserService } from '../user/user.service';
+import { UserRole } from '../user/types/user-role.enum';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import {
@@ -66,7 +68,13 @@ describe('GigCandidateService', () => {
     sendGigCandidateIntakePost: vi.fn(),
     sendGigCandidateModerationPost: vi.fn(),
     removeGigCandidateIntakeActions: vi.fn(),
+    sendGigCandidateFeedback: vi.fn(),
+    updateRejectedGigCandidatePost: vi.fn(),
     updateGigModerationPost: vi.fn(),
+  };
+
+  const userServiceMock = {
+    findActiveUserById: vi.fn(),
   };
 
   const aiServiceMock = {
@@ -95,6 +103,20 @@ describe('GigCandidateService', () => {
         work: (transaction: typeof approvalTransactionMock) => Promise<unknown>,
       ) => work(approvalTransactionMock),
     );
+    userServiceMock.findActiveUserById.mockResolvedValue({
+      id: '507f1f77bcf86cd799439088',
+      status: 'active',
+      roles: [],
+      identities: [
+        {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
+          externalUserId: '42',
+        },
+      ],
+      createdAt: new Date('2026-08-22T10:00:00.000Z'),
+      updatedAt: new Date('2026-08-22T10:00:00.000Z'),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -113,6 +135,7 @@ describe('GigCandidateService', () => {
         { provide: CalendarService, useValue: calendarServiceMock },
         { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },
         { provide: GigService, useValue: gigServiceMock },
+        { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
 
@@ -326,6 +349,9 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created);
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        { kind: 'submitted', chatId: '42' },
+      );
     });
 
     it('should append Intake post when Telegram returns a message', async () => {
@@ -397,6 +423,50 @@ describe('GigCandidateService', () => {
         }),
       );
     });
+
+    it('should keep submission successful when no active Telegram recipient exists', async () => {
+      const created = buildGigCandidate({
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000001',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
+        undefined,
+      );
+      userServiceMock.findActiveUserById.mockResolvedValue(null);
+
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'Band',
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-08-01',
+            },
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).resolves.toEqual({ id: created.id });
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('getByIdOrThrow', () => {
@@ -454,6 +524,58 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
       ).toHaveBeenCalledWith(created);
+    });
+
+    it('should send admin lifecycle feedback only when enabled', async () => {
+      const created = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: 'admin' },
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+      userServiceMock.findActiveUserById.mockResolvedValue({
+        id: '507f1f77bcf86cd799439088',
+        status: 'active',
+        roles: [UserRole.Admin],
+        identities: [
+          {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            externalUserId: '42',
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      await service.createAdminGigCandidate({
+        userId: '507f1f77bcf86cd799439088',
+        gigDraft: {},
+      });
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+
+      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+      await service.createAdminGigCandidate({
+        userId: '507f1f77bcf86cd799439088',
+        gigDraft: {},
+      });
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        { kind: 'acceptedForModeration', chatId: '42' },
+      );
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).toHaveBeenCalledTimes(1);
+      expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
     it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
@@ -643,6 +765,9 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.removeGigCandidateIntakeActions,
       ).toHaveBeenCalledWith(intakePost);
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        { kind: 'acceptedForModeration', chatId: '42' },
+      );
     });
 
     it('should leave Reviewing with Intake retry actions when Telegram send fails', async () => {
@@ -699,6 +824,9 @@ describe('GigCandidateService', () => {
       ).resolves.toEqual(reviewing);
       expect(
         gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).not.toHaveBeenCalled();
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
     });
 
@@ -793,8 +921,6 @@ describe('GigCandidateService', () => {
           origin: {
             type: 'messenger',
             messenger: Messenger.Telegram,
-            chatId: '-100',
-            messageId: '22',
           },
           originalText: 'Private intake text',
           attachments: [{ bucketPath: 'private/source.png' }],
@@ -878,10 +1004,18 @@ describe('GigCandidateService', () => {
       });
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
         gigId: gig.id,
+        expectedVersion: gig.version,
         title: gig.title,
         publicId: gig.publicId,
         moderationPost: { chatId: -200, messageId: 50 },
       });
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        {
+          kind: 'acceptedWithPublicLink',
+          publicId: gig.publicId,
+          chatId: '42',
+        },
+      );
     });
 
     it('should abort before Gig allocation when expected version is stale', async () => {
@@ -950,6 +1084,59 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
       expect(
         feedRevalidateServiceMock.revalidateFeedOrThrow,
+      ).not.toHaveBeenCalled();
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should skip submitter feedback for a provider-origin GigCandidate', async () => {
+      const source: GigCandidate['source'] = {
+        type: 'provider',
+        provider: {
+          name: 'setlistFm',
+          externalEventId: 'event-1',
+          sourceUrl: 'https://provider.example/events/1',
+          fetchedAt: new Date(),
+        },
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        source,
+        gigDraft: {
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+        },
+      });
+      const gig = buildGigApprovalResult({ source });
+      const approved = buildGigCandidate({
+        ...reviewing,
+        status: GigCandidateStatus.Approved,
+        version: 1,
+        gigId: gig.id,
+        approvedAt: new Date(),
+        approvedByUserId: '507f1f77bcf86cd799439077',
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      approvalTransactionMock.createGigId.mockReturnValue(gig.id);
+      approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
+      approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
+      approvalTransactionMock.createGig.mockResolvedValue(gig);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: approved.approvedByUserId!,
+        }),
+      ).resolves.toEqual(gig);
+      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
     });
 
@@ -1047,13 +1234,21 @@ describe('GigCandidateService', () => {
 
   describe('rejectGigCandidate', () => {
     it('should conditionally reject New GigCandidate with audit fields', async () => {
-      const newGigCandidate = buildGigCandidate();
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const newGigCandidate = buildGigCandidate({ posts: [intakePost] });
       const rejectedByUserId = '507f1f77bcf86cd799439077';
       const rejected = buildGigCandidate({
         status: GigCandidateStatus.Rejected,
         version: 1,
         rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
         rejectedByUserId,
+        posts: [intakePost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
       gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
@@ -1073,6 +1268,55 @@ describe('GigCandidateService', () => {
         rejectedByUserId: rejected.rejectedByUserId,
         rejectedAt: expect.any(Date),
       });
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        { kind: 'rejected', chatId: '42' },
+      );
+      expect(
+        telegramServiceMock.updateRejectedGigCandidatePost,
+      ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
+    });
+
+    it('should update the Moderation post after rejecting Reviewing and preserve the transition when Telegram fails', async () => {
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        posts: [moderationPost],
+      });
+      const rejected = buildGigCandidate({
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        posts: [moderationPost],
+        rejectedAt: new Date(),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+      telegramServiceMock.updateRejectedGigCandidatePost.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+
+      await expect(
+        service.rejectGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          rejectedByUserId: rejected.rejectedByUserId!,
+        }),
+      ).resolves.toEqual(rejected);
+      expect(
+        telegramServiceMock.updateRejectedGigCandidatePost,
+      ).toHaveBeenCalledWith({ gigCandidate: rejected, post: moderationPost });
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).toHaveBeenCalledOnce();
     });
 
     it('should return illegal-transition conflict for repeated rejection', async () => {

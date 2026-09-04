@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { GigService } from '../gig/gig.service';
 import { mapGigToFormData } from './admin-gig.mapper';
 import { ADMIN_GIG_LIST_DEFAULT_LIMIT } from '../gig/types/admin-gig-list-sort.types';
 import type { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
-import { mapAdminGigListStatusQueryToGigStatuses } from './types/requests/v1-admin-gigs-get-query';
 import type {
   V1AdminGigListItem,
   V1AdminGigsListResponseBody,
@@ -11,20 +10,47 @@ import type {
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
+import type { GigFormInput } from '../gig/types/gig.types';
+
+interface UpdateGigByPublicIdParams {
+  publicId: string;
+  expectedVersion: number;
+  gig: GigFormInput;
+  posterFile: Express.Multer.File | undefined;
+}
+
+interface UpdateGigVisibilityByPublicIdParams {
+  publicId: string;
+  expectedVersion: number;
+  isVisible: boolean;
+}
+
+export interface UpdateGigByPublicIdResult {
+  publicId: string;
+}
+
+export interface UpdateGigVisibilityByPublicIdResult {
+  publicId: string;
+  version: number;
+  isVisible: boolean;
+}
 
 @Injectable()
 export class AdminGigService {
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
+    private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
+
+  private readonly logger = new Logger(AdminGigService.name);
 
   async getGigsList(
     query: V1AdminGigsGetQueryDto,
   ): Promise<V1AdminGigsListResponseBody> {
-    const statuses = mapAdminGigListStatusQueryToGigStatuses(query.status);
-    const plainGigs = await this.gigService.getGigsByStatus({
-      statuses,
+    const plainGigs = await this.gigService.getGigs({
       limit: query.limit ?? ADMIN_GIG_LIST_DEFAULT_LIMIT,
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,
@@ -49,7 +75,7 @@ export class AdminGigService {
 
     const publishPost = this.telegramService.pickTgPost(
       gig.posts,
-      PostType.Publish,
+      PostType.Main,
     );
     const publishPostUrl = await this.gigService.resolvePublicPostUrl({
       chatId: publishPost?.chatId,
@@ -77,22 +103,81 @@ export class AdminGigService {
     });
   }
 
+  async updateGigByPublicId(
+    params: UpdateGigByPublicIdParams,
+  ): Promise<UpdateGigByPublicIdResult> {
+    const updatedGig = await this.gigService.updateGigByPublicId(params);
+    const mainPost = this.telegramService.pickTgPost(
+      updatedGig.posts,
+      PostType.Main,
+    );
+    const editedPostType = mainPost ? PostType.Main : PostType.Moderation;
+
+    try {
+      const edited = mainPost
+        ? await this.telegramService.editMainPost(updatedGig, {
+            updateMedia: params.posterFile !== undefined,
+          })
+        : await this.telegramService.editModerationPost(updatedGig, {
+            updateMedia: params.posterFile !== undefined,
+          });
+      const fileId = getBiggestTgPhotoFileId(edited?.photo);
+      if (fileId !== undefined) {
+        await this.gigService.updateGigTelegramPostFileId({
+          gigId: updatedGig._id,
+          expectedVersion: updatedGig.version,
+          type: editedPostType,
+          fileId,
+        });
+      }
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
+      );
+    }
+
+    await this.feedRevalidateService.revalidateFeed({
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+    return { publicId: updatedGig.publicId };
+  }
+
+  async updateGigVisibilityByPublicId(
+    params: UpdateGigVisibilityByPublicIdParams,
+  ): Promise<UpdateGigVisibilityByPublicIdResult> {
+    const updatedGig =
+      await this.gigService.updateGigVisibilityByPublicId(params);
+    await this.feedRevalidateService.revalidateFeed({
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+    return {
+      publicId: updatedGig.publicId,
+      version: updatedGig.version,
+      isVisible: updatedGig.isVisible,
+    };
+  }
+
+  private formatError(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
+  }
+
   private mapFormDataToListItem(formData: GigFormData): V1AdminGigListItem {
     const ticketsUrl = formData.ticketsUrl.trim();
 
     return {
       publicId: formData.publicId,
       title: formData.title,
-      status: formData.status,
       isVisible: formData.isVisible,
       version: formData.version,
+      source: formData.source,
       date: formData.date,
       endDate: formData.endDate,
       city: formData.city,
       country: formData.country,
       venue: formData.venue,
       posterUrl: formData.posterUrl,
-      suggestedBy: formData.suggestedBy,
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
       publishPostUrl: formData.publishPostUrl,
       publishPostDate: formData.publishPostDate,

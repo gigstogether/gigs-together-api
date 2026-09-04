@@ -8,6 +8,7 @@ export interface GigModerationPostRef {
 
 interface ModerateGigBaseParams {
   readonly moderationPost?: GigModerationPostRef;
+  readonly expectedVersion: number;
 }
 
 export interface ModerateGigByIdParams extends ModerateGigBaseParams {

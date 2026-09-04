@@ -34,6 +34,10 @@ export class UserService {
     return this.userRepository.findActiveUserIdsByRole(role);
   }
 
+  findActiveUserById(userId: string): Promise<User | null> {
+    return this.userRepository.findActiveUserById(userId);
+  }
+
   private normalizeOptionalField(
     value: string | undefined,
   ): string | undefined {

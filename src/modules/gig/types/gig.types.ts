@@ -1,8 +1,7 @@
 import type { Types } from 'mongoose';
 import type { TGUser } from '../../telegram/types/user.types';
 import type { TGMessage } from '../../telegram/types/message.types';
-import type { Status } from './status.enum';
-import type { GigPost, GigPoster } from '../gig.schema';
+import type { GigPost, GigPoster, GigStoredSource } from '../gig.schema';
 import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
 
 export type GigId = string | Types.ObjectId;
@@ -19,12 +18,15 @@ export interface PlainGig {
   venue: string;
   ticketsUrl: string;
   poster?: GigPoster;
-  status: Status;
   isVisible: boolean;
   version: number;
+  source: GigStoredSource;
   posts: GigPost[];
-  suggestedBy: GigSuggestedBy;
+  /** Legacy storage retained until the post-cutover cleanup migration. */
+  suggestedBy?: GigSuggestedBy;
   gigCandidateId?: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface V1GetGigsResponseBodyGig {
@@ -84,29 +86,15 @@ export interface GigCalendarSource {
   ticketsUrl: string;
 }
 
-export interface CreateGigInput {
+export interface GigFormInput {
   title: string;
-  publicId: string;
   date: string;
   endDate?: string;
   city: string;
   country: string;
   venue: string;
   ticketsUrl: string;
-  poster?: GigPosterInput;
-  suggestedBy: GigSuggestedBy;
-}
-
-export interface GigModerationPostInput {
-  id: number;
-  chatId: number;
-  date: number;
-  fileId?: string;
-}
-
-export interface SetPendingWithOptionalModerationPostParams {
-  gigId: string;
-  moderationPost?: GigModerationPostInput;
+  posterUrl?: string;
 }
 
 export interface GigSuggestedBy {
@@ -114,12 +102,6 @@ export interface GigSuggestedBy {
   name?: string;
   username?: TGUser['username'];
   feedbackMessageId?: TGMessage['message_id'];
-}
-
-export interface GigFormDataSuggestedBy {
-  userId: string;
-  name?: string;
-  username?: string;
 }
 
 export interface GigFormData {
@@ -132,10 +114,9 @@ export interface GigFormData {
   venue: string;
   ticketsUrl: string;
   posterUrl?: string;
-  status: Status;
   isVisible: boolean;
   version: number;
-  suggestedBy: GigFormDataSuggestedBy;
+  source: GigSource;
   publishPostUrl?: string;
   publishPostDate?: number;
   moderationPostUrl?: string;

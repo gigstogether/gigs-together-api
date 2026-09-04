@@ -2,6 +2,6 @@ export enum PostType {
   Intake = 'Intake',
   Moderation = 'Moderation',
   Main = 'Main',
-  /** Legacy Gig post type retained until the Stage 9 data migration and Stage 12 cleanup. */
+  /** Legacy Gig post type retained until stored post data has been migrated and verified. */
   Publish = 'Publish',
 }

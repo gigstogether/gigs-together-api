@@ -12,8 +12,6 @@ export interface V1AdminGigCandidateUserAdminOriginResponseBody {
 export interface V1AdminGigCandidateUserMessengerOriginResponseBody {
   type: 'messenger';
   messenger: Messenger;
-  chatId: string;
-  messageId: string;
 }
 
 export type V1AdminGigCandidateUserOriginResponseBody =

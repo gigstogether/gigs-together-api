@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
-import { Status } from './types/status.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import type {
   GigSourceProvider,
@@ -44,7 +43,7 @@ export class GigPoster {
 
 export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
 
-type GigStoredSource =
+export type GigStoredSource =
   | (Omit<GigSourceUser, 'userId'> & { userId: Types.ObjectId })
   | GigSourceProvider;
 
@@ -117,7 +116,7 @@ function isGigSource(value: unknown): boolean {
   return false;
 }
 
-@Schema()
+@Schema({ timestamps: true })
 export class Gig {
   /**
    * Public stable identifier for URLs/anchors.
@@ -166,9 +165,6 @@ export class Gig {
   })
   poster?: GigPoster;
 
-  @Prop({ type: String, enum: Status, required: false })
-  status: Status;
-
   @Prop({ type: Boolean, required: true })
   isVisible: boolean;
 
@@ -191,6 +187,10 @@ export class Gig {
 
   @Prop({ type: Types.ObjectId, required: false, ref: 'GigCandidate' })
   gigCandidateId?: Types.ObjectId;
+
+  createdAt: Date;
+
+  updatedAt: Date;
 }
 
 export type GigDocument = HydratedDocument<Gig>;

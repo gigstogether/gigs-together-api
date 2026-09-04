@@ -9,8 +9,6 @@ import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { Types } from 'mongoose';
-
-import { Status } from './types/status.enum';
 import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
@@ -146,18 +144,18 @@ describe('GigService', () => {
     });
   });
 
-  describe('getPublishedGigDocumentsInInclusiveMsRange', () => {
-    it('should query published gigs with inclusive date bounds when fromMs and toMs are given', async () => {
+  describe('getVisibleGigDocumentsInInclusiveMsRange', () => {
+    it('should query visible gigs with inclusive date bounds when fromMs and toMs are given', async () => {
       const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();
       const toMs = new Date(2024, 5, 16, 23, 59, 59, 999).getTime();
 
-      await service.getPublishedGigDocumentsInInclusiveMsRange({
+      await service.getVisibleGigDocumentsInInclusiveMsRange({
         fromMs,
         toMs,
       });
 
       expect(findMock).toHaveBeenCalledWith({
-        status: Status.Published,
+        isVisible: true,
         date: { $gte: fromMs, $lte: toMs },
       });
       expect(collationMock).toHaveBeenCalledWith({
@@ -168,105 +166,45 @@ describe('GigService', () => {
     });
   });
 
-  describe('getGigsByStatus', () => {
-    it('should return plain gigs without sort when sortBy is omitted', async () => {
+  describe('getGigs', () => {
+    it('should return all Gigs without sorting when sortBy is omitted', async () => {
       const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-1' };
       execMock.mockResolvedValue([plainGig]);
 
-      await expect(
-        service.getGigsByStatus({
-          statuses: [Status.Pending],
-          limit: 10,
-        }),
-      ).resolves.toEqual([plainGig]);
-
-      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
+      await expect(service.getGigs({ limit: 10 })).resolves.toEqual([plainGig]);
+      expect(findMock).toHaveBeenCalledWith({});
       expect(limitMock).toHaveBeenCalledWith(10);
-      expect(leanMock).toHaveBeenCalled();
       expect(sortForLimitMock).not.toHaveBeenCalled();
-      expect(aggregateMock).not.toHaveBeenCalled();
     });
 
-    it('should throw when sortBy is unsupported', () => {
-      const invalidSortBy = 'invalid' as AdminGigListSortBy;
-
-      expect(() =>
-        service.getGigsByStatus({
-          statuses: [Status.Pending],
-          limit: 10,
-          sortBy: invalidSortBy,
-        }),
-      ).toThrow('Unsupported admin gig list sortBy: invalid');
-    });
-
-    it('should return plain gigs when sort is createdAt', async () => {
+    it('should sort Gigs by creation timestamp and ID', async () => {
       const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-2' };
       execMock.mockResolvedValue([plainGig]);
 
       await expect(
-        service.getGigsByStatus({
-          statuses: [Status.Pending],
+        service.getGigs({
           limit: 15,
           sortBy: AdminGigListSortBy.CreatedAt,
           sortOrder: AdminGigListSortOrder.Desc,
         }),
       ).resolves.toEqual([plainGig]);
-
-      expect(findMock).toHaveBeenCalledWith({ status: Status.Pending });
-      expect(sortForLimitMock).toHaveBeenCalledWith({ _id: -1 });
+      expect(sortForLimitMock).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
       expect(limitMock).toHaveBeenCalledWith(15);
-      expect(aggregateMock).not.toHaveBeenCalled();
     });
 
-    it('should return plain gigs when sort is eventDate', async () => {
+    it('should sort Gigs by event date and ID', async () => {
       const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-3' };
       execMock.mockResolvedValue([plainGig]);
 
       await expect(
-        service.getGigsByStatus({
-          statuses: [Status.Published],
+        service.getGigs({
           limit: 20,
           sortBy: AdminGigListSortBy.EventDate,
           sortOrder: AdminGigListSortOrder.Asc,
         }),
       ).resolves.toEqual([plainGig]);
-
-      expect(findMock).toHaveBeenCalledWith({ status: Status.Published });
       expect(sortForLimitMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
       expect(limitMock).toHaveBeenCalledWith(20);
-      expect(aggregateMock).not.toHaveBeenCalled();
-    });
-
-    it('should query multiple statuses with $in when more than one status is given', async () => {
-      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-4' };
-      execMock.mockResolvedValue([plainGig]);
-
-      await expect(
-        service.getGigsByStatus({
-          statuses: [Status.Approved, Status.Published],
-          limit: 20,
-        }),
-      ).resolves.toEqual([plainGig]);
-
-      expect(findMock).toHaveBeenCalledWith({
-        status: { $in: [Status.Approved, Status.Published] },
-      });
-    });
-  });
-
-  describe('getGigCountByStatus', () => {
-    it('should return gig count for the given status', async () => {
-      const countExecMock = vi.fn().mockResolvedValue(7);
-      countDocumentsMock.mockReturnValue({ exec: countExecMock });
-
-      await expect(service.getGigCountByStatus(Status.Pending)).resolves.toBe(
-        7,
-      );
-
-      expect(countDocumentsMock).toHaveBeenCalledWith({
-        status: Status.Pending,
-      });
-      expect(countExecMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -353,7 +291,7 @@ describe('GigService', () => {
         service.updateGigByPublicId({
           publicId: 'radiohead-2026-06-12',
           expectedVersion: 4,
-          body,
+          gig: body.gig,
           posterFile: undefined,
         }),
       ).resolves.toBe(updatedGig);
@@ -383,7 +321,7 @@ describe('GigService', () => {
         service.updateGigByPublicId({
           publicId: 'radiohead-2026-06-12',
           expectedVersion: 3,
-          body,
+          gig: body.gig,
           posterFile: undefined,
         }),
       ).rejects.toMatchObject({
@@ -414,31 +352,6 @@ describe('GigService', () => {
         { publicId: 'radiohead-2026-06-12', version: 7 },
         {
           $set: { isVisible: false },
-          $inc: { version: 1 },
-        },
-        { returnDocument: 'after' },
-      );
-    });
-  });
-
-  describe('updateGigStatus', () => {
-    it('should dual-write published visibility and increment version', async () => {
-      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-      const updatedGig = {
-        _id: gigId,
-        status: Status.Published,
-        isVisible: true,
-      };
-      findByIdAndUpdateMock.mockResolvedValue(updatedGig);
-
-      await expect(
-        service.updateGigStatus(gigId, Status.Published),
-      ).resolves.toBe(updatedGig);
-
-      expect(findByIdAndUpdateMock).toHaveBeenCalledWith(
-        gigId,
-        {
-          $set: { status: Status.Published, isVisible: true },
           $inc: { version: 1 },
         },
         { returnDocument: 'after' },

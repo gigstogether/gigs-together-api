@@ -519,15 +519,15 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
-- receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
-- admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
+- admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
 - translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 

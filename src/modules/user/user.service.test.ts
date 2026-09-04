@@ -23,12 +23,18 @@ function domainUser(status: User['status'] = 'active'): User {
 
 describe('UserService', () => {
   const upsertMessengerUser = vi.fn();
+  const findActiveUserById = vi.fn();
   const findActiveUserIdsByRole = vi.fn();
-  const repository = { upsertMessengerUser, findActiveUserIdsByRole };
+  const repository = {
+    upsertMessengerUser,
+    findActiveUserById,
+    findActiveUserIdsByRole,
+  };
   const service = new UserService(repository as UserRepository);
 
   beforeEach(() => {
     upsertMessengerUser.mockReset();
+    findActiveUserById.mockReset();
     findActiveUserIdsByRole.mockReset();
   });
 
@@ -80,5 +86,13 @@ describe('UserService', () => {
       service.findActiveUserIdsByRole(UserRole.Admin),
     ).resolves.toEqual(['66a000000000000000000001']);
     expect(findActiveUserIdsByRole).toHaveBeenCalledWith(UserRole.Admin);
+  });
+
+  it('should load an active User by internal id', async () => {
+    const user = domainUser();
+    findActiveUserById.mockResolvedValue(user);
+
+    await expect(service.findActiveUserById(user.id)).resolves.toBe(user);
+    expect(findActiveUserById).toHaveBeenCalledWith(user.id);
   });
 });

@@ -5,10 +5,6 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import type { GigDocument } from '../gig/gig.schema';
-import type { PlainGig } from '../gig/types/gig.types';
-import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../../shared/types/post-type.enum';
-import { Status } from '../gig/types/status.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
@@ -18,7 +14,10 @@ import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import { Types } from 'mongoose';
+import { Messenger } from '../../shared/types/messenger.enum';
+import { PostType } from '../../shared/types/post-type.enum';
+import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -43,9 +42,6 @@ function createMockPostTemplates(): MockPostTemplates {
       "Here's what is happening this week:",
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
-    [TELEGRAM_TEMPLATE_KEYS.statusPending]: '🟡 Pending',
-    [TELEGRAM_TEMPLATE_KEYS.statusPublished]: '🟢 Published',
-    [TELEGRAM_TEMPLATE_KEYS.statusRejected]: '🔴 Rejected',
     [TELEGRAM_TEMPLATE_KEYS.statusAccepted]: '🟢 Accepted',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
@@ -53,6 +49,16 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew]: '⚪ New',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
+      'Suggestion submitted',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
+      'Suggestion accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
+      'Suggestion rejected',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -62,8 +68,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
-    [TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks]:
-      '{statusLabel} | {statusLinks}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
+      'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -71,7 +77,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink]:
       '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink]: '{title}',
-    [TELEGRAM_TEMPLATE_KEYS.submissionFeedback]: '{statusLabel}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
       '<a href="{url}">{ticketsLabel}</a>',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
@@ -368,6 +373,7 @@ describe('TelegramService', () => {
 
       await service.updateGigModerationPost({
         gigId: '507f1f77bcf86cd799439011',
+        expectedVersion: 7,
         title: 'Radiohead',
         publicId: 'radiohead-barcelona-2026-06-12',
         moderationPost: {
@@ -424,6 +430,7 @@ describe('TelegramService', () => {
 
       await service.updateGigModerationPost({
         gigId: '507f1f77bcf86cd799439011',
+        expectedVersion: 8,
         title: 'Radiohead',
         publicId: 'radiohead-barcelona-2026-06-12',
         moderationPost: { chatId: -100123, messageId: 42 },
@@ -444,181 +451,76 @@ describe('TelegramService', () => {
     });
   });
 
-  describe('updatePublishedSubmissionFeedback', () => {
-    it('should edit feedback caption with textual gig link and no reply markup', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
-
+  describe('GigCandidate lifecycle messages', () => {
+    it('should send newly composed feedback as a direct message', async () => {
       const bot = testingModule.get(TelegramBotClient);
-      const editMessageCaptionSpy = vi
-        .spyOn(bot, 'editMessageCaption')
-        .mockResolvedValue({
-          message_id: 99,
-          date: 1,
-          chat: { id: 12345, type: 'private' },
-        });
-
-      await service.updatePublishedSubmissionFeedback({
-        gig: {
-          _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
-          publicId: 'radiohead-barcelona-2026-06-12',
-          title: 'Radiohead',
-          date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-          city: 'barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
-          ticketsUrl: 'https://tickets.example/radiohead',
-          status: Status.Published,
-          isVisible: true,
-          version: 0,
-          suggestedBy: {
-            userId: 12345,
-            feedbackMessageId: 99,
-          },
-          posts: [],
-        } as PlainGig,
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 90,
+        date: 1,
+        chat: { id: 42, type: 'private' },
       });
 
-      expect(editMessageCaptionSpy).toHaveBeenCalledWith({
-        chatId: 12345,
-        messageId: 99,
-        caption: expect.stringContaining(
-          '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
-        ),
-        parseMode: TGParseMode.HTML,
+      await service.sendGigCandidateFeedback({
+        chatId: '42',
+        kind: 'submitted',
+      });
+
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        chat_id: '42',
+        text: 'Suggestion submitted',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: false,
       });
     });
-  });
 
-  describe('editModerationPost', () => {
-    it('should keep rejected moderation post in rejected state after edit', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
-
+    it('should update a rejected channel post and remove its actions', async () => {
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
         .mockResolvedValue({
-          message_id: 42,
+          message_id: 50,
           date: 1,
-          chat: { id: -100123, type: 'channel' },
+          chat: { id: -200, type: 'channel' },
         });
-
-      await service.editModerationPost({
-        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
-        publicId: 'radiohead-barcelona-2026-06-12',
-        title: 'Radiohead',
-        date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-        city: 'barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
-        ticketsUrl: 'https://tickets.example/radiohead',
-        status: Status.Rejected,
-        isVisible: false,
-        version: 0,
-        suggestedBy: {
-          userId: 12345,
+      const post: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1,
+        id: 50,
+        chatId: -200,
+      };
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
         },
-        posts: [
-          {
-            to: Messenger.Telegram,
-            type: PostType.Moderation,
-            chatId: -100123,
-            id: 42,
-            fileId: 'photo-file-id',
-            date: 1_780_000_000_000,
-          },
-        ],
-      } as PlainGig);
-
-      const editMessageCaptionPayload =
-        editMessageCaptionSpy.mock.calls[0]?.[0];
-
-      expect(editMessageCaptionPayload?.caption).toContain(
-        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
-      );
-
-      expect(editMessageCaptionSpy).toHaveBeenCalledWith({
-        chatId: -100123,
-        messageId: 42,
-        caption: expect.stringContaining('Rejected'),
-        parseMode: TGParseMode.HTML,
-        disableWebPagePreview: true,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: '✏️ Edit',
-                url: 'https://app.example/edit?startapp=radiohead-barcelona-2026-06-12',
-              },
-            ],
-          ],
-        },
-      });
-    });
-  });
-
-  describe('handlePostReject', () => {
-    it('should edit moderation caption to rejected state and keep edit button', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
-
-      const bot = testingModule.get(TelegramBotClient);
-      const editMessageCaptionSpy = vi
-        .spyOn(bot, 'editMessageCaption')
-        .mockResolvedValue({
-          message_id: 99,
+        gigDraft: {
+          title: 'Suggested Band',
           date: 1,
-          chat: { id: -100123, type: 'channel' },
-        });
-
-      await service.handlePostReject({
-        gig: {
-          _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
-          publicId: 'radiohead-barcelona-2026-06-12',
-          title: 'Radiohead',
-          date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-          city: 'barcelona',
+          city: 'Barcelona',
           country: 'ES',
-          venue: 'Palau Sant Jordi',
-          ticketsUrl: 'https://tickets.example/radiohead',
-          status: Status.Rejected,
-          isVisible: false,
-          version: 0,
-          suggestedBy: {
-            userId: 12345,
-          },
-          posts: [],
-        } as PlainGig,
-        moderationMessage: {
-          chatId: -100123,
-          messageId: 99,
         },
-      });
+        version: 1,
+        status: GigCandidateStatus.Rejected,
+        posts: [post],
+        rejectedAt: new Date(),
+        rejectedByUserId: '66a000000000000000000000043',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      const editMessageCaptionPayload =
-        editMessageCaptionSpy.mock.calls[0]?.[0];
+      await service.updateRejectedGigCandidatePost({ gigCandidate, post });
 
-      expect(editMessageCaptionPayload?.caption).toContain(
-        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: -200,
+          messageId: 50,
+          caption: expect.stringContaining(GigCandidateStatus.Rejected),
+          replyMarkup: { inline_keyboard: [] },
+        }),
       );
-
-      expect(editMessageCaptionSpy).toHaveBeenCalledWith({
-        chatId: -100123,
-        messageId: 99,
-        caption: expect.stringContaining('🔴 Rejected'),
-        parseMode: TGParseMode.HTML,
-        disableWebPagePreview: true,
-        replyMarkup: {
-          inline_keyboard: [
-            [
-              {
-                text: '✏️ Edit',
-                url: expect.stringContaining('radiohead-barcelona-2026-06-12'),
-              },
-            ],
-          ],
-        },
-      });
     });
   });
 });

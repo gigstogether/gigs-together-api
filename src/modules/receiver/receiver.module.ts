@@ -9,7 +9,6 @@ import { ReceiverExceptionFilter } from './filters/receiver-exception.filter';
 import { ConsoleLogger } from '@nestjs/common';
 import { ReceiverWebhookGuard } from './guards/receiver-webhook.guard';
 import { ReceiverWebhookExceptionFilter } from './filters/receiver-webhook-exception.filter';
-import { GigBodyPipe } from './pipes/gig-body.pipe';
 import { UserModule } from '../user/user.module';
 
 @Module({
@@ -26,7 +25,6 @@ import { UserModule } from '../user/user.module';
     ReceiverWebhookGuard,
     ReceiverExceptionFilter,
     ReceiverWebhookExceptionFilter,
-    GigBodyPipe,
     ConsoleLogger,
   ],
   exports: [ReceiverService],

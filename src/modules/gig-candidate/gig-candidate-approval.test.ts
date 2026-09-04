@@ -82,8 +82,6 @@ describe('projectGigCandidateSource', () => {
         origin: {
           type: 'messenger',
           messenger: Messenger.Telegram,
-          chatId: '-100',
-          messageId: '42',
         },
         originalText: 'Private text',
         attachments: [{ bucketPath: 'private/source.png' }],

@@ -1,6 +1,8 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
-import type { Status } from '../../gig/types/status.enum';
-import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../../gig-candidate/types/gig-candidate.types';
 import type {
   TGChatId,
   TGEditMessageCaption,
@@ -82,6 +84,7 @@ export type GetPostUrlPayload =
 
 export interface BuildAfterPublishModerationReplyMarkupParams {
   readonly gigId?: GigId;
+  readonly expectedVersion: number;
   readonly publishPostUrl?: string;
   readonly editGigUrl?: string;
 }
@@ -93,34 +96,42 @@ export interface BuildPublishedModerationCaptionPayload {
   readonly adminGigUrl?: string;
 }
 
-export interface BuildModerationStatusLinePayload {
-  readonly status: SubmissionFeedbackStatus;
-  readonly publishPostUrl?: string;
-  readonly adminGigUrl?: string;
-}
-
 export interface BuildModerationCaptionPayload {
-  readonly body: string;
-  readonly status: SubmissionFeedbackStatus;
-  readonly publishPostUrl?: string;
-  readonly adminGigUrl?: string;
+  body: string;
+  publishPostUrl?: string;
+  adminGigUrl?: string;
 }
 
-export type SubmissionFeedbackStatus =
-  Status.Pending | Status.Published | Status.Rejected;
-
-export type BuildSubmissionFeedbackCaptionPayload = {
-  readonly body: string;
-  readonly status: SubmissionFeedbackStatus;
-};
-
-export interface BuildRejectedModerationCaptionPayload {
-  readonly body: string;
-  readonly adminGigUrl?: string;
+export interface BuildModerationLinksParams {
+  publishPostUrl?: string;
+  adminGigUrl?: string;
 }
 
 export interface BuildGigCandidateCaptionParams {
   gigCandidate: GigCandidate;
+}
+
+export interface GigCandidateFeedbackMessageWithoutPublicLinkContent {
+  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+}
+
+export interface GigCandidateFeedbackMessageWithPublicLinkContent {
+  kind: 'acceptedWithPublicLink';
+  publicId: string;
+}
+
+export type GigCandidateFeedbackMessageContent =
+  | GigCandidateFeedbackMessageWithoutPublicLinkContent
+  | GigCandidateFeedbackMessageWithPublicLinkContent;
+
+export type ComposeGigCandidateFeedbackMessageParams =
+  GigCandidateFeedbackMessageContent & {
+    chatId: TGChatId;
+  };
+
+export interface ComposeRejectedGigCandidatePostEditParams {
+  gigCandidate: GigCandidate;
+  post: GigCandidatePost;
 }
 
 export interface ComposedText {

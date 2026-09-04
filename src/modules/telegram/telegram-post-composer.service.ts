@@ -1,14 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGSendPhoto,
-  TGChatId,
+  TGEditMessageCaption,
   TGInputMedia,
+  TGSendMessage,
+  TGSendPhoto,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
 import { GigPost, GigPoster } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
+import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import { Status } from '../gig/types/status.enum';
 import {
   CallbackScope,
   encodeCallbackData,
@@ -26,17 +27,16 @@ import {
   BuildAfterPublishModerationReplyMarkupParams,
   BuildCaptionPayload,
   BuildGigCandidateCaptionParams,
-  BuildModerationCaptionPayload,
-  BuildModerationStatusLinePayload,
   BuildGigPermalinkPayload,
+  BuildModerationCaptionPayload,
+  BuildModerationLinksParams,
   BuildPublishedModerationCaptionPayload,
-  BuildRejectedModerationCaptionPayload,
-  BuildSubmissionFeedbackCaptionPayload,
   ComposedText,
+  ComposeGigCandidateFeedbackMessageParams,
+  ComposeRejectedGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
   PostEditKind,
-  SubmissionFeedbackStatus,
   TelegramGigPostEditComposition,
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
@@ -97,17 +97,14 @@ export class TelegramPostComposerService {
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
 
-    const editGigUrl = this.buildEditGigUrl(gig.publicId);
-    const adminGigUrl = this.buildAdminGigUrlByPublicId(gig.publicId);
-    const isRejected = gig.status === Status.Rejected;
-    const replyMarkup = isRejected
-      ? this.buildRejectedModerationReplyMarkup(editGigUrl)
-      : this.buildModerationPostReplyMarkup(gig);
-
+    const replyMarkup = this.buildAfterPublishModerationReplyMarkup({
+      gigId: gig._id,
+      expectedVersion: gig.version,
+      editGigUrl: this.buildEditGigUrl(gig.publicId),
+    });
     const fullCaption = this.buildModerationCaption({
       body: this.buildGigBodyCaption(gig),
-      status: isRejected ? Status.Rejected : Status.Pending,
-      adminGigUrl,
+      adminGigUrl: this.buildAdminGigUrlByPublicId(gig.publicId),
     });
 
     if (opts?.updateMedia && post?.fileId) {
@@ -161,7 +158,7 @@ export class TelegramPostComposerService {
     gig: PlainGig,
     opts?: { updateMedia?: boolean },
   ): TelegramGigPostEditComposition | undefined {
-    const post = this.pickTgPost(gig.posts, PostType.Publish);
+    const post = this.pickTgPost(gig.posts, PostType.Main);
     const chatId = post?.chatId;
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
@@ -497,43 +494,6 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeModerationPost(gig: PlainGig): TGSendPhoto {
-    const chatIdRaw = process.env.MODERATION_CHANNEL_ID;
-    const chatId =
-      chatIdRaw !== undefined && chatIdRaw !== null
-        ? String(chatIdRaw).trim()
-        : '';
-
-    if (!chatId) {
-      throw new BadRequestException(
-        'Cannot compose moderation channel post: MODERATION_CHANNEL_ID is not configured.',
-      );
-    }
-
-    const replyMarkup = this.buildModerationPostReplyMarkup(gig);
-    const fullCaption = this.buildModerationCaption({
-      body: this.buildGigBodyCaption(gig),
-      status: Status.Pending,
-      adminGigUrl: this.buildAdminGigUrlByPublicId(gig.publicId),
-    });
-
-    const poster = this.getPosterUrl(gig.poster);
-
-    if (poster === undefined || poster === '') {
-      throw new BadRequestException(
-        'Cannot compose moderation channel post: gig has no poster URL.',
-      );
-    }
-
-    return {
-      chat_id: chatId,
-      photo: poster,
-      caption: fullCaption,
-      parse_mode: TGParseMode.HTML,
-      reply_markup: replyMarkup,
-    };
-  }
-
   composeGigCandidateIntakePost(gigCandidate: GigCandidate): TGSendPhoto {
     const chatId = this.requireChannelId(
       process.env.INTAKE_CHANNEL_ID,
@@ -564,6 +524,66 @@ export class TelegramPostComposerService {
     });
   }
 
+  composeGigCandidateFeedbackMessage(
+    params: ComposeGigCandidateFeedbackMessageParams,
+  ): TGSendMessage {
+    let text: string;
+    switch (params.kind) {
+      case 'submitted':
+        text = this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
+        );
+        break;
+      case 'acceptedForModeration':
+        text = this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
+        );
+        break;
+      case 'rejected':
+        text = this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
+        );
+        break;
+      case 'acceptedWithPublicLink': {
+        const gigUrl = this.buildGigPermalink({
+          baseUrl: this.getAppBaseUrl(),
+          publicId: params.publicId,
+        });
+        if (gigUrl === undefined) {
+          throw new BadRequestException(
+            'Cannot compose accepted GigCandidate feedback: APP_BASE_URL is not configured.',
+          );
+        }
+        text = this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
+          { gigUrl },
+        );
+        break;
+      }
+    }
+
+    return {
+      chat_id: params.chatId,
+      text,
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: false,
+    };
+  }
+
+  composeRejectedGigCandidatePostEdit(
+    params: ComposeRejectedGigCandidatePostEditParams,
+  ): TGEditMessageCaption {
+    return {
+      chatId: params.post.chatId,
+      messageId: params.post.id,
+      caption: this.buildGigCandidateCaption({
+        gigCandidate: params.gigCandidate,
+      }),
+      parseMode: TGParseMode.HTML,
+      replyMarkup: { inline_keyboard: [] },
+    };
+  }
+
   private composeGigCandidateChannelPost(
     params: ComposeGigCandidateChannelPostParams,
   ): TGSendPhoto {
@@ -592,9 +612,30 @@ export class TelegramPostComposerService {
     const body = this.buildGigCandidateBodyCaption(gigCandidate);
 
     return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigCandidate, {
-      statusLine: gigCandidate.status,
+      statusLine: this.buildGigCandidateStatusLabel(gigCandidate.status),
       body,
     });
+  }
+
+  private buildGigCandidateStatusLabel(status: GigCandidateStatus): string {
+    switch (status) {
+      case GigCandidateStatus.New:
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew,
+        );
+      case GigCandidateStatus.Reviewing:
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing,
+        );
+      case GigCandidateStatus.Approved:
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved,
+        );
+      case GigCandidateStatus.Rejected:
+        return this.postTemplates.getText(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected,
+        );
+    }
   }
 
   private buildGigCandidateBodyCaption(gigCandidate: GigCandidate): string {
@@ -736,50 +777,6 @@ export class TelegramPostComposerService {
     return chatId;
   }
 
-  private buildModerationPostReplyMarkup(
-    gig: PlainGig,
-  ): TGInlineKeyboardMarkup {
-    const editGigUrl = this.buildEditGigUrl(gig.publicId);
-    const gigId = String(gig._id);
-
-    return {
-      inline_keyboard: [
-        [
-          {
-            text: this.postTemplates.getText(
-              TELEGRAM_TEMPLATE_KEYS.buttonApprove,
-            ),
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.Gig,
-              action: GigCallbackAction.Approve,
-              id: gigId,
-            }),
-          },
-          ...(editGigUrl
-            ? [
-                {
-                  text: this.postTemplates.getText(
-                    TELEGRAM_TEMPLATE_KEYS.buttonEdit,
-                  ),
-                  url: editGigUrl,
-                },
-              ]
-            : []),
-          {
-            text: this.postTemplates.getText(
-              TELEGRAM_TEMPLATE_KEYS.buttonReject,
-            ),
-            callback_data: encodeCallbackData({
-              scope: CallbackScope.Gig,
-              action: GigCallbackAction.Reject,
-              id: gigId,
-            }),
-          },
-        ],
-      ],
-    };
-  }
-
   buildEditGigUrl(publicId?: string): string | undefined {
     const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
     return editGigBaseUrl && publicId
@@ -790,7 +787,7 @@ export class TelegramPostComposerService {
   buildAfterPublishModerationReplyMarkup(
     params: BuildAfterPublishModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup | undefined {
-    const { gigId, publishPostUrl, editGigUrl } = params;
+    const { gigId, expectedVersion, publishPostUrl, editGigUrl } = params;
 
     const row: Array<
       { text: string; url: string } | { text: string; callback_data: string }
@@ -803,6 +800,7 @@ export class TelegramPostComposerService {
           scope: CallbackScope.Gig,
           action: GigCallbackAction.Post,
           id: String(gigId),
+          expectedVersion,
         }),
       });
     }
@@ -835,84 +833,9 @@ export class TelegramPostComposerService {
 
     return this.buildModerationCaption({
       body: titleLabel,
-      status: Status.Published,
       publishPostUrl: payload.publishPostUrl,
       adminGigUrl: payload.adminGigUrl,
     });
-  }
-
-  buildSubmissionFeedbackCaption(
-    payload: BuildSubmissionFeedbackCaptionPayload,
-  ): string {
-    const statusLabel = this.buildStatusLabel(payload.status);
-
-    return this.postTemplates.render(
-      TELEGRAM_TEMPLATE_KEYS.submissionFeedback,
-      {
-        statusLabel,
-        body: payload.body,
-      },
-    );
-  }
-
-  buildRejectedModerationCaption(
-    payload: BuildRejectedModerationCaptionPayload,
-  ): string {
-    return this.buildModerationCaption({
-      body: payload.body,
-      status: Status.Rejected,
-      adminGigUrl: payload.adminGigUrl,
-    });
-  }
-
-  buildRejectedModerationReplyMarkup(
-    editGigUrl?: string,
-  ): TGInlineKeyboardMarkup | undefined {
-    if (!editGigUrl) {
-      return undefined;
-    }
-
-    return {
-      inline_keyboard: [
-        [
-          {
-            text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonEdit),
-            url: editGigUrl,
-          },
-        ],
-      ],
-    };
-  }
-
-  composeSubmissionFeedbackPost(gig: PlainGig, chatId: TGChatId): TGSendPhoto {
-    const body = this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
-    });
-    const caption = this.buildSubmissionFeedbackCaption({
-      body,
-      status: Status.Pending,
-    });
-
-    const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
-
-    if (poster === undefined || poster === '') {
-      throw new BadRequestException(
-        'Cannot compose submission feedback post: gig has no poster (moderation file_id or poster URL).',
-      );
-    }
-
-    // TODO: add some text like "You've submitted, blablabla..."
-    return {
-      chat_id: chatId,
-      photo: poster,
-      caption,
-      parse_mode: TGParseMode.HTML,
-    };
   }
 
   buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {
@@ -940,11 +863,14 @@ export class TelegramPostComposerService {
   private buildModerationCaption(
     payload: BuildModerationCaptionPayload,
   ): string {
-    const statusLine = this.buildModerationStatusLine({
-      status: payload.status,
+    const statusLine = this.buildModerationLinks({
       publishPostUrl: payload.publishPostUrl,
       adminGigUrl: payload.adminGigUrl,
     });
+
+    if (statusLine === '') {
+      return payload.body;
+    }
 
     return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.moderationGig, {
       statusLine,
@@ -952,10 +878,7 @@ export class TelegramPostComposerService {
     });
   }
 
-  private buildModerationStatusLine(
-    params: BuildModerationStatusLinePayload,
-  ): string {
-    const statusLabel = this.buildStatusLabel(params.status);
+  private buildModerationLinks(params: BuildModerationLinksParams): string {
     const statusLinks = [
       params.publishPostUrl
         ? this.postTemplates.render(
@@ -972,16 +895,9 @@ export class TelegramPostComposerService {
     ].filter(Boolean);
 
     if (statusLinks.length === 0) {
-      return statusLabel;
+      return '';
     }
-
-    return this.postTemplates.render(
-      TELEGRAM_TEMPLATE_KEYS.moderationStatusLineWithLinks,
-      {
-        statusLabel,
-        statusLinks: statusLinks.join(' | '),
-      },
-    );
+    return statusLinks.join(' | ');
   }
 
   private buildAdminGigUrlByPublicId(publicId?: string): string | undefined {
@@ -1007,21 +923,6 @@ export class TelegramPostComposerService {
 
   private getAppBaseUrl(): string {
     return (process.env.APP_BASE_URL ?? '').trim();
-  }
-
-  private buildStatusLabel(status: SubmissionFeedbackStatus): string {
-    switch (status) {
-      case Status.Pending:
-        return this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.statusPending);
-      case Status.Published:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.statusPublished,
-        );
-      case Status.Rejected:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.statusRejected,
-        );
-    }
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {

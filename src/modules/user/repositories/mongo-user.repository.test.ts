@@ -237,4 +237,27 @@ describe('MongoUserRepository', () => {
       roles: UserRole.Admin,
     });
   });
+
+  it('should find an active User by internal id', async () => {
+    findOne.mockReturnValue(queryResult(storedUser()));
+
+    await expect(
+      repository.findActiveUserById('66a000000000000000000001'),
+    ).resolves.toMatchObject({
+      id: '66a000000000000000000001',
+      status: 'active',
+    });
+    expect(findOne).toHaveBeenCalledWith({
+      _id: '66a000000000000000000001',
+      status: 'active',
+    });
+  });
+
+  it('should not return an inactive User by internal id', async () => {
+    findOne.mockReturnValue(queryResult(null));
+
+    await expect(
+      repository.findActiveUserById('66a000000000000000000001'),
+    ).resolves.toBeNull();
+  });
 });

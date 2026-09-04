@@ -7,8 +7,6 @@ export enum CallbackScope {
 }
 
 export enum GigCallbackAction {
-  Approve = 'approve',
-  Reject = 'reject',
   Post = 'post',
 }
 
@@ -16,6 +14,7 @@ export interface GigCallbackData {
   scope: CallbackScope.Gig;
   action: GigCallbackAction;
   id: string;
+  expectedVersion: number;
 }
 
 export enum GigCandidateCallbackAction {
@@ -37,11 +36,7 @@ export type EncodeCallbackDataParams =
 export type ParsedCallbackData = EncodeCallbackDataParams;
 
 function isGigCallbackAction(value: string): value is GigCallbackAction {
-  return (
-    value === GigCallbackAction.Approve ||
-    value === GigCallbackAction.Reject ||
-    value === GigCallbackAction.Post
-  );
+  return value === GigCallbackAction.Post;
 }
 
 function isGigCandidateCallbackAction(
@@ -63,7 +58,8 @@ export function encodeCallbackData(params: EncodeCallbackDataParams): string {
     throw new Error('callback_data id must not contain ":"');
   }
   if (
-    params.scope === CallbackScope.GigCandidate &&
+    (params.scope === CallbackScope.GigCandidate ||
+      params.scope === CallbackScope.Gig) &&
     (!Number.isInteger(params.expectedVersion) || params.expectedVersion < 0)
   ) {
     throw new Error(
@@ -71,10 +67,7 @@ export function encodeCallbackData(params: EncodeCallbackDataParams): string {
     );
   }
 
-  const data =
-    params.scope === CallbackScope.GigCandidate
-      ? `${params.scope}:${params.action}:${id}:${params.expectedVersion}`
-      : `${params.scope}:${params.action}:${id}`;
+  const data = `${params.scope}:${params.action}:${id}:${params.expectedVersion}`;
   if (data.length > TELEGRAM_CALLBACK_DATA_MAX_CHARS) {
     throw new Error(
       `callback_data exceeds Telegram limit of ${TELEGRAM_CALLBACK_DATA_MAX_CHARS} characters`,
@@ -95,19 +88,22 @@ export function parseCallbackData(data: string): ParsedCallbackData | null {
     return null;
   }
 
+  const expectedVersion = Number(expectedVersionRaw);
   if (
-    parts.length === 3 &&
+    parts.length === 4 &&
     scopeRaw === CallbackScope.Gig &&
-    isGigCallbackAction(actionRaw)
+    isGigCallbackAction(actionRaw) &&
+    Number.isInteger(expectedVersion) &&
+    expectedVersion >= 0
   ) {
     return {
       scope: CallbackScope.Gig,
       action: actionRaw,
       id,
+      expectedVersion,
     };
   }
 
-  const expectedVersion = Number(expectedVersionRaw);
   if (
     parts.length === 4 &&
     scopeRaw === CallbackScope.GigCandidate &&

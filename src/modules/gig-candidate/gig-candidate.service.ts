@@ -15,6 +15,10 @@ import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
+import { UserService } from '../user/user.service';
+import { UserRole } from '../user/types/user-role.enum';
+import { envBool } from '../../shared/utils/env';
+import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
 import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
@@ -104,6 +108,7 @@ export class GigCandidateService {
     private readonly calendarService: CalendarService,
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly gigService: GigService,
+    private readonly userService: UserService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -125,6 +130,9 @@ export class GigCandidateService {
       gigCandidate: saved,
       postType: PostType.Intake,
       telegramMessage: telegramIntakePost,
+    });
+    await this.sendGigCandidateFeedbackBestEffort(saved, {
+      kind: 'submitted',
     });
 
     return { id: saved.id };
@@ -169,7 +177,12 @@ export class GigCandidateService {
       gigDraft,
     });
 
-    return this.ensureGigCandidateModerationPostBestEffort(saved);
+    const withModerationPost =
+      await this.ensureGigCandidateModerationPostBestEffort(saved);
+    await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
+      kind: 'acceptedForModeration',
+    });
+    return withModerationPost;
   }
 
   async updateAdminGigCandidateDraft(
@@ -240,6 +253,7 @@ export class GigCandidateService {
       command,
     });
     let reviewingGigCandidate = currentGigCandidate;
+    let didTransition = false;
 
     if (!policy.isIdempotent) {
       this.assertExpectedVersionMatches(
@@ -252,6 +266,7 @@ export class GigCandidateService {
         await this.gigCandidateRepository.sendGigCandidateToModeration(params);
       if (updated) {
         reviewingGigCandidate = updated;
+        didTransition = true;
       } else {
         const latest = await this.getByIdOrThrow(params.gigCandidateId);
         const latestPolicy = getGigCandidateTransitionPolicy({
@@ -276,6 +291,11 @@ export class GigCandidateService {
       );
     if (this.findTelegramPost(withModerationPost, PostType.Moderation)) {
       await this.removeGigCandidateIntakeActionsBestEffort(withModerationPost);
+    }
+    if (didTransition) {
+      await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
+        kind: 'acceptedForModeration',
+      });
     }
 
     return withModerationPost;
@@ -308,6 +328,13 @@ export class GigCandidateService {
       rejectedAt: new Date(),
     });
     if (updated) {
+      await this.updateRejectedGigCandidatePostBestEffort(
+        updated,
+        gigCandidate.status,
+      );
+      await this.sendGigCandidateFeedbackBestEffort(updated, {
+        kind: 'rejected',
+      });
       return updated;
     }
 
@@ -549,6 +576,11 @@ export class GigCandidateService {
       );
     }
 
+    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
+      kind: 'acceptedWithPublicLink',
+      publicId: gig.publicId,
+    });
+
     const moderationPost = this.findTelegramPost(
       gigCandidate,
       PostType.Moderation,
@@ -562,6 +594,7 @@ export class GigCandidateService {
     try {
       await this.telegramService.updateGigModerationPost({
         gigId: gig.id,
+        expectedVersion: gig.version,
         title: gig.title,
         publicId: gig.publicId,
         moderationPost: {
@@ -807,6 +840,101 @@ export class GigCandidateService {
         gigCandidate.id,
         e,
       );
+    }
+  }
+
+  private async updateRejectedGigCandidatePostBestEffort(
+    gigCandidate: GigCandidate,
+    previousStatus: GigCandidateStatus,
+  ): Promise<void> {
+    let postType: PostType.Intake | PostType.Moderation;
+    switch (previousStatus) {
+      case GigCandidateStatus.New:
+        postType = PostType.Intake;
+        break;
+      case GigCandidateStatus.Reviewing:
+        postType = PostType.Moderation;
+        break;
+      default:
+        return;
+    }
+    const post = this.findTelegramPost(gigCandidate, postType);
+    if (!post) {
+      return;
+    }
+
+    try {
+      await this.telegramService.updateRejectedGigCandidatePost({
+        gigCandidate,
+        post,
+      });
+    } catch (e) {
+      this.logTelegramFailure(
+        'updateRejectedGigCandidatePost',
+        gigCandidate.id,
+        e,
+      );
+    }
+  }
+
+  private async sendGigCandidateFeedbackBestEffort(
+    gigCandidate: GigCandidate,
+    content: GigCandidateFeedbackMessageContent,
+  ): Promise<void> {
+    if (gigCandidate.source.type !== 'user') {
+      return;
+    }
+
+    const shouldSendFeedbackToAdmins = envBool(
+      'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
+      false,
+    );
+    if (
+      gigCandidate.source.origin.type === 'admin' &&
+      !shouldSendFeedbackToAdmins
+    ) {
+      return;
+    }
+
+    try {
+      const user = await this.userService.findActiveUserById(
+        gigCandidate.source.userId,
+      );
+      if (!user) {
+        this.logger.warn(
+          `GigCandidate feedback skipped because no active User was found for gigCandidateId=${gigCandidate.id}`,
+        );
+        return;
+      }
+      if (user.roles.includes(UserRole.Admin) && !shouldSendFeedbackToAdmins) {
+        return;
+      }
+
+      const telegramIdentities = user.identities.filter(
+        (identity) =>
+          identity.type === 'messenger' &&
+          identity.messenger === Messenger.Telegram,
+      );
+      const telegramIdentity = telegramIdentities[0];
+      if (!telegramIdentity) {
+        this.logger.warn(
+          `GigCandidate feedback skipped because no Telegram identity was found for gigCandidateId=${gigCandidate.id}`,
+        );
+        return;
+      }
+      if (telegramIdentities.length > 1) {
+        this.logger.warn(
+          `GigCandidate feedback skipped because multiple Telegram identities were found for gigCandidateId=${gigCandidate.id}`,
+        );
+        return;
+      }
+
+      await this.telegramService.sendGigCandidateFeedback({
+        ...content,
+        chatId: telegramIdentity.externalUserId,
+      });
+    } catch (e) {
+      this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
     }
   }
 

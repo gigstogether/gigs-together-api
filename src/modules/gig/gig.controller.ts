@@ -9,7 +9,7 @@ import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-
 import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
 
-@Controller('gig')
+@Controller('gigs')
 export class GigController {
   constructor(private readonly gigService: GigService) {}
 
@@ -18,7 +18,7 @@ export class GigController {
   getGigsV1(
     @Query() query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
-    return this.gigService.getPublishedGigsV1(query);
+    return this.gigService.getVisibleGigsV1(query);
   }
 
   /**
@@ -30,7 +30,7 @@ export class GigController {
   getGigDatesV1(
     @Query() query: V1GigDatesGetRequestQuery,
   ): Promise<V1GigDatesGetResponseBody> {
-    return this.gigService.getPublishedGigDatesV1(query);
+    return this.gigService.getVisibleGigDatesV1(query);
   }
 
   /**
@@ -41,7 +41,7 @@ export class GigController {
   getGigsAroundV1(
     @Query() query: V1GigAroundGetRequestQuery,
   ): Promise<V1GigAroundGetResponseBody> {
-    return this.gigService.getPublishedGigsAroundV1(query);
+    return this.gigService.getVisibleGigsAroundV1(query);
   }
 
   /**

@@ -5,6 +5,7 @@ import { AiModule } from '../ai/ai.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { UserModule } from '../user/user.module';
 import { GigCandidateBodyPipe } from './pipes/gig-candidate-body.pipe';
 import { MongoGigCandidateRepository } from './repositories/mongo-gig-candidate.repository';
 import { MongoGigCandidateApprovalRepository } from './repositories/mongo-gig-candidate-approval.repository';
@@ -22,6 +23,7 @@ import { GigCandidateService } from './gig-candidate.service';
     GigModule,
     CalendarModule,
     TelegramModule,
+    UserModule,
     AuthModule,
     AiModule,
   ],

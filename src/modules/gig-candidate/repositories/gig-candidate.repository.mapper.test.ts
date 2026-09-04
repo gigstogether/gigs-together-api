@@ -175,8 +175,6 @@ describe('GigCandidateRepositoryMapper', () => {
           origin: {
             type: 'messenger',
             messenger: Messenger.Telegram,
-            chatId: 'chat-1',
-            messageId: 'message-1',
           },
           originalText: 'Unchanged text',
           attachments: [{ bucketPath: 'gigCandidate/screenshot.jpg' }],
@@ -189,7 +187,7 @@ describe('GigCandidateRepositoryMapper', () => {
       expect(gigCandidate.source).toEqual(document.source);
     });
 
-    it('should reject messenger origin without chatId', () => {
+    it('should reject obsolete messenger message identifiers', () => {
       const document = buildTargetDocument({
         source: {
           type: 'user',
@@ -197,6 +195,7 @@ describe('GigCandidateRepositoryMapper', () => {
           origin: {
             type: 'messenger',
             messenger: Messenger.Telegram,
+            chatId: 'chat-1',
             messageId: 'message-1',
           },
         } as unknown as GigCandidateLeanDocument['source'],
@@ -204,7 +203,7 @@ describe('GigCandidateRepositoryMapper', () => {
 
       expect(() =>
         GigCandidateRepositoryMapper.toGigCandidate(document),
-      ).toThrowError(/chatId is invalid/);
+      ).toThrowError(/messenger origin is inconsistent/);
     });
 
     it('should reject messenger origin fields outside the target contract', () => {
@@ -215,8 +214,6 @@ describe('GigCandidateRepositoryMapper', () => {
           origin: {
             type: 'messenger',
             messenger: Messenger.Telegram,
-            chatId: 'chat-1',
-            messageId: 'message-1',
             unexpectedField: 'unexpected',
           },
         } as unknown as GigCandidateLeanDocument['source'],

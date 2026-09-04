@@ -12,8 +12,8 @@ describe('AdminController', () => {
   const adminDashboardService = {
     getDashboard: vi.fn().mockResolvedValue({
       summary: {
-        pendingGigsCount: 3,
-        publishedGigsCount: 12,
+        gigsCount: 15,
+        visibleGigsCount: 12,
       },
     }),
   } satisfies Pick<AdminDashboardService, 'getDashboard'>;
@@ -27,13 +27,8 @@ describe('AdminController', () => {
   } satisfies Pick<AdminGigService, 'getGigsList' | 'getGigByPublicId'>;
 
   const gigModerationService = {
-    approveGig: vi.fn().mockResolvedValue(undefined),
-    rejectGig: vi.fn().mockResolvedValue(undefined),
     publishGigPost: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<
-    GigModerationService,
-    'approveGig' | 'rejectGig' | 'publishGigPost'
-  >;
+  } satisfies Pick<GigModerationService, 'publishGigPost'>;
 
   const localeService = {
     getAllLocalesOrdered: vi
@@ -126,8 +121,8 @@ describe('AdminController', () => {
     it('should return dashboard summary counts from admin dashboard service', async () => {
       await expect(controller.getDashboard()).resolves.toEqual({
         summary: {
-          pendingGigsCount: 3,
-          publishedGigsCount: 12,
+          gigsCount: 15,
+          visibleGigsCount: 12,
         },
       });
     });
@@ -135,12 +130,11 @@ describe('AdminController', () => {
 
   describe('getGigs', () => {
     it('should return gigs list from admin gig service', async () => {
-      await expect(
-        controller.getGigs({ status: 'pending', limit: 20 }),
-      ).resolves.toEqual({ gigs: [] });
+      await expect(controller.getGigs({ limit: 20 })).resolves.toEqual({
+        gigs: [],
+      });
 
       expect(adminGigService.getGigsList).toHaveBeenCalledWith({
-        status: 'pending',
         limit: 20,
       });
     });
@@ -159,38 +153,18 @@ describe('AdminController', () => {
     });
   });
 
-  describe('approveGigByPublicId', () => {
-    it('should approve gig via gig moderation service', async () => {
-      await expect(
-        controller.approveGigByPublicId({ publicId: 'gig-42' }),
-      ).resolves.toBeUndefined();
-
-      expect(gigModerationService.approveGig).toHaveBeenCalledWith({
-        publicId: 'gig-42',
-      });
-    });
-  });
-
-  describe('rejectGigByPublicId', () => {
-    it('should reject gig via gig moderation service', async () => {
-      await expect(
-        controller.rejectGigByPublicId({ publicId: 'gig-42' }),
-      ).resolves.toBeUndefined();
-
-      expect(gigModerationService.rejectGig).toHaveBeenCalledWith({
-        publicId: 'gig-42',
-      });
-    });
-  });
-
   describe('publishGigPostByPublicId', () => {
     it('should publish main telegram post via gig moderation service', async () => {
       await expect(
-        controller.publishGigPostByPublicId({ publicId: 'gig-42' }),
+        controller.publishGigPostByPublicId(
+          { publicId: 'gig-42' },
+          { expectedVersion: 5 },
+        ),
       ).resolves.toBeUndefined();
 
       expect(gigModerationService.publishGigPost).toHaveBeenCalledWith({
         publicId: 'gig-42',
+        expectedVersion: 5,
       });
     });
   });

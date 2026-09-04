@@ -1,44 +1,25 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import type { TGMessage } from '../telegram/types/message.types';
-import { GigService } from '../gig/gig.service';
-import { Status } from '../gig/types/status.enum';
-import type { TGCallbackQuery } from '../telegram/types/update.types';
-import { TelegramService } from '../telegram/telegram.service';
+import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import { GigModerationService } from '../gig/gig-moderation.service';
 import {
   CallbackScope,
   GigCandidateCallbackAction,
   GigCallbackAction,
   parseCallbackData,
 } from '../telegram/callback-action';
-import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import type { User } from '../auth/types/user.types';
-import type { V1ReceiverCreateGigRequestBody } from './types/requests/v1-receiver-create-gig-request';
-import type { V1ReceiverCreateGigResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
-import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../../shared/types/post-type.enum';
-import type { UpdateQuery } from 'mongoose';
-import type { Gig } from '../gig/gig.schema';
-import type { V1ReceiverUpdateGigByPublicIdResponseBody } from './types/requests/v1-receiver-gig-by-public-id-request';
-import { GigModerationService } from '../gig/gig-moderation.service';
-import { envBool } from '../../shared/utils/env';
-import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import { TelegramService } from '../telegram/telegram.service';
+import type { TGMessage } from '../telegram/types/message.types';
+import type { TGCallbackQuery } from '../telegram/types/update.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
   Start = 'start',
 }
 
-interface UpdateGigByPublicIdPayload {
-  publicId: string;
-  body: V1ReceiverCreateGigRequestBody;
-  posterFile: Express.Multer.File | undefined;
-}
-
 @Injectable()
 export class ReceiverService {
   constructor(
     private readonly telegramService: TelegramService,
-    private readonly gigService: GigService,
     private readonly gigModerationService: GigModerationService,
     private readonly gigCandidateService: GigCandidateService,
   ) {}
@@ -174,29 +155,10 @@ export class ReceiverService {
     switch (parsed.scope) {
       case CallbackScope.Gig: {
         switch (parsed.action) {
-          case GigCallbackAction.Approve: {
-            await this.gigModerationService.approveGig({
-              gigId: parsed.id,
-              moderationPost: {
-                messageId: message.message_id,
-                chatId: message.chat.id,
-              },
-            });
-            break;
-          }
           case GigCallbackAction.Post: {
             await this.gigModerationService.publishGigPost({
               gigId: parsed.id,
-              moderationPost: {
-                messageId: message.message_id,
-                chatId: message.chat.id,
-              },
-            });
-            break;
-          }
-          case GigCallbackAction.Reject: {
-            await this.gigModerationService.rejectGig({
-              gigId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
               moderationPost: {
                 messageId: message.message_id,
                 chatId: message.chat.id,
@@ -262,185 +224,5 @@ export class ReceiverService {
         show_alert: true,
       });
     }
-  }
-
-  async handleGigSubmit(
-    body: V1ReceiverCreateGigRequestBody,
-    user: User,
-    posterFile: Express.Multer.File | undefined,
-  ): Promise<V1ReceiverCreateGigResponseBody> {
-    const savedGig = await this.gigService.saveGig({ body, user, posterFile });
-    let tgModerationPost: TGMessage | undefined;
-    try {
-      tgModerationPost = await this.telegramService.sendToModeration(savedGig);
-    } catch (e) {
-      // Publishing to Telegram shouldn't block gig creation.
-      this.logger.warn(
-        `publishDraft failed: ${JSON.stringify(e?.response?.data ?? e?.message ?? e)}`,
-      );
-      tgModerationPost = undefined;
-    }
-
-    const biggestTgPhotoFileId = getBiggestTgPhotoFileId(
-      tgModerationPost?.photo,
-    );
-
-    const moderationChatId =
-      tgModerationPost?.sender_chat?.id ?? tgModerationPost?.chat?.id;
-    const moderationMessageId = tgModerationPost?.message_id;
-
-    const updateGigPayload: UpdateQuery<Gig> = {
-      status: Status.Pending,
-    };
-
-    if (tgModerationPost && moderationChatId && moderationMessageId) {
-      updateGigPayload.$push = {
-        posts: {
-          id: moderationMessageId,
-          chatId: moderationChatId,
-          fileId: biggestTgPhotoFileId,
-          to: Messenger.Telegram,
-          type: PostType.Moderation,
-          date: tgModerationPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
-        },
-      };
-    }
-
-    // Notify the author in DM.
-    // NOTE: Telegram may reject sending DMs if the user hasn't started the bot.
-    const authorTelegramId = user.tgUser.id;
-    const shouldSendGigSubmissionFeedbackToAdmins = envBool(
-      'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
-      false,
-    );
-    const canSendSubmissionFeedback =
-      (!user.isAdmin || shouldSendGigSubmissionFeedbackToAdmins) &&
-      authorTelegramId !== undefined;
-
-    if (canSendSubmissionFeedback) {
-      try {
-        const feedbackMsg = await this.telegramService.sendSubmissionFeedback(
-          savedGig,
-          authorTelegramId,
-        );
-        if (feedbackMsg) {
-          updateGigPayload['suggestedBy.feedbackMessageId'] =
-            feedbackMsg.message_id;
-        }
-      } catch (e) {
-        // DM notification shouldn't block gig creation.
-        this.logger.warn(
-          `notifyAuthorInDm failed: ${JSON.stringify(e?.response?.data ?? e?.message ?? e)}`,
-        );
-      }
-    }
-
-    try {
-      await this.gigService.updateGig(savedGig._id, updateGigPayload);
-    } catch (e) {
-      this.logger.error(
-        'updateGig failed',
-        e instanceof Error ? e.stack : undefined,
-      );
-    }
-
-    return { publicId: savedGig.publicId };
-  }
-
-  async updateGigByPublicId(
-    payload: UpdateGigByPublicIdPayload,
-  ): Promise<V1ReceiverUpdateGigByPublicIdResponseBody> {
-    const { publicId, body, posterFile } = payload;
-    if (body.expectedVersion === undefined) {
-      throw new BadRequestException('expectedVersion is required');
-    }
-
-    const updatedGig = await this.gigService.updateGigByPublicId({
-      publicId,
-      expectedVersion: body.expectedVersion,
-      body,
-      posterFile,
-    });
-
-    const { poster } = updatedGig;
-
-    switch (updatedGig.status) {
-      case Status.New:
-      case Status.Rejected:
-      case Status.Approved:
-      case Status.Pending: {
-        // TODO: refactor
-        try {
-          const edited = await this.telegramService.editModerationPost(
-            updatedGig,
-            {
-              updateMedia: !!poster,
-            },
-          );
-
-          if (poster && edited?.photo?.length) {
-            const newFileId = getBiggestTgPhotoFileId(edited.photo);
-            if (newFileId) {
-              try {
-                await this.gigService.updateTelegramPostFileId({
-                  gigId: updatedGig._id,
-                  type: PostType.Moderation,
-                  fileId: newFileId,
-                });
-              } catch (e) {
-                this.logger.warn(
-                  `updateTelegramPostFileId (Moderation) failed for publicId=${publicId}: ${JSON.stringify(
-                    e?.response?.data ?? e?.message ?? e,
-                  )}`,
-                );
-              }
-            }
-          }
-        } catch (e) {
-          // Telegram failures must not break the update flow.
-          this.logger.warn(
-            `editModerationPost failed for publicId=${publicId}: ${JSON.stringify(
-              e?.response?.data ?? e?.message ?? e,
-            )}`,
-          );
-        }
-        break;
-      }
-      case Status.Published: {
-        try {
-          const edited = await this.telegramService.editMainPost(updatedGig, {
-            updateMedia: !!poster,
-          });
-
-          if (poster && edited?.photo?.length) {
-            const newFileId = getBiggestTgPhotoFileId(edited.photo);
-            if (newFileId) {
-              try {
-                await this.gigService.updateTelegramPostFileId({
-                  gigId: updatedGig._id,
-                  type: PostType.Publish,
-                  fileId: newFileId,
-                });
-              } catch (e) {
-                this.logger.warn(
-                  `updateTelegramPostFileId (Publish) failed for publicId=${publicId}: ${JSON.stringify(
-                    e?.response?.data ?? e?.message ?? e,
-                  )}`,
-                );
-              }
-            }
-          }
-        } catch (e) {
-          // Telegram failures must not break the update flow.
-          this.logger.warn(
-            `editMainPost failed for publicId=${publicId}: ${JSON.stringify(
-              e?.response?.data ?? e?.message ?? e,
-            )}`,
-          );
-        }
-        break;
-      }
-    }
-    return { publicId };
   }
 }
