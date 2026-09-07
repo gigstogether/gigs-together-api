@@ -7,6 +7,7 @@ import type {
   GigSuggestedBy,
 } from './types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
+import { GIG_TITLE_MAX_LENGTH } from './gig.constants';
 
 @Schema({ _id: false })
 export class GigPost {
@@ -129,7 +130,11 @@ export class Gig {
   @Prop({ type: String, required: true, maxlength: 64 })
   publicId: string;
 
-  @Prop({ type: String, default: 'Unknown Gig' })
+  @Prop({
+    type: String,
+    default: 'Unknown Gig',
+    maxlength: GIG_TITLE_MAX_LENGTH,
+  })
   title: string;
 
   @Prop({ type: Number })

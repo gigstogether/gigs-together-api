@@ -3,6 +3,10 @@ import { Types } from 'mongoose';
 import { GigSchema } from './gig.schema';
 
 describe('GigSchema', () => {
+  it('should limit titles to 300 characters', () => {
+    expect(GigSchema.path('title').options.maxlength).toBe(300);
+  });
+
   it('should require explicit visibility and integer version without defaults', () => {
     const visibilityOptions = GigSchema.path('isVisible').options;
     const versionOptions = GigSchema.path('version').options;

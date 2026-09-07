@@ -1,5 +1,6 @@
 import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
 import type {
   V1AdminCreateGigCandidateRequestBody,
   V1AdminApproveGigCandidateRequestBody,
@@ -181,9 +182,9 @@ export class AdminGigCandidateLookupBodyPipe implements PipeTransform<
     assertOnlyFields(body, ['title', 'location'], 'body');
     const title = readOptionalString(body, 'title')?.trim();
     const location = readOptionalString(body, 'location')?.trim();
-    if (!title || title.length > 200) {
+    if (!title || title.length > GIG_TITLE_MAX_LENGTH) {
       throw new BadRequestException(
-        'title must contain between 1 and 200 characters',
+        `title must contain between 1 and ${GIG_TITLE_MAX_LENGTH} characters`,
       );
     }
     if (!location || location.length > 200) {

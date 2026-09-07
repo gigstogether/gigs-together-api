@@ -6,6 +6,38 @@ import {
 } from './gig-candidate-approval';
 
 describe('validateGigCandidateDraftForApproval', () => {
+  it('should accept a one-character title', () => {
+    const gigData = validateGigCandidateDraftForApproval({
+      title: 'B',
+      date: Date.UTC(2026, 5, 12),
+      city: 'Barcelona',
+      country: 'ES',
+      venue: 'Palau Sant Jordi',
+      ticketsUrl: 'https://tickets.example/b',
+    });
+
+    expect(gigData.title).toBe('B');
+  });
+
+  it('should reject a title longer than 300 characters', () => {
+    expect(() =>
+      validateGigCandidateDraftForApproval({
+        title: 'A'.repeat(301),
+        date: Date.UTC(2026, 5, 12),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/gig',
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({ field: 'title', code: 'invalid' }),
+        ]),
+      }),
+    );
+  });
+
   it('should return complete normalized Gig data', () => {
     expect(
       validateGigCandidateDraftForApproval({

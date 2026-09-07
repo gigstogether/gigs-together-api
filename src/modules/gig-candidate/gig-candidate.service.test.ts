@@ -277,7 +277,28 @@ describe('GigCandidateService', () => {
       ).rejects.toThrow(/ticketsUrl must be a valid URL/);
     });
 
-    it('should create GigCandidate and return id when required fields are valid', async () => {
+    it('should reject a title longer than 300 characters', async () => {
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'A'.repeat(301),
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-08-01',
+            },
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).rejects.toThrow(/title must contain at most 300 characters/);
+    });
+
+    it('should accept a one-character title and include it in submitted feedback', async () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
@@ -286,7 +307,7 @@ describe('GigCandidateService', () => {
           origin: { type: 'form' },
         },
         gigDraft: {
-          title: 'Band',
+          title: 'B',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
           city: 'Barcelona',
           country: 'ES',
@@ -309,7 +330,7 @@ describe('GigCandidateService', () => {
       const result = await service.handleSubmit({
         body: {
           gig: {
-            title: 'Band',
+            title: 'B',
             country: 'es',
             city: 'Barcelona',
             date: '2026-08-01',
@@ -340,7 +361,7 @@ describe('GigCandidateService', () => {
             origin: { type: 'form' },
           },
           gigDraft: expect.objectContaining({
-            title: 'Band',
+            title: 'B',
             country: 'ES',
           }),
         }),
@@ -350,7 +371,7 @@ describe('GigCandidateService', () => {
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'submitted', chatId: '42' },
+        { kind: 'submitted', title: 'B', chatId: '42' },
       );
     });
 

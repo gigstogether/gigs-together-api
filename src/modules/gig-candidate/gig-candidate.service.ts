@@ -15,6 +15,7 @@ import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
+import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
@@ -626,6 +627,11 @@ export class GigCandidateService {
     raw: V1CreateGigCandidateRequestBody['gig'],
   ): ParsedCreateGigCandidateFields {
     const title = this.requireNonEmptyString(raw.title, 'title');
+    if (title.length > GIG_TITLE_MAX_LENGTH) {
+      throw new BadRequestException(
+        `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
+      );
+    }
     const city = this.requireNonEmptyString(raw.city, 'city');
     const country = this.requireNonEmptyString(
       raw.country,

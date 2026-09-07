@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { GigPoster, GigPosterSchema } from '../gig/gig.schema';
+import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -44,7 +45,7 @@ export const GigCandidatePostSchema =
 
 @Schema({ _id: false })
 export class GigCandidateGigDraft {
-  @Prop({ type: String, required: false })
+  @Prop({ type: String, required: false, maxlength: GIG_TITLE_MAX_LENGTH })
   title?: string;
 
   @Prop({ type: Number, required: false })

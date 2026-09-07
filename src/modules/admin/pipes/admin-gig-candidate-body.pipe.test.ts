@@ -118,4 +118,22 @@ describe('AdminGigCandidateLookupBodyPipe', () => {
       }),
     ).toThrowError(/unsupported field/);
   });
+
+  it('should accept a 300-character title', () => {
+    const pipe = new AdminGigCandidateLookupBodyPipe();
+    const title = 'A'.repeat(300);
+
+    expect(pipe.transform({ title, location: 'Barcelona, ES' })).toEqual({
+      title,
+      location: 'Barcelona, ES',
+    });
+  });
+
+  it('should reject a title longer than 300 characters', () => {
+    const pipe = new AdminGigCandidateLookupBodyPipe();
+
+    expect(() =>
+      pipe.transform({ title: 'A'.repeat(301), location: 'Barcelona, ES' }),
+    ).toThrowError(/between 1 and 300 characters/);
+  });
 });

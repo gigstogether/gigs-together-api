@@ -1,5 +1,6 @@
 import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
 import type { GigFormInput } from '../../gig/types/gig.types';
 
 const GIG_FIELDS = [
@@ -91,6 +92,19 @@ function readOptionalString(
   return fieldValue;
 }
 
+function readRequiredTitle(value: Record<string, unknown>): string {
+  const title = readRequiredString(value, 'title').trim();
+  if (title === '') {
+    throw new BadRequestException('title is required');
+  }
+  if (title.length > GIG_TITLE_MAX_LENGTH) {
+    throw new BadRequestException(
+      `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
+    );
+  }
+  return title;
+}
+
 function parseGig(value: unknown): GigFormInput {
   const gig = parseRecord(value, 'gig');
   assertOnlyFields(gig, GIG_FIELDS, 'gig');
@@ -98,7 +112,7 @@ function parseGig(value: unknown): GigFormInput {
   const posterUrl = readOptionalString(gig, 'posterUrl');
 
   return {
-    title: readRequiredString(gig, 'title'),
+    title: readRequiredTitle(gig),
     date: readRequiredString(gig, 'date'),
     city: readRequiredString(gig, 'city'),
     country: readRequiredString(gig, 'country'),

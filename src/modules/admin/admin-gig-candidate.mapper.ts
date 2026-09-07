@@ -8,6 +8,7 @@ import type {
   UpdateAdminGigCandidateDraftParams,
 } from '../gig-candidate/types/gig-candidate.types';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
+import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type {
   AdminGigCandidateDetails,
   GetAdminGigCandidatesParams,
@@ -131,6 +132,11 @@ function mapV1AdminGigCandidateGigDraftRequest(
   input: V1AdminGigCandidateGigDraftRequestBody,
 ): MappedV1AdminGigCandidateGigDraftRequest {
   const title = optionalTrimmedString(input.title);
+  if (title !== undefined && title.length > GIG_TITLE_MAX_LENGTH) {
+    throw new BadRequestException(
+      `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
+    );
+  }
   const date = optionalYmdToMs(input.date, 'date');
   const endDate = optionalYmdToMs(input.endDate, 'endDate');
   if (date !== undefined && endDate !== undefined && endDate < date) {

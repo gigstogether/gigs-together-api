@@ -30,6 +30,24 @@ describe('AdminGigUpdateBodyPipe', () => {
     });
   });
 
+  it('should accept and normalize a one-character title', () => {
+    expect(
+      pipe.transform({ gig: { ...gig, title: ' B ' }, expectedVersion: 2 }),
+    ).toEqual({
+      gig: { ...gig, title: 'B' },
+      expectedVersion: 2,
+    });
+  });
+
+  it('should reject a title longer than 300 characters', () => {
+    expect(() =>
+      pipe.transform({
+        gig: { ...gig, title: 'A'.repeat(301) },
+        expectedVersion: 2,
+      }),
+    ).toThrow(/title must contain at most 300 characters/);
+  });
+
   it('should reject an invalid expectedVersion', () => {
     expect(() => pipe.transform({ gig, expectedVersion: 'latest' })).toThrow(
       BadRequestException,

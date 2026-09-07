@@ -167,6 +167,15 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
       }).posterFile,
     ).toEqual({ buffer, mimetype: 'image/png' });
   });
+
+  it('should reject a title longer than 300 characters', () => {
+    expect(() =>
+      mapV1AdminCreateGigCandidateRequest({
+        userId: '507f1f77bcf86cd799439088',
+        body: { gigDraft: { title: 'A'.repeat(301) } },
+      }),
+    ).toThrow(/title must contain at most 300 characters/);
+  });
 });
 
 describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {

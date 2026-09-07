@@ -3,6 +3,7 @@ import type {
   GigCandidateSource,
 } from './types/gig-candidate.types';
 import type { GigData, GigSource } from '../gig/types/gig.types';
+import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 
 export interface GigCandidateApprovalIssue {
   field: string;
@@ -29,6 +30,13 @@ export function validateGigCandidateDraftForApproval(
     'title',
     issues,
   );
+  if (title !== undefined && title.length > GIG_TITLE_MAX_LENGTH) {
+    issues.push({
+      field: 'title',
+      code: 'invalid',
+      message: `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
+    });
+  }
   const city = validateRequiredNormalizedString(gigDraft.city, 'city', issues);
   const country = validateRequiredNormalizedString(
     gigDraft.country,
