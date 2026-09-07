@@ -8,10 +8,10 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
-import { getAdminUserSourceProfile } from './admin-user-source-profile';
+import { getUserSourceProfile } from './admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
-  AdminGigCandidateSource,
+  GigCandidateSourceForAdminView,
   GetAdminGigCandidatesParams,
 } from './admin-gig-candidate.types';
 
@@ -109,14 +109,14 @@ export class AdminGigCandidateService {
   private resolveSource(
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
-  ): AdminGigCandidateSource {
+  ): GigCandidateSourceForAdminView {
     if (gigCandidate.source.type === 'provider') {
       return gigCandidate.source;
     }
 
     return {
       ...gigCandidate.source,
-      ...getAdminUserSourceProfile(
+      ...getUserSourceProfile(
         activeSourceUsersById.get(gigCandidate.source.userId),
       ),
     };

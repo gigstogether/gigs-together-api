@@ -76,13 +76,14 @@ export interface GigSourceProvider {
 
 export type GigSource = GigSourceUser | GigSourceProvider;
 
-export interface AdminGigSourceUser extends GigSourceUser {
+export interface GigSourceUserWithProfile extends GigSourceUser {
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
 }
 
-export type AdminGigSource = AdminGigSourceUser | GigSourceProvider;
+export type GigSourceForAdminView =
+  GigSourceUserWithProfile | GigSourceProvider;
 
 export interface GigCalendarSource {
   title: string;
@@ -124,7 +125,7 @@ export interface GigFormData {
   posterUrl?: string;
   isVisible: boolean;
   version: number;
-  source: AdminGigSource;
+  source: GigSourceForAdminView;
   publishPostUrl?: string;
   publishPostDate?: number;
   moderationPostUrl?: string;

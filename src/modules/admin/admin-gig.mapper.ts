@@ -1,14 +1,14 @@
 import { msToYmd } from '../../shared/utils/date-formatter';
 import type {
-  AdminGigSource,
   GigFormData,
+  GigSourceForAdminView,
   PlainGig,
 } from '../gig/types/gig.types';
-import type { AdminUserSourceProfile } from './admin-user-source-profile';
+import type { UserSourceProfile } from './admin-user-source-profile';
 
 export interface MapGigToFormData {
   readonly gig: PlainGig;
-  readonly userSourceProfile: AdminUserSourceProfile;
+  readonly userSourceProfile: UserSourceProfile;
   readonly posterUrl?: string;
   readonly publishPostUrl?: string;
   readonly publishPostDate?: number;
@@ -33,7 +33,7 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   }
 
   const ticketsUrl = (gig.ticketsUrl ?? '').trim();
-  const source: AdminGigSource =
+  const source: GigSourceForAdminView =
     gig.source.type === 'user'
       ? {
           type: 'user',

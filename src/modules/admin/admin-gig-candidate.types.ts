@@ -16,18 +16,18 @@ export interface GetAdminGigCandidatesParams {
   sortOrder?: AdminGigCandidateListSortOrder;
 }
 
-export interface AdminGigCandidateUserSource extends GigCandidateSourceUser {
+export interface GigCandidateSourceUserWithProfile extends GigCandidateSourceUser {
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
 }
 
-export type AdminGigCandidateSource =
-  AdminGigCandidateUserSource | GigCandidateSourceProvider;
+export type GigCandidateSourceForAdminView =
+  GigCandidateSourceUserWithProfile | GigCandidateSourceProvider;
 
 export interface AdminGigCandidateDetails {
   id: string;
-  source: AdminGigCandidateSource;
+  source: GigCandidateSourceForAdminView;
   gigDraft: Partial<GigData>;
   version: number;
   posterUrl?: string;

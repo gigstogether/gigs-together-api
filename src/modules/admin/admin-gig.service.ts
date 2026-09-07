@@ -15,7 +15,7 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { GigFormInput } from '../gig/types/gig.types';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
-import { getAdminUserSourceProfile } from './admin-user-source-profile';
+import { getUserSourceProfile } from './admin-user-source-profile';
 
 interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -88,7 +88,7 @@ export class AdminGigService {
       gig.source.type === 'user'
         ? activeSourceUsersById.get(gig.source.userId.toString())
         : undefined;
-    const userSourceProfile = getAdminUserSourceProfile(user);
+    const userSourceProfile = getUserSourceProfile(user);
 
     const publishPost = this.telegramService.pickTgPost(
       gig.posts,

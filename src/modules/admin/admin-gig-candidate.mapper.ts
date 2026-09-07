@@ -22,6 +22,7 @@ import type {
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
+  V1AdminGigCandidateProviderReferenceResponseBody,
   V1AdminGigCandidateResponseBody,
   V1AdminGigCandidatesListResponseBody,
   V1AdminGigCandidateSourceResponseBody,
@@ -169,45 +170,43 @@ function mapV1AdminGigCandidateSourceResponse(
   source: AdminGigCandidateDetails['source'],
 ): V1AdminGigCandidateSourceResponseBody {
   if (source.type === 'user') {
-    return {
+    const response: V1AdminGigCandidateSourceResponseBody = {
       type: 'user',
       userId: source.userId,
-      ...(source.displayName !== undefined
-        ? { displayName: source.displayName }
-        : {}),
       isCurrentlyAdmin: source.isCurrentlyAdmin,
-      ...(source.telegramUsername !== undefined
-        ? { telegramUsername: source.telegramUsername }
-        : {}),
       origin: { ...source.origin },
-      ...(source.originalText !== undefined
-        ? { originalText: source.originalText }
-        : {}),
-      ...(source.attachments !== undefined
-        ? {
-            attachments: source.attachments.map((attachment) => ({
-              ...attachment,
-            })),
-          }
-        : {}),
     };
+    if (source.displayName !== undefined) {
+      response.displayName = source.displayName;
+    }
+    if (source.telegramUsername !== undefined) {
+      response.telegramUsername = source.telegramUsername;
+    }
+    if (source.originalText !== undefined) {
+      response.originalText = source.originalText;
+    }
+    if (source.attachments !== undefined) {
+      response.attachments = source.attachments.map((attachment) => ({
+        ...attachment,
+      }));
+    }
+    return response;
   }
 
-  return {
-    type: 'provider',
-    provider: {
-      name: source.provider.name,
-      externalEventId: source.provider.externalEventId,
-      sourceUrl: source.provider.sourceUrl,
-      fetchedAt: source.provider.fetchedAt.toISOString(),
-      ...(source.provider.externalVersionId !== undefined
-        ? { externalVersionId: source.provider.externalVersionId }
-        : {}),
-      ...(source.provider.providerUpdatedAt !== undefined
-        ? { providerUpdatedAt: source.provider.providerUpdatedAt.toISOString() }
-        : {}),
-    },
+  const provider: V1AdminGigCandidateProviderReferenceResponseBody = {
+    name: source.provider.name,
+    externalEventId: source.provider.externalEventId,
+    sourceUrl: source.provider.sourceUrl,
+    fetchedAt: source.provider.fetchedAt.toISOString(),
   };
+  if (source.provider.externalVersionId !== undefined) {
+    provider.externalVersionId = source.provider.externalVersionId;
+  }
+  if (source.provider.providerUpdatedAt !== undefined) {
+    provider.providerUpdatedAt =
+      source.provider.providerUpdatedAt.toISOString();
+  }
+  return { type: 'provider', provider };
 }
 
 function mapV1AdminGigCandidatePosterFile(

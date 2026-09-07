@@ -1,4 +1,4 @@
-import type { AdminGigSource } from '../../../gig/types/gig.types';
+import type { GigSourceForAdminView } from '../../../gig/types/gig.types';
 
 /** Admin gigs list / preview card (GET v1/admin/gigs). */
 export interface V1AdminGigListItem {
@@ -6,7 +6,7 @@ export interface V1AdminGigListItem {
   readonly title: string;
   readonly isVisible: boolean;
   readonly version: number;
-  readonly source: AdminGigSource;
+  readonly source: GigSourceForAdminView;
   readonly date: string;
   readonly endDate?: string;
   readonly city: string;
