@@ -2,29 +2,32 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import type { User } from '../user/types/user.types';
 import { UserRole } from '../user/types/user-role.enum';
 
-export interface AdminUserSourceProfile {
+export interface UserSourceProfile {
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
 }
 
-export function getAdminUserSourceProfile(
+export function getUserSourceProfile(
   user: User | undefined,
-): AdminUserSourceProfile {
+): UserSourceProfile {
   const telegramIdentities =
     user?.identities.filter(
       (identity) => identity.messenger === Messenger.Telegram,
     ) ?? [];
-  const telegramUsername =
-    telegramIdentities.length === 1
-      ? telegramIdentities[0].username
-      : undefined;
+  if (telegramIdentities.length > 1) {
+    throw new Error('A User can have only one Telegram identity');
+  }
 
-  return {
-    ...(user?.displayName !== undefined
-      ? { displayName: user.displayName }
-      : {}),
+  const userSourceProfile: UserSourceProfile = {
     isCurrentlyAdmin: user?.roles.includes(UserRole.Admin) ?? false,
-    ...(telegramUsername !== undefined ? { telegramUsername } : {}),
   };
+  if (user?.displayName !== undefined) {
+    userSourceProfile.displayName = user.displayName;
+  }
+  const telegramUsername = telegramIdentities[0]?.username;
+  if (telegramUsername !== undefined) {
+    userSourceProfile.telegramUsername = telegramUsername;
+  }
+  return userSourceProfile;
 }

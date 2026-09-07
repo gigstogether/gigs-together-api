@@ -1,7 +1,7 @@
 import { Messenger } from '../../shared/types/messenger.enum';
 import type { User } from '../user/types/user.types';
 import { UserRole } from '../user/types/user-role.enum';
-import { getAdminUserSourceProfile } from './admin-user-source-profile';
+import { getUserSourceProfile } from './admin-user-source-profile';
 
 function buildUser(overrides: Partial<User> = {}): User {
   return {
@@ -15,7 +15,7 @@ function buildUser(overrides: Partial<User> = {}): User {
   };
 }
 
-describe('getAdminUserSourceProfile', () => {
+describe('getUserSourceProfile', () => {
   it('should expose current profile fields for an admin response', () => {
     const user = buildUser({
       roles: [UserRole.Admin],
@@ -30,14 +30,14 @@ describe('getAdminUserSourceProfile', () => {
       ],
     });
 
-    expect(getAdminUserSourceProfile(user)).toEqual({
+    expect(getUserSourceProfile(user)).toEqual({
       displayName: 'Test Admin',
       isCurrentlyAdmin: true,
       telegramUsername: 'test_admin',
     });
   });
 
-  it('should not guess a username from multiple Telegram identities', () => {
+  it('should reject multiple Telegram identities', () => {
     const user = buildUser({
       identities: [
         {
@@ -55,8 +55,8 @@ describe('getAdminUserSourceProfile', () => {
       ],
     });
 
-    expect(getAdminUserSourceProfile(user)).toEqual({
-      isCurrentlyAdmin: false,
-    });
+    expect(() => getUserSourceProfile(user)).toThrow(
+      'A User can have only one Telegram identity',
+    );
   });
 });

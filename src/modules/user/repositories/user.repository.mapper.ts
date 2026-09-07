@@ -30,7 +30,7 @@ export class UserRepositoryMapper {
     const identities = doc.identities.map((identity) =>
       UserRepositoryMapper.toMessengerIdentity(identity),
     );
-    UserRepositoryMapper.assertUniqueIdentities(identities);
+    UserRepositoryMapper.assertSingleIdentityPerMessenger(identities);
     const status = UserRepositoryMapper.toStatus(doc.status);
     const roles = UserRepositoryMapper.toRoles(doc.roles);
     if (status === 'anonymized' && roles.length > 0) {
@@ -141,14 +141,12 @@ export class UserRepositoryMapper {
     return normalized;
   }
 
-  private static assertUniqueIdentities(
+  private static assertSingleIdentityPerMessenger(
     identities: UserMessengerIdentity[],
   ): void {
-    const keys = identities.map(
-      (identity) => `${identity.messenger}\u0000${identity.externalUserId}`,
-    );
-    if (new Set(keys).size !== keys.length) {
-      throw new Error('User messenger identities must be unique');
+    const messengers = identities.map((identity) => identity.messenger);
+    if (new Set(messengers).size !== messengers.length) {
+      throw new Error('A User can have only one identity per messenger');
     }
   }
 }
