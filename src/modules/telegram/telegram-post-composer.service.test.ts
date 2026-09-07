@@ -57,10 +57,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
-      'Suggestion submitted',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
-      'Suggestion accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
       'Suggestion rejected',
   };
@@ -72,8 +68,12 @@ function createMockPostTemplates(): MockPostTemplates {
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
+      'Suggestion {title} submitted',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
+      'Suggestion {title} accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
-      'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
+      'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -584,6 +584,8 @@ describe('TelegramPostComposer', () => {
 
       expect(payload.chat_id).toBe('-3002');
       expect(payload.caption).toContain('🟡 Reviewing');
+      expect(payload.caption).toContain('Source: user');
+      expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
         {
           text: '✅ Approve',
@@ -638,33 +640,63 @@ describe('TelegramPostComposer', () => {
       ).toThrow(BadRequestException);
     });
 
-    it.each([
-      ['submitted', 'Suggestion submitted'],
-      ['acceptedForModeration', 'Suggestion accepted for moderation'],
-      ['rejected', 'Suggestion rejected'],
-    ] as const)('should compose %s feedback', (kind, text) => {
+    it('should compose submitted feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({ chatId: '42', kind }),
+        composer.composeGigCandidateFeedbackMessage({
+          chatId: '42',
+          kind: 'submitted',
+          title: 'Band & Friends',
+        }),
       ).toEqual({
         chat_id: '42',
-        text,
+        text: 'Suggestion Band &amp; Friends submitted',
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: false,
       });
     });
 
-    it('should compose accepted feedback with the public Gig URL', () => {
+    it('should compose rejected feedback', () => {
+      expect(
+        composer.composeGigCandidateFeedbackMessage({
+          chatId: '42',
+          kind: 'rejected',
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: 'Suggestion rejected',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: false,
+      });
+    });
+
+    it('should compose accepted-for-moderation feedback with the Gig title', () => {
+      expect(
+        composer.composeGigCandidateFeedbackMessage({
+          chatId: '42',
+          kind: 'acceptedForModeration',
+          title: 'Band & Friends',
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: 'Suggestion Band &amp; Friends accepted for moderation',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: false,
+      });
+    });
+
+    it('should compose accepted feedback with a titled link and disabled preview', () => {
       expect(
         composer.composeGigCandidateFeedbackMessage({
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
+          title: 'Radiohead & Friends',
         }),
-      ).toMatchObject({
+      ).toEqual({
         chat_id: '42',
-        text: expect.stringContaining(
-          'https://admin.example/gigs/radiohead-2026-06-12',
-        ),
+        text: 'Suggestion accepted: <a href="https://admin.example/gigs/radiohead-2026-06-12">Radiohead &amp; Friends</a>',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
       });
     });
 

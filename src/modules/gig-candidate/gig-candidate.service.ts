@@ -131,9 +131,7 @@ export class GigCandidateService {
       postType: PostType.Intake,
       telegramMessage: telegramIntakePost,
     });
-    await this.sendGigCandidateFeedbackBestEffort(saved, {
-      kind: 'submitted',
-    });
+    await this.sendGigCandidateSubmittedFeedbackBestEffort(saved);
 
     return { id: saved.id };
   }
@@ -179,9 +177,9 @@ export class GigCandidateService {
 
     const withModerationPost =
       await this.ensureGigCandidateModerationPostBestEffort(saved);
-    await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
-      kind: 'acceptedForModeration',
-    });
+    await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
+      withModerationPost,
+    );
     return withModerationPost;
   }
 
@@ -293,9 +291,9 @@ export class GigCandidateService {
       await this.removeGigCandidateIntakeActionsBestEffort(withModerationPost);
     }
     if (didTransition) {
-      await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
-        kind: 'acceptedForModeration',
-      });
+      await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
+        withModerationPost,
+      );
     }
 
     return withModerationPost;
@@ -579,6 +577,7 @@ export class GigCandidateService {
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'acceptedWithPublicLink',
       publicId: gig.publicId,
+      title: gig.title,
     });
 
     const moderationPost = this.findTelegramPost(
@@ -936,6 +935,42 @@ export class GigCandidateService {
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
     }
+  }
+
+  private async sendGigCandidateSubmittedFeedbackBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<void> {
+    const title = gigCandidate.gigDraft.title?.trim();
+    if (!title) {
+      // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
+      this.logger.warn(
+        `GigCandidate submitted feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
+      );
+      return;
+    }
+
+    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
+      kind: 'submitted',
+      title,
+    });
+  }
+
+  private async sendGigCandidateAcceptedForModerationFeedbackBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<void> {
+    const title = gigCandidate.gigDraft.title?.trim();
+    if (!title) {
+      // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
+      this.logger.warn(
+        `GigCandidate accepted-for-moderation feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
+      );
+      return;
+    }
+
+    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
+      kind: 'acceptedForModeration',
+      title,
+    });
   }
 
   private findTelegramPost(

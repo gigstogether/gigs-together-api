@@ -529,6 +529,7 @@ describe('GigCandidateService', () => {
     it('should send admin lifecycle feedback only when enabled', async () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
+        gigDraft: { title: 'Band' },
         source: {
           type: 'user',
           userId: '507f1f77bcf86cd799439088',
@@ -570,12 +571,40 @@ describe('GigCandidateService', () => {
         gigDraft: {},
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', chatId: '42' },
+        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
       );
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).toHaveBeenCalledTimes(1);
       expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
+    });
+
+    it('should skip accepted-for-moderation feedback when the Gig title is missing', async () => {
+      const created = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: 'user',
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: 'admin' },
+        },
+        gigDraft: {},
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+
+      await service.createAdminGigCandidate({
+        userId: '507f1f77bcf86cd799439088',
+        gigDraft: {},
+      });
+
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
     });
 
     it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
@@ -705,6 +734,7 @@ describe('GigCandidateService', () => {
         chatId: -100,
       };
       const newGigCandidate = buildGigCandidate({
+        gigDraft: { title: 'Band' },
         version: 1,
         posts: [intakePost],
       });
@@ -766,7 +796,7 @@ describe('GigCandidateService', () => {
         telegramServiceMock.removeGigCandidateIntakeActions,
       ).toHaveBeenCalledWith(intakePost);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', chatId: '42' },
+        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
       );
     });
 
@@ -1013,6 +1043,7 @@ describe('GigCandidateService', () => {
         {
           kind: 'acceptedWithPublicLink',
           publicId: gig.publicId,
+          title: gig.title,
           chatId: '42',
         },
       );

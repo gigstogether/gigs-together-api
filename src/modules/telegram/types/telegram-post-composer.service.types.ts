@@ -111,17 +111,24 @@ export interface BuildGigCandidateCaptionParams {
   gigCandidate: GigCandidate;
 }
 
-export interface GigCandidateFeedbackMessageWithoutPublicLinkContent {
-  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+export interface GigCandidateFeedbackMessageWithoutTitleContent {
+  kind: 'rejected';
+}
+
+export interface GigCandidateFeedbackMessageWithTitleContent {
+  kind: 'submitted' | 'acceptedForModeration';
+  title: string;
 }
 
 export interface GigCandidateFeedbackMessageWithPublicLinkContent {
   kind: 'acceptedWithPublicLink';
   publicId: string;
+  title: string;
 }
 
 export type GigCandidateFeedbackMessageContent =
-  | GigCandidateFeedbackMessageWithoutPublicLinkContent
+  | GigCandidateFeedbackMessageWithoutTitleContent
+  | GigCandidateFeedbackMessageWithTitleContent
   | GigCandidateFeedbackMessageWithPublicLinkContent;
 
 export type ComposeGigCandidateFeedbackMessageParams =

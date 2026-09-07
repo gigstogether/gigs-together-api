@@ -530,13 +530,15 @@ export class TelegramPostComposerService {
     let text: string;
     switch (params.kind) {
       case 'submitted':
-        text = this.postTemplates.getText(
+        text = this.postTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
+          { title: this.escapeTelegramHtmlText(params.title) },
         );
         break;
       case 'acceptedForModeration':
-        text = this.postTemplates.getText(
+        text = this.postTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
+          { title: this.escapeTelegramHtmlText(params.title) },
         );
         break;
       case 'rejected':
@@ -556,7 +558,10 @@ export class TelegramPostComposerService {
         }
         text = this.postTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
-          { gigUrl },
+          {
+            gigUrl,
+            title: this.escapeTelegramHtmlText(params.title),
+          },
         );
         break;
       }
@@ -566,7 +571,7 @@ export class TelegramPostComposerService {
       chat_id: params.chatId,
       text,
       parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: false,
+      disable_web_page_preview: params.kind === 'acceptedWithPublicLink',
     };
   }
 
@@ -645,10 +650,7 @@ export class TelegramPostComposerService {
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
     }
-    const sourceLabel =
-      source.type === 'user'
-        ? `userId:${source.userId}`
-        : `provider:${source.provider.name}`;
+    const sourceLabel = source.type;
 
     const locationLine = [gigDraft.country, gigDraft.city]
       .filter(Boolean)
@@ -663,6 +665,13 @@ export class TelegramPostComposerService {
     });
 
     return `${body}\n${locationLine}\nSource: ${sourceLabel}`;
+  }
+
+  private escapeTelegramHtmlText(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   }
 
   private buildGigCandidateIntakeReplyMarkup(

@@ -53,8 +53,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
-      'Suggestion submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
@@ -68,6 +66,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
+      'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
@@ -463,11 +463,12 @@ describe('TelegramService', () => {
       await service.sendGigCandidateFeedback({
         chatId: '42',
         kind: 'submitted',
+        title: 'Band',
       });
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: '42',
-        text: 'Suggestion submitted',
+        text: 'Suggestion Band submitted',
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: false,
       });
