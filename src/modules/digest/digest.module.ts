@@ -4,20 +4,20 @@ import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { DigestCronService } from './digest-cron.service';
 import {
-  DigestPublicationState,
-  DigestPublicationStateSchema,
-} from './digest-publication-state.schema';
+  DigestPostState,
+  DigestPostStateSchema,
+} from './digest-post-state.schema';
 import { DigestService } from './digest.service';
 
 /**
- * Digest notifications; scheduled Telegram publish on a fixed timezone (Europe/Madrid).
+ * Digest notifications; scheduled Telegram posting on a fixed timezone (Europe/Madrid).
  */
 @Module({
   imports: [
     MongooseModule.forFeature([
       {
-        name: DigestPublicationState.name,
-        schema: DigestPublicationStateSchema,
+        name: DigestPostState.name,
+        schema: DigestPostStateSchema,
       },
     ]),
     GigModule,

@@ -48,7 +48,7 @@ describe('AdminGigUpdateBodyPipe', () => {
   it('should reject removed Gig status input', () => {
     expect(() =>
       pipe.transform({
-        gig: { ...gig, status: 'Published' },
+        gig: { ...gig, status: 'legacy-status' },
         expectedVersion: 2,
       }),
     ).toThrow('gig contains unsupported field: status');

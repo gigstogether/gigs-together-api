@@ -82,28 +82,28 @@ interface GetPostUrlPayloadByChatUsernameParams extends GetPostUrlPayloadBasePar
 export type GetPostUrlPayload =
   GetPostUrlPayloadByChatIdParams | GetPostUrlPayloadByChatUsernameParams;
 
-export interface BuildAfterPublishModerationReplyMarkupParams {
+export interface BuildGigModerationReplyMarkupParams {
   readonly gigId?: GigId;
   readonly expectedVersion: number;
-  readonly publishPostUrl?: string;
+  readonly mainPostUrl?: string;
   readonly editGigUrl?: string;
 }
 
-export interface BuildPublishedModerationCaptionPayload {
+export interface BuildGigModerationPostCaptionPayload {
   readonly title: string;
   readonly gigUrl?: string;
-  readonly publishPostUrl?: string;
+  readonly mainPostUrl?: string;
   readonly adminGigUrl?: string;
 }
 
 export interface BuildModerationCaptionPayload {
   body: string;
-  publishPostUrl?: string;
+  mainPostUrl?: string;
   adminGigUrl?: string;
 }
 
 export interface BuildModerationLinksParams {
-  publishPostUrl?: string;
+  mainPostUrl?: string;
   adminGigUrl?: string;
 }
 

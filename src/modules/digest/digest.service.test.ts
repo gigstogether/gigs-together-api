@@ -6,7 +6,7 @@ import type {
   DigestService,
   GetPreviousDigestCronFireDateParams,
 } from './digest.service';
-import { DigestPublicationState } from './digest-publication-state.schema';
+import { DigestPostState } from './digest-post-state.schema';
 import { Gig } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
 import { AiService } from '../ai/ai.service';
@@ -36,15 +36,15 @@ describe('DigestService', () => {
   const sortMock = vi.fn().mockReturnValue({ exec: execMock });
   const collationMock = vi.fn().mockReturnValue({ sort: sortMock });
   const findMock = vi.fn().mockReturnValue({ collation: collationMock });
-  const publishWeeklyDigestToMainChannelMock = vi.fn();
+  const sendWeeklyDigestPostMock = vi.fn();
 
-  const findPublicationOneExec = vi.fn();
-  const findPublicationOneAndUpdateExec = vi.fn();
-  const findPublicationOneAndUpdateMock = vi.fn();
+  const findPostStateOneExec = vi.fn();
+  const findPostStateOneAndUpdateExec = vi.fn();
+  const findPostStateOneAndUpdateMock = vi.fn();
 
   let previousDigestCronFireSpy: ReturnType<typeof vi.spyOn>;
 
-  const digestPublishSuccess = {
+  const digestPostSuccess = {
     postUrl: 'https://t.me/c/1/42',
   };
 
@@ -53,13 +53,11 @@ describe('DigestService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     execMock.mockResolvedValue([]);
-    publishWeeklyDigestToMainChannelMock.mockResolvedValue(
-      digestPublishSuccess,
-    );
-    findPublicationOneExec.mockResolvedValue(null);
-    findPublicationOneAndUpdateExec.mockResolvedValue({});
-    findPublicationOneAndUpdateMock.mockReturnValue({
-      exec: findPublicationOneAndUpdateExec,
+    sendWeeklyDigestPostMock.mockResolvedValue(digestPostSuccess);
+    findPostStateOneExec.mockResolvedValue(null);
+    findPostStateOneAndUpdateExec.mockResolvedValue({});
+    findPostStateOneAndUpdateMock.mockReturnValue({
+      exec: findPostStateOneAndUpdateExec,
     });
 
     previousDigestCronFireSpy = vi
@@ -87,18 +85,17 @@ describe('DigestService', () => {
         {
           provide: TelegramService,
           useValue: {
-            publishWeeklyDigestToMainChannel:
-              publishWeeklyDigestToMainChannelMock,
+            sendWeeklyDigestPost: sendWeeklyDigestPostMock,
           },
         },
         { provide: BucketService, useValue: {} },
         {
-          provide: getModelToken(DigestPublicationState.name),
+          provide: getModelToken(DigestPostState.name),
           useValue: {
             findOne: vi.fn().mockReturnValue({
-              lean: vi.fn().mockReturnValue({ exec: findPublicationOneExec }),
+              lean: vi.fn().mockReturnValue({ exec: findPostStateOneExec }),
             }),
-            findOneAndUpdate: findPublicationOneAndUpdateMock,
+            findOneAndUpdate: findPostStateOneAndUpdateMock,
           },
         },
       ],
@@ -115,7 +112,7 @@ describe('DigestService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('publishIfEligible', () => {
+  describe('createPostIfEligible', () => {
     beforeEach(() => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date(2024, 5, 10, 12, 0, 0, 0));
@@ -125,21 +122,21 @@ describe('DigestService', () => {
       vi.useRealTimers();
     });
 
-    it('should skip publish when now is past the catch-up grace window', async () => {
+    it('should skip posting when now is past the catch-up grace window', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-06-11T10:00:00.000Z'));
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
       expect(findMock).not.toHaveBeenCalled();
-      expect(publishWeeklyDigestToMainChannelMock).not.toHaveBeenCalled();
+      expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
     });
 
     it('should query visible gigs within the seven-day inclusive date range for today', async () => {
       const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();
       const toMs = new Date(2024, 5, 16, 23, 59, 59, 999).getTime();
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
       expect(findMock).toHaveBeenCalledWith({
         isVisible: true,
@@ -152,98 +149,95 @@ describe('DigestService', () => {
       expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
     });
 
-    it('should invoke Telegram digest publish with an empty document list when digest date range has no documents', async () => {
-      await service.publishIfEligible();
+    it('should send an empty document list when the digest date range has no documents', async () => {
+      await service.createPostIfEligible();
 
-      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([]);
+      expect(sendWeeklyDigestPostMock).toHaveBeenCalledWith([]);
     });
 
-    it('should invoke Telegram digest publish with loaded documents when digest date range returns documents', async () => {
+    it('should send loaded documents when the digest date range returns documents', async () => {
       const docA = { _id: 'a', publicId: 'gig-a' };
       const docB = { _id: 'b', publicId: 'gig-b' };
       execMock.mockResolvedValue([docA, docB]);
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
-      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalledWith([
-        docA,
-        docB,
-      ]);
+      expect(sendWeeklyDigestPostMock).toHaveBeenCalledWith([docA, docB]);
     });
 
-    it('should skip gig query and Telegram when publication is already at or after the implied cron instant', async () => {
-      findPublicationOneExec.mockResolvedValue({
-        publishedAt: new Date(lastDigestCronFire.getTime() + 60_000),
+    it('should skip gig query and Telegram when a post is already recorded after the cron instant', async () => {
+      findPostStateOneExec.mockResolvedValue({
+        postedAt: new Date(lastDigestCronFire.getTime() + 60_000),
       });
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
       expect(findMock).not.toHaveBeenCalled();
-      expect(publishWeeklyDigestToMainChannelMock).not.toHaveBeenCalled();
-      expect(findPublicationOneAndUpdateMock).not.toHaveBeenCalled();
+      expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
+      expect(findPostStateOneAndUpdateMock).not.toHaveBeenCalled();
     });
 
-    it('should not record publication state when digest publish returns undefined', async () => {
-      publishWeeklyDigestToMainChannelMock.mockResolvedValue(undefined);
+    it('should not record post state when Telegram returns undefined', async () => {
+      sendWeeklyDigestPostMock.mockResolvedValue(undefined);
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
-      expect(findPublicationOneAndUpdateMock).not.toHaveBeenCalled();
+      expect(findPostStateOneAndUpdateMock).not.toHaveBeenCalled();
     });
 
-    it('should record publication state with post URL when Telegram digest publish succeeds', async () => {
-      await service.publishIfEligible();
+    it('should record post state with its URL when Telegram succeeds', async () => {
+      await service.createPostIfEligible();
 
-      expect(findPublicationOneAndUpdateMock).toHaveBeenCalledWith(
+      expect(findPostStateOneAndUpdateMock).toHaveBeenCalledWith(
         {},
         {
           $set: {
-            publishedAt: expect.any(Date),
-            postUrl: digestPublishSuccess.postUrl,
+            postedAt: expect.any(Date),
+            postUrl: digestPostSuccess.postUrl,
           },
         },
         { upsert: true },
       );
     });
 
-    it('should publish when within grace after cron instant and no publication recorded', async () => {
+    it('should create a post within grace after the cron instant when none is recorded', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-06-10T11:00:00.000Z'));
 
-      await service.publishIfEligible();
+      await service.createPostIfEligible();
 
       expect(findMock).toHaveBeenCalled();
-      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
   });
 
-  describe('publish', () => {
+  describe('createPost', () => {
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it('should publish when now is past the catch-up grace window', async () => {
+    it('should create a post when now is past the catch-up grace window', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-06-11T10:00:00.000Z'));
 
-      await service.publish();
+      await service.createPost();
 
       expect(findMock).toHaveBeenCalled();
-      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
 
-    it('should publish without reading publication eligibility state when a digest was already recorded this cron cycle', async () => {
+    it('should create a post without reading eligibility state when one was recorded this cron cycle', async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date(2024, 5, 10, 12, 0, 0, 0));
-      findPublicationOneExec.mockResolvedValue({
-        publishedAt: new Date(lastDigestCronFire.getTime() + 60_000),
+      findPostStateOneExec.mockResolvedValue({
+        postedAt: new Date(lastDigestCronFire.getTime() + 60_000),
       });
 
-      await service.publish();
+      await service.createPost();
 
-      expect(findPublicationOneExec).not.toHaveBeenCalled();
+      expect(findPostStateOneExec).not.toHaveBeenCalled();
       expect(findMock).toHaveBeenCalled();
-      expect(publishWeeklyDigestToMainChannelMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
   });
 });

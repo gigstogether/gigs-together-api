@@ -2,8 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import {
   DigestService,
-  DIGEST_PUBLISH_CRON_EXPRESSION,
-  DIGEST_PUBLISH_TIMEZONE,
+  DIGEST_POST_CRON_EXPRESSION,
+  DIGEST_POST_TIMEZONE,
 } from './digest.service';
 
 @Injectable()
@@ -13,15 +13,15 @@ export class DigestCronService implements OnModuleInit {
   constructor(private readonly digestService: DigestService) {}
 
   onModuleInit(): void {
-    void this.digestService.publishIfEligible();
+    void this.digestService.createPostIfEligible();
   }
 
-  @Cron(DIGEST_PUBLISH_CRON_EXPRESSION, {
-    name: 'digestWeeklyPublish',
-    timeZone: DIGEST_PUBLISH_TIMEZONE,
+  @Cron(DIGEST_POST_CRON_EXPRESSION, {
+    name: 'digestWeeklyPost',
+    timeZone: DIGEST_POST_TIMEZONE,
   })
-  async publishWeeklyDigestScheduled(): Promise<void> {
-    this.logger.log('Scheduled weekly digest publish started');
-    await this.digestService.publishIfEligible();
+  async createWeeklyDigestPostScheduled(): Promise<void> {
+    this.logger.log('Scheduled weekly digest post started');
+    await this.digestService.createPostIfEligible();
   }
 }

@@ -10,8 +10,8 @@ import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { GigPost } from './gig.schema';
 import { GigService } from './gig.service';
 import type {
+  CreateGigMainPostParams,
   GigModerationPostRef,
-  ModerateGigParams,
 } from './types/gig-moderation.types';
 import type { PlainGig } from './types/gig.types';
 
@@ -24,7 +24,7 @@ export class GigModerationService {
 
   private readonly logger = new Logger(GigModerationService.name);
 
-  async publishGigPost(params: ModerateGigParams): Promise<void> {
+  async createGigMainPost(params: CreateGigMainPostParams): Promise<void> {
     const gig = await this.getGig(params);
     const gigId = gig._id.toString();
     if (gig.version !== params.expectedVersion) {
@@ -36,13 +36,15 @@ export class GigModerationService {
 
     const moderationPost =
       params.moderationPost ?? this.resolveModerationPostRef(gig.posts);
-    const telegramMainPost = await this.telegramService.publishMain(gig);
+    // Telegram can accept this message before its metadata is stored. Gig versioning
+    // cannot provide external-message idempotency or reconcile that crash window.
+    const telegramMainPost = await this.telegramService.sendMainPost(gig);
     const chatId =
       telegramMainPost?.sender_chat?.id ?? telegramMainPost?.chat?.id;
     const messageId = telegramMainPost?.message_id;
     if (!telegramMainPost || chatId === undefined || messageId === undefined) {
       throw new BadRequestException(
-        `publishMain returned no Telegram message for gig ${gigId}`,
+        `sendMainPost returned no Telegram message for gig ${gigId}`,
       );
     }
 
@@ -81,7 +83,7 @@ export class GigModerationService {
     }
   }
 
-  private async getGig(params: ModerateGigParams): Promise<PlainGig> {
+  private async getGig(params: CreateGigMainPostParams): Promise<PlainGig> {
     if (params.gigId !== undefined) {
       return this.gigService.getGigById(params.gigId);
     }

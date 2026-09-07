@@ -6,11 +6,11 @@ import { DigestService } from './digest.service';
 describe('DigestCronService', () => {
   let cronService: DigestCronService;
 
-  const publishIfEligibleMock = vi.fn();
+  const createPostIfEligibleMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    publishIfEligibleMock.mockResolvedValue(undefined);
+    createPostIfEligibleMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -18,7 +18,7 @@ describe('DigestCronService', () => {
         {
           provide: DigestService,
           useValue: {
-            publishIfEligible: publishIfEligibleMock,
+            createPostIfEligible: createPostIfEligibleMock,
           },
         },
       ],
@@ -28,18 +28,18 @@ describe('DigestCronService', () => {
   });
 
   describe('onModuleInit', () => {
-    it('should trigger digest publish eligibility check once', () => {
+    it('should trigger the digest post eligibility check once', () => {
       cronService.onModuleInit();
 
-      expect(publishIfEligibleMock).toHaveBeenCalledTimes(1);
+      expect(createPostIfEligibleMock).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('publishWeeklyDigestScheduled', () => {
-    it('should delegate to digest publish eligibility when the scheduled handler runs', async () => {
-      await cronService.publishWeeklyDigestScheduled();
+  describe('createWeeklyDigestPostScheduled', () => {
+    it('should delegate to digest post eligibility when the scheduled handler runs', async () => {
+      await cronService.createWeeklyDigestPostScheduled();
 
-      expect(publishIfEligibleMock).toHaveBeenCalledTimes(1);
+      expect(createPostIfEligibleMock).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -4,8 +4,8 @@ import type { GigFormData, GigSource, PlainGig } from '../gig/types/gig.types';
 export interface MapGigToFormData {
   readonly gig: PlainGig;
   readonly posterUrl?: string;
-  readonly publishPostUrl?: string;
-  readonly publishPostDate?: number;
+  readonly mainPostUrl?: string;
+  readonly mainPostDate?: number;
   readonly moderationPostUrl?: string;
   readonly moderationPostDate?: number;
 }
@@ -14,8 +14,8 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   const {
     gig,
     posterUrl,
-    publishPostUrl,
-    publishPostDate,
+    mainPostUrl,
+    mainPostDate,
     moderationPostUrl,
     moderationPostDate,
   } = params;
@@ -51,8 +51,8 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     isVisible: gig.isVisible,
     version: gig.version,
     source,
-    publishPostUrl,
-    publishPostDate,
+    mainPostUrl,
+    mainPostDate,
     moderationPostUrl,
     moderationPostDate,
   };

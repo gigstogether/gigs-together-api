@@ -13,7 +13,7 @@ import { TelegramPostComposerService } from './telegram-post-composer.service';
 import type {
   UpdateGigModerationPostPayload,
   UpdateRejectedGigCandidatePostPayload,
-  WeeklyDigestMainChannelPublishResult,
+  WeeklyDigestPostResult,
 } from './types/telegram.service.types';
 import {
   PostEditKind,
@@ -74,7 +74,7 @@ export class TelegramService {
   }
 
   /**
-   * Updates an already published post in the main channel (caption/text).
+   * Updates an existing post in the main channel (caption/text).
    * Does nothing if the gig has no stored post reference.
    *
    * NOTE: Can optionally update the media (poster) via editMessageMedia.
@@ -99,9 +99,9 @@ export class TelegramService {
     }
   }
 
-  async publishWeeklyDigestToMainChannel(
+  async sendWeeklyDigestPost(
     gigs: readonly PlainGig[],
-  ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
+  ): Promise<WeeklyDigestPostResult | undefined> {
     const chatIdRaw = process.env.MAIN_CHANNEL_ID;
     const chatId =
       chatIdRaw !== undefined && chatIdRaw !== null
@@ -110,7 +110,7 @@ export class TelegramService {
 
     if (!chatId) {
       this.logger.warn(
-        'publishWeeklyDigestToMainChannel skipped: MAIN_CHANNEL_ID is empty',
+        'sendWeeklyDigestPost skipped: MAIN_CHANNEL_ID is empty',
       );
       return;
     }
@@ -122,18 +122,18 @@ export class TelegramService {
           gigs,
         });
 
-      const published = await this.dispatchWeeklyDigestMainChannelPlan(plan);
-      if (published === undefined) {
+      const sentPost = await this.dispatchWeeklyDigestMainChannelPlan(plan);
+      if (sentPost === undefined) {
         throw new Error(
-          'Weekly digest publish finished without a Telegram message_id or post URL',
+          'Weekly digest send finished without a Telegram message_id or post URL',
         );
       }
 
-      return published;
+      return sentPost;
     } catch (e: unknown) {
       logError(this.logger, {
         error: e,
-        note: 'Weekly digest publish to main channel failed',
+        note: 'Weekly digest send to main channel failed',
         context: TelegramService.name,
       });
       throw e;
@@ -142,7 +142,7 @@ export class TelegramService {
 
   private async dispatchWeeklyDigestMainChannelPlan(
     plan: WeeklyDigestMainChannelSendPlan,
-  ): Promise<WeeklyDigestMainChannelPublishResult | undefined> {
+  ): Promise<WeeklyDigestPostResult | undefined> {
     const chatId = plan.payload.chat_id;
 
     let messageId: number | undefined;
@@ -179,7 +179,7 @@ export class TelegramService {
     return { postUrl };
   }
 
-  publishMain(gig: PlainGig): Promise<TGMessage | undefined> {
+  sendMainPost(gig: PlainGig): Promise<TGMessage | undefined> {
     const composedMainPost: TGSendPhoto =
       this.telegramPostComposerService.composeMainPost(gig);
     return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
@@ -259,7 +259,7 @@ export class TelegramService {
       publicId,
     });
 
-    const publishPostChatIdUrl = mainPost
+    const mainPostUrl = mainPost
       ? this.telegramPostComposerService.getPostUrl({
           messageId: mainPost.messageId,
           chatId: mainPost.chatId,
@@ -267,18 +267,18 @@ export class TelegramService {
       : undefined;
 
     const replyMarkup =
-      this.telegramPostComposerService.buildAfterPublishModerationReplyMarkup({
+      this.telegramPostComposerService.buildGigModerationReplyMarkup({
         gigId,
         expectedVersion,
-        publishPostUrl: publishPostChatIdUrl,
+        mainPostUrl,
         editGigUrl,
       });
 
     const caption =
-      this.telegramPostComposerService.buildPublishedModerationCaption({
+      this.telegramPostComposerService.buildGigModerationPostCaption({
         title,
         gigUrl,
-        publishPostUrl: publishPostChatIdUrl,
+        mainPostUrl,
         adminGigUrl,
       });
 

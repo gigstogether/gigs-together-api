@@ -27,8 +27,8 @@ describe('AdminController', () => {
   } satisfies Pick<AdminGigService, 'getGigsList' | 'getGigByPublicId'>;
 
   const gigModerationService = {
-    publishGigPost: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<GigModerationService, 'publishGigPost'>;
+    createGigMainPost: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<GigModerationService, 'createGigMainPost'>;
 
   const localeService = {
     getAllLocalesOrdered: vi
@@ -99,8 +99,8 @@ describe('AdminController', () => {
   } satisfies Pick<FeedRevalidateService, 'revalidateFeed'>;
 
   const digestService = {
-    publish: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<DigestService, 'publish'>;
+    createPost: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<DigestService, 'createPost'>;
 
   const controller = new AdminController(
     adminDashboardService as unknown as AdminDashboardService,
@@ -153,27 +153,27 @@ describe('AdminController', () => {
     });
   });
 
-  describe('publishGigPostByPublicId', () => {
-    it('should publish main telegram post via gig moderation service', async () => {
+  describe('createGigMainPostByPublicId', () => {
+    it('should create a main Telegram post via the gig moderation service', async () => {
       await expect(
-        controller.publishGigPostByPublicId(
+        controller.createGigMainPostByPublicId(
           { publicId: 'gig-42' },
           { expectedVersion: 5 },
         ),
       ).resolves.toBeUndefined();
 
-      expect(gigModerationService.publishGigPost).toHaveBeenCalledWith({
+      expect(gigModerationService.createGigMainPost).toHaveBeenCalledWith({
         publicId: 'gig-42',
         expectedVersion: 5,
       });
     });
   });
 
-  describe('publishDigest', () => {
-    it('should publish weekly digest via digest service', async () => {
-      await expect(controller.publishDigest()).resolves.toBeUndefined();
+  describe('createDigestPost', () => {
+    it('should create a weekly digest post via the digest service', async () => {
+      await expect(controller.createDigestPost()).resolves.toBeUndefined();
 
-      expect(digestService.publish).toHaveBeenCalledTimes(1);
+      expect(digestService.createPost).toHaveBeenCalledTimes(1);
     });
   });
 

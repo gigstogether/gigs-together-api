@@ -23,9 +23,6 @@ describe('ReceiverService', () => {
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
     editMainPost: vi.fn(),
-    publishDraft: vi.fn(),
-    publishMain: vi.fn(),
-    publishToChat: vi.fn(),
     buildGigStatusReplyMarkup: vi.fn(),
     pickTgPost: vi.fn(),
     sendToModeration: vi.fn(),
@@ -41,9 +38,7 @@ describe('ReceiverService', () => {
   };
 
   const mockGigModerationService = {
-    approveGig: vi.fn(),
-    publishGigPost: vi.fn(),
-    rejectGig: vi.fn(),
+    createGigMainPost: vi.fn(),
   };
 
   const mockGigCandidateService = {
@@ -168,7 +163,7 @@ describe('ReceiverService', () => {
   });
 
   describe('handleCallbackQuery', () => {
-    it('should publish main Telegram post when publish callback is received', async () => {
+    it('should create a main Telegram post when the Post callback is received', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-1',
         data: encodeCallbackData({
@@ -189,7 +184,7 @@ describe('ReceiverService', () => {
         },
       };
 
-      mockGigModerationService.publishGigPost.mockResolvedValue(undefined);
+      mockGigModerationService.createGigMainPost.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(
@@ -197,7 +192,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.publishGigPost).toHaveBeenCalledWith({
+      expect(mockGigModerationService.createGigMainPost).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 6,
         moderationPost: {
@@ -235,7 +230,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.approveGig).not.toHaveBeenCalled();
+      expect(mockGigModerationService.createGigMainPost).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-legacy',
         text: 'Something unexpected happened, I dunno what to do',

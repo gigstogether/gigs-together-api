@@ -156,7 +156,7 @@ export class ReceiverService {
       case CallbackScope.Gig: {
         switch (parsed.action) {
           case GigCallbackAction.Post: {
-            await this.gigModerationService.publishGigPost({
+            await this.gigModerationService.createGigMainPost({
               gigId: parsed.id,
               expectedVersion: parsed.expectedVersion,
               moderationPost: {

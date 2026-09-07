@@ -67,7 +67,7 @@ const PosterFileInterceptor = FileInterceptor('posterFile', {
   },
 });
 
-/** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
+/** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest posting. */
 @Controller('admin')
 export class AdminController {
   constructor(
@@ -107,14 +107,14 @@ export class AdminController {
   }
 
   @Version('1')
-  @Post('gigs/:publicId/post')
+  @Post('gigs/:publicId/main-post')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  publishGigPostByPublicId(
+  createGigMainPostByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
     @Body() body: V1AdminGigVersionedActionBodyDto,
   ): Promise<void> {
-    return this.gigModerationService.publishGigPost({
+    return this.gigModerationService.createGigMainPost({
       publicId: params.publicId,
       expectedVersion: body.expectedVersion,
     });
@@ -152,11 +152,11 @@ export class AdminController {
   }
 
   @Version('1')
-  @Post('digest/publish')
+  @Post('digest/post')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  publishDigest(): Promise<void> {
-    return this.digestService.publish();
+  createDigestPost(): Promise<void> {
+    return this.digestService.createPost();
   }
 
   @Version('1')

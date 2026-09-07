@@ -14,8 +14,8 @@ export interface V1AdminGigListItem {
   readonly venue: string;
   readonly posterUrl?: string;
   readonly ticketsUrl?: string;
-  readonly publishPostUrl?: string;
-  readonly publishPostDate?: number;
+  readonly mainPostUrl?: string;
+  readonly mainPostDate?: number;
   readonly moderationPostUrl?: string;
   readonly moderationPostDate?: number;
 }

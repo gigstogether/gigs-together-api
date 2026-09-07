@@ -117,8 +117,8 @@ export interface GigFormData {
   isVisible: boolean;
   version: number;
   source: GigSource;
-  publishPostUrl?: string;
-  publishPostDate?: number;
+  mainPostUrl?: string;
+  mainPostDate?: number;
   moderationPostUrl?: string;
   moderationPostDate?: number;
 }

@@ -36,7 +36,7 @@ describe('GigModerationService', () => {
   };
   const telegramService = {
     pickTgPost: vi.fn(),
-    publishMain: vi.fn(),
+    sendMainPost: vi.fn(),
     updateGigModerationPost: vi.fn(),
   };
   let service: GigModerationService;
@@ -53,17 +53,17 @@ describe('GigModerationService', () => {
     service = module.get(GigModerationService);
   });
 
-  it('should publish and conditionally store one Main post', async () => {
+  it('should send and conditionally store one Main post', async () => {
     gigService.getGigById.mockResolvedValue(gig);
     telegramService.pickTgPost.mockReturnValue(undefined);
-    telegramService.publishMain.mockResolvedValue({
+    telegramService.sendMainPost.mockResolvedValue({
       message_id: 44,
       chat: { id: -1001, type: 'channel' },
       date: 1_789_603_300,
     });
     gigService.appendGigMainPost.mockResolvedValue({ ...gig, version: 4 });
 
-    await service.publishGigPost({ gigId: gig._id, expectedVersion: 3 });
+    await service.createGigMainPost({ gigId: gig._id, expectedVersion: 3 });
 
     expect(gigService.appendGigMainPost).toHaveBeenCalledWith({
       gigId: String(gig._id),
@@ -76,9 +76,9 @@ describe('GigModerationService', () => {
     gigService.getGigById.mockResolvedValue(gig);
 
     await expect(
-      service.publishGigPost({ gigId: gig._id, expectedVersion: 2 }),
+      service.createGigMainPost({ gigId: gig._id, expectedVersion: 2 }),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(telegramService.publishMain).not.toHaveBeenCalled();
+    expect(telegramService.sendMainPost).not.toHaveBeenCalled();
   });
 
   it('should reject an existing Main post before Telegram is called', async () => {
@@ -88,8 +88,8 @@ describe('GigModerationService', () => {
     );
 
     await expect(
-      service.publishGigPost({ gigId: gig._id, expectedVersion: 3 }),
+      service.createGigMainPost({ gigId: gig._id, expectedVersion: 3 }),
     ).rejects.toBeInstanceOf(ConflictException);
-    expect(telegramService.publishMain).not.toHaveBeenCalled();
+    expect(telegramService.sendMainPost).not.toHaveBeenCalled();
   });
 });

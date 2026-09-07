@@ -6,16 +6,16 @@ import type { GigDocument } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
-import { DigestPublicationState } from './digest-publication-state.schema';
-import type { DigestPublicationStateDocument } from './digest-publication-state.schema';
+import { DigestPostState } from './digest-post-state.schema';
+import type { DigestPostStateDocument } from './digest-post-state.schema';
 
 /** Monday 12:00 local (minute 0, hour 12, weekday Monday). */
-export const DIGEST_PUBLISH_CRON_EXPRESSION = '0 12 * * 1';
+export const DIGEST_POST_CRON_EXPRESSION = '0 12 * * 1';
 
-export const DIGEST_PUBLISH_TIMEZONE = 'Europe/Madrid';
+export const DIGEST_POST_TIMEZONE = 'Europe/Madrid';
 
 /**
- * Non-manual publishes (cron, startup catch-up) run only within this long after the
+ * Non-manual posts (cron, startup catch-up) run only within this long after the
  * implied cron instant (4 hours).
  */
 const DIGEST_CATCH_UP_GRACE_MS = 14_400_000;
@@ -38,7 +38,7 @@ export function getPreviousEstimatedDigestCronFireDate(
 }
 
 /**
- * Digest Telegram publishing. {@link DigestCronService} triggers `publish` on a schedule.
+ * Digest Telegram posting. {@link DigestCronService} triggers `createPost` on a schedule.
  */
 @Injectable()
 export class DigestService {
@@ -47,39 +47,39 @@ export class DigestService {
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
-    @InjectModel(DigestPublicationState.name)
-    private readonly digestPublicationStateModel: Model<DigestPublicationStateDocument>,
+    @InjectModel(DigestPostState.name)
+    private readonly digestPostStateModel: Model<DigestPostStateDocument>,
   ) {}
 
   /**
-   * Publishes the weekly digest to the main Telegram channel (album + caption, or empty-range notice).
+   * Creates the weekly digest post in the main Telegram channel.
    */
-  async publish(): Promise<void> {
+  async createPost(): Promise<void> {
     const documents = await this.getDigestRangeDocuments();
 
-    const publishResult =
-      await this.telegramService.publishWeeklyDigestToMainChannel(documents);
+    const postResult =
+      await this.telegramService.sendWeeklyDigestPost(documents);
 
-    const digestPostUrl = publishResult?.postUrl;
+    const digestPostUrl = postResult?.postUrl;
     if (digestPostUrl) {
-      await this.recordSuccessfulPublication(digestPostUrl);
-      this.logger.log(`Weekly digest published successfully: ${digestPostUrl}`);
+      await this.recordSuccessfulPost(digestPostUrl);
+      this.logger.log(`Weekly digest posted successfully: ${digestPostUrl}`);
     }
   }
 
-  async publishIfEligible(): Promise<void> {
+  async createPostIfEligible(): Promise<void> {
     const now = new Date();
     const lastEstimatedDigestCronFire = getPreviousEstimatedDigestCronFireDate({
-      cronExpression: DIGEST_PUBLISH_CRON_EXPRESSION,
-      timeZone: DIGEST_PUBLISH_TIMEZONE,
+      cronExpression: DIGEST_POST_CRON_EXPRESSION,
+      timeZone: DIGEST_POST_TIMEZONE,
       now,
     });
 
-    const publishedAt = await this.getLatestPublicationPublishedAt();
+    const postedAt = await this.getLatestPostDate();
 
     if (
-      publishedAt !== undefined &&
-      publishedAt.getTime() >= lastEstimatedDigestCronFire.getTime()
+      postedAt !== undefined &&
+      postedAt.getTime() >= lastEstimatedDigestCronFire.getTime()
     ) {
       return;
     }
@@ -90,7 +90,7 @@ export class DigestService {
       return;
     }
 
-    await this.publish();
+    await this.createPost();
   }
 
   private getDigestRangeDocuments(): Promise<GigDocument[]> {
@@ -102,18 +102,18 @@ export class DigestService {
     });
   }
 
-  private async getLatestPublicationPublishedAt(): Promise<Date | undefined> {
-    const doc = await this.digestPublicationStateModel.findOne().lean().exec();
-    return doc?.publishedAt ?? undefined;
+  private async getLatestPostDate(): Promise<Date | undefined> {
+    const doc = await this.digestPostStateModel.findOne().lean().exec();
+    return doc?.postedAt ?? undefined;
   }
 
-  private async recordSuccessfulPublication(postUrl: string): Promise<void> {
-    await this.digestPublicationStateModel
+  private async recordSuccessfulPost(postUrl: string): Promise<void> {
+    await this.digestPostStateModel
       .findOneAndUpdate(
         {},
         {
           $set: {
-            publishedAt: new Date(),
+            postedAt: new Date(),
             postUrl,
           },
         },
