@@ -38,6 +38,10 @@ export class UserService {
     return this.userRepository.findActiveUserById(userId);
   }
 
+  findActiveUsersByIds(userIds: string[]): Promise<User[]> {
+    return this.userRepository.findActiveUsersByIds(userIds);
+  }
+
   private normalizeOptionalField(
     value: string | undefined,
   ): string | undefined {

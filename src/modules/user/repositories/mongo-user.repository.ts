@@ -116,6 +116,21 @@ export class MongoUserRepository implements UserRepository {
     return user ? UserRepositoryMapper.toUser(user) : null;
   }
 
+  async findActiveUsersByIds(userIds: string[]): Promise<DomainUser[]> {
+    const uniqueUserIds = [...new Set(userIds)];
+    if (uniqueUserIds.length === 0) {
+      return [];
+    }
+
+    const users = await this.userModel
+      .find({ _id: { $in: uniqueUserIds }, status: 'active' })
+      .select(USER_PROJECTION)
+      .lean<UserLeanDocument[]>()
+      .exec();
+
+    return users.map((user) => UserRepositoryMapper.toUser(user));
+  }
+
   private async findByMessengerIdentity(
     params: FindOrCreateMessengerUserParams,
   ): Promise<UserLeanDocument | null> {

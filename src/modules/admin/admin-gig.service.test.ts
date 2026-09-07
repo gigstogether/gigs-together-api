@@ -10,6 +10,8 @@ import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
+import { UserService } from '../user/user.service';
+import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';
 
 function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
@@ -63,9 +65,28 @@ describe('AdminGigService', () => {
     editModerationPost: vi.fn(),
   };
   const feedRevalidateServiceMock = { revalidateFeed: vi.fn() };
+  const userServiceMock = { findActiveUsersByIds: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    userServiceMock.findActiveUsersByIds.mockResolvedValue([
+      {
+        id: '507f1f77bcf86cd799439012',
+        status: 'active',
+        roles: [UserRole.Admin],
+        identities: [
+          {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            externalUserId: '42',
+            username: 'test_admin',
+          },
+        ],
+        displayName: 'Test Admin',
+        createdAt: new Date('2026-05-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-05-01T10:00:00.000Z'),
+      },
+    ]);
     telegramServiceMock.pickTgPost.mockImplementation(
       (posts: GigPost[] | undefined, type: PostType): GigPost | undefined =>
         posts?.find(
@@ -97,6 +118,7 @@ describe('AdminGigService', () => {
           provide: FeedRevalidateService,
           useValue: feedRevalidateServiceMock,
         },
+        { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
     service = module.get(AdminGigService);
@@ -123,6 +145,9 @@ describe('AdminGigService', () => {
             source: {
               type: 'user',
               userId: '507f1f77bcf86cd799439012',
+              displayName: 'Test Admin',
+              isCurrentlyAdmin: true,
+              telegramUsername: 'test_admin',
               origin: { type: 'admin' },
             },
             date: '2026-06-12',
@@ -144,6 +169,10 @@ describe('AdminGigService', () => {
         sortBy: undefined,
         sortOrder: undefined,
       });
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledOnce();
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([
+        '507f1f77bcf86cd799439012',
+      ]);
     });
 
     it('should map Main and moderation post dates', async () => {
@@ -214,8 +243,38 @@ describe('AdminGigService', () => {
           source: {
             type: 'user',
             userId: '507f1f77bcf86cd799439012',
+            displayName: 'Test Admin',
+            isCurrentlyAdmin: true,
+            telegramUsername: 'test_admin',
             origin: { type: 'admin' },
           },
+        }),
+      );
+    });
+
+    it('should include displayName but not the admin marker for a non-admin user', async () => {
+      const gig = buildPlainGig();
+      gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
+      userServiceMock.findActiveUsersByIds.mockResolvedValue([
+        {
+          id: '507f1f77bcf86cd799439012',
+          status: 'active',
+          roles: [],
+          identities: [],
+          displayName: 'Former Admin',
+          createdAt: new Date('2026-05-01T10:00:00.000Z'),
+          updatedAt: new Date('2026-05-01T10:00:00.000Z'),
+        },
+      ]);
+
+      const result = await service.getGigByPublicId(gig.publicId);
+
+      expect(result.source).toEqual(
+        expect.objectContaining({
+          displayName: 'Former Admin',
+          isCurrentlyAdmin: false,
         }),
       );
     });

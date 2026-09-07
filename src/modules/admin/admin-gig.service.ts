@@ -13,6 +13,9 @@ import { TelegramService } from '../telegram/telegram.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { GigFormInput } from '../gig/types/gig.types';
+import { UserService } from '../user/user.service';
+import type { User } from '../user/types/user.types';
+import { getAdminUserSourceProfile } from './admin-user-source-profile';
 
 interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -43,6 +46,7 @@ export class AdminGigService {
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
     private readonly feedRevalidateService: FeedRevalidateService,
+    private readonly userService: UserService,
   ) {}
 
   private readonly logger = new Logger(AdminGigService.name);
@@ -55,10 +59,12 @@ export class AdminGigService {
       sortBy: query.sortBy,
       sortOrder: query.sortOrder,
     });
+    const activeSourceUsersById =
+      await this.getActiveSourceUsersById(plainGigs);
 
     const gigs: V1AdminGigListItem[] = [];
     for (const plainGig of plainGigs) {
-      const gig = await this.resolveGig(plainGig);
+      const gig = await this.resolveGig(plainGig, activeSourceUsersById);
       gigs.push(this.mapFormDataToListItem(gig));
     }
 
@@ -67,11 +73,22 @@ export class AdminGigService {
 
   async getGigByPublicId(publicId: string): Promise<GigFormData> {
     const plainGig = await this.gigService.getGigByPublicId(publicId);
-    return this.resolveGig(plainGig);
+    const activeSourceUsersById = await this.getActiveSourceUsersById([
+      plainGig,
+    ]);
+    return this.resolveGig(plainGig, activeSourceUsersById);
   }
 
-  private async resolveGig(gig: PlainGig): Promise<GigFormData> {
+  private async resolveGig(
+    gig: PlainGig,
+    activeSourceUsersById: ReadonlyMap<string, User>,
+  ): Promise<GigFormData> {
     const posterUrl = this.gigService.resolveGigPosterPublicUrl(gig.poster);
+    const user =
+      gig.source.type === 'user'
+        ? activeSourceUsersById.get(gig.source.userId.toString())
+        : undefined;
+    const userSourceProfile = getAdminUserSourceProfile(user);
 
     const publishPost = this.telegramService.pickTgPost(
       gig.posts,
@@ -95,12 +112,23 @@ export class AdminGigService {
 
     return mapGigToFormData({
       gig,
+      userSourceProfile,
       posterUrl,
       publishPostUrl,
       publishPostDate: publishPost?.date,
       moderationPostUrl,
       moderationPostDate: moderationPost?.date,
     });
+  }
+
+  private async getActiveSourceUsersById(
+    gigs: readonly PlainGig[],
+  ): Promise<ReadonlyMap<string, User>> {
+    const userIds = gigs.flatMap((gig) =>
+      gig.source.type === 'user' ? [gig.source.userId.toString()] : [],
+    );
+    const users = await this.userService.findActiveUsersByIds(userIds);
+    return new Map(users.map((user) => [user.id, user]));
   }
 
   async updateGigByPublicId(

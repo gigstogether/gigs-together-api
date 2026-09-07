@@ -22,6 +22,9 @@ export type V1AdminGigCandidateUserOriginResponseBody =
 export interface V1AdminGigCandidateUserSourceResponseBody {
   type: 'user';
   userId: string;
+  displayName?: string;
+  isCurrentlyAdmin: boolean;
+  telegramUsername?: string;
   origin: V1AdminGigCandidateUserOriginResponseBody;
   originalText?: string;
   attachments?: Record<string, unknown>[];

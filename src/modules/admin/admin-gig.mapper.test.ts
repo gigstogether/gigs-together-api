@@ -23,11 +23,23 @@ describe('mapGigToFormData', () => {
       updatedAt: new Date(),
     };
 
-    expect(mapGigToFormData({ gig })).toMatchObject({
+    expect(
+      mapGigToFormData({
+        gig,
+        userSourceProfile: {
+          displayName: 'Test Admin',
+          isCurrentlyAdmin: true,
+          telegramUsername: 'test_admin',
+        },
+      }),
+    ).toMatchObject({
       publicId: gig.publicId,
       source: {
         type: 'user',
         userId: String(userId),
+        displayName: 'Test Admin',
+        isCurrentlyAdmin: true,
+        telegramUsername: 'test_admin',
         origin: { type: 'admin' },
       },
       isVisible: true,

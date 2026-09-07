@@ -172,6 +172,13 @@ function mapV1AdminGigCandidateSourceResponse(
     return {
       type: 'user',
       userId: source.userId,
+      ...(source.displayName !== undefined
+        ? { displayName: source.displayName }
+        : {}),
+      isCurrentlyAdmin: source.isCurrentlyAdmin,
+      ...(source.telegramUsername !== undefined
+        ? { telegramUsername: source.telegramUsername }
+        : {}),
       origin: { ...source.origin },
       ...(source.originalText !== undefined
         ? { originalText: source.originalText }

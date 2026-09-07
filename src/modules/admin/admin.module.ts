@@ -22,6 +22,7 @@ import {
 import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.filter';
 import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-approval-validation.filter';
 import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
     TranslationModule,
     TelegramModule,
     GigCandidateModule,
+    UserModule,
   ],
   controllers: [AdminController, AdminGigCandidateController],
   providers: [

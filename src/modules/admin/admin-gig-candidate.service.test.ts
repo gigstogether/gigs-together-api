@@ -12,6 +12,8 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { UserService } from '../user/user.service';
+import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
 function buildGigCandidate(
@@ -56,9 +58,30 @@ describe('AdminGigCandidateService', () => {
   const telegramServiceMock = {
     getPostUrl: vi.fn(),
   };
+  const userServiceMock = {
+    findActiveUsersByIds: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    userServiceMock.findActiveUsersByIds.mockResolvedValue([
+      {
+        id: '66a000000000000000000000042',
+        status: 'active',
+        roles: [UserRole.Admin],
+        identities: [
+          {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            externalUserId: '42',
+            username: 'test_user',
+          },
+        ],
+        displayName: 'Test User',
+        createdAt: new Date('2026-08-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+      },
+    ]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,6 +89,7 @@ describe('AdminGigCandidateService', () => {
         { provide: GigCandidateService, useValue: gigCandidateServiceMock },
         { provide: GigService, useValue: gigServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
 
@@ -90,6 +114,11 @@ describe('AdminGigCandidateService', () => {
       ).resolves.toEqual([
         expect.objectContaining({
           id: record.id,
+          source: expect.objectContaining({
+            displayName: 'Test User',
+            isCurrentlyAdmin: true,
+            telegramUsername: 'test_user',
+          }),
           gigDraft: record.gigDraft,
           posterUrl: 'https://cdn.example/poster.jpg',
           createdAt: record.createdAt,
@@ -101,6 +130,39 @@ describe('AdminGigCandidateService', () => {
         sortBy: AdminGigCandidateListSortBy.EventDate,
         sortOrder: AdminGigCandidateListSortOrder.Asc,
       });
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledOnce();
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([
+        record.source.type === 'user' ? record.source.userId : undefined,
+      ]);
+    });
+
+    it('should include displayName but not the admin marker for a non-admin user', async () => {
+      const record = buildGigCandidate();
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      userServiceMock.findActiveUsersByIds.mockResolvedValue([
+        {
+          id: '66a000000000000000000000042',
+          status: 'active',
+          roles: [],
+          identities: [],
+          displayName: 'Test User',
+          createdAt: new Date('2026-08-01T10:00:00.000Z'),
+          updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+        },
+      ]);
+
+      const [result] = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+      });
+
+      expect(result?.source).toEqual(
+        expect.objectContaining({
+          displayName: 'Test User',
+          isCurrentlyAdmin: false,
+        }),
+      );
     });
   });
 

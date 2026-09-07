@@ -17,6 +17,9 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
     source: {
       type: 'user',
       userId: '66a000000000000000000000042',
+      displayName: 'Test User',
+      isCurrentlyAdmin: false,
+      telegramUsername: 'test_user',
       origin: { type: 'form' },
     },
     gigDraft: {
@@ -55,6 +58,14 @@ describe('mapV1AdminGigCandidateResponse', () => {
       }),
     ).toEqual(
       expect.objectContaining({
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          displayName: 'Test User',
+          isCurrentlyAdmin: false,
+          telegramUsername: 'test_user',
+          origin: { type: 'form' },
+        },
         gigDraft: expect.objectContaining({ date: '2026-08-20' }),
         intakePostUrl: 'https://t.me/c/123/77',
         intakePostDate: 1_700_000_000_000,
@@ -99,6 +110,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
       source: {
         type: 'user',
         userId: '66a000000000000000000000042',
+        isCurrentlyAdmin: false,
         origin: {
           type: 'messenger',
           messenger: Messenger.Telegram,
@@ -109,6 +121,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
     expect(response.source).toEqual({
       type: 'user',
       userId: '66a000000000000000000000042',
+      isCurrentlyAdmin: false,
       origin: {
         type: 'messenger',
         messenger: Messenger.Telegram,

@@ -40,7 +40,10 @@ function buildDetails(
   const gigCandidate = buildGigCandidate();
   return {
     id: gigCandidate.id,
-    source: gigCandidate.source,
+    source:
+      gigCandidate.source.type === 'user'
+        ? { ...gigCandidate.source, isCurrentlyAdmin: true }
+        : gigCandidate.source,
     gigDraft: gigCandidate.gigDraft,
     version: gigCandidate.version,
     status: gigCandidate.status,

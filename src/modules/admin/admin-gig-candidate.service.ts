@@ -6,8 +6,12 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { UserService } from '../user/user.service';
+import type { User } from '../user/types/user.types';
+import { getAdminUserSourceProfile } from './admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
+  AdminGigCandidateSource,
   GetAdminGigCandidatesParams,
 } from './admin-gig-candidate.types';
 
@@ -17,15 +21,18 @@ export class AdminGigCandidateService {
     private readonly gigCandidateService: GigCandidateService,
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
+    private readonly userService: UserService,
   ) {}
 
   async getList(
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
     const gigCandidates = await this.gigCandidateService.findMany(params);
+    const activeSourceUsersById =
+      await this.getActiveSourceUsersById(gigCandidates);
     return Promise.all(
       gigCandidates.map((gigCandidate) =>
-        this.resolveGigCandidate(gigCandidate),
+        this.resolveGigCandidateWithUsers(gigCandidate, activeSourceUsersById),
       ),
     );
   }
@@ -38,6 +45,19 @@ export class AdminGigCandidateService {
 
   async resolveGigCandidate(
     gigCandidate: GigCandidate,
+  ): Promise<AdminGigCandidateDetails> {
+    const activeSourceUsersById = await this.getActiveSourceUsersById([
+      gigCandidate,
+    ]);
+    return this.resolveGigCandidateWithUsers(
+      gigCandidate,
+      activeSourceUsersById,
+    );
+  }
+
+  private async resolveGigCandidateWithUsers(
+    gigCandidate: GigCandidate,
+    activeSourceUsersById: ReadonlyMap<string, User>,
   ): Promise<AdminGigCandidateDetails> {
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
@@ -61,10 +81,11 @@ export class AdminGigCandidateService {
     const linkedGig = gigCandidate.gigId
       ? await this.gigService.getGigById(gigCandidate.gigId)
       : undefined;
+    const source = this.resolveSource(gigCandidate, activeSourceUsersById);
 
     return {
       id: gigCandidate.id,
-      source: gigCandidate.source,
+      source,
       gigDraft: gigCandidate.gigDraft,
       version: gigCandidate.version,
       posterUrl: this.gigService.resolveGigPosterPublicUrl(
@@ -83,5 +104,31 @@ export class AdminGigCandidateService {
       createdAt: gigCandidate.createdAt,
       updatedAt: gigCandidate.updatedAt,
     };
+  }
+
+  private resolveSource(
+    gigCandidate: GigCandidate,
+    activeSourceUsersById: ReadonlyMap<string, User>,
+  ): AdminGigCandidateSource {
+    if (gigCandidate.source.type === 'provider') {
+      return gigCandidate.source;
+    }
+
+    return {
+      ...gigCandidate.source,
+      ...getAdminUserSourceProfile(
+        activeSourceUsersById.get(gigCandidate.source.userId),
+      ),
+    };
+  }
+
+  private async getActiveSourceUsersById(
+    gigCandidates: readonly GigCandidate[],
+  ): Promise<ReadonlyMap<string, User>> {
+    const userIds = gigCandidates.flatMap((gigCandidate) =>
+      gigCandidate.source.type === 'user' ? [gigCandidate.source.userId] : [],
+    );
+    const users = await this.userService.findActiveUsersByIds(userIds);
+    return new Map(users.map((user) => [user.id, user]));
   }
 }
