@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -144,6 +144,7 @@ describe('GigCandidateService', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
@@ -1329,6 +1330,9 @@ describe('GigCandidateService', () => {
     });
 
     it('should update the Moderation post after rejecting Reviewing and preserve the transition when Telegram fails', async () => {
+      const loggerWarnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
@@ -1352,9 +1356,18 @@ describe('GigCandidateService', () => {
       telegramServiceMock.updateRejectedGigCandidatePost.mockRejectedValue(
         new Error('Telegram unavailable'),
       );
-      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValue(
-        new Error('Telegram unavailable'),
-      );
+      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValue({
+        isAxiosError: true,
+        message: 'Request failed with status code 400',
+        response: {
+          status: 400,
+          data: {
+            ok: false,
+            error_code: 400,
+            description: 'Bad Request: chat not found',
+          },
+        },
+      });
 
       await expect(
         service.rejectGigCandidate({
@@ -1369,6 +1382,9 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).toHaveBeenCalledOnce();
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        'sendGigCandidateFeedback failed for gigCandidateId=507f1f77bcf86cd799439099: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: chat not found',
+      );
     });
 
     it('should return illegal-transition conflict for repeated rejection', async () => {

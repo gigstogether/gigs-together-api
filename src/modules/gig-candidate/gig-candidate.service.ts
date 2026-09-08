@@ -5,6 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { isAxiosError } from 'axios';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -19,6 +20,7 @@ import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
+import { isRecord } from '../../shared/utils/is-record';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
@@ -999,7 +1001,24 @@ export class GigCandidateService {
   }
 
   private formatErrorMessage(e: unknown): string {
-    return e instanceof Error ? e.message : 'unknown error';
+    if (!isAxiosError(e)) {
+      return e instanceof Error ? e.message : 'unknown error';
+    }
+
+    const parts = [e.message];
+    if (e.response?.status !== undefined) {
+      parts.push(`httpStatus=${e.response.status}`);
+    }
+    const responseData = e.response?.data;
+    if (isRecord(responseData)) {
+      if (typeof responseData.error_code === 'number') {
+        parts.push(`telegramErrorCode=${responseData.error_code}`);
+      }
+      if (typeof responseData.description === 'string') {
+        parts.push(`telegramDescription=${responseData.description}`);
+      }
+    }
+    return parts.join('; ');
   }
 
   private assertExpectedVersionIsValid(
