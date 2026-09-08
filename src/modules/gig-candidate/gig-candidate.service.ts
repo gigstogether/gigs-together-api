@@ -597,6 +597,7 @@ export class GigCandidateService {
       await this.telegramService.updateGigModerationPost({
         gigId: gig.id,
         expectedVersion: gig.version,
+        isVisible: gig.isVisible,
         title: gig.title,
         publicId: gig.publicId,
         moderationPost: {

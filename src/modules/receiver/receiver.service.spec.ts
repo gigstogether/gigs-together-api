@@ -44,6 +44,7 @@ describe('ReceiverService', () => {
     approveGig: vi.fn(),
     publishGigPost: vi.fn(),
     rejectGig: vi.fn(),
+    setGigVisibility: vi.fn(),
   };
 
   const mockGigCandidateService = {
@@ -209,6 +210,89 @@ describe('ReceiverService', () => {
         callback_query_id: 'callback-1',
         text: 'Done!',
         show_alert: false,
+      });
+    });
+
+    it('should hide the Gig when Hide callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-hide',
+        data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Hide,
+          id: '507f1f77bcf86cd799439011',
+          expectedVersion: 7,
+        }),
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+      mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
+        gigId: '507f1f77bcf86cd799439011',
+        expectedVersion: 7,
+        isVisible: false,
+        moderationPost: {
+          messageId: 42,
+          chatId: -100123,
+        },
+      });
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-hide',
+        text: 'Done!',
+        show_alert: false,
+      });
+    });
+
+    it('should show the Gig when Show callback is received', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-show',
+        data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Show,
+          id: '507f1f77bcf86cd799439011',
+          expectedVersion: 8,
+        }),
+        from: {
+          id: 1,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+      mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
+      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
+        gigId: '507f1f77bcf86cd799439011',
+        expectedVersion: 8,
+        isVisible: true,
+        moderationPost: {
+          messageId: 42,
+          chatId: -100123,
+        },
       });
     });
 

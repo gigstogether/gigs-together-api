@@ -12,6 +12,7 @@ export interface UpdateGigModerationPostPayload {
   };
   gigId: GigId;
   expectedVersion: number;
+  isVisible: boolean;
   title: string;
   publicId: string;
   mainPost?: {

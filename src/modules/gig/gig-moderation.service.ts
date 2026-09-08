@@ -12,14 +12,22 @@ import { GigService } from './gig.service';
 import type {
   GigModerationPostRef,
   ModerateGigParams,
+  SetGigVisibilityParams,
 } from './types/gig-moderation.types';
 import type { PlainGig } from './types/gig.types';
+import { FeedRevalidateService } from './feed-revalidate.service';
+
+interface GigMainPostRef {
+  readonly chatId: GigModerationPostRef['chatId'];
+  readonly messageId: GigModerationPostRef['messageId'];
+}
 
 @Injectable()
 export class GigModerationService {
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
+    private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
 
   private readonly logger = new Logger(GigModerationService.name);
@@ -69,6 +77,7 @@ export class GigModerationService {
       await this.telegramService.updateGigModerationPost({
         gigId,
         expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
         title: updatedGig.title,
         publicId: updatedGig.publicId,
         moderationPost,
@@ -77,6 +86,48 @@ export class GigModerationService {
     } catch (e: unknown) {
       this.logger.warn(
         `updateGigModerationPost failed for gig ${gigId}: ${this.formatError(e)}`,
+      );
+    }
+  }
+
+  async setGigVisibility(params: SetGigVisibilityParams): Promise<void> {
+    const gig = await this.getGig(params);
+    const gigId = gig._id.toString();
+    if (gig.version !== params.expectedVersion) {
+      throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
+    }
+    if (gig.isVisible === params.isVisible) {
+      const visibility = params.isVisible ? 'visible' : 'hidden';
+      throw new ConflictException(
+        `Gig with ID "${gigId}" is already ${visibility}`,
+      );
+    }
+
+    const updatedGig = await this.gigService.updateGigVisibilityByPublicId({
+      publicId: gig.publicId,
+      expectedVersion: params.expectedVersion,
+      isVisible: params.isVisible,
+    });
+
+    await this.feedRevalidateService.revalidateFeed({
+      country: updatedGig.country,
+      city: updatedGig.city,
+    });
+
+    const mainPost = this.resolveMainPostRef(updatedGig.posts);
+    try {
+      await this.telegramService.updateGigModerationPost({
+        gigId,
+        expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        moderationPost: params.moderationPost,
+        mainPost,
+      });
+    } catch (e) {
+      this.logger.warn(
+        `updateGigModerationPost failed after changing visibility for gig ${gigId}: ${this.formatError(e)}`,
       );
     }
   }
@@ -104,6 +155,19 @@ export class GigModerationService {
     return {
       chatId: moderationPost.chatId,
       messageId: moderationPost.id,
+    };
+  }
+
+  private resolveMainPostRef(
+    posts: GigPost[] | undefined,
+  ): GigMainPostRef | undefined {
+    const mainPost = this.telegramService.pickTgPost(posts, PostType.Main);
+    if (!mainPost?.chatId || mainPost.id == null) {
+      return undefined;
+    }
+    return {
+      chatId: mainPost.chatId,
+      messageId: mainPost.id,
     };
   }
 

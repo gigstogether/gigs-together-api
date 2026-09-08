@@ -245,6 +245,7 @@ export class TelegramService {
       publicId,
       gigId,
       expectedVersion,
+      isVisible,
     } = payload;
 
     const editGigUrl =
@@ -270,6 +271,7 @@ export class TelegramService {
       this.telegramPostComposerService.buildAfterPublishModerationReplyMarkup({
         gigId,
         expectedVersion,
+        isVisible,
         publishPostUrl: publishPostChatIdUrl,
         editGigUrl,
       });

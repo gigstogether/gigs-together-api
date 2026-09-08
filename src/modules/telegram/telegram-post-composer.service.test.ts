@@ -50,13 +50,11 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
+    [TELEGRAM_TEMPLATE_KEYS.buttonHide]: '🙈 Hide',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
+    [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew]: '⚪ New',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
       'Suggestion rejected',
   };
@@ -67,7 +65,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
@@ -172,6 +169,7 @@ describe('TelegramPostComposer', () => {
         composer.buildAfterPublishModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
+          isVisible: true,
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
@@ -187,6 +185,15 @@ describe('TelegramPostComposer', () => {
               }),
             },
             { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
+            {
+              text: '🙈 Hide',
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.Gig,
+                action: GigCallbackAction.Hide,
+                id: 'gig-a',
+                expectedVersion: 7,
+              }),
+            },
           ],
         ],
       });
@@ -197,12 +204,51 @@ describe('TelegramPostComposer', () => {
         composer.buildAfterPublishModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
+          isVisible: true,
           publishPostUrl: 'https://t.me/x/1',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
         inline_keyboard: [
-          [{ text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' }],
+          [
+            { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
+            {
+              text: '🙈 Hide',
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.Gig,
+                action: GigCallbackAction.Hide,
+                id: 'gig-a',
+                expectedVersion: 7,
+              }),
+            },
+          ],
+        ],
+      });
+    });
+
+    it('should replace Hide with Show when the Gig is hidden', () => {
+      expect(
+        composer.buildAfterPublishModerationReplyMarkup({
+          gigId: 'gig-a',
+          expectedVersion: 8,
+          isVisible: false,
+          publishPostUrl: 'https://t.me/x/1',
+          editGigUrl: 'https://app.example/edit?startapp=x',
+        }),
+      ).toEqual({
+        inline_keyboard: [
+          [
+            { text: '✏️ Edit', url: 'https://app.example/edit?startapp=x' },
+            {
+              text: '👁 Show',
+              callback_data: encodeCallbackData({
+                scope: CallbackScope.Gig,
+                action: GigCallbackAction.Show,
+                id: 'gig-a',
+                expectedVersion: 8,
+              }),
+            },
+          ],
         ],
       });
     });
@@ -227,7 +273,7 @@ describe('TelegramPostComposer', () => {
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '<a href="https://t.me/gigs/42">See post</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a>\n\n<a href="https://app.example/gigs/concert">Concert</a>',
+        '<a href="https://app.example/gigs/concert">Concert</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a> | <a href="https://t.me/gigs/42">See post</a>',
       );
     });
   });
@@ -531,7 +577,9 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3001');
-      expect(payload.caption).toContain('⚪ New');
+      expect(payload.caption).toContain('⚪ Suggested Band');
+      expect(payload.caption).not.toContain('New');
+      expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.reply_markup).toEqual({
         inline_keyboard: [
           [
@@ -583,8 +631,9 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3002');
-      expect(payload.caption).toContain('🟡 Reviewing');
-      expect(payload.caption).toContain('Source: user');
+      expect(payload.caption).toContain('🟡 Suggested Band');
+      expect(payload.caption).not.toContain('Reviewing');
+      expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
         {
@@ -737,7 +786,7 @@ describe('TelegramPostComposer', () => {
       ).toMatchObject({
         chatId: -100,
         messageId: 10,
-        caption: expect.stringContaining('🔴 Rejected'),
+        caption: expect.stringContaining('🔴 Suggested Band'),
         replyMarkup: { inline_keyboard: [] },
       });
     });

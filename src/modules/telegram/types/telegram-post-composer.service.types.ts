@@ -85,6 +85,7 @@ export type GetPostUrlPayload =
 export interface BuildAfterPublishModerationReplyMarkupParams {
   readonly gigId?: GigId;
   readonly expectedVersion: number;
+  readonly isVisible: boolean;
   readonly publishPostUrl?: string;
   readonly editGigUrl?: string;
 }

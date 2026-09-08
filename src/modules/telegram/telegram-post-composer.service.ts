@@ -100,6 +100,7 @@ export class TelegramPostComposerService {
     const replyMarkup = this.buildAfterPublishModerationReplyMarkup({
       gigId: gig._id,
       expectedVersion: gig.version,
+      isVisible: gig.isVisible,
       editGigUrl: this.buildEditGigUrl(gig.publicId),
     });
     const fullCaption = this.buildModerationCaption({
@@ -613,34 +614,7 @@ export class TelegramPostComposerService {
   private buildGigCandidateCaption(
     params: BuildGigCandidateCaptionParams,
   ): string {
-    const { gigCandidate } = params;
-    const body = this.buildGigCandidateBodyCaption(gigCandidate);
-
-    return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigCandidate, {
-      statusLine: this.buildGigCandidateStatusLabel(gigCandidate.status),
-      body,
-    });
-  }
-
-  private buildGigCandidateStatusLabel(status: GigCandidateStatus): string {
-    switch (status) {
-      case GigCandidateStatus.New:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew,
-        );
-      case GigCandidateStatus.Reviewing:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing,
-        );
-      case GigCandidateStatus.Approved:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved,
-        );
-      case GigCandidateStatus.Rejected:
-        return this.postTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected,
-        );
-    }
+    return this.buildGigCandidateBodyCaption(params.gigCandidate);
   }
 
   private buildGigCandidateBodyCaption(gigCandidate: GigCandidate): string {
@@ -650,21 +624,40 @@ export class TelegramPostComposerService {
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
     }
-    const sourceLabel = source.type;
-
     const locationLine = [gigDraft.country, gigDraft.city]
       .filter(Boolean)
       .join(' / ');
 
     const body = this.buildCaption({
-      title: gigDraft.title,
+      title: this.buildGigCandidateTitleLine(
+        gigCandidate.status,
+        gigDraft.title,
+      ),
       ticketsUrl: gigDraft.ticketsUrl ?? '',
       venue: gigDraft.venue ?? '',
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });
+    const mainInformation = [body, locationLine].filter(Boolean).join('\n');
 
-    return `${body}\n${locationLine}\nSource: ${sourceLabel}`;
+    return `${mainInformation}\n\n──────────\nSource: ${source.type}`;
+  }
+
+  private buildGigCandidateTitleLine(
+    status: GigCandidateStatus,
+    title: string,
+  ): string {
+    const escapedTitle = this.escapeTelegramHtmlText(title);
+    switch (status) {
+      case GigCandidateStatus.New:
+        return `⚪ ${escapedTitle}`;
+      case GigCandidateStatus.Reviewing:
+        return `🟡 ${escapedTitle}`;
+      case GigCandidateStatus.Approved:
+        return escapedTitle;
+      case GigCandidateStatus.Rejected:
+        return `🔴 ${escapedTitle}`;
+    }
   }
 
   private escapeTelegramHtmlText(value: string): string {
@@ -796,7 +789,8 @@ export class TelegramPostComposerService {
   buildAfterPublishModerationReplyMarkup(
     params: BuildAfterPublishModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup | undefined {
-    const { gigId, expectedVersion, publishPostUrl, editGigUrl } = params;
+    const { gigId, expectedVersion, isVisible, publishPostUrl, editGigUrl } =
+      params;
 
     const row: Array<
       { text: string; url: string } | { text: string; callback_data: string }
@@ -817,6 +811,24 @@ export class TelegramPostComposerService {
       row.push({
         text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonEdit),
         url: editGigUrl,
+      });
+    }
+    if (gigId !== undefined) {
+      const visibilityAction = isVisible
+        ? GigCallbackAction.Hide
+        : GigCallbackAction.Show;
+      const visibilityTextKey = isVisible
+        ? TELEGRAM_TEMPLATE_KEYS.buttonHide
+        : TELEGRAM_TEMPLATE_KEYS.buttonShow;
+
+      row.push({
+        text: this.postTemplates.getText(visibilityTextKey),
+        callback_data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: visibilityAction,
+          id: String(gigId),
+          expectedVersion,
+        }),
       });
     }
 
@@ -840,11 +852,23 @@ export class TelegramPostComposerService {
           { title: payload.title },
         );
 
-    return this.buildModerationCaption({
-      body: titleLabel,
-      publishPostUrl: payload.publishPostUrl,
-      adminGigUrl: payload.adminGigUrl,
-    });
+    const captionParts = [
+      titleLabel,
+      payload.adminGigUrl
+        ? this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin,
+            { url: payload.adminGigUrl },
+          )
+        : undefined,
+      payload.publishPostUrl
+        ? this.postTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
+            { url: payload.publishPostUrl },
+          )
+        : undefined,
+    ].filter((part): part is string => part !== undefined);
+
+    return captionParts.join(' | ');
   }
 
   buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {

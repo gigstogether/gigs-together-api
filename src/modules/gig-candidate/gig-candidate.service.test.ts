@@ -1057,6 +1057,7 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
         gigId: gig.id,
         expectedVersion: gig.version,
+        isVisible: gig.isVisible,
         title: gig.title,
         publicId: gig.publicId,
         moderationPost: { chatId: -200, messageId: 50 },

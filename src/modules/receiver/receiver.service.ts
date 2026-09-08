@@ -155,6 +155,30 @@ export class ReceiverService {
     switch (parsed.scope) {
       case CallbackScope.Gig: {
         switch (parsed.action) {
+          case GigCallbackAction.Hide: {
+            await this.gigModerationService.setGigVisibility({
+              gigId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
+              isVisible: false,
+              moderationPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
+          case GigCallbackAction.Show: {
+            await this.gigModerationService.setGigVisibility({
+              gigId: parsed.id,
+              expectedVersion: parsed.expectedVersion,
+              isVisible: true,
+              moderationPost: {
+                messageId: message.message_id,
+                chatId: message.chat.id,
+              },
+            });
+            break;
+          }
           case GigCallbackAction.Post: {
             await this.gigModerationService.publishGigPost({
               gigId: parsed.id,

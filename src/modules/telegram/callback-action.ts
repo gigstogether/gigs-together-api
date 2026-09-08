@@ -7,7 +7,9 @@ export enum CallbackScope {
 }
 
 export enum GigCallbackAction {
+  Hide = 'hide',
   Post = 'post',
+  Show = 'show',
 }
 
 export interface GigCallbackData {
@@ -36,7 +38,11 @@ export type EncodeCallbackDataParams =
 export type ParsedCallbackData = EncodeCallbackDataParams;
 
 function isGigCallbackAction(value: string): value is GigCallbackAction {
-  return value === GigCallbackAction.Post;
+  return (
+    value === GigCallbackAction.Hide ||
+    value === GigCallbackAction.Post ||
+    value === GigCallbackAction.Show
+  );
 }
 
 function isGigCandidateCallbackAction(

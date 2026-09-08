@@ -6,6 +6,13 @@ export interface GigModerationPostRef {
   readonly messageId: TGMessage['message_id'];
 }
 
+export interface SetGigVisibilityParams {
+  readonly gigId: GigId;
+  readonly expectedVersion: number;
+  readonly isVisible: boolean;
+  readonly moderationPost: GigModerationPostRef;
+}
+
 interface ModerateGigBaseParams {
   readonly moderationPost?: GigModerationPostRef;
   readonly expectedVersion: number;

@@ -46,13 +46,11 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonAccept]: '✅ Accept',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
+    [TELEGRAM_TEMPLATE_KEYS.buttonHide]: '🙈 Hide',
     [TELEGRAM_TEMPLATE_KEYS.buttonReject]: '❌ Reject',
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
+    [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusNew]: '⚪ New',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusReviewing]: '🟡 Reviewing',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusApproved]: '🟢 Approved',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateStatusRejected]: '🔴 Rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
@@ -65,7 +63,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidate]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
@@ -374,6 +371,7 @@ describe('TelegramService', () => {
       await service.updateGigModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 7,
+        isVisible: true,
         title: 'Radiohead',
         publicId: 'radiohead-barcelona-2026-06-12',
         moderationPost: {
@@ -408,6 +406,7 @@ describe('TelegramService', () => {
                 text: '✏️ Edit',
                 url: 'https://app.example/edit?startapp=radiohead-barcelona-2026-06-12',
               },
+              expect.objectContaining({ text: '🙈 Hide' }),
             ],
           ],
         },
@@ -416,7 +415,7 @@ describe('TelegramService', () => {
   });
 
   describe('updateGigModerationPost without main post', () => {
-    it('should keep Post and Edit controls without a Main post', async () => {
+    it('should keep Post, Edit and Hide controls without a Main post', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
       process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
@@ -431,6 +430,7 @@ describe('TelegramService', () => {
       await service.updateGigModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 8,
+        isVisible: true,
         title: 'Radiohead',
         publicId: 'radiohead-barcelona-2026-06-12',
         moderationPost: { chatId: -100123, messageId: 42 },
@@ -443,6 +443,7 @@ describe('TelegramService', () => {
               [
                 expect.objectContaining({ text: '📢 Post' }),
                 expect.objectContaining({ text: '✏️ Edit' }),
+                expect.objectContaining({ text: '🙈 Hide' }),
               ],
             ],
           },
@@ -518,7 +519,7 @@ describe('TelegramService', () => {
         expect.objectContaining({
           chatId: -200,
           messageId: 50,
-          caption: expect.stringContaining(GigCandidateStatus.Rejected),
+          caption: expect.stringContaining('🔴 Suggested Band'),
           replyMarkup: { inline_keyboard: [] },
         }),
       );
