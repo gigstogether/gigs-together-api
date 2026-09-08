@@ -8,7 +8,6 @@ import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import type { GigCandidatePost } from '../gig-candidate/types/gig-candidate.types';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import type {
   UpdateGigModerationPostPayload,
@@ -20,6 +19,7 @@ import {
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
   ComposeGigCandidateFeedbackMessageParams,
+  ComposeGigCandidateIntakePostAfterModerationEditParams,
 } from './types/telegram-post-composer.service.types';
 
 @Injectable()
@@ -225,14 +225,14 @@ export class TelegramService {
     return this.telegramBotClient.editMessageCaption(composed);
   }
 
-  async removeGigCandidateIntakeActions(
-    intakePost: GigCandidatePost,
-  ): Promise<void> {
-    await this.telegramBotClient.editMessageReplyMarkup({
-      chatId: intakePost.chatId,
-      messageId: intakePost.id,
-      replyMarkup: { inline_keyboard: [] },
-    });
+  updateGigCandidateIntakePostAfterModeration(
+    payload: ComposeGigCandidateIntakePostAfterModerationEditParams,
+  ): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeGigCandidateIntakePostAfterModerationEdit(
+        payload,
+      );
+    return this.telegramBotClient.editMessageCaption(composed);
   }
 
   async updateGigModerationPost(

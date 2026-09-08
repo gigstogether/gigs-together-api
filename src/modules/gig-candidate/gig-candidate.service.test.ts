@@ -67,7 +67,7 @@ describe('GigCandidateService', () => {
   const telegramServiceMock = {
     sendGigCandidateIntakePost: vi.fn(),
     sendGigCandidateModerationPost: vi.fn(),
-    removeGigCandidateIntakeActions: vi.fn(),
+    updateGigCandidateIntakePostAfterModeration: vi.fn(),
     sendGigCandidateFeedback: vi.fn(),
     updateRejectedGigCandidatePost: vi.fn(),
     updateGigModerationPost: vi.fn(),
@@ -747,7 +747,7 @@ describe('GigCandidateService', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
-    it('should transition once, store Moderation, and then remove Intake actions', async () => {
+    it('should transition once, store Moderation, and then update Intake with the handoff links', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -789,7 +789,7 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         stored,
       );
-      telegramServiceMock.removeGigCandidateIntakeActions.mockResolvedValue(
+      telegramServiceMock.updateGigCandidateIntakePostAfterModeration.mockResolvedValue(
         undefined,
       );
 
@@ -815,14 +815,18 @@ describe('GigCandidateService', () => {
         }),
       );
       expect(
-        telegramServiceMock.removeGigCandidateIntakeActions,
-      ).toHaveBeenCalledWith(intakePost);
+        telegramServiceMock.updateGigCandidateIntakePostAfterModeration,
+      ).toHaveBeenCalledWith({
+        gigCandidate: stored,
+        intakePost,
+        moderationPost,
+      });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
       );
     });
 
-    it('should leave Reviewing with Intake retry actions when Telegram send fails', async () => {
+    it('should preserve Intake actions for retry when sending Moderation fails', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -854,7 +858,7 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(reviewing);
       expect(
-        telegramServiceMock.removeGigCandidateIntakeActions,
+        telegramServiceMock.updateGigCandidateIntakePostAfterModeration,
       ).not.toHaveBeenCalled();
     });
 
@@ -911,7 +915,7 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should retry only Intake action removal after its first failure', async () => {
+    it('should retry only the Intake handoff update after its first failure', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -919,36 +923,38 @@ describe('GigCandidateService', () => {
         id: 40,
         chatId: -100,
       };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+      };
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         version: 3,
-        posts: [
-          intakePost,
-          {
-            to: Messenger.Telegram,
-            type: PostType.Moderation,
-            date: 1_700_000_001_000,
-            id: 50,
-            chatId: -200,
-          },
-        ],
+        posts: [intakePost, moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      telegramServiceMock.removeGigCandidateIntakeActions
+      telegramServiceMock.updateGigCandidateIntakePostAfterModeration
         .mockRejectedValueOnce(new Error('Telegram update failed'))
         .mockResolvedValueOnce(undefined);
 
-      await service.sendGigCandidateToModeration({
-        gigCandidateId: reviewing.id,
-        expectedVersion: 1,
-      });
-      await service.sendGigCandidateToModeration({
-        gigCandidateId: reviewing.id,
-        expectedVersion: 1,
-      });
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 1,
+        }),
+      ).resolves.toEqual(reviewing);
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 1,
+        }),
+      ).resolves.toEqual(reviewing);
 
       expect(
-        telegramServiceMock.removeGigCandidateIntakeActions,
+        telegramServiceMock.updateGigCandidateIntakePostAfterModeration,
       ).toHaveBeenCalledTimes(2);
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
@@ -1306,6 +1312,9 @@ describe('GigCandidateService', () => {
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
       gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+      telegramServiceMock.updateRejectedGigCandidatePost.mockResolvedValue(
+        undefined,
+      );
 
       await expect(
         service.rejectGigCandidate({
@@ -1330,6 +1339,40 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
+    it('should preserve rejected state and Intake reference when Telegram update fails', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const newGigCandidate = buildGigCandidate({ posts: [intakePost] });
+      const rejected = buildGigCandidate({
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+        posts: [intakePost],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+      telegramServiceMock.updateRejectedGigCandidatePost.mockRejectedValue(
+        new Error('Telegram update failed'),
+      );
+
+      await expect(
+        service.rejectGigCandidate({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 0,
+          rejectedByUserId: rejected.rejectedByUserId!,
+        }),
+      ).resolves.toEqual(rejected);
+      expect(
+        telegramServiceMock.updateRejectedGigCandidatePost,
+      ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
+    });
+
     it('should update the Moderation post after rejecting Reviewing and preserve the transition when Telegram fails', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')
@@ -1341,14 +1384,21 @@ describe('GigCandidateService', () => {
         id: 50,
         chatId: -200,
       };
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
-        posts: [moderationPost],
+        posts: [intakePost, moderationPost],
       });
       const rejected = buildGigCandidate({
         status: GigCandidateStatus.Rejected,
         version: 1,
-        posts: [moderationPost],
+        posts: [intakePost, moderationPost],
         rejectedAt: new Date(),
         rejectedByUserId: '507f1f77bcf86cd799439077',
       });

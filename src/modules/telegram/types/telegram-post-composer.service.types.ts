@@ -110,6 +110,8 @@ export interface BuildModerationLinksParams {
 
 export interface BuildGigCandidateCaptionParams {
   gigCandidate: GigCandidate;
+  channelPurpose: 'intake' | 'moderation';
+  moderationPost?: GigCandidatePost;
 }
 
 export interface GigCandidateFeedbackMessageWithoutTitleContent {
@@ -140,6 +142,12 @@ export type ComposeGigCandidateFeedbackMessageParams =
 export interface ComposeRejectedGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
   post: GigCandidatePost;
+}
+
+export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
+  gigCandidate: GigCandidate;
+  intakePost: GigCandidatePost;
+  moderationPost: GigCandidatePost;
 }
 
 export interface ComposedText {

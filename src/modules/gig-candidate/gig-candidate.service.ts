@@ -290,9 +290,9 @@ export class GigCandidateService {
       await this.ensureGigCandidateModerationPostBestEffort(
         reviewingGigCandidate,
       );
-    if (this.findTelegramPost(withModerationPost, PostType.Moderation)) {
-      await this.removeGigCandidateIntakeActionsBestEffort(withModerationPost);
-    }
+    await this.updateGigCandidateIntakePostAfterModerationBestEffort(
+      withModerationPost,
+    );
     if (didTransition) {
       await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
         withModerationPost,
@@ -832,19 +832,27 @@ export class GigCandidateService {
     }
   }
 
-  private async removeGigCandidateIntakeActionsBestEffort(
+  private async updateGigCandidateIntakePostAfterModerationBestEffort(
     gigCandidate: GigCandidate,
   ): Promise<void> {
     const intakePost = this.findTelegramPost(gigCandidate, PostType.Intake);
-    if (!intakePost) {
+    const moderationPost = this.findTelegramPost(
+      gigCandidate,
+      PostType.Moderation,
+    );
+    if (!intakePost || !moderationPost) {
       return;
     }
 
     try {
-      await this.telegramService.removeGigCandidateIntakeActions(intakePost);
+      await this.telegramService.updateGigCandidateIntakePostAfterModeration({
+        gigCandidate,
+        intakePost,
+        moderationPost,
+      });
     } catch (e) {
       this.logTelegramFailure(
-        'removeGigCandidateIntakeActions',
+        'updateGigCandidateIntakePostAfterModeration',
         gigCandidate.id,
         e,
       );

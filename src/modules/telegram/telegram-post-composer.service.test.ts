@@ -71,6 +71,10 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
+      '<a href="{url}">Open gig candidate in admin</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost]:
+      '<a href="{url}">See moderation post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -577,9 +581,13 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3001');
-      expect(payload.caption).toContain('⚪ Suggested Band');
+      expect(payload.caption).toContain('Suggested Band');
+      expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
+      expect(payload.caption).toContain(
+        '<a href="https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+      );
       expect(payload.reply_markup).toEqual({
         inline_keyboard: [
           [
@@ -772,23 +780,81 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       };
 
-      expect(
-        composer.composeRejectedGigCandidatePostEdit({
-          gigCandidate,
-          post: {
-            to: Messenger.Telegram,
-            type: PostType.Intake,
-            date: 1,
-            id: 10,
-            chatId: -100,
-          },
-        }),
-      ).toMatchObject({
+      const payload = composer.composeRejectedGigCandidatePostEdit({
+        gigCandidate,
+        post: {
+          to: Messenger.Telegram,
+          type: PostType.Intake,
+          date: 1,
+          id: 10,
+          chatId: -100,
+        },
+      });
+
+      expect(payload).toMatchObject({
         chatId: -100,
         messageId: 10,
         caption: expect.stringContaining('🔴 Suggested Band'),
         replyMarkup: { inline_keyboard: [] },
       });
+      expect(payload.caption).not.toContain('Rejected');
+      expect(payload.caption).toContain(
+        '<a href="https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+      );
+    });
+
+    it('should replace Intake actions with admin and Moderation links after handoff', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 3,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const payload = composer.composeGigCandidateIntakePostAfterModerationEdit(
+        {
+          gigCandidate,
+          intakePost: {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1,
+            id: 10,
+            chatId: -1003001,
+          },
+          moderationPost: {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 2,
+            id: 20,
+            chatId: -1003002,
+          },
+        },
+      );
+
+      expect(payload).toMatchObject({
+        chatId: -1003001,
+        messageId: 10,
+        replyMarkup: { inline_keyboard: [] },
+      });
+      expect(payload.caption).toContain('Suggested Band');
+      expect(payload.caption).not.toContain('🟡');
+      expect(payload.caption).not.toContain('Reviewing');
+      expect(payload.caption).toContain(
+        '<a href="https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/20">See moderation post</a>',
+      );
     });
   });
 });

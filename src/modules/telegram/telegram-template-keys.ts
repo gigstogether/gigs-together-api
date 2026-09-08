@@ -28,6 +28,8 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   gigCandidateFeedbackRejected: 'gigCandidateFeedback.rejected',
   gigCandidateFeedbackAcceptedWithPublicLink:
     'gigCandidateFeedback.acceptedWithPublicLink',
+  gigCandidateLinkOpenAdmin: 'gigCandidateLink.openAdmin',
+  gigCandidateLinkSeeModerationPost: 'gigCandidateLink.seeModerationPost',
 } as const;
 
 export type TelegramTemplateKey =

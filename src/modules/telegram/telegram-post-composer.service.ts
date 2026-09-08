@@ -33,6 +33,7 @@ import {
   BuildPublishedModerationCaptionPayload,
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
+  ComposeGigCandidateIntakePostAfterModerationEditParams,
   ComposeRejectedGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
@@ -579,11 +580,31 @@ export class TelegramPostComposerService {
   composeRejectedGigCandidatePostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
   ): TGEditMessageCaption {
+    const channelPurpose =
+      params.post.type === PostType.Intake ? 'intake' : 'moderation';
+
     return {
       chatId: params.post.chatId,
       messageId: params.post.id,
       caption: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
+        channelPurpose,
+      }),
+      parseMode: TGParseMode.HTML,
+      replyMarkup: { inline_keyboard: [] },
+    };
+  }
+
+  composeGigCandidateIntakePostAfterModerationEdit(
+    params: ComposeGigCandidateIntakePostAfterModerationEditParams,
+  ): TGEditMessageCaption {
+    return {
+      chatId: params.intakePost.chatId,
+      messageId: params.intakePost.id,
+      caption: this.buildGigCandidateCaption({
+        gigCandidate: params.gigCandidate,
+        channelPurpose: 'intake',
+        moderationPost: params.moderationPost,
       }),
       parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
@@ -605,6 +626,7 @@ export class TelegramPostComposerService {
       photo: poster,
       caption: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
+        channelPurpose: params.channelPurpose,
       }),
       parse_mode: TGParseMode.HTML,
       reply_markup: params.replyMarkup,
@@ -614,10 +636,51 @@ export class TelegramPostComposerService {
   private buildGigCandidateCaption(
     params: BuildGigCandidateCaptionParams,
   ): string {
-    return this.buildGigCandidateBodyCaption(params.gigCandidate);
+    const body = this.buildGigCandidateBodyCaption(params);
+    if (params.channelPurpose !== 'intake') {
+      return body;
+    }
+
+    const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
+      params.gigCandidate.id,
+    );
+    if (adminGigCandidateUrl === undefined) {
+      throw new BadRequestException(
+        'Cannot compose GigCandidate intake post: APP_BASE_URL is not configured.',
+      );
+    }
+
+    const links = [
+      this.postTemplates.render(
+        TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin,
+        { url: adminGigCandidateUrl },
+      ),
+    ];
+    if (params.moderationPost !== undefined) {
+      const moderationPostUrl = this.getPostUrl({
+        chatId: params.moderationPost.chatId,
+        messageId: params.moderationPost.id,
+      });
+      if (moderationPostUrl === undefined) {
+        throw new BadRequestException(
+          'Cannot compose GigCandidate intake post: moderation post URL is unavailable.',
+        );
+      }
+      links.push(
+        this.postTemplates.render(
+          TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost,
+          { url: moderationPostUrl },
+        ),
+      );
+    }
+
+    return `${body}\n${links.join(' | ')}`;
   }
 
-  private buildGigCandidateBodyCaption(gigCandidate: GigCandidate): string {
+  private buildGigCandidateBodyCaption(
+    params: BuildGigCandidateCaptionParams,
+  ): string {
+    const { gigCandidate } = params;
     const { gigDraft, source } = gigCandidate;
     if (gigDraft.title === undefined || gigDraft.date === undefined) {
       throw new BadRequestException(
@@ -632,6 +695,7 @@ export class TelegramPostComposerService {
       title: this.buildGigCandidateTitleLine(
         gigCandidate.status,
         gigDraft.title,
+        params.channelPurpose,
       ),
       ticketsUrl: gigDraft.ticketsUrl ?? '',
       venue: gigDraft.venue ?? '',
@@ -646,8 +710,15 @@ export class TelegramPostComposerService {
   private buildGigCandidateTitleLine(
     status: GigCandidateStatus,
     title: string,
+    channelPurpose: 'intake' | 'moderation',
   ): string {
     const escapedTitle = this.escapeTelegramHtmlText(title);
+    if (channelPurpose === 'intake') {
+      return status === GigCandidateStatus.Rejected
+        ? `🔴 ${escapedTitle}`
+        : escapedTitle;
+    }
+
     switch (status) {
       case GigCandidateStatus.New:
         return `⚪ ${escapedTitle}`;
@@ -760,6 +831,20 @@ export class TelegramPostComposerService {
 
     return new URL(
       `/admin/gigs/candidates/${encodeURIComponent(gigCandidateId)}/edit`,
+      appBaseUrl,
+    ).toString();
+  }
+
+  private buildAdminGigCandidateUrl(
+    gigCandidateId: string,
+  ): string | undefined {
+    const appBaseUrl = this.getAppBaseUrl();
+    if (!appBaseUrl) {
+      return undefined;
+    }
+
+    return new URL(
+      `/admin/gigs/candidates/${encodeURIComponent(gigCandidateId)}`,
       appBaseUrl,
     ).toString();
   }

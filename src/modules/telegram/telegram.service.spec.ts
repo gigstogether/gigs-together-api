@@ -67,6 +67,10 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
+      '<a href="{url}">Open gig candidate in admin</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost]:
+      '<a href="{url}">See moderation post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -520,6 +524,68 @@ describe('TelegramService', () => {
           chatId: -200,
           messageId: 50,
           caption: expect.stringContaining('🔴 Suggested Band'),
+          replyMarkup: { inline_keyboard: [] },
+        }),
+      );
+    });
+
+    it('should update Intake with handoff links and remove its actions', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
+      const bot = testingModule.get(TelegramBotClient);
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue({
+          message_id: 40,
+          date: 1,
+          chat: { id: -1003001, type: 'channel' },
+        });
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1,
+        id: 40,
+        chatId: -1003001,
+      };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 2,
+        id: 50,
+        chatId: -1003002,
+      };
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 3,
+        status: GigCandidateStatus.Reviewing,
+        posts: [intakePost, moderationPost],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await service.updateGigCandidateIntakePostAfterModeration({
+        gigCandidate,
+        intakePost,
+        moderationPost,
+      });
+
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: -1003001,
+          messageId: 40,
+          caption: expect.stringContaining(
+            '<a href="https://app.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
+          ),
           replyMarkup: { inline_keyboard: [] },
         }),
       );
