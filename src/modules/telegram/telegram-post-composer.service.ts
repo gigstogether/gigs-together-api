@@ -731,6 +731,16 @@ export class TelegramPostComposerService {
               expectedVersion: expectedVersionAfterPostStored,
             }),
           },
+          ...(editGigCandidateUrl
+            ? [
+                {
+                  text: this.postTemplates.getText(
+                    TELEGRAM_TEMPLATE_KEYS.buttonEdit,
+                  ),
+                  url: editGigCandidateUrl,
+                },
+              ]
+            : []),
           {
             text: this.postTemplates.getText(
               TELEGRAM_TEMPLATE_KEYS.buttonReject,
@@ -742,16 +752,6 @@ export class TelegramPostComposerService {
               expectedVersion: expectedVersionAfterPostStored,
             }),
           },
-          ...(editGigCandidateUrl
-            ? [
-                {
-                  text: this.postTemplates.getText(
-                    TELEGRAM_TEMPLATE_KEYS.buttonEdit,
-                  ),
-                  url: editGigCandidateUrl,
-                },
-              ]
-            : []),
         ],
       ],
     };

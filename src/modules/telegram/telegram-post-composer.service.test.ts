@@ -558,7 +558,7 @@ describe('TelegramPostComposer', () => {
       });
     });
 
-    it('should compose Moderation with inactive Approve, Reject, and Edit controls', () => {
+    it('should compose Moderation with inactive Approve, Edit and Reject controls', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       const payload = composer.composeGigCandidateModerationPost({
@@ -597,6 +597,10 @@ describe('TelegramPostComposer', () => {
           }),
         },
         {
+          text: '✏️ Edit',
+          url: 'https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099/edit',
+        },
+        {
           text: '❌ Reject',
           callback_data: encodeCallbackData({
             scope: CallbackScope.GigCandidate,
@@ -604,10 +608,6 @@ describe('TelegramPostComposer', () => {
             id: '507f1f77bcf86cd799439099',
             expectedVersion: 3,
           }),
-        },
-        {
-          text: '✏️ Edit',
-          url: 'https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099/edit',
         },
       ]);
     });
