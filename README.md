@@ -123,7 +123,6 @@ Current variables defined in `.env.example`:
 | Variable                                        | Required                                     | Purpose                                                                  |
 | ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                         |
-| `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                |
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                            |
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
 | `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
@@ -198,7 +197,10 @@ If you are onboarding from scratch, use this order:
 
 ## Running MongoDB locally
 
-The repo includes a simple Docker Compose file for MongoDB.
+The repo includes a Docker Compose file that runs MongoDB as a single-member
+replica set named `rs0`. This supports local multi-document transactions while
+keeping one MongoDB container. The container healthcheck initializes the
+replica set once and waits until its member becomes writable.
 
 Before starting it, make sure your env file contains:
 
@@ -210,6 +212,13 @@ Start MongoDB:
 ```bash
 docker-compose up -d
 ```
+
+Before recreating an existing standalone container, create a local backup.
+MongoDB data and configuration are stored in the named
+`gigs-together-mongodb-data` and `gigs-together-mongodb-config` volumes, so a
+regular `docker-compose down` followed by `docker-compose up -d` preserves the
+database. Do not use `docker-compose down -v`, because `-v` removes those named
+volumes and their data.
 
 Stop MongoDB:
 
@@ -226,14 +235,27 @@ docker ps
 Default connection shape expected by the app:
 
 ```text
-mongodb://<HOST>:<PORT>/<DBNAME>
+mongodb://<HOST>:<PORT>/<DBNAME>?replicaSet=rs0&directConnection=true
 ```
 
 Example local value:
 
 ```text
-MONGO_URI=mongodb://localhost:27017/gigs-together
+MONGO_URI=mongodb://localhost:27017/gigs-together?replicaSet=rs0&directConnection=true
 ```
+
+`directConnection=true` is required for this local Docker setup because only
+one replica-set endpoint is exposed to the host. It is a development setting;
+do not add it to Atlas replica-set or sharded-cluster connection strings.
+
+Verify the local topology after startup:
+
+```bash
+docker exec mongodb-gigs mongosh --quiet --eval "const hello = db.adminCommand({ hello: 1 }); printjson({ setName: hello.setName, isWritablePrimary: hello.isWritablePrimary })"
+```
+
+The expected result contains `setName: 'rs0'` and
+`isWritablePrimary: true`.
 
 ## Running the application
 
@@ -451,35 +473,61 @@ npx nest g s modules/example
 
 ## Database migrations
 
-Apply pending migrations with:
+List migration states with:
+
+```bash
+npm run migrate:list
+```
+
+Dry-run pending migrations (the default) with:
 
 ```bash
 npm run migrate:up
 ```
 
-Dry-run pending migrations with:
+Dry-run one migration by name with:
 
 ```bash
-npm run migrate:up:dry
+npm run migrate:up:single:dry -- example-migration
 ```
 
-Migration files live in `migrations/`.
+Apply one migration by name only after reviewing its dry-run report with:
 
-The dry-run flow is opt-in inside each migration. `npm run migrate:up:dry` only sets `DRY_RUN=true`; a migration must check `isMigrationDryRun()` and call `finishMigrationDryRun()` to avoid being marked as applied.
+```bash
+npm run migrate:up:single:apply -- example-migration
+```
+
+The single-migration scripts embed `--single` before the forwarded migration
+name. Do not append `--single` after `npm run ... --`; current npm versions may
+interpret it as npm configuration instead of forwarding it to the migrator.
+
+Use the migration name without the numeric filename timestamp. For example,
+`1234567890000-example-migration.ts` is run as `example-migration`.
+
+Migration files and their unit tests live in `migrations/`. Only actual
+migrations start with a numeric timestamp; colocated `*.test.ts` files must not.
+
+Dry run is the default. `npm run migrate:up:apply` explicitly sets
+`DRY_RUN=false`; every migration must check `isMigrationDryRun()` and call
+`finishMigrationDryRun()` so a dry run is not marked as applied.
+
+A successful dry run currently ends with `MigrationDryRunCompleteError`. This is
+the expected completion signal that keeps the migration in the pending state;
+review the JSON report printed immediately before it.
 
 Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is available there before running migrations.
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
-- receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
-- admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
+- admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
 - translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 

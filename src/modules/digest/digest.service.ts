@@ -96,7 +96,7 @@ export class DigestService {
   private getDigestRangeDocuments(): Promise<GigDocument[]> {
     const { fromMs, toMs } = getDigestUpcomingInclusiveDayRangeMs(new Date());
 
-    return this.gigService.getPublishedGigDocumentsInInclusiveMsRange({
+    return this.gigService.getVisibleGigDocumentsInInclusiveMsRange({
       fromMs,
       toMs,
     });

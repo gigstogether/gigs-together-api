@@ -3,7 +3,6 @@ import { GigService } from './gig.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
-import { AiModule } from '../ai/ai.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
@@ -12,12 +11,10 @@ import { GigModerationService } from './gig-moderation.service';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
-import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Gig.name, schema: GigSchema }]),
-    AiModule,
     CalendarModule,
     BucketModule,
     HttpModule,
@@ -29,9 +26,14 @@ import { GigLookupBodyPipe } from './pipes/gig-lookup-body.pipe';
     GigPosterService,
     GigModerationService,
     FeedRevalidateService,
-    GigLookupBodyPipe,
   ],
-  exports: [GigService, GigModerationService, FeedRevalidateService],
+  exports: [
+    MongooseModule,
+    GigService,
+    GigModerationService,
+    FeedRevalidateService,
+    GigPosterService,
+  ],
   controllers: [GigController],
 })
 export class GigModule {}

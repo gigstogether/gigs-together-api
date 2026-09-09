@@ -1,25 +1,16 @@
-import mongoose from 'mongoose';
-import * as dotenv from 'dotenv';
+import type { Connection } from 'mongoose';
 import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
 
-dotenv.config();
+export function up(_connection: Connection): void {
+  const isDryRun = isMigrationDryRun();
 
-export async function up(): Promise<void> {
-  const dryRun = isMigrationDryRun();
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) {
-    throw new Error('MONGO_URI must be set in the environment');
-  }
-  await mongoose.connect(mongoUri);
-
-  if (!dryRun) {
+  if (!isDryRun) {
     // Apply writes here.
   }
 
-  await mongoose.disconnect();
-  finishMigrationDryRun(dryRun);
+  finishMigrationDryRun(isDryRun);
 }
 
-export async function down(): Promise<void> {
+export function down(_connection: Connection): void {
   // Optional: revert changes here. Leave empty when the migration is one-way.
 }

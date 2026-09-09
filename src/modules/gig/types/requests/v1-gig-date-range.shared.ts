@@ -11,7 +11,7 @@ export function startOfTodayMs(): number {
 }
 
 /**
- * Published gigs visible in the feed on and after `fromMs`:
+ * Gigs visible in the feed on and after `fromMs`:
  * - single-day (no `endDate`): `date` is on or after `fromMs`;
  * - multi-day: still listed while `endDate` is on or after `fromMs` (last day inclusive).
  */

@@ -15,7 +15,7 @@ export interface V1GigByPublicIdGetInput {
 }
 
 /**
- * Anchor calendar date for a published gig (deep link / hash → scroll target).
+ * Anchor calendar date for a visible Gig (deep link / hash → scroll target).
  * `publicId` is only in `GET .../date/:publicId`; not repeated in the body.
  */
 export interface V1GigByPublicIdGetResponseBody {

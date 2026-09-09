@@ -1,5 +1,8 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
-import type { Status } from '../../gig/types/status.enum';
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../../gig-candidate/types/gig-candidate.types';
 import type {
   TGChatId,
   TGEditMessageCaption,
@@ -81,6 +84,8 @@ export type GetPostUrlPayload =
 
 export interface BuildAfterPublishModerationReplyMarkupParams {
   readonly gigId?: GigId;
+  readonly expectedVersion: number;
+  readonly isVisible: boolean;
   readonly publishPostUrl?: string;
   readonly editGigUrl?: string;
 }
@@ -92,30 +97,57 @@ export interface BuildPublishedModerationCaptionPayload {
   readonly adminGigUrl?: string;
 }
 
-export interface BuildModerationStatusLinePayload {
-  readonly status: SubmissionFeedbackStatus;
-  readonly publishPostUrl?: string;
-  readonly adminGigUrl?: string;
-}
-
 export interface BuildModerationCaptionPayload {
-  readonly body: string;
-  readonly status: SubmissionFeedbackStatus;
-  readonly publishPostUrl?: string;
-  readonly adminGigUrl?: string;
+  body: string;
+  publishPostUrl?: string;
+  adminGigUrl?: string;
 }
 
-export type SubmissionFeedbackStatus =
-  Status.Pending | Status.Published | Status.Rejected;
+export interface BuildModerationLinksParams {
+  publishPostUrl?: string;
+  adminGigUrl?: string;
+}
 
-export type BuildSubmissionFeedbackCaptionPayload = {
-  readonly body: string;
-  readonly status: SubmissionFeedbackStatus;
-};
+export interface BuildGigCandidateCaptionParams {
+  gigCandidate: GigCandidate;
+  channelPurpose: 'intake' | 'moderation';
+  moderationPost?: GigCandidatePost;
+}
 
-export interface BuildRejectedModerationCaptionPayload {
-  readonly body: string;
-  readonly adminGigUrl?: string;
+export interface GigCandidateFeedbackMessageWithTitleContent {
+  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+  title: string;
+}
+
+export interface GigCandidateFeedbackMessageWithPublicLinkContent {
+  kind: 'acceptedWithPublicLink';
+  publicId: string;
+  title: string;
+}
+
+export type GigCandidateFeedbackMessageContent =
+  | GigCandidateFeedbackMessageWithTitleContent
+  | GigCandidateFeedbackMessageWithPublicLinkContent;
+
+export type ComposeGigCandidateFeedbackMessageParams =
+  GigCandidateFeedbackMessageContent & {
+    chatId: TGChatId;
+  };
+
+export interface ComposeRejectedGigCandidatePostEditParams {
+  gigCandidate: GigCandidate;
+  post: GigCandidatePost;
+}
+
+export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
+  gigCandidate: GigCandidate;
+  intakePost: GigCandidatePost;
+  moderationPost: GigCandidatePost;
+}
+
+export interface ComposeGigCandidateModerationPostEditParams {
+  gigCandidate: GigCandidate;
+  moderationPost: GigCandidatePost;
 }
 
 export interface ComposedText {

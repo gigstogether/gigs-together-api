@@ -1,26 +1,32 @@
 import type { Types } from 'mongoose';
 import type { TGUser } from '../../telegram/types/user.types';
 import type { TGMessage } from '../../telegram/types/message.types';
-import type { Status } from './status.enum';
-import type { GigPost, GigPoster } from '../gig.schema';
+import type { GigPost, GigPoster, GigStoredSource } from '../gig.schema';
+import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
 
 export type GigId = string | Types.ObjectId;
 
 /** Plain gig payload from MongoDB. */
 export interface PlainGig {
-  readonly _id: Types.ObjectId;
-  readonly publicId: string;
-  readonly title: string;
-  readonly date: number;
-  readonly endDate?: number;
-  readonly city: string;
-  readonly country: string;
-  readonly venue: string;
-  readonly ticketsUrl: string;
-  readonly poster?: GigPoster;
-  readonly status: Status;
-  readonly posts: GigPost[];
-  readonly suggestedBy: GigSuggestedBy;
+  _id: Types.ObjectId;
+  publicId: string;
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  poster?: GigPoster;
+  isVisible: boolean;
+  version: number;
+  source: GigStoredSource;
+  posts: GigPost[];
+  /** Legacy storage retained until the post-cutover cleanup migration. */
+  suggestedBy?: GigSuggestedBy;
+  gigCandidateId?: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface V1GetGigsResponseBodyGig {
@@ -37,20 +43,67 @@ export interface V1GetGigsResponseBodyGig {
   postUrl?: string;
 }
 
-export interface CreateGigInput {
+export interface GigPosterInput {
+  bucketPath?: string;
+  externalUrl?: string;
+}
+
+export interface GigData {
   title: string;
-  publicId: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  poster?: GigPosterInput;
+}
+
+export interface GigSourceUserOrigin {
+  type: 'form' | 'admin' | 'messenger';
+}
+
+export interface GigSourceUser {
+  type: 'user';
+  userId: string;
+  origin: GigSourceUserOrigin;
+}
+
+export interface GigSourceProvider {
+  type: 'provider';
+  provider: ProviderReference;
+}
+
+export type GigSource = GigSourceUser | GigSourceProvider;
+
+export interface GigSourceUserWithProfile extends GigSourceUser {
+  displayName?: string;
+  isCurrentlyAdmin: boolean;
+  telegramUsername?: string;
+}
+
+export type GigSourceForAdminView =
+  GigSourceUserWithProfile | GigSourceProvider;
+
+export interface GigCalendarSource {
+  title: string;
+  date: number;
+  endDate?: number;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+}
+
+export interface GigFormInput {
+  title: string;
   date: string;
   endDate?: string;
   city: string;
   country: string;
   venue: string;
   ticketsUrl: string;
-  poster?: {
-    bucketPath?: string;
-    externalUrl?: string;
-  };
-  suggestedBy: GigSuggestedBy;
+  posterUrl?: string;
 }
 
 export interface GigSuggestedBy {
@@ -58,12 +111,6 @@ export interface GigSuggestedBy {
   name?: string;
   username?: TGUser['username'];
   feedbackMessageId?: TGMessage['message_id'];
-}
-
-export interface GigFormDataSuggestedBy {
-  userId: string;
-  name?: string;
-  username?: string;
 }
 
 export interface GigFormData {
@@ -76,8 +123,9 @@ export interface GigFormData {
   venue: string;
   ticketsUrl: string;
   posterUrl?: string;
-  status: Status;
-  suggestedBy: GigFormDataSuggestedBy;
+  isVisible: boolean;
+  version: number;
+  source: GigSourceForAdminView;
   publishPostUrl?: string;
   publishPostDate?: number;
   moderationPostUrl?: string;

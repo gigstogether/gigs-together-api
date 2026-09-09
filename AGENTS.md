@@ -10,8 +10,16 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 - Prefer explicit, strict typing. Keep types narrow and avoid widening to `string | number | ...` when the domain is known.
 - Comments must be in English using the Latin alphabet only. Do not write comments in Cyrillic.
+- Do not remove `TODO` comments (for example `// TODO: ...`) unless you are explicitly completing that TODO as part of the current task. Leave unrelated TODOs untouched.
+- Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and specifically matches the task at hand; a generic TODO may refer to different work.
 - For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with human-readable equivalents (at least days or hours, and minutes when useful).
 - Boolean variables and flags should preferably start with `is`/`has`/`can`, for example `isActive`, `isAdmin`, `isValid`.
+- In `catch` clauses, bind the caught value as `e`, not `error`, when a binding is needed (for example `catch (e) { ... }`).
+- Every `catch` block must have an observable, meaningful effect: rethrow or translate the error,
+  return an explicit typed failure result, update user-visible state, or log actionable context at
+  the appropriate level. Empty catches, comment-only catches, and catches that silently return a
+  generic fallback are forbidden. Best-effort cleanup may continue after failure, but it must still
+  record enough context to diagnose the failure without logging secrets or sensitive payloads.
 - Always create new files with `LF` line endings (not `CRLF`). Prefer editor or Git settings that default new files to `LF`.
 - Keep line endings as `LF` in tracked files. If you hit formatter errors caused by `CRLF`, convert the file to `LF` and reformat.
 
@@ -19,9 +27,9 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 - Do not run `build`, `dev`, or start watchers or servers unless the user explicitly asks.
 - If command execution is needed to validate a change, ask first instead of running it proactively.
-- After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` before finishing the task without asking the user.
+- After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.
 - If necessary for the task, it's allowed to run relevant tests without asking the user.
-- Do not run lint after documentation-only changes (for example `*.md`).
+- Do not run lint or `tsc` after documentation-only changes (for example `*.md`).
 
 ## Secrets Access Policy
 
@@ -71,7 +79,8 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code stays strongly typed.
 - Avoid `as any` entirely.
 
-- Prefer `readonly` where immutability is appropriate, especially for DTOs, config objects, and constants.
+- Do **not** use `readonly` by default on DTOs, params, domain types, or props. Omit it unless there is a real need to prevent mutation at the type level for callers that would otherwise mutate shared state.
+- Add `readonly` only when immutability is part of the contract and the risk is concrete (for example a shared config object, a cached snapshot, or an API surface where callers must not reassign fields). If there is no such risk, leave fields mutable in the type.
 
 - Prefer named types for public APIs such as service methods, controller responses, and module exports.
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
@@ -82,6 +91,9 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer `interface` over `type` for object shapes unless `type` is clearly the better fit.
 - Use `type` for unions, intersections, mapped types, conditional types, tuples, and other patterns that interfaces cannot express cleanly.
 - Keep type imports separate from value imports. Do not mix them in one import statement.
+- Default: keep param/DTO types in the owning module (service, controller, parser, etc.).
+- Create a colocated `*.types.ts` only when a consumer cannot import the owning module, or when the same shapes are shared across modules that must stay decoupled from that owner's runtime.
+- Do not extract types into `*.types.ts` only because they are exported or used in tests.
 - Files under `types/` and files named `*.types.ts` must export **types only** (`interface`, `type`, `enum`, type-only helpers). Put runtime constants and functions in a colocated `*.constants.ts` file or the owning module artifact (service, parser, controller).
 
 ## Strictness
@@ -99,6 +111,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Do **not** default to quick-and-dirty, "good enough for now", or compromise solutions when a clearly better alternative exists for this project.
 - Do **not** recommend the smallest refactor, the fastest patch, or the simplest workaround **instead of** the more correct design unless the user explicitly asks for that tradeoff.
 - **Do** research and propose best practices, proven patterns, and the most appropriate architecture for the task before implementation.
+- Base decisions on the latest available official guidance and best practices for the versions actually used by this project. When newer guidance supersedes an older recommendation, follow the newer guidance and do not rely on the outdated approach; verify current version-specific documentation when behavior may have changed.
 - **Do** propose refactoring when the current structure blocks the correct solution or would accumulate avoidable technical debt.
 - Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt, limits).
 - Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts must be conscious and explicit, not silent defaults.
@@ -112,13 +125,81 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## NestJS Patterns
 
+- **Treat the HTTP API as a REST API.** Design new endpoints and contract changes according to current REST API standards and established best practices, including resource-oriented URIs, correct HTTP method semantics, status codes, idempotency, error responses, pagination, filtering, and versioning. Verify current authoritative guidance when a design decision is ambiguous or practices may have evolved; do not copy an existing project endpoint when it conflicts with the better REST design.
 - **Version HTTP endpoints by default** using Nest `@Version(...)` (for example `@Version('1')` → `/v1/...`). Exceptions are rare and must be justified (health checks, webhooks with a fixed external URL, static assets, or similar). When adding an unversioned route, note why in the controller or module doc.
+- **Use plural resource names for new REST endpoints**, consistently for both collections and individual resources (for example `GET /v1/admin/gig-candidates` and `GET /v1/admin/gig-candidates/:id`). Do not switch to a singular segment for detail, update, delete, or resource-action routes. Existing singular routes are legacy inconsistencies and must not be used as precedent for new endpoints.
 - Prefer DTOs for request and response shapes.
 - Keep controllers thin and move business logic into services.
 - Use dependency injection consistently.
 - Avoid creating clients directly inside methods unless the scope requires it and the reason is clear.
 - For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
 - When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
+
+## HTTP boundary mapping
+
+Keep endpoint contracts at the HTTP boundary. The default call chain for controllers is:
+
+```text
+request DTO -> pure request mapper -> application service -> pure response mapper -> response DTO
+```
+
+- Controllers own NestJS routing, guards, status codes, request DTOs, and response DTOs. Keep them concise, but allow them to call pure request and response mapper functions directly; this small amount of explicit boundary orchestration is preferred over a pass-through facade.
+- Application and domain services must not accept versioned endpoint DTOs or return versioned response DTOs. Define named application params and result types that use domain/application representations such as `Date` and numeric timestamps rather than serialized HTTP strings.
+- Request mappers translate validated HTTP DTOs into application params. Response mappers translate application results into the exact versioned wire contract, including date/string serialization and response wrappers.
+- Keep HTTP mappers pure: no database access, external API calls, dependency injection, logging, or business decisions. Data enrichment and cross-module orchestration belong in an application/query service before response mapping.
+- Prefer colocated mapper functions in an established feature mapper file. Do not introduce an injectable mapper service for pure transformations.
+- Do not add an HTTP facade merely to hide mapper calls. Add a facade or dedicated endpoint handler only when it owns meaningful reusable orchestration beyond request mapping, one application-service call, and response mapping.
+- Apply this structure to new controllers and when refactoring existing endpoints; do not perform unrelated wholesale migrations solely to conform existing code.
+
+## Module data layer
+
+Persistence for a domain module follows a repository boundary. Canonical reference: `src/modules/translation/` (also applied in `src/modules/locale/`).
+
+Call chain:
+
+```text
+controller → service → repository interface → mongo repository → schema / DB
+```
+
+### Required layout inside a domain module that owns a collection
+
+```text
+src/modules/<feature>/
+  <feature>.module.ts
+  <feature>.controller.ts          # optional if the module has no HTTP surface
+  <feature>.service.ts
+  <feature>.schema.ts              # how data is stored in MongoDB
+  types/
+    <feature>.types.ts             # domain / application types (not Mongo-specific)
+    requests/                      # HTTP DTOs when the module exposes endpoints
+  repositories/
+    <feature>.repository.ts        # Symbol token + repository interface
+    mongo-<feature>.repository.ts  # Mongoose implementation
+    <feature>.repository.mapper.ts # Mongo document → domain type
+```
+
+### Responsibilities
+
+- **`types/<feature>.types.ts`** — how the application understands the entity. No Mongoose types, no `ObjectId`, no query operators.
+- **`repositories/<feature>.repository.ts`** — persistence contract only: `export const <FEATURE>_REPOSITORY = Symbol('...')` and `interface <Feature>Repository { ... }`. Method params and return types use domain types. Do **not** put Mongo details here (`$in`, `$or`, `$exists`, `lean`, `Model`, `ObjectId`, filters shaped like Mongo queries).
+- **`repositories/mongo-<feature>.repository.ts`** — the only place that talks to Mongoose for that collection (`@InjectModel`, `find`, `lean`, query operators, etc.). Implements the repository interface and maps results through the mapper.
+- **`repositories/<feature>.repository.mapper.ts`** — maps lean Mongo documents to domain types. Keep mapping pure and free of DB I/O.
+- **`<feature>.schema.ts`** — storage shape and indexes. Domain code outside the mongo repository and mapper should not depend on schema document types for business logic.
+- **Service** — business logic only. Inject the repository via `@Inject(<FEATURE>_REPOSITORY)`. Do **not** inject `@InjectModel(...)` for collections owned by the module.
+- **Module wiring** — register the Mongo implementation against the Symbol token:
+
+```ts
+{
+  provide: <FEATURE>_REPOSITORY,
+  useClass: Mongo<Feature>Repository,
+}
+```
+
+### Scope and migration
+
+- Apply this pattern to **new** persistence code and when touching an existing module's data access in a meaningful way.
+- Modules that still call Mongoose from services are legacy relative to this rule; migrate them toward the repository layout rather than extending direct `@InjectModel` usage in services.
+- Infrastructure modules that wrap external APIs (Telegram, Calendar, Bucket, AI) are not Mongo repositories; keep their client/adapter boundaries as they are unless they also own a Mongo collection.
 
 ## File placement
 

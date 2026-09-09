@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
-import { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
+import type { GigFormInput } from '../gig/types/gig.types';
 import { isRecord } from '../../shared/utils/is-record';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai/openai-gig-lookup.request';
 
@@ -44,9 +44,7 @@ export class AiService {
     return typeof msg === 'string' && msg.trim() ? msg.trim() : undefined;
   }
 
-  private normalizeLookedUpGig(
-    raw: unknown,
-  ): V1ReceiverCreateGigRequestBodyGig {
+  private normalizeLookedUpGig(raw: unknown): GigFormInput {
     if (!isRecord(raw)) {
       throw new InternalServerErrorException(
         'Invalid AI response: expected a JSON object',
@@ -89,7 +87,7 @@ export class AiService {
   async lookupGigV1(params: {
     name: string;
     location: string;
-  }): Promise<V1ReceiverCreateGigRequestBodyGig | null> {
+  }): Promise<GigFormInput | null> {
     const stubGig = this.aiLookupDevStubService.resolveGigOrNull(params);
     if (stubGig) {
       return stubGig;

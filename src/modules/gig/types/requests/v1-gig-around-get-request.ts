@@ -10,7 +10,6 @@ import {
   MaxLength,
   Min,
   MinLength,
-  ValidateIf,
 } from 'class-validator';
 import { parseYyyyMmDdToMs } from './v1-gig-date-range.shared';
 
@@ -41,29 +40,24 @@ export class V1GigAroundGetRequestQuery {
   afterLimit: number = 100;
 
   /**
-   * Location filter (exact match): country + city.
+   * Required location filter (exact match): country + city.
    *
    * IMPORTANT:
-   * - If you provide `country`, you MUST provide `city` too (and vice versa).
    * - `country` is ISO 3166-1 alpha-2 (uppercase), e.g. "ES".
    */
-  @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @ValidateIf((o: V1GigAroundGetRequestQuery) => o.country !== undefined)
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  city?: string;
+  city!: string;
 
-  @IsOptional()
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
-  @ValidateIf((o: V1GigAroundGetRequestQuery) => o.city !== undefined)
   @IsString()
   @Length(2, 2)
   @Matches(/^[A-Z]{2}$/)
-  country?: string;
+  country!: string;
 }
 
 export interface V1GigAroundGetResponseBody {

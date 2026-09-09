@@ -20,7 +20,17 @@ interface PostFeedRevalidateRequestParams {
 export class FeedRevalidateService {
   private readonly logger = new Logger(FeedRevalidateService.name);
 
-  revalidateFeed(params: RevalidateFeedParams): Promise<void> {
+  async revalidateFeed(params: RevalidateFeedParams): Promise<void> {
+    try {
+      await this.revalidateFeedOrThrow(params);
+    } catch (e) {
+      this.logger.warn(
+        `Feed revalidate request failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  revalidateFeedOrThrow(params: RevalidateFeedParams): Promise<void> {
     const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
     if (!baseUrl || !secret) {
@@ -28,28 +38,18 @@ export class FeedRevalidateService {
     }
 
     if (!/^https?:\/\//i.test(baseUrl)) {
-      this.logger.warn(
+      throw new Error(
         `APP_BASE_URL must be an absolute http(s) URL for revalidation (got "${baseUrl}")`,
       );
-      return Promise.resolve();
     }
 
     const url = new URL('/api/revalidate/feed', baseUrl).toString();
     let path: string | undefined;
-    try {
-      if (params.country && params.city) {
-        path = this.buildFeedPath({
-          country: params.country,
-          city: params.city,
-        });
-      }
-    } catch (e) {
-      this.logger.warn(
-        `Failed to build feed path for revalidation: ${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
-      path = undefined;
+    if (params.country && params.city) {
+      path = this.buildFeedPath({
+        country: params.country,
+        city: params.city,
+      });
     }
 
     return this.postFeedRevalidateRequest({ url, secret, path });
@@ -69,25 +69,26 @@ export class FeedRevalidateService {
   ): Promise<void> {
     const { url, secret, path } = params;
 
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-revalidate-secret': secret,
-        },
-        body: JSON.stringify(path ? { paths: [path] } : {}),
-      });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-revalidate-secret': secret,
+      },
+      body: JSON.stringify(path ? { paths: [path] } : {}),
+    });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
+    if (!res.ok) {
+      let text = '';
+      try {
+        text = await res.text();
+      } catch (e) {
         this.logger.warn(
-          `Feed revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
+          `Reading failed feed revalidation response failed: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
-    } catch (e) {
-      this.logger.warn(
-        `Feed revalidate request failed: ${e instanceof Error ? e.message : String(e)}`,
+      throw new Error(
+        `Feed revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
       );
     }
   }

@@ -1,4 +1,9 @@
+import { model } from 'mongoose';
+
+import { Messenger } from '../../shared/types/messenger.enum';
 import { UserSchema } from './user.schema';
+
+const UserValidationModel = model('UserValidation', UserSchema);
 
 describe('UserSchema', () => {
   it('should define one unique messenger identity index across users', () => {
@@ -29,5 +34,28 @@ describe('UserSchema', () => {
       { status: 1, roles: 1 },
       { name: 'users_status_roles' },
     ]);
+  });
+
+  it('should reject multiple identities for the same messenger', async () => {
+    const user = new UserValidationModel({
+      status: 'active',
+      roles: [],
+      identities: [
+        {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
+          externalUserId: '42',
+        },
+        {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
+          externalUserId: '43',
+        },
+      ],
+    });
+
+    await expect(user.validate()).rejects.toThrow(
+      'a user can have only one identity per messenger',
+    );
   });
 });
