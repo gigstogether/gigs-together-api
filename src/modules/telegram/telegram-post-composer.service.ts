@@ -857,7 +857,7 @@ export class TelegramPostComposerService {
     }
 
     return new URL(
-      `/admin/gigs/candidates/${encodeURIComponent(gigCandidateId)}/edit`,
+      `/admin/gig-candidates/${encodeURIComponent(gigCandidateId)}/edit`,
       appBaseUrl,
     ).toString();
   }
@@ -871,7 +871,7 @@ export class TelegramPostComposerService {
     }
 
     return new URL(
-      `/admin/gigs/candidates/${encodeURIComponent(gigCandidateId)}`,
+      `/admin/gig-candidates/${encodeURIComponent(gigCandidateId)}`,
       appBaseUrl,
     ).toString();
   }

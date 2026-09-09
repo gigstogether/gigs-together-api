@@ -589,7 +589,7 @@ describe('TelegramService', () => {
           chatId: -1003001,
           messageId: 40,
           caption: expect.stringContaining(
-            '<a href="https://app.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
+            '<a href="https://app.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
           ),
           replyMarkup: { inline_keyboard: [] },
         }),

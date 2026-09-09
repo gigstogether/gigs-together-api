@@ -773,8 +773,8 @@ async function verifyMongoTopologyIsInspectable(
   }
   try {
     await connection.db.admin().command({ hello: 1 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
     throw new Error(
       `Legacy Gig migration apply blocked because the MongoDB topology could not be inspected: ${message}`,
     );

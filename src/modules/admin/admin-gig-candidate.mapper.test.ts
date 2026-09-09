@@ -104,7 +104,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
     });
   });
 
-  it('should serialize messenger origin with chatId', () => {
+  it('should serialize messenger origin without message identifiers', () => {
     const response = mapV1AdminGigCandidateResponse({
       ...buildGigCandidateDetails(),
       source: {
