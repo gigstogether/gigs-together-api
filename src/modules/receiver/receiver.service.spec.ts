@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ReceiverService } from './receiver.service';
@@ -14,6 +15,7 @@ import {
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -417,6 +419,44 @@ describe('ReceiverService', () => {
         callback_query_id: 'callback-gigCandidate-approve',
         text: 'Done!',
         show_alert: false,
+      });
+    });
+
+    it('should answer without warning when GigCandidate approval validation fails', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-gigCandidate-invalid-draft',
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Approve,
+          id: '507f1f77bcf86cd799439099',
+          expectedVersion: 4,
+        }),
+        from: { id: 1, is_bot: false, first_name: 'Arina' },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      mockGigCandidateService.approveGigCandidate.mockRejectedValue(
+        new GigCandidateApprovalValidationError([
+          { field: 'venue', code: 'required', message: 'venue is required' },
+        ]),
+      );
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-gigCandidate-invalid-draft',
+        text: 'Failed: GigCandidate gigDraft is incomplete or invalid.',
+        show_alert: true,
       });
     });
   });

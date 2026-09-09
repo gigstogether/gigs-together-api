@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import {
@@ -237,11 +238,13 @@ export class ReceiverService {
     try {
       await this.processCallbackQueryOrThrow(callbackQuery, adminUserId);
     } catch (e) {
-      this.logger.warn(
-        `handleCallbackQuery failed: ${JSON.stringify(
-          e?.response?.data ?? e?.message ?? e,
-        )}`,
-      );
+      if (!(e instanceof GigCandidateApprovalValidationError)) {
+        this.logger.warn(
+          `handleCallbackQuery failed: ${JSON.stringify(
+            e?.response?.data ?? e?.message ?? e,
+          )}`,
+        );
+      }
       await this.telegramService.answerCallbackQuery({
         callback_query_id: callbackQuery.id,
         text: this.formatCallbackQueryError(e),
