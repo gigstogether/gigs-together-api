@@ -70,6 +70,7 @@ describe('GigCandidateService', () => {
     updateGigCandidateIntakePostAfterModeration: vi.fn(),
     sendGigCandidateFeedback: vi.fn(),
     updateRejectedGigCandidatePost: vi.fn(),
+    updateGigCandidateModerationPost: vi.fn(),
     updateGigModerationPost: vi.fn(),
   };
 
@@ -1473,13 +1474,22 @@ describe('GigCandidateService', () => {
 
   describe('updateGigCandidateDraft', () => {
     it('should conditionally update Reviewing gigDraft', async () => {
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+      };
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
+        posts: [moderationPost],
       });
       const updated = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         version: 1,
         gigDraft: { title: 'Updated title' },
+        posts: [moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
       gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
@@ -1499,6 +1509,12 @@ describe('GigCandidateService', () => {
         gigCandidateId: reviewing.id,
         expectedVersion: 0,
         gigDraft: { title: 'Updated title' },
+      });
+      expect(
+        telegramServiceMock.updateGigCandidateModerationPost,
+      ).toHaveBeenCalledWith({
+        gigCandidate: updated,
+        moderationPost,
       });
     });
 

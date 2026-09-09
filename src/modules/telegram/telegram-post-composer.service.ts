@@ -34,6 +34,7 @@ import {
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
+  ComposeGigCandidateModerationPostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
@@ -60,6 +61,11 @@ interface ComposeGigCandidateChannelPostParams {
   chatId: string;
   channelPurpose: 'intake' | 'moderation';
   replyMarkup: TGInlineKeyboardMarkup;
+}
+
+interface BuildGigCandidateModerationReplyMarkupParams {
+  gigCandidate: GigCandidate;
+  expectedVersion: number;
 }
 
 /**
@@ -522,7 +528,10 @@ export class TelegramPostComposerService {
       gigCandidate,
       chatId,
       channelPurpose: 'moderation',
-      replyMarkup: this.buildGigCandidateModerationReplyMarkup(gigCandidate),
+      replyMarkup: this.buildGigCandidateModerationReplyMarkup({
+        gigCandidate,
+        expectedVersion: gigCandidate.version + 1,
+      }),
     });
   }
 
@@ -609,6 +618,24 @@ export class TelegramPostComposerService {
       }),
       parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
+    };
+  }
+
+  composeGigCandidateModerationPostEdit(
+    params: ComposeGigCandidateModerationPostEditParams,
+  ): TGEditMessageCaption {
+    return {
+      chatId: params.moderationPost.chatId,
+      messageId: params.moderationPost.id,
+      caption: this.buildGigCandidateCaption({
+        gigCandidate: params.gigCandidate,
+        channelPurpose: 'moderation',
+      }),
+      parseMode: TGParseMode.HTML,
+      replyMarkup: this.buildGigCandidateModerationReplyMarkup({
+        gigCandidate: params.gigCandidate,
+        expectedVersion: params.gigCandidate.version,
+      }),
     };
   }
 
@@ -774,9 +801,9 @@ export class TelegramPostComposerService {
   }
 
   private buildGigCandidateModerationReplyMarkup(
-    gigCandidate: GigCandidate,
+    params: BuildGigCandidateModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup {
-    const expectedVersionAfterPostStored = gigCandidate.version + 1;
+    const { gigCandidate, expectedVersion } = params;
     const editGigCandidateUrl = this.buildAdminGigCandidateEditUrl(
       gigCandidate.id,
     );
@@ -792,7 +819,7 @@ export class TelegramPostComposerService {
               scope: CallbackScope.GigCandidate,
               action: GigCandidateCallbackAction.Approve,
               id: gigCandidate.id,
-              expectedVersion: expectedVersionAfterPostStored,
+              expectedVersion,
             }),
           },
           ...(editGigCandidateUrl
@@ -813,7 +840,7 @@ export class TelegramPostComposerService {
               scope: CallbackScope.GigCandidate,
               action: GigCandidateCallbackAction.Reject,
               id: gigCandidate.id,
-              expectedVersion: expectedVersionAfterPostStored,
+              expectedVersion,
             }),
           },
         ],

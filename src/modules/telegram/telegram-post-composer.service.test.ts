@@ -676,6 +676,52 @@ describe('TelegramPostComposer', () => {
       ]);
     });
 
+    it('should update the Moderation title with actions for the current version', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'admin' },
+        },
+        gigDraft: {
+          title: 'Updated Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 4,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1,
+        id: 50,
+        chatId: -200,
+      };
+
+      const payload = composer.composeGigCandidateModerationPostEdit({
+        gigCandidate,
+        moderationPost,
+      });
+
+      expect(payload.caption).toContain('🟡 Updated Band');
+      expect(payload.replyMarkup?.inline_keyboard[0]?.[0]).toEqual(
+        expect.objectContaining({
+          callback_data: encodeCallbackData({
+            scope: CallbackScope.GigCandidate,
+            action: GigCandidateCallbackAction.Approve,
+            id: gigCandidate.id,
+            expectedVersion: 4,
+          }),
+        }),
+      );
+    });
+
     it('should throw BadRequestException when INTAKE_CHANNEL_ID is missing', () => {
       delete process.env.INTAKE_CHANNEL_ID;
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');

@@ -63,6 +63,7 @@ describe('AdminGigService', () => {
     getPostUrl: vi.fn(),
     editMainPost: vi.fn(),
     editModerationPost: vi.fn(),
+    updateGigModerationPost: vi.fn(),
   };
   const feedRevalidateServiceMock = { revalidateFeed: vi.fn() };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
@@ -306,6 +307,56 @@ describe('AdminGigService', () => {
       expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
         country: 'ES',
         city: 'barcelona',
+      });
+    });
+
+    it('should update both Main and Moderation posts after a Gig edit', async () => {
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -100456,
+        id: 99,
+        date: 1_700_000_002_000,
+      };
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        date: 1_700_000_001_000,
+      };
+      const gig = buildPlainGig({
+        title: 'Updated title',
+        version: 4,
+        posts: [moderationPost, mainPost],
+      });
+      gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
+
+      await service.updateGigByPublicId({
+        publicId: gig.publicId,
+        expectedVersion: 3,
+        gig: {
+          title: gig.title,
+          date: '2026-06-12',
+          city: gig.city,
+          country: gig.country,
+          venue: gig.venue,
+          ticketsUrl: gig.ticketsUrl,
+        },
+        posterFile: undefined,
+      });
+
+      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
+        updateMedia: false,
+      });
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
+        gigId: gig._id,
+        expectedVersion: gig.version,
+        isVisible: gig.isVisible,
+        title: 'Updated title',
+        publicId: gig.publicId,
+        moderationPost: { chatId: -100123, messageId: 42 },
+        mainPost: { chatId: -100456, messageId: 99 },
       });
     });
   });

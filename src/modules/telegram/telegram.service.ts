@@ -20,6 +20,7 @@ import {
   WeeklyDigestMainChannelSendPlan,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
+  ComposeGigCandidateModerationPostEditParams,
 } from './types/telegram-post-composer.service.types';
 
 @Injectable()
@@ -230,6 +231,16 @@ export class TelegramService {
   ): Promise<TGMessage> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateIntakePostAfterModerationEdit(
+        payload,
+      );
+    return this.telegramBotClient.editMessageCaption(composed);
+  }
+
+  updateGigCandidateModerationPost(
+    payload: ComposeGigCandidateModerationPostEditParams,
+  ): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeGigCandidateModerationPostEdit(
         payload,
       );
     return this.telegramBotClient.editMessageCaption(composed);

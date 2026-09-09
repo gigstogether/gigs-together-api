@@ -16,6 +16,7 @@ import type { GigFormInput } from '../gig/types/gig.types';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
+import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
 
 interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -134,24 +135,31 @@ export class AdminGigService {
   async updateGigByPublicId(
     params: UpdateGigByPublicIdParams,
   ): Promise<UpdateGigByPublicIdResult> {
-    const updatedGig = await this.gigService.updateGigByPublicId(params);
+    let updatedGig = await this.gigService.updateGigByPublicId(params);
     const mainPost = this.telegramService.pickTgPost(
       updatedGig.posts,
       PostType.Main,
     );
+    const gigModerationPost = this.telegramService.pickTgPost(
+      updatedGig.posts,
+      PostType.Moderation,
+    );
     const editedPostType = mainPost ? PostType.Main : PostType.Moderation;
 
     try {
-      const edited = mainPost
-        ? await this.telegramService.editMainPost(updatedGig, {
-            updateMedia: params.posterFile !== undefined,
-          })
-        : await this.telegramService.editModerationPost(updatedGig, {
-            updateMedia: params.posterFile !== undefined,
-          });
+      const edited =
+        mainPost !== undefined
+          ? await this.telegramService.editMainPost(updatedGig, {
+              updateMedia: params.posterFile !== undefined,
+            })
+          : gigModerationPost !== undefined
+            ? await this.telegramService.editModerationPost(updatedGig, {
+                updateMedia: params.posterFile !== undefined,
+              })
+            : undefined;
       const fileId = getBiggestTgPhotoFileId(edited?.photo);
-      if (fileId !== undefined) {
-        await this.gigService.updateGigTelegramPostFileId({
+      if (params.posterFile !== undefined && fileId !== undefined) {
+        updatedGig = await this.gigService.updateGigTelegramPostFileId({
           gigId: updatedGig._id,
           expectedVersion: updatedGig.version,
           type: editedPostType,
@@ -162,6 +170,35 @@ export class AdminGigService {
       this.logger.warn(
         `Telegram post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
       );
+    }
+
+    if (gigModerationPost !== undefined) {
+      try {
+        const updateModerationPostPayload: UpdateGigModerationPostPayload = {
+          gigId: updatedGig._id,
+          expectedVersion: updatedGig.version,
+          isVisible: updatedGig.isVisible,
+          title: updatedGig.title,
+          publicId: updatedGig.publicId,
+          moderationPost: {
+            chatId: gigModerationPost.chatId,
+            messageId: gigModerationPost.id,
+          },
+        };
+        if (mainPost !== undefined) {
+          updateModerationPostPayload.mainPost = {
+            chatId: mainPost.chatId,
+            messageId: mainPost.id,
+          };
+        }
+        await this.telegramService.updateGigModerationPost(
+          updateModerationPostPayload,
+        );
+      } catch (e: unknown) {
+        this.logger.warn(
+          `Telegram moderation post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
+        );
+      }
     }
 
     await this.feedRevalidateService.revalidateFeed({

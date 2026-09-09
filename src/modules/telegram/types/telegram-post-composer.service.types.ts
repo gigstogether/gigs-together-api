@@ -145,6 +145,11 @@ export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
   moderationPost: GigCandidatePost;
 }
 
+export interface ComposeGigCandidateModerationPostEditParams {
+  gigCandidate: GigCandidate;
+  moderationPost: GigCandidatePost;
+}
+
 export interface ComposedText {
   plain: string;
   html: string;

@@ -396,6 +396,7 @@ export class GigCandidateService {
     const updated =
       await this.gigCandidateRepository.updateGigCandidateDraft(params);
     if (updated) {
+      await this.updateGigCandidateModerationPostBestEffort(updated);
       return updated;
     }
 
@@ -1003,6 +1004,31 @@ export class GigCandidateService {
       kind: 'rejected',
       title,
     });
+  }
+
+  private async updateGigCandidateModerationPostBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<void> {
+    const moderationPost = this.findTelegramPost(
+      gigCandidate,
+      PostType.Moderation,
+    );
+    if (!moderationPost) {
+      return;
+    }
+
+    try {
+      await this.telegramService.updateGigCandidateModerationPost({
+        gigCandidate,
+        moderationPost,
+      });
+    } catch (e) {
+      this.logTelegramFailure(
+        'updateGigCandidateModerationPost',
+        gigCandidate.id,
+        e,
+      );
+    }
   }
 
   private findTelegramPost(
