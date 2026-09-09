@@ -333,9 +333,7 @@ export class GigCandidateService {
         updated,
         gigCandidate.status,
       );
-      await this.sendGigCandidateFeedbackBestEffort(updated, {
-        kind: 'rejected',
-      });
+      await this.sendGigCandidateRejectedFeedbackBestEffort(updated);
       return updated;
     }
 
@@ -986,6 +984,23 @@ export class GigCandidateService {
 
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'acceptedForModeration',
+      title,
+    });
+  }
+
+  private async sendGigCandidateRejectedFeedbackBestEffort(
+    gigCandidate: GigCandidate,
+  ): Promise<void> {
+    const title = gigCandidate.gigDraft.title?.trim();
+    if (!title) {
+      this.logger.warn(
+        `GigCandidate rejected feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
+      );
+      return;
+    }
+
+    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
+      kind: 'rejected',
       title,
     });
   }

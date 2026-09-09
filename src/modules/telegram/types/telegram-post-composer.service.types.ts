@@ -114,12 +114,8 @@ export interface BuildGigCandidateCaptionParams {
   moderationPost?: GigCandidatePost;
 }
 
-export interface GigCandidateFeedbackMessageWithoutTitleContent {
-  kind: 'rejected';
-}
-
 export interface GigCandidateFeedbackMessageWithTitleContent {
-  kind: 'submitted' | 'acceptedForModeration';
+  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
   title: string;
 }
 
@@ -130,7 +126,6 @@ export interface GigCandidateFeedbackMessageWithPublicLinkContent {
 }
 
 export type GigCandidateFeedbackMessageContent =
-  | GigCandidateFeedbackMessageWithoutTitleContent
   | GigCandidateFeedbackMessageWithTitleContent
   | GigCandidateFeedbackMessageWithPublicLinkContent;
 

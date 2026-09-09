@@ -55,8 +55,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
-      'Suggestion rejected',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -69,12 +67,18 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion {title} accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
+      'Suggestion {title} rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
       '<a href="{url}">Open gig candidate in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost]:
       '<a href="{url}">See moderation post</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigLinkOpenAdmin]:
+      '<a href="{url}">Open gig in admin</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost]:
+      '<a href="{url}">See main post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -277,7 +281,7 @@ describe('TelegramPostComposer', () => {
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '<a href="https://app.example/gigs/concert">Concert</a> | <a href="https://app.example/admin/gigs/concert">Open in admin</a> | <a href="https://t.me/gigs/42">See post</a>',
+        '<a href="https://app.example/gigs/concert">Concert</a>\n\n<a href="https://app.example/admin/gigs/concert">Open gig in admin</a> | <a href="https://t.me/gigs/42">See main post</a>',
       );
     });
   });
@@ -643,6 +647,9 @@ describe('TelegramPostComposer', () => {
       expect(payload.caption).not.toContain('Reviewing');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).not.toContain('66a000000000000000000000042');
+      expect(payload.caption).toContain(
+        '<a href="https://admin.example/admin/gigs/candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+      );
       expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
         {
           text: '✅ Approve',
@@ -712,15 +719,16 @@ describe('TelegramPostComposer', () => {
       });
     });
 
-    it('should compose rejected feedback', () => {
+    it('should compose rejected feedback with the Gig title', () => {
       expect(
         composer.composeGigCandidateFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
+          title: 'Band & Friends',
         }),
       ).toEqual({
         chat_id: '42',
-        text: 'Suggestion rejected',
+        text: 'Suggestion Band &amp; Friends rejected',
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: false,
       });

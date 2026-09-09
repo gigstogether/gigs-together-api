@@ -51,10 +51,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
-      'Suggestion accepted for moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
-      'Suggestion rejected',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -65,12 +61,20 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
       'Suggestion {title} submitted',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
+      'Suggestion {title} accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
+      'Suggestion {title} rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">open gig</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
       '<a href="{url}">Open gig candidate in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost]:
       '<a href="{url}">See moderation post</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigLinkOpenAdmin]:
+      '<a href="{url}">Open gig in admin</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost]:
+      '<a href="{url}">See main post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
@@ -395,7 +399,7 @@ describe('TelegramService', () => {
         '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
       );
       expect(editMessageCaptionPayload?.caption).toContain(
-        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open in admin</a>',
+        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open gig in admin</a>',
       );
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,
@@ -480,6 +484,7 @@ describe('TelegramService', () => {
     });
 
     it('should update a rejected channel post and remove its actions', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://app.example');
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')

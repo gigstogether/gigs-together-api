@@ -544,8 +544,9 @@ export class TelegramPostComposerService {
         );
         break;
       case 'rejected':
-        text = this.postTemplates.getText(
+        text = this.postTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
+          { title: this.escapeTelegramHtmlText(params.title) },
         );
         break;
       case 'acceptedWithPublicLink': {
@@ -637,16 +638,12 @@ export class TelegramPostComposerService {
     params: BuildGigCandidateCaptionParams,
   ): string {
     const body = this.buildGigCandidateBodyCaption(params);
-    if (params.channelPurpose !== 'intake') {
-      return body;
-    }
-
     const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
       params.gigCandidate.id,
     );
     if (adminGigCandidateUrl === undefined) {
       throw new BadRequestException(
-        'Cannot compose GigCandidate intake post: APP_BASE_URL is not configured.',
+        'Cannot compose GigCandidate channel post: APP_BASE_URL is not configured.',
       );
     }
 
@@ -656,7 +653,10 @@ export class TelegramPostComposerService {
         { url: adminGigCandidateUrl },
       ),
     ];
-    if (params.moderationPost !== undefined) {
+    if (
+      params.channelPurpose === 'intake' &&
+      params.moderationPost !== undefined
+    ) {
       const moderationPostUrl = this.getPostUrl({
         chatId: params.moderationPost.chatId,
         messageId: params.moderationPost.id,
@@ -937,23 +937,22 @@ export class TelegramPostComposerService {
           { title: payload.title },
         );
 
-    const captionParts = [
-      titleLabel,
+    const actionLinks = [
       payload.adminGigUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin,
-            { url: payload.adminGigUrl },
-          )
+        ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigLinkOpenAdmin, {
+            url: payload.adminGigUrl,
+          })
         : undefined,
       payload.publishPostUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
-            { url: payload.publishPostUrl },
-          )
+        ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost, {
+            url: payload.publishPostUrl,
+          })
         : undefined,
     ].filter((part): part is string => part !== undefined);
 
-    return captionParts.join(' | ');
+    return actionLinks.length === 0
+      ? titleLabel
+      : `${titleLabel}\n\n${actionLinks.join(' | ')}`;
   }
 
   buildGigPermalink(input: BuildGigPermalinkPayload): string | undefined {

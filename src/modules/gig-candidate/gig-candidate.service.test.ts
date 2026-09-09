@@ -1301,13 +1301,17 @@ describe('GigCandidateService', () => {
         id: 40,
         chatId: -100,
       };
-      const newGigCandidate = buildGigCandidate({ posts: [intakePost] });
+      const newGigCandidate = buildGigCandidate({
+        gigDraft: { title: 'Rejected gig' },
+        posts: [intakePost],
+      });
       const rejectedByUserId = '507f1f77bcf86cd799439077';
       const rejected = buildGigCandidate({
         status: GigCandidateStatus.Rejected,
         version: 1,
         rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
         rejectedByUserId,
+        gigDraft: { title: 'Rejected gig' },
         posts: [intakePost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
@@ -1332,7 +1336,7 @@ describe('GigCandidateService', () => {
         rejectedAt: expect.any(Date),
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'rejected', chatId: '42' },
+        { kind: 'rejected', title: 'Rejected gig', chatId: '42' },
       );
       expect(
         telegramServiceMock.updateRejectedGigCandidatePost,
@@ -1393,11 +1397,13 @@ describe('GigCandidateService', () => {
       };
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
+        gigDraft: { title: 'Rejected gig' },
         posts: [intakePost, moderationPost],
       });
       const rejected = buildGigCandidate({
         status: GigCandidateStatus.Rejected,
         version: 1,
+        gigDraft: { title: 'Rejected gig' },
         posts: [intakePost, moderationPost],
         rejectedAt: new Date(),
         rejectedByUserId: '507f1f77bcf86cd799439077',
