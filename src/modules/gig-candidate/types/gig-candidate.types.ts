@@ -123,6 +123,7 @@ export interface ApproveGigCandidateRecordParams extends ApproveGigCandidatePara
   gigId: string;
   approvedAt: Date;
   gigDraft: GigData;
+  moderationPost?: GigCandidatePost;
 }
 
 export interface AppendGigCandidatePostIfAbsentParams {

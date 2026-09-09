@@ -59,13 +59,22 @@ export class AdminGigCandidateService {
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
   ): Promise<AdminGigCandidateDetails> {
+    const linkedGig = gigCandidate.gigId
+      ? await this.gigService.getGigById(gigCandidate.gigId)
+      : undefined;
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
     );
-    const moderationPost = gigCandidate.posts.find(
+    const gigCandidateModerationPost = gigCandidate.posts.find(
       (post) =>
         post.to === Messenger.Telegram && post.type === PostType.Moderation,
     );
+    const linkedGigModerationPost = linkedGig?.posts.find(
+      (post) =>
+        post.to === Messenger.Telegram && post.type === PostType.Moderation,
+    );
+    const moderationPost =
+      gigCandidateModerationPost ?? linkedGigModerationPost;
     const intakePostUrl = intakePost
       ? this.telegramService.getPostUrl({
           chatId: intakePost.chatId,
@@ -77,9 +86,6 @@ export class AdminGigCandidateService {
           chatId: moderationPost.chatId,
           messageId: moderationPost.id,
         })
-      : undefined;
-    const linkedGig = gigCandidate.gigId
-      ? await this.gigService.getGigById(gigCandidate.gigId)
       : undefined;
     const source = this.resolveSource(gigCandidate, activeSourceUsersById);
 

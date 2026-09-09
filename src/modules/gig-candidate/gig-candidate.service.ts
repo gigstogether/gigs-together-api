@@ -95,6 +95,7 @@ interface StoreGigCandidateTelegramPostParams {
 interface GigCandidateApprovalTransactionResult {
   gig: GigApprovalResult;
   gigCandidate: GigCandidate;
+  moderationPost?: GigCandidate['posts'][number];
   isNewApproval: boolean;
 }
 
@@ -508,12 +509,15 @@ export class GigCandidateService {
       transaction,
     );
     const source = projectGigCandidateSource(gigCandidate.source);
+    const moderationPost =
+      this.getGigCandidateModerationPostForApproval(gigCandidate);
     const approvedAt = new Date();
     const approvedGigCandidate = await transaction.approveGigCandidate({
       ...params,
       gigId,
       approvedAt,
       gigDraft: gigData,
+      moderationPost,
     });
     if (!approvedGigCandidate) {
       throw new GigCandidateConflictError({
@@ -529,8 +533,14 @@ export class GigCandidateService {
       gigId,
       publicId,
       source,
+      moderationPost,
     });
-    return { gig, gigCandidate: approvedGigCandidate, isNewApproval: true };
+    return {
+      gig,
+      gigCandidate: approvedGigCandidate,
+      moderationPost,
+      isNewApproval: true,
+    };
   }
 
   private async generateUniqueGigPublicId(
@@ -548,7 +558,7 @@ export class GigCandidateService {
   private async runApprovalPostCommitActions(
     result: GigCandidateApprovalTransactionResult,
   ): Promise<void> {
-    const { gig, gigCandidate } = result;
+    const { gig, gigCandidate, moderationPost } = result;
     try {
       await this.feedRevalidateService.revalidateFeedOrThrow({
         country: gig.country,
@@ -582,10 +592,6 @@ export class GigCandidateService {
       title: gig.title,
     });
 
-    const moderationPost = this.findTelegramPost(
-      gigCandidate,
-      PostType.Moderation,
-    );
     if (!moderationPost) {
       this.logger.warn(
         `No moderation post linked after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}`,
@@ -1038,6 +1044,21 @@ export class GigCandidateService {
     return gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === postType,
     );
+  }
+
+  private getGigCandidateModerationPostForApproval(
+    gigCandidate: GigCandidate,
+  ): GigCandidate['posts'][number] | undefined {
+    const moderationPosts = gigCandidate.posts.filter(
+      (post) =>
+        post.to === Messenger.Telegram && post.type === PostType.Moderation,
+    );
+    if (moderationPosts.length > 1) {
+      throw new Error(
+        `GigCandidate ${gigCandidate.id} has multiple Telegram Moderation posts.`,
+      );
+    }
+    return moderationPosts[0];
   }
 
   private logTelegramFailure(

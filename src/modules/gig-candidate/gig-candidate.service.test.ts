@@ -999,6 +999,7 @@ describe('GigCandidateService', () => {
         ...reviewing,
         status: GigCandidateStatus.Approved,
         version: 1,
+        posts: [],
         gigId: '507f1f77bcf86cd799439011',
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1026,6 +1027,7 @@ describe('GigCandidateService', () => {
           gigId: gig.id,
           approvedByUserId: approved.approvedByUserId,
           approvedAt: expect.any(Date),
+          moderationPost,
         }),
       );
       expect(approvalTransactionMock.createGig).toHaveBeenCalledWith({
@@ -1043,6 +1045,7 @@ describe('GigCandidateService', () => {
           userId: '507f1f77bcf86cd799439088',
           origin: { type: 'messenger' },
         },
+        moderationPost,
       });
       expect(gigServiceMock.generateUniquePublicId).toHaveBeenCalledWith({
         title: 'Radiohead',
@@ -1077,6 +1080,52 @@ describe('GigCandidateService', () => {
           chatId: '42',
         },
       );
+    });
+
+    it('should stop before writing when multiple Moderation posts are present', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: {
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
+        },
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 50,
+            chatId: -200,
+          },
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_002_000,
+            id: 51,
+            chatId: -200,
+          },
+        ],
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+
+      await expect(
+        service.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: reviewing.version,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toThrow(
+        `GigCandidate ${reviewing.id} has multiple Telegram Moderation posts.`,
+      );
+      expect(
+        approvalTransactionMock.approveGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
     });
 
     it('should abort before Gig allocation when expected version is stale', async () => {

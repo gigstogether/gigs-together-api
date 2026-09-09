@@ -179,6 +179,13 @@ describe('AdminGigCandidateService', () => {
             id: 77,
             chatId: -100123,
           },
+        ],
+      });
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      gigServiceMock.getGigById.mockResolvedValue({
+        publicId: 'band-2026',
+        posts: [
           {
             to: Messenger.Telegram,
             type: PostType.Moderation,
@@ -188,9 +195,6 @@ describe('AdminGigCandidateService', () => {
           },
         ],
       });
-      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.getGigById.mockResolvedValue({ publicId: 'band-2026' });
       telegramServiceMock.getPostUrl
         .mockReturnValueOnce('https://t.me/c/123/77')
         .mockReturnValueOnce('https://t.me/c/124/78');

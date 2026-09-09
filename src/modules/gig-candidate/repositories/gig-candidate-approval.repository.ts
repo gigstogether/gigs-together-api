@@ -1,6 +1,7 @@
 import type {
   ApproveGigCandidateRecordParams,
   GigCandidate,
+  GigCandidatePost,
 } from '../types/gig-candidate.types';
 import type { GigData, GigSource } from '../../gig/types/gig.types';
 
@@ -20,6 +21,7 @@ export interface CreateGigAfterApprovalParams extends GigData {
   gigId: string;
   publicId: string;
   source: GigSource;
+  moderationPost?: GigCandidatePost;
 }
 
 export interface GigCandidateApprovalTransaction {

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
-import type { ClientSession, Model } from 'mongoose';
+import type { ClientSession, Model, UpdateQuery } from 'mongoose';
 import { Gig } from '../../gig/gig.schema';
 import type {
   GigSource,
@@ -140,6 +140,29 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
     ) {
       return null;
     }
+    const update: UpdateQuery<GigCandidateDocument> = {
+      $set: {
+        status: GigCandidateStatus.Approved,
+        gigId: new Types.ObjectId(params.gigId),
+        approvedAt: params.approvedAt,
+        approvedByUserId: new Types.ObjectId(params.approvedByUserId),
+        gigDraft: params.gigDraft,
+      },
+      $inc: { version: 1 },
+    };
+    if (params.moderationPost !== undefined) {
+      // TODO: Consider moving messenger post references to a dedicated collection
+      //  instead of transferring embedded references between aggregates.
+      update.$pull = {
+        posts: {
+          to: params.moderationPost.to,
+          type: params.moderationPost.type,
+          chatId: params.moderationPost.chatId,
+          id: params.moderationPost.id,
+        },
+      };
+    }
+
     const gigCandidate = await this.gigCandidateModel
       .findOneAndUpdate(
         {
@@ -148,16 +171,7 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
           version: params.expectedVersion,
           gigId: { $exists: false },
         },
-        {
-          $set: {
-            status: GigCandidateStatus.Approved,
-            gigId: new Types.ObjectId(params.gigId),
-            approvedAt: params.approvedAt,
-            approvedByUserId: new Types.ObjectId(params.approvedByUserId),
-            gigDraft: params.gigDraft,
-          },
-          $inc: { version: 1 },
-        },
+        update,
         {
           returnDocument: 'after',
           runValidators: true,
@@ -197,7 +211,10 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
           source,
           version: 0,
           isVisible: true,
-          posts: [],
+          posts:
+            params.moderationPost === undefined
+              ? []
+              : [{ ...params.moderationPost }],
         },
       ],
       { session },

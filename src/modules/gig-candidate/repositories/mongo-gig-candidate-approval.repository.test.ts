@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Gig } from '../../gig/gig.schema';
+import { Messenger } from '../../../shared/types/messenger.enum';
+import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import { GigCandidate } from '../gig-candidate.schema';
 import { MongoGigCandidateApprovalRepository } from './mongo-gig-candidate-approval.repository';
@@ -58,10 +60,18 @@ describe('MongoGigCandidateApprovalRepository', () => {
     const gigCandidateId = '507f1f77bcf86cd799439099';
     const gigId = '507f1f77bcf86cd799439011';
     const approvedByUserId = '507f1f77bcf86cd799439077';
+    const moderationPost = {
+      to: Messenger.Telegram,
+      type: PostType.Moderation,
+      date: 1_700_000_001_000,
+      id: 50,
+      chatId: -200,
+    } as const;
     const reviewing = buildGigCandidateDocument({
       _id: new Types.ObjectId(gigCandidateId),
       status: GigCandidateStatus.Reviewing,
       version: 0,
+      posts: [moderationPost],
     });
     const approved = buildGigCandidateDocument({
       ...reviewing,
@@ -75,6 +85,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       },
       status: GigCandidateStatus.Approved,
       version: 1,
+      posts: [],
       gigId: new Types.ObjectId(gigId),
       approvedAt: new Date('2026-09-01T12:00:00.000Z'),
       approvedByUserId: new Types.ObjectId(approvedByUserId),
@@ -123,6 +134,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
         },
+        moderationPost,
       });
       const gig = await transaction.createGig({
         gigId,
@@ -138,6 +150,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           userId: '507f1f77bcf86cd799439088',
           origin: { type: 'messenger' },
         },
+        moderationPost,
       });
       return { loaded, isTaken, updated, gig };
     });
@@ -163,6 +176,14 @@ describe('MongoGigCandidateApprovalRepository', () => {
           gigId: expect.any(Types.ObjectId),
           approvedByUserId: expect.any(Types.ObjectId),
         }),
+        $pull: {
+          posts: {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: moderationPost.chatId,
+            id: moderationPost.id,
+          },
+        },
         $inc: { version: 1 },
       }),
       expect.objectContaining({ session }),
@@ -179,6 +200,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         userId: expect.any(Types.ObjectId),
         origin: { type: 'messenger' },
       },
+      posts: [moderationPost],
     });
     expect(gigCreate.mock.calls[0]?.[1]).toEqual({ session });
     expect(session.endSession).toHaveBeenCalledOnce();
@@ -259,12 +281,55 @@ describe('MongoGigCandidateApprovalRepository', () => {
     ).rejects.toThrow('Gig provider source is invalid.');
   });
 
-  it('should end the session and propagate a database failure for transaction rollback', async () => {
+  it('should keep the post transfer and Gig insert in one rollback boundary', async () => {
+    const moderationPost = {
+      to: Messenger.Telegram,
+      type: PostType.Moderation,
+      date: 1_700_000_001_000,
+      id: 50,
+      chatId: -200,
+    } as const;
+    gigCandidateFindOneAndUpdate.mockReturnValue(
+      updateQueryResult(
+        buildGigCandidateDocument({
+          status: GigCandidateStatus.Approved,
+          version: 1,
+          posts: [],
+          gigDraft: {
+            title: 'Radiohead',
+            date: Date.UTC(2026, 5, 12),
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Palau Sant Jordi',
+            ticketsUrl: 'https://tickets.example/radiohead',
+          },
+          gigId: new Types.ObjectId('507f1f77bcf86cd799439011'),
+          approvedAt: new Date('2026-09-01T12:00:00.000Z'),
+          approvedByUserId: new Types.ObjectId('507f1f77bcf86cd799439077'),
+        }),
+      ),
+    );
     gigCreate.mockRejectedValue(new Error('Gig insert failed'));
 
     await expect(
-      repository.withTransaction((transaction) =>
-        transaction.createGig({
+      repository.withTransaction(async (transaction) => {
+        await transaction.approveGigCandidate({
+          gigCandidateId: '507f1f77bcf86cd799439099',
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+          gigId: '507f1f77bcf86cd799439011',
+          approvedAt: new Date('2026-09-01T12:00:00.000Z'),
+          gigDraft: {
+            title: 'Radiohead',
+            date: Date.UTC(2026, 5, 12),
+            city: 'Barcelona',
+            country: 'ES',
+            venue: 'Palau Sant Jordi',
+            ticketsUrl: 'https://tickets.example/radiohead',
+          },
+          moderationPost,
+        });
+        return transaction.createGig({
           gigId: '507f1f77bcf86cd799439011',
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
@@ -278,9 +343,25 @@ describe('MongoGigCandidateApprovalRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: 'admin' },
           },
-        }),
-      ),
+          moderationPost,
+        });
+      }),
     ).rejects.toThrow('Gig insert failed');
+    expect(gigCandidateFindOneAndUpdate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        $pull: {
+          posts: {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            chatId: moderationPost.chatId,
+            id: moderationPost.id,
+          },
+        },
+      }),
+      expect.objectContaining({ session }),
+    );
+    expect(gigCreate.mock.calls[0]?.[1]).toEqual({ session });
     expect(session.withTransaction).toHaveBeenCalledOnce();
     expect(session.endSession).toHaveBeenCalledOnce();
   });
