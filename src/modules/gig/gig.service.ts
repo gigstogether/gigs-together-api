@@ -391,6 +391,44 @@ export class GigService {
     return gig;
   }
 
+  async getGigsByIds(gigIds: readonly GigId[]): Promise<PlainGig[]> {
+    const uniqueGigIdsByString = new Map<string, Types.ObjectId>();
+    for (const gigId of gigIds) {
+      if (!Types.ObjectId.isValid(gigId)) {
+        throw new BadRequestException(`Invalid MongoDB ID: ${gigId}`);
+      }
+      const gigIdString = gigId.toString();
+      uniqueGigIdsByString.set(gigIdString, new Types.ObjectId(gigIdString));
+    }
+
+    if (uniqueGigIdsByString.size === 0) {
+      return [];
+    }
+
+    const gigs = await this.gigModel
+      .find({ _id: { $in: [...uniqueGigIdsByString.values()] } })
+      .lean()
+      .exec();
+    const gigsById = new Map(gigs.map((gig) => [gig._id.toString(), gig]));
+    const orderedGigs: PlainGig[] = [];
+    const missingGigIds: string[] = [];
+    for (const gigId of uniqueGigIdsByString.keys()) {
+      const gig = gigsById.get(gigId);
+      if (gig) {
+        orderedGigs.push(gig);
+      } else {
+        missingGigIds.push(gigId);
+      }
+    }
+    if (missingGigIds.length > 0) {
+      throw new NotFoundException(
+        `Gigs with IDs ${missingGigIds.join(', ')} not found`,
+      );
+    }
+
+    return orderedGigs;
+  }
+
   async appendGigMainPost(
     params: AppendGigMainPostParams,
   ): Promise<GigDocument> {

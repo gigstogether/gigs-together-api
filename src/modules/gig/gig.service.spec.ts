@@ -29,6 +29,7 @@ describe('GigService', () => {
     sort: sortForLimitMock,
     collation: collationMock,
     limit: limitMock,
+    lean: leanMock,
   });
   const countDocumentsMock = vi.fn();
   const findByIdExecMock = vi.fn();
@@ -237,6 +238,56 @@ describe('GigService', () => {
 
       await expect(service.getGigById(gigId.toString())).rejects.toMatchObject({
         message: `Gig with ID ${gigId.toString()} not found`,
+      });
+    });
+  });
+
+  describe('getGigsByIds', () => {
+    it('should load unique Gigs in input order with one query', async () => {
+      const firstGigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+      const secondGigId = new Types.ObjectId('507f1f77bcf86cd799439012');
+      const firstGig = { _id: firstGigId, publicId: 'first-gig' };
+      const secondGig = { _id: secondGigId, publicId: 'second-gig' };
+      execMock.mockResolvedValue([secondGig, firstGig]);
+
+      await expect(
+        service.getGigsByIds([
+          firstGigId.toString(),
+          secondGigId,
+          firstGigId.toString(),
+        ]),
+      ).resolves.toEqual([firstGig, secondGig]);
+
+      expect(findMock).toHaveBeenCalledOnce();
+      expect(findMock).toHaveBeenCalledWith({
+        _id: { $in: [firstGigId, secondGigId] },
+      });
+      expect(leanMock).toHaveBeenCalledOnce();
+      expect(execMock).toHaveBeenCalledOnce();
+    });
+
+    it('should not query MongoDB when no Gig IDs are provided', async () => {
+      await expect(service.getGigsByIds([])).resolves.toEqual([]);
+
+      expect(findMock).not.toHaveBeenCalled();
+    });
+
+    it('should reject an invalid Gig ID before querying MongoDB', async () => {
+      await expect(
+        service.getGigsByIds(['not-an-object-id']),
+      ).rejects.toMatchObject({
+        message: 'Invalid MongoDB ID: not-an-object-id',
+      });
+
+      expect(findMock).not.toHaveBeenCalled();
+    });
+
+    it('should reject a missing linked Gig instead of ignoring it', async () => {
+      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+      execMock.mockResolvedValue([]);
+
+      await expect(service.getGigsByIds([gigId])).rejects.toMatchObject({
+        message: `Gigs with IDs ${gigId.toString()} not found`,
       });
     });
   });

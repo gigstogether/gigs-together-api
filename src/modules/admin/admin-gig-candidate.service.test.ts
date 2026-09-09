@@ -1,5 +1,6 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
+import { Types } from 'mongoose';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
@@ -53,6 +54,7 @@ describe('AdminGigCandidateService', () => {
   };
   const gigServiceMock = {
     getGigById: vi.fn(),
+    getGigsByIds: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
   const telegramServiceMock = {
@@ -64,6 +66,7 @@ describe('AdminGigCandidateService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    gigServiceMock.getGigsByIds.mockResolvedValue([]);
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
         id: '66a000000000000000000000042',
@@ -163,6 +166,58 @@ describe('AdminGigCandidateService', () => {
           isCurrentlyAdmin: false,
         }),
       );
+    });
+
+    it('should resolve linked Gigs with one deduplicated bulk lookup', async () => {
+      const firstGigId = '507f1f77bcf86cd799439011';
+      const secondGigId = '507f1f77bcf86cd799439012';
+      const gigCandidates = [
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439091',
+          gigId: firstGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439092',
+          gigId: secondGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439093',
+          gigId: firstGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+      ];
+      gigCandidateServiceMock.findMany.mockResolvedValue(gigCandidates);
+      gigServiceMock.getGigsByIds.mockResolvedValue([
+        {
+          _id: new Types.ObjectId(firstGigId),
+          publicId: 'first-gig',
+          posts: [],
+        },
+        {
+          _id: new Types.ObjectId(secondGigId),
+          publicId: 'second-gig',
+          posts: [],
+        },
+      ]);
+
+      const result = await service.getList({
+        status: GigCandidateStatus.Approved,
+        limit: 20,
+      });
+
+      expect(result.map(({ linkedGigPublicId }) => linkedGigPublicId)).toEqual([
+        'first-gig',
+        'second-gig',
+        'first-gig',
+      ]);
+      expect(gigServiceMock.getGigsByIds).toHaveBeenCalledOnce();
+      expect(gigServiceMock.getGigsByIds).toHaveBeenCalledWith([
+        firstGigId,
+        secondGigId,
+      ]);
+      expect(gigServiceMock.getGigById).not.toHaveBeenCalled();
     });
   });
 

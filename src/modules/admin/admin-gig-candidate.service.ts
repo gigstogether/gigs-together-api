@@ -4,6 +4,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
+import type { PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { UserService } from '../user/user.service';
@@ -28,11 +29,15 @@ export class AdminGigCandidateService {
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
     const gigCandidates = await this.gigCandidateService.findMany(params);
-    const activeSourceUsersById =
-      await this.getActiveSourceUsersById(gigCandidates);
-    return Promise.all(
-      gigCandidates.map((gigCandidate) =>
-        this.resolveGigCandidateWithUsers(gigCandidate, activeSourceUsersById),
+    const [activeSourceUsersById, linkedGigsById] = await Promise.all([
+      this.getActiveSourceUsersById(gigCandidates),
+      this.getLinkedGigsById(gigCandidates),
+    ]);
+    return gigCandidates.map((gigCandidate) =>
+      this.resolveGigCandidateWithUsers(
+        gigCandidate,
+        activeSourceUsersById,
+        gigCandidate.gigId ? linkedGigsById.get(gigCandidate.gigId) : undefined,
       ),
     );
   }
@@ -46,22 +51,24 @@ export class AdminGigCandidateService {
   async resolveGigCandidate(
     gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const activeSourceUsersById = await this.getActiveSourceUsersById([
-      gigCandidate,
+    const [activeSourceUsersById, linkedGig] = await Promise.all([
+      this.getActiveSourceUsersById([gigCandidate]),
+      gigCandidate.gigId
+        ? this.gigService.getGigById(gigCandidate.gigId)
+        : Promise.resolve(undefined),
     ]);
     return this.resolveGigCandidateWithUsers(
       gigCandidate,
       activeSourceUsersById,
+      linkedGig,
     );
   }
 
-  private async resolveGigCandidateWithUsers(
+  private resolveGigCandidateWithUsers(
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
-  ): Promise<AdminGigCandidateDetails> {
-    const linkedGig = gigCandidate.gigId
-      ? await this.gigService.getGigById(gigCandidate.gigId)
-      : undefined;
+    linkedGig: PlainGig | undefined,
+  ): AdminGigCandidateDetails {
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
     );
@@ -136,5 +143,19 @@ export class AdminGigCandidateService {
     );
     const users = await this.userService.findActiveUsersByIds(userIds);
     return new Map(users.map((user) => [user.id, user]));
+  }
+
+  private async getLinkedGigsById(
+    gigCandidates: readonly GigCandidate[],
+  ): Promise<ReadonlyMap<string, PlainGig>> {
+    const gigIds = [
+      ...new Set(
+        gigCandidates.flatMap((gigCandidate) =>
+          gigCandidate.gigId ? [gigCandidate.gigId] : [],
+        ),
+      ),
+    ];
+    const gigs = await this.gigService.getGigsByIds(gigIds);
+    return new Map(gigs.map((gig) => [gig._id.toString(), gig]));
   }
 }
