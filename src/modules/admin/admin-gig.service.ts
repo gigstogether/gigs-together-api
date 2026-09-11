@@ -172,34 +172,7 @@ export class AdminGigService {
       );
     }
 
-    if (gigModerationPost !== undefined) {
-      try {
-        const updateModerationPostPayload: UpdateGigModerationPostPayload = {
-          gigId: updatedGig._id,
-          expectedVersion: updatedGig.version,
-          isVisible: updatedGig.isVisible,
-          title: updatedGig.title,
-          publicId: updatedGig.publicId,
-          moderationPost: {
-            chatId: gigModerationPost.chatId,
-            messageId: gigModerationPost.id,
-          },
-        };
-        if (mainPost !== undefined) {
-          updateModerationPostPayload.mainPost = {
-            chatId: mainPost.chatId,
-            messageId: mainPost.id,
-          };
-        }
-        await this.telegramService.updateGigModerationPost(
-          updateModerationPostPayload,
-        );
-      } catch (e: unknown) {
-        this.logger.warn(
-          `Telegram moderation post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
-        );
-      }
-    }
+    await this.updateGigModerationPostAfterAdminGigMutation(updatedGig);
 
     await this.feedRevalidateService.revalidateFeed({
       country: updatedGig.country,
@@ -213,6 +186,7 @@ export class AdminGigService {
   ): Promise<UpdateGigVisibilityByPublicIdResult> {
     const updatedGig =
       await this.gigService.updateGigVisibilityByPublicId(params);
+    await this.updateGigModerationPostAfterAdminGigMutation(updatedGig);
     await this.feedRevalidateService.revalidateFeed({
       country: updatedGig.country,
       city: updatedGig.city,
@@ -222,6 +196,45 @@ export class AdminGigService {
       version: updatedGig.version,
       isVisible: updatedGig.isVisible,
     };
+  }
+
+  private async updateGigModerationPostAfterAdminGigMutation(
+    gig: PlainGig,
+  ): Promise<void> {
+    const moderationPost = this.telegramService.pickTgPost(
+      gig.posts,
+      PostType.Moderation,
+    );
+    if (moderationPost === undefined) {
+      return;
+    }
+
+    const mainPost = this.telegramService.pickTgPost(gig.posts, PostType.Main);
+    const payload: UpdateGigModerationPostPayload = {
+      gigId: gig._id,
+      expectedVersion: gig.version,
+      isVisible: gig.isVisible,
+      title: gig.title,
+      publicId: gig.publicId,
+      moderationPost: {
+        chatId: moderationPost.chatId,
+        messageId: moderationPost.id,
+      },
+    };
+    if (mainPost !== undefined) {
+      payload.mainPost = {
+        chatId: mainPost.chatId,
+        messageId: mainPost.id,
+      };
+    }
+
+    try {
+      await this.telegramService.updateGigModerationPost(payload);
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram moderation post update failed for publicId=${gig.publicId}: ${this.formatError(e)}`,
+      );
+    }
   }
 
   private formatError(e: unknown): string {
