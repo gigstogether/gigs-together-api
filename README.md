@@ -116,6 +116,28 @@ Depending on which flows you want to exercise, you may also need:
 
 `APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
 
+### Required Telegram setup
+
+The GigCandidate workflow requires one Telegram bot per environment with the following BotFather and channel configuration:
+
+1. Create two named Mini App direct links for the same bot:
+   - `suggest` uses frontend URL `https://<frontend-host>/suggest/launch` and opens the universal suggestion entry point.
+   - `admin` uses frontend URL `https://<frontend-host>/admin/telegram` and dispatches Gig and GigCandidate edit actions from moderation posts.
+2. Keep Same-Origin Restriction enabled for the Mini Apps. Main App and Menu Button are optional entry points; backend-generated edit links do not depend on them.
+3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
+4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
+5. Register `https://<api-host>/v1/receiver/webhook` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
+6. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
+
+The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
+
+| Action enum member                            | Wire value         | Identifier      | Resulting admin route                        |
+| --------------------------------------------- | ------------------ | --------------- | -------------------------------------------- |
+| `TelegramMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
+| `TelegramMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
+
+The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Untyped and unknown actions are rejected by routing to the new GigCandidate form.
+
 ### Environment variables reference
 
 Current variables defined in `.env.example`:
@@ -143,10 +165,11 @@ Current variables defined in `.env.example`:
 | `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
 | `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
+| `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
 | `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                            |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
-| `EDIT_GIG_URL`                                  | For edit flows                               | Frontend or app URL for editing gigs.                                    |
+| `EDIT_GIG_URL`                                  | For edit flows                               | Named admin Mini App URL, without a `startapp` query parameter.          |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
 | `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |

@@ -46,6 +46,11 @@ import {
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
+export enum TelegramMiniAppStartAction {
+  EditGig = 'editGig',
+  EditGigCandidate = 'editGigCandidate',
+}
+
 const DATE_LOCALE = 'en-GB';
 const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   day: 'numeric',
@@ -55,6 +60,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
+const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
 
 interface ComposeGigCandidateChannelPostParams {
   gigCandidate: GigCandidate;
@@ -804,9 +810,7 @@ export class TelegramPostComposerService {
     params: BuildGigCandidateModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup {
     const { gigCandidate, expectedVersion } = params;
-    const editGigCandidateUrl = this.buildAdminGigCandidateEditUrl(
-      gigCandidate.id,
-    );
+    const editGigCandidateUrl = this.buildEditGigCandidateUrl(gigCandidate.id);
 
     return {
       inline_keyboard: [
@@ -848,18 +852,11 @@ export class TelegramPostComposerService {
     };
   }
 
-  private buildAdminGigCandidateEditUrl(
-    gigCandidateId: string,
-  ): string | undefined {
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    if (!appBaseUrl) {
-      return undefined;
-    }
-
-    return new URL(
-      `/admin/gig-candidates/${encodeURIComponent(gigCandidateId)}/edit`,
-      appBaseUrl,
-    ).toString();
+  private buildEditGigCandidateUrl(gigCandidateId: string): string | undefined {
+    const editGigCandidateBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+    return editGigCandidateBaseUrl
+      ? `${editGigCandidateBaseUrl}?startapp=${encodeURIComponent(`${TelegramMiniAppStartAction.EditGigCandidate}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${gigCandidateId}`)}`
+      : undefined;
   }
 
   private buildAdminGigCandidateUrl(
@@ -894,7 +891,7 @@ export class TelegramPostComposerService {
   buildEditGigUrl(publicId?: string): string | undefined {
     const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
     return editGigBaseUrl && publicId
-      ? `${editGigBaseUrl}?startapp=${encodeURIComponent(String(publicId))}`
+      ? `${editGigBaseUrl}?startapp=${encodeURIComponent(`${TelegramMiniAppStartAction.EditGig}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${publicId}`)}`
       : undefined;
   }
 
