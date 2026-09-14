@@ -412,7 +412,7 @@ describe('TelegramService', () => {
             [
               {
                 text: '✏️ Edit',
-                url: 'https://app.example/edit?startapp=radiohead-barcelona-2026-06-12',
+                url: 'https://app.example/edit?startapp=editGig-radiohead-barcelona-2026-06-12',
               },
               expect.objectContaining({ text: '🙈 Hide' }),
             ],

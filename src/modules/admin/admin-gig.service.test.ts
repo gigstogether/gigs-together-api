@@ -362,10 +362,9 @@ describe('AdminGigService', () => {
   });
 
   describe('updateGigVisibilityByPublicId', () => {
-    it('should conditionally change visibility and revalidate the affected feed', async () => {
-      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(
-        buildPlainGig({ version: 4, isVisible: false }),
-      );
+    it('should update the Moderation post after hiding a Gig', async () => {
+      const gig = buildPlainGig({ version: 4, isVisible: false });
+      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
 
       await expect(
         service.updateGigVisibilityByPublicId({
@@ -375,6 +374,96 @@ describe('AdminGigService', () => {
         }),
       ).resolves.toEqual({
         publicId: 'radiohead-barcelona-2026-06-12',
+        version: 4,
+        isVisible: false,
+      });
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
+        gigId: gig._id,
+        expectedVersion: 4,
+        isVisible: false,
+        title: gig.title,
+        publicId: gig.publicId,
+        moderationPost: { chatId: -100123, messageId: 42 },
+      });
+      expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
+        country: 'ES',
+        city: 'barcelona',
+      });
+    });
+
+    it('should update the Moderation post with the Main post after showing a Gig', async () => {
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -100456,
+        id: 99,
+        date: 1_700_000_002_000,
+      };
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        date: 1_700_000_001_000,
+      };
+      const gig = buildPlainGig({
+        version: 5,
+        isVisible: true,
+        posts: [moderationPost, mainPost],
+      });
+      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
+
+      await service.updateGigVisibilityByPublicId({
+        publicId: gig.publicId,
+        expectedVersion: 4,
+        isVisible: true,
+      });
+
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
+        gigId: gig._id,
+        expectedVersion: 5,
+        isVisible: true,
+        title: gig.title,
+        publicId: gig.publicId,
+        moderationPost: { chatId: -100123, messageId: 42 },
+        mainPost: { chatId: -100456, messageId: 99 },
+      });
+    });
+
+    it('should skip the Telegram update when the Gig has no Moderation post', async () => {
+      const gig = buildPlainGig({
+        version: 4,
+        isVisible: false,
+        posts: [],
+      });
+      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
+
+      await service.updateGigVisibilityByPublicId({
+        publicId: gig.publicId,
+        expectedVersion: 3,
+        isVisible: false,
+      });
+
+      expect(
+        telegramServiceMock.updateGigModerationPost,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should preserve the visibility update when the Telegram update fails', async () => {
+      const gig = buildPlainGig({ version: 4, isVisible: false });
+      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
+      telegramServiceMock.updateGigModerationPost.mockRejectedValueOnce(
+        new Error('Telegram unavailable'),
+      );
+
+      await expect(
+        service.updateGigVisibilityByPublicId({
+          publicId: gig.publicId,
+          expectedVersion: 3,
+          isVisible: false,
+        }),
+      ).resolves.toEqual({
+        publicId: gig.publicId,
         version: 4,
         isVisible: false,
       });

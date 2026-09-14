@@ -552,12 +552,14 @@ describe('TelegramPostComposer', () => {
       process.env.INTAKE_CHANNEL_ID = '-3001';
       process.env.MODERATION_CHANNEL_ID = '-3002';
       process.env.APP_BASE_URL = 'https://admin.example';
+      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
     });
 
     afterEach(() => {
       delete process.env.INTAKE_CHANNEL_ID;
       delete process.env.MODERATION_CHANNEL_ID;
       delete process.env.APP_BASE_URL;
+      delete process.env.EDIT_GIG_URL;
     });
 
     it('should compose Intake with Send to moderation and Reject actions', () => {
@@ -662,7 +664,7 @@ describe('TelegramPostComposer', () => {
         },
         {
           text: '✏️ Edit',
-          url: 'https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099/edit',
+          url: 'https://t.me/GigsTogetherStgBot/admin?startapp=editGigCandidate-507f1f77bcf86cd799439099',
         },
         {
           text: '❌ Reject',
