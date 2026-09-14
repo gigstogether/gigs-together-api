@@ -136,7 +136,7 @@ The `startapp` contract is shared by the backend URL composer and the frontend l
 | `TelegramMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
 | `TelegramMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
 
-The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Untyped and unknown actions are rejected by routing to the new GigCandidate form.
+The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Missing, malformed, untyped, and unknown actions show an explicit error notification before returning the administrator to `/admin`.
 
 ### Environment variables reference
 
