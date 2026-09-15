@@ -68,18 +68,25 @@ describe('UserRepositoryMapper', () => {
     expect(user.identities[0]?.username).toBeUndefined();
   });
 
-  it('should reject duplicate messenger identities within one User', () => {
-    const identity = {
-      type: 'messenger',
-      messenger: Messenger.Telegram,
-      externalUserId: '42',
-    };
-
+  it('should reject multiple identities for the same messenger', () => {
     expect(() =>
       UserRepositoryMapper.toUser(
-        userDocument({ identities: [identity, { ...identity }] }),
+        userDocument({
+          identities: [
+            {
+              type: 'messenger',
+              messenger: Messenger.Telegram,
+              externalUserId: '42',
+            },
+            {
+              type: 'messenger',
+              messenger: Messenger.Telegram,
+              externalUserId: '43',
+            },
+          ],
+        }),
       ),
-    ).toThrow('User messenger identities must be unique');
+    ).toThrow('A User can have only one identity per messenger');
   });
 
   it('should map the Admin role for an active User', () => {

@@ -1,36 +1,21 @@
-import type { Status } from '../../gig/types/status.enum';
 import type { TGChatId, TGMessage } from './message.types';
-import type { GigId, PlainGig } from '../../gig/types/gig.types';
+import type { GigId } from '../../gig/types/gig.types';
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../../gig-candidate/types/gig-candidate.types';
 
-export interface EditSubmissionFeedbackPayload {
-  gig: PlainGig;
-  chatId: TGChatId;
-  messageId: number;
-  status: Status.Pending | Status.Published | Status.Rejected;
-  url?: string;
-}
-
-export interface UpdateModerationPostAfterGigPublishedPayload {
+export interface UpdateGigModerationPostPayload {
   moderationPost: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };
   gigId: GigId;
+  expectedVersion: number;
+  isVisible: boolean;
   title: string;
   publicId: string;
-  publishPost?: {
-    chatId: TGChatId;
-    messageId: TGMessage['message_id'];
-  };
-}
-
-export interface UpdatePublishedSubmissionFeedbackPayload {
-  gig: PlainGig;
-}
-
-export interface HandlePostRejectPayload {
-  gig: PlainGig;
-  moderationMessage: {
+  mainPost?: {
     chatId: TGChatId;
     messageId: TGMessage['message_id'];
   };
@@ -38,4 +23,9 @@ export interface HandlePostRejectPayload {
 
 export interface WeeklyDigestMainChannelPublishResult {
   readonly postUrl: string;
+}
+
+export interface UpdateRejectedGigCandidatePostPayload {
+  gigCandidate: GigCandidate;
+  post: GigCandidatePost;
 }

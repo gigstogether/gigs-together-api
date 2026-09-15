@@ -103,4 +103,16 @@ describe('FeedRevalidateService', () => {
       );
     });
   });
+
+  describe('revalidateFeedOrThrow', () => {
+    it('should expose request failure to an approval caller', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      fetchMock.mockRejectedValue(new Error('Network unavailable'));
+
+      await expect(
+        service.revalidateFeedOrThrow({ country: 'ES', city: 'barcelona' }),
+      ).rejects.toThrow('Network unavailable');
+    });
+  });
 });

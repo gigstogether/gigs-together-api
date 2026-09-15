@@ -45,7 +45,7 @@ describe('ReceiverWebhookGuard', () => {
     );
     expect(request.telegramWebhook).toEqual({
       allowed: true,
-      reason: undefined,
+      userId: '66a000000000000000000001',
     });
   });
 

@@ -1,6 +1,5 @@
 import { Transform, Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, Min } from 'class-validator';
-import { Status } from '../../../gig/types/status.enum';
 import {
   ADMIN_GIG_LIST_DEFAULT_LIMIT,
   ADMIN_GIG_LIST_SORT_BY_VALUES,
@@ -9,35 +8,7 @@ import {
   AdminGigListSortOrder,
 } from '../../../gig/types/admin-gig-list-sort.types';
 
-export const ADMIN_GIG_LIST_STATUS_QUERY_VALUES = [
-  'pending',
-  'approved',
-  'rejected',
-] as const;
-
-export type AdminGigListStatusQuery =
-  (typeof ADMIN_GIG_LIST_STATUS_QUERY_VALUES)[number];
-
-export function mapAdminGigListStatusQueryToGigStatuses(
-  status: AdminGigListStatusQuery,
-): readonly Status[] {
-  switch (status) {
-    case 'approved':
-      return [Status.Approved, Status.Published];
-    case 'pending':
-      return [Status.Pending, Status.New];
-    case 'rejected':
-      return [Status.Rejected];
-  }
-}
-
 export class V1AdminGigsGetQueryDto {
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
-  @IsIn(ADMIN_GIG_LIST_STATUS_QUERY_VALUES)
-  status!: AdminGigListStatusQuery;
-
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsIn(ADMIN_GIG_LIST_SORT_BY_VALUES)

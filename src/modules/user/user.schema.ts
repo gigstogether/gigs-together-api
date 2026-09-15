@@ -59,13 +59,12 @@ export class User {
           return false;
         }
 
-        const keys = userMessengerIdentities.map(
-          (userMessengerIdentity) =>
-            `${userMessengerIdentity.messenger}\u0000${userMessengerIdentity.externalUserId}`,
+        const messengers = userMessengerIdentities.map(
+          (userMessengerIdentity) => userMessengerIdentity.messenger,
         );
-        return new Set(keys).size === keys.length;
+        return new Set(messengers).size === messengers.length;
       },
-      message: 'messenger identities must be unique within a user',
+      message: 'a user can have only one identity per messenger',
     },
   })
   identities: UserMessengerIdentity[];

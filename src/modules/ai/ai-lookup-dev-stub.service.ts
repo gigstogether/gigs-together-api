@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { V1ReceiverCreateGigRequestBodyGig } from '../receiver/types/requests/v1-receiver-create-gig-request';
+import type { GigFormInput } from '../gig/types/gig.types';
 
 interface AiLookupParams {
   readonly name: string;
@@ -17,9 +17,7 @@ export class AiLookupDevStubService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  resolveGigOrNull(
-    params: AiLookupParams,
-  ): V1ReceiverCreateGigRequestBodyGig | null {
+  resolveGigOrNull(params: AiLookupParams): GigFormInput | null {
     if (!this.shouldUseStub(params)) {
       return null;
     }
@@ -79,9 +77,7 @@ export class AiLookupDevStubService {
     return haystack.includes(keyword);
   }
 
-  private buildStubGig(
-    params: AiLookupParams,
-  ): V1ReceiverCreateGigRequestBodyGig {
+  private buildStubGig(params: AiLookupParams): GigFormInput {
     const now = new Date();
     const futureDate = new Date(
       Date.UTC(

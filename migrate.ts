@@ -1,7 +1,9 @@
 /**
  * Migrations (ts-migrate-mongoose):
- * - npm run migrate:up — apply pending migrations
- * - npm run migrate:up:dry — sets DRY_RUN=true and applies pending migrations
+ * - npm run migrate:up — dry-run pending migrations
+ * - npm run migrate:up:apply — apply pending migrations
+ * - npm run migrate:up:single:dry -- <name> — dry-run one migration
+ * - npm run migrate:up:single:apply -- <name> — apply one migration
  * (make sure to write the actual code for dry running - it's not an automatic action!)
  *
  * Migrations that need extra input read env from .env / the shell.

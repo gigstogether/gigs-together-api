@@ -1,6 +1,6 @@
 export interface V1AdminDashboardSummary {
-  readonly pendingGigsCount: number;
-  readonly publishedGigsCount: number;
+  readonly gigsCount: number;
+  readonly visibleGigsCount: number;
 }
 
 export interface V1AdminDashboardResponseBody {

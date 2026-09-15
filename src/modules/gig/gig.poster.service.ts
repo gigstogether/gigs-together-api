@@ -5,15 +5,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
-
-interface PosterFile {
-  buffer: Buffer;
-  mimetype?: string;
-}
+import type { GigPosterFile } from './types/gig-poster.types';
 
 interface UploadPosterPayload {
   url?: string;
-  file?: Express.Multer.File;
+  file?: GigPosterFile;
   context: {
     date: string | number | Date;
     country: string;
@@ -30,7 +26,7 @@ export class GigPosterService {
     private readonly httpService: HttpService,
   ) {}
 
-  private async download(url: string): Promise<PosterFile> {
+  private async download(url: string): Promise<GigPosterFile> {
     try {
       new URL(url);
     } catch {
@@ -87,7 +83,7 @@ export class GigPosterService {
   }
 
   private async uploadToBucket(
-    input: PosterFile,
+    input: GigPosterFile,
     context: UploadPosterPayload['context'],
   ): Promise<string> {
     const { buffer, mimetype } = input;

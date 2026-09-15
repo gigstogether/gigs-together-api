@@ -1,0 +1,269 @@
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { Types } from 'mongoose';
+
+import { Messenger } from '../../shared/types/messenger.enum';
+import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import {
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from '../gig-candidate/gig-candidate-list-sort';
+import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
+import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { GigService } from '../gig/gig.service';
+import { PostType } from '../../shared/types/post-type.enum';
+import { TelegramService } from '../telegram/telegram.service';
+import { UserService } from '../user/user.service';
+import { UserRole } from '../user/types/user-role.enum';
+import { AdminGigCandidateService } from './admin-gig-candidate.service';
+
+function buildGigCandidate(
+  overrides: Partial<GigCandidate> = {},
+): GigCandidate {
+  return {
+    id: '507f1f77bcf86cd799439099',
+    source: {
+      type: 'user',
+      userId: '66a000000000000000000000042',
+      origin: { type: 'form' },
+    },
+    gigDraft: {
+      title: 'Band',
+      date: Date.parse('2026-08-20T00:00:00.000Z'),
+      city: 'Barcelona',
+      country: 'ES',
+      venue: 'Razzmatazz',
+      ticketsUrl: 'https://example.com/tickets',
+      poster: { bucketPath: 'gigs/poster' },
+    },
+    version: 0,
+    status: GigCandidateStatus.New,
+    posts: [],
+    createdAt: new Date('2026-08-01T10:00:00.000Z'),
+    updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+describe('AdminGigCandidateService', () => {
+  let service: AdminGigCandidateService;
+
+  const gigCandidateServiceMock = {
+    findMany: vi.fn(),
+    getByIdOrThrow: vi.fn(),
+  };
+  const gigServiceMock = {
+    getGigById: vi.fn(),
+    getGigsByIds: vi.fn(),
+    resolveGigPosterPublicUrl: vi.fn(),
+  };
+  const telegramServiceMock = {
+    getPostUrl: vi.fn(),
+  };
+  const userServiceMock = {
+    findActiveUsersByIds: vi.fn(),
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    gigServiceMock.getGigsByIds.mockResolvedValue([]);
+    userServiceMock.findActiveUsersByIds.mockResolvedValue([
+      {
+        id: '66a000000000000000000000042',
+        status: 'active',
+        roles: [UserRole.Admin],
+        identities: [
+          {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            externalUserId: '42',
+            username: 'test_user',
+          },
+        ],
+        displayName: 'Test User',
+        createdAt: new Date('2026-08-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+      },
+    ]);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminGigCandidateService,
+        { provide: GigCandidateService, useValue: gigCandidateServiceMock },
+        { provide: GigService, useValue: gigServiceMock },
+        { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: UserService, useValue: userServiceMock },
+      ],
+    }).compile();
+
+    service = module.get(AdminGigCandidateService);
+  });
+
+  describe('getList', () => {
+    it('should return resolved GigCandidates for the requested status and sorting', async () => {
+      const record = buildGigCandidate();
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+
+      await expect(
+        service.getList({
+          status: GigCandidateStatus.New,
+          limit: 20,
+          sortBy: AdminGigCandidateListSortBy.EventDate,
+          sortOrder: AdminGigCandidateListSortOrder.Asc,
+        }),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          id: record.id,
+          source: expect.objectContaining({
+            displayName: 'Test User',
+            isCurrentlyAdmin: true,
+            telegramUsername: 'test_user',
+          }),
+          gigDraft: record.gigDraft,
+          posterUrl: 'https://cdn.example/poster.jpg',
+          createdAt: record.createdAt,
+        }),
+      ]);
+      expect(gigCandidateServiceMock.findMany).toHaveBeenCalledWith({
+        status: GigCandidateStatus.New,
+        limit: 20,
+        sortBy: AdminGigCandidateListSortBy.EventDate,
+        sortOrder: AdminGigCandidateListSortOrder.Asc,
+      });
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledOnce();
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([
+        record.source.type === 'user' ? record.source.userId : undefined,
+      ]);
+    });
+
+    it('should include displayName but not the admin marker for a non-admin user', async () => {
+      const record = buildGigCandidate();
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      userServiceMock.findActiveUsersByIds.mockResolvedValue([
+        {
+          id: '66a000000000000000000000042',
+          status: 'active',
+          roles: [],
+          identities: [],
+          displayName: 'Test User',
+          createdAt: new Date('2026-08-01T10:00:00.000Z'),
+          updatedAt: new Date('2026-08-02T10:00:00.000Z'),
+        },
+      ]);
+
+      const [result] = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+      });
+
+      expect(result?.source).toEqual(
+        expect.objectContaining({
+          displayName: 'Test User',
+          isCurrentlyAdmin: false,
+        }),
+      );
+    });
+
+    it('should resolve linked Gigs with one deduplicated bulk lookup', async () => {
+      const firstGigId = '507f1f77bcf86cd799439011';
+      const secondGigId = '507f1f77bcf86cd799439012';
+      const gigCandidates = [
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439091',
+          gigId: firstGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439092',
+          gigId: secondGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+        buildGigCandidate({
+          id: '507f1f77bcf86cd799439093',
+          gigId: firstGigId,
+          status: GigCandidateStatus.Approved,
+        }),
+      ];
+      gigCandidateServiceMock.findMany.mockResolvedValue(gigCandidates);
+      gigServiceMock.getGigsByIds.mockResolvedValue([
+        {
+          _id: new Types.ObjectId(firstGigId),
+          publicId: 'first-gig',
+          posts: [],
+        },
+        {
+          _id: new Types.ObjectId(secondGigId),
+          publicId: 'second-gig',
+          posts: [],
+        },
+      ]);
+
+      const result = await service.getList({
+        status: GigCandidateStatus.Approved,
+        limit: 20,
+      });
+
+      expect(result.map(({ linkedGigPublicId }) => linkedGigPublicId)).toEqual([
+        'first-gig',
+        'second-gig',
+        'first-gig',
+      ]);
+      expect(gigServiceMock.getGigsByIds).toHaveBeenCalledOnce();
+      expect(gigServiceMock.getGigsByIds).toHaveBeenCalledWith([
+        firstGigId,
+        secondGigId,
+      ]);
+      expect(gigServiceMock.getGigById).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getById', () => {
+    it('should include the GigCandidate post and linked Gig URLs', async () => {
+      const record = buildGigCandidate({
+        status: GigCandidateStatus.Approved,
+        gigId: '507f1f77bcf86cd799439011',
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1_700_000_000_000,
+            id: 77,
+            chatId: -100123,
+          },
+        ],
+      });
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      gigServiceMock.getGigById.mockResolvedValue({
+        publicId: 'band-2026',
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            date: 1_700_000_001_000,
+            id: 78,
+            chatId: -100124,
+          },
+        ],
+      });
+      telegramServiceMock.getPostUrl
+        .mockReturnValueOnce('https://t.me/c/123/77')
+        .mockReturnValueOnce('https://t.me/c/124/78');
+
+      await expect(service.getById(record.id)).resolves.toEqual(
+        expect.objectContaining({
+          intakePostUrl: 'https://t.me/c/123/77',
+          intakePostDate: 1_700_000_000_000,
+          moderationPostUrl: 'https://t.me/c/124/78',
+          moderationPostDate: 1_700_000_001_000,
+          linkedGigPublicId: 'band-2026',
+        }),
+      );
+      expect(gigServiceMock.getGigById).toHaveBeenCalledWith(record.gigId);
+    });
+  });
+});

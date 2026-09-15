@@ -237,4 +237,59 @@ describe('MongoUserRepository', () => {
       roles: UserRole.Admin,
     });
   });
+
+  it('should find an active User by internal id', async () => {
+    findOne.mockReturnValue(queryResult(storedUser()));
+
+    await expect(
+      repository.findActiveUserById('66a000000000000000000001'),
+    ).resolves.toMatchObject({
+      id: '66a000000000000000000001',
+      status: 'active',
+    });
+    expect(findOne).toHaveBeenCalledWith({
+      _id: '66a000000000000000000001',
+      status: 'active',
+    });
+  });
+
+  it('should not return an inactive User by internal id', async () => {
+    findOne.mockReturnValue(queryResult(null));
+
+    await expect(
+      repository.findActiveUserById('66a000000000000000000001'),
+    ).resolves.toBeNull();
+  });
+
+  it('should find active Users by unique internal ids in one query', async () => {
+    const first = storedUser();
+    const second = storedUser({
+      _id: new Types.ObjectId('66a000000000000000000002'),
+      displayName: 'Second User',
+    });
+    find.mockReturnValue(queryResult([first, second]));
+
+    await expect(
+      repository.findActiveUsersByIds([
+        '66a000000000000000000001',
+        '66a000000000000000000002',
+        '66a000000000000000000001',
+      ]),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: '66a000000000000000000001' }),
+      expect.objectContaining({ id: '66a000000000000000000002' }),
+    ]);
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(find).toHaveBeenCalledWith({
+      _id: {
+        $in: ['66a000000000000000000001', '66a000000000000000000002'],
+      },
+      status: 'active',
+    });
+  });
+
+  it('should skip the database query when no User ids are provided', async () => {
+    await expect(repository.findActiveUsersByIds([])).resolves.toEqual([]);
+    expect(find).not.toHaveBeenCalled();
+  });
 });

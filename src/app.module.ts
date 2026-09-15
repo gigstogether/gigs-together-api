@@ -17,6 +17,7 @@ import { LocaleModule } from './modules/locale/locale.module';
 import { TranslationModule } from './modules/translation/translation.module';
 import { DigestModule } from './modules/digest/digest.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { GigCandidateModule } from './modules/gig-candidate/gig-candidate.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
@@ -51,6 +52,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     TranslationModule,
     DigestModule,
     AdminModule,
+    GigCandidateModule,
   ],
   controllers: [AppController],
   providers: [

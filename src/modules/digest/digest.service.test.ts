@@ -14,7 +14,6 @@ import { CalendarService } from '../calendar/calendar.service';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
-import { Status } from '../gig/types/status.enum';
 
 describe('getPreviousDigestCronFireDate', () => {
   it('should return the prior weekly instant for default Monday-noon digest cron', () => {
@@ -136,14 +135,14 @@ describe('DigestService', () => {
       expect(publishWeeklyDigestToMainChannelMock).not.toHaveBeenCalled();
     });
 
-    it('should query published gigs within the seven-day inclusive date range for today', async () => {
+    it('should query visible gigs within the seven-day inclusive date range for today', async () => {
       const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();
       const toMs = new Date(2024, 5, 16, 23, 59, 59, 999).getTime();
 
       await service.publishIfEligible();
 
       expect(findMock).toHaveBeenCalledWith({
-        status: Status.Published,
+        isVisible: true,
         date: { $gte: fromMs, $lte: toMs },
       });
       expect(collationMock).toHaveBeenCalledWith({

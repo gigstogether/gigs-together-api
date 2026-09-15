@@ -1,166 +1,133 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import type { UpdateQuery } from 'mongoose';
-import { CalendarService } from '../calendar/calendar.service';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import { FeedRevalidateService } from './feed-revalidate.service';
-import type { Gig, GigPost } from './gig.schema';
+import type { GigPost } from './gig.schema';
 import { GigService } from './gig.service';
-import { Messenger } from '../../shared/types/messenger.enum';
 import type {
   GigModerationPostRef,
   ModerateGigParams,
+  SetGigVisibilityParams,
 } from './types/gig-moderation.types';
-import { PostType } from './types/postType.enum';
-import { Status } from './types/status.enum';
-import type { GigId, PlainGig } from './types/gig.types';
+import type { PlainGig } from './types/gig.types';
+import { FeedRevalidateService } from './feed-revalidate.service';
 
-interface GigModerationData {
-  gigId: GigId;
-  gigPublicId: string;
-  gigStatus: Status;
-  moderationPost: GigModerationPostRef | undefined;
+interface GigMainPostRef {
+  readonly chatId: GigModerationPostRef['chatId'];
+  readonly messageId: GigModerationPostRef['messageId'];
 }
 
-// TODO: add allowing only specific status transitions
 @Injectable()
 export class GigModerationService {
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
-    private readonly calendarService: CalendarService,
     private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
 
   private readonly logger = new Logger(GigModerationService.name);
 
-  private async buildGigModerationData(
-    params: ModerateGigParams,
-  ): Promise<GigModerationData> {
+  async publishGigPost(params: ModerateGigParams): Promise<void> {
     const gig = await this.getGig(params);
     const gigId = gig._id.toString();
+    if (gig.version !== params.expectedVersion) {
+      throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
+    }
+    if (this.telegramService.pickTgPost(gig.posts, PostType.Main)) {
+      throw new ConflictException('Gig main post already exists');
+    }
+
     const moderationPost =
       params.moderationPost ?? this.resolveModerationPostRef(gig.posts);
-    return {
+    const telegramMainPost = await this.telegramService.publishMain(gig);
+    const chatId =
+      telegramMainPost?.sender_chat?.id ?? telegramMainPost?.chat?.id;
+    const messageId = telegramMainPost?.message_id;
+    if (!telegramMainPost || chatId === undefined || messageId === undefined) {
+      throw new BadRequestException(
+        `publishMain returned no Telegram message for gig ${gigId}`,
+      );
+    }
+
+    const updatedGig = await this.gigService.appendGigMainPost({
       gigId,
-      gigPublicId: gig.publicId,
-      gigStatus: gig.status,
-      moderationPost,
-    };
+      expectedVersion: params.expectedVersion,
+      post: {
+        id: messageId,
+        chatId,
+        fileId: getBiggestTgPhotoFileId(telegramMainPost.photo),
+        // Telegram returns Unix seconds; Gig post dates use Unix milliseconds.
+        date: telegramMainPost.date * 1_000,
+      },
+    });
+
+    if (!moderationPost) {
+      this.logger.warn(
+        `No moderation post linked for gig ${gigId}; skipping updateGigModerationPost`,
+      );
+      return;
+    }
+
+    try {
+      await this.telegramService.updateGigModerationPost({
+        gigId,
+        expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        moderationPost,
+        mainPost: { chatId, messageId },
+      });
+    } catch (e: unknown) {
+      this.logger.warn(
+        `updateGigModerationPost failed for gig ${gigId}: ${this.formatError(e)}`,
+      );
+    }
   }
 
-  async approveGig(params: ModerateGigParams): Promise<void> {
-    const { gigId, gigPublicId, gigStatus, moderationPost } =
-      await this.buildGigModerationData(params);
+  async setGigVisibility(params: SetGigVisibilityParams): Promise<void> {
+    const gig = await this.getGig(params);
+    const gigId = gig._id.toString();
+    if (gig.version !== params.expectedVersion) {
+      throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
+    }
+    if (gig.isVisible === params.isVisible) {
+      const visibility = params.isVisible ? 'visible' : 'hidden';
+      throw new ConflictException(
+        `Gig with ID "${gigId}" is already ${visibility}`,
+      );
+    }
 
-    this.assertCanApprove(gigStatus);
-
-    const updatedGig = await this.gigService.updateGigStatus(
-      gigId,
-      Status.Published,
-    );
-    this.logger.log(`Gig ${gigPublicId} (${gigId}) approved and published`);
+    const updatedGig = await this.gigService.updateGigVisibilityByPublicId({
+      publicId: gig.publicId,
+      expectedVersion: params.expectedVersion,
+      isVisible: params.isVisible,
+    });
 
     await this.feedRevalidateService.revalidateFeed({
       country: updatedGig.country,
       city: updatedGig.city,
     });
 
-    if (moderationPost) {
-      await this.telegramService.updateModerationPostAfterGigPublished({
+    const mainPost = this.resolveMainPostRef(updatedGig.posts);
+    try {
+      await this.telegramService.updateGigModerationPost({
         gigId,
+        expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
         title: updatedGig.title,
         publicId: updatedGig.publicId,
-        moderationPost,
+        moderationPost: params.moderationPost,
+        mainPost,
       });
-    } else {
+    } catch (e) {
       this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
-      );
-    }
-
-    await this.telegramService.updatePublishedSubmissionFeedback({
-      gig: updatedGig,
-    });
-
-    const calendarGig = this.gigService.gigToCalendarPayload(updatedGig);
-    await this.calendarService.addEvent(calendarGig);
-  }
-
-  async publishGigPost(params: ModerateGigParams): Promise<void> {
-    const gig = await this.getGig(params);
-    const gigId = gig._id.toString();
-    const moderationPost =
-      params.moderationPost ?? this.resolveModerationPostRef(gig.posts);
-
-    this.assertCanPublishPost(gig.status, gig.posts);
-
-    const tgPublishPost = await this.telegramService.publishMain(gig);
-    const publishedChatId =
-      tgPublishPost?.sender_chat?.id ?? tgPublishPost?.chat?.id;
-    const publishedMessageId = tgPublishPost?.message_id;
-
-    if (!tgPublishPost || !publishedChatId || !publishedMessageId) {
-      throw new BadRequestException(
-        `publishMain returned no Telegram message for gig ${gigId}`,
-      );
-    }
-
-    const publishedFileId = getBiggestTgPhotoFileId(tgPublishPost.photo); // but should be the same as in moderation one
-
-    const updateGigPayload: UpdateQuery<Gig> = {
-      $push: {
-        posts: {
-          id: publishedMessageId,
-          chatId: publishedChatId,
-          fileId: publishedFileId,
-          to: Messenger.Telegram,
-          type: PostType.Publish,
-          date: tgPublishPost.date * 1_000, // Telegram date is Unix seconds; gig post date is Unix ms
-        },
-      },
-    };
-
-    await this.gigService.updateGig(gigId, updateGigPayload);
-
-    if (moderationPost) {
-      await this.telegramService.updateModerationPostAfterGigPublished({
-        gigId,
-        title: gig.title,
-        publicId: gig.publicId,
-        moderationPost,
-        publishPost: {
-          chatId: tgPublishPost.chat.id,
-          messageId: tgPublishPost.message_id,
-        },
-      });
-    } else {
-      this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping updateModerationPostAfterGigPublished`,
-      );
-    }
-  }
-
-  async rejectGig(params: ModerateGigParams): Promise<void> {
-    const { gigId, gigPublicId, gigStatus, moderationPost } =
-      await this.buildGigModerationData(params);
-
-    this.assertCanReject(gigStatus);
-
-    const updatedGig = await this.gigService.updateGigStatus(
-      gigId,
-      Status.Rejected,
-    );
-    this.logger.log(`Gig ${gigPublicId} (${gigId}) rejected`);
-
-    if (moderationPost) {
-      await this.telegramService.handlePostReject({
-        gig: updatedGig,
-        moderationMessage: moderationPost,
-      });
-    } else {
-      this.logger.warn(
-        `No moderation post linked for gig ${gigId}; skipping handlePostReject`,
+        `updateGigModerationPost failed after changing visibility for gig ${gigId}: ${this.formatError(e)}`,
       );
     }
   }
@@ -191,31 +158,20 @@ export class GigModerationService {
     };
   }
 
-  private assertCanApprove(status: Status): void {
-    if (status === Status.Published) {
-      throw new BadRequestException('Gig is already published');
-    }
-  }
-
-  private assertCanPublishPost(
-    status: Status,
+  private resolveMainPostRef(
     posts: GigPost[] | undefined,
-  ): void {
-    // TODO: naming is confusing, consider changing either Published status or "publish" post
-    if (status !== Status.Published) {
-      throw new BadRequestException(
-        'Gig must be published before publishing main post',
-      );
+  ): GigMainPostRef | undefined {
+    const mainPost = this.telegramService.pickTgPost(posts, PostType.Main);
+    if (!mainPost?.chatId || mainPost.id == null) {
+      return undefined;
     }
-
-    if (this.telegramService.pickTgPost(posts, PostType.Publish)) {
-      throw new BadRequestException('Gig main post is already published');
-    }
+    return {
+      chatId: mainPost.chatId,
+      messageId: mainPost.id,
+    };
   }
 
-  private assertCanReject(status: Status): void {
-    if (status === Status.Published) {
-      throw new BadRequestException('Cannot reject a published gig');
-    }
+  private formatError(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
   }
 }

@@ -1,8 +1,14 @@
 import { msToYmd } from '../../shared/utils/date-formatter';
-import type { PlainGig, GigFormData } from '../gig/types/gig.types';
+import type {
+  GigFormData,
+  GigSourceForAdminView,
+  PlainGig,
+} from '../gig/types/gig.types';
+import type { UserSourceProfile } from './admin-user-source-profile';
 
 export interface MapGigToFormData {
   readonly gig: PlainGig;
+  readonly userSourceProfile: UserSourceProfile;
   readonly posterUrl?: string;
   readonly publishPostUrl?: string;
   readonly publishPostDate?: number;
@@ -13,6 +19,7 @@ export interface MapGigToFormData {
 export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   const {
     gig,
+    userSourceProfile,
     posterUrl,
     publishPostUrl,
     publishPostDate,
@@ -26,6 +33,18 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   }
 
   const ticketsUrl = (gig.ticketsUrl ?? '').trim();
+  const source: GigSourceForAdminView =
+    gig.source.type === 'user'
+      ? {
+          type: 'user',
+          userId: gig.source.userId.toString(),
+          origin: { type: gig.source.origin.type },
+          ...userSourceProfile,
+        }
+      : {
+          type: 'provider',
+          provider: { ...gig.source.provider },
+        };
 
   return {
     publicId: gig.publicId,
@@ -37,12 +56,9 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     venue: gig.venue,
     ticketsUrl,
     posterUrl,
-    status: gig.status,
-    suggestedBy: {
-      userId: gig.suggestedBy.userId.toString(),
-      username: gig.suggestedBy.username,
-      name: gig.suggestedBy.name,
-    },
+    isVisible: gig.isVisible,
+    version: gig.version,
+    source,
     publishPostUrl,
     publishPostDate,
     moderationPostUrl,

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -9,9 +10,13 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   Version,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { AdminDashboardService } from './admin-dashboard.service';
@@ -39,6 +44,28 @@ import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigModerationService } from '../gig/gig-moderation.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
+import {
+  V1AdminGigVersionedActionBodyDto,
+  V1AdminGigVisibilityPatchBodyDto,
+} from './types/requests/v1-admin-gig-actions-request';
+import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
+import type { AdminGigUpdateBody } from './pipes/admin-gig-update-body.pipe';
+import type {
+  V1AdminGigUpdateResponseBody,
+  V1AdminGigVisibilityPatchResponseBody,
+} from './types/requests/v1-admin-gig-actions-response';
+
+const PosterFileInterceptor = FileInterceptor('posterFile', {
+  storage: memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, callback) => {
+    if (!file.mimetype?.startsWith('image/')) {
+      callback(new BadRequestException('posterFile must be an image'), false);
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 /** Admin UI API: dashboard, moderation, locales, translations, cache revalidate, and manual digest publish. */
 @Controller('admin')
@@ -71,7 +98,7 @@ export class AdminController {
   }
 
   @Version('1')
-  @Get('gig/:publicId')
+  @Get('gigs/:publicId')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
@@ -80,34 +107,47 @@ export class AdminController {
   }
 
   @Version('1')
-  @Post('gig/:publicId/approve')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  approveGigByPublicId(
-    @Param() params: V1GigByPublicIdGetRequestParams,
-  ): Promise<void> {
-    return this.gigModerationService.approveGig({ publicId: params.publicId });
-  }
-
-  @Version('1')
-  @Post('gig/:publicId/reject')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  rejectGigByPublicId(
-    @Param() params: V1GigByPublicIdGetRequestParams,
-  ): Promise<void> {
-    return this.gigModerationService.rejectGig({ publicId: params.publicId });
-  }
-
-  @Version('1')
-  @Post('gig/:publicId/post')
+  @Post('gigs/:publicId/post')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   publishGigPostByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
+    @Body() body: V1AdminGigVersionedActionBodyDto,
   ): Promise<void> {
     return this.gigModerationService.publishGigPost({
       publicId: params.publicId,
+      expectedVersion: body.expectedVersion,
+    });
+  }
+
+  @Version('1')
+  @Patch('gigs/:publicId')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  @UseInterceptors(PosterFileInterceptor)
+  updateGigByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+    @UploadedFile() posterFile: Express.Multer.File | undefined,
+    @Body(AdminGigUpdateBodyPipe) body: AdminGigUpdateBody,
+  ): Promise<V1AdminGigUpdateResponseBody> {
+    return this.adminGigService.updateGigByPublicId({
+      publicId: params.publicId,
+      expectedVersion: body.expectedVersion,
+      gig: body.gig,
+      posterFile,
+    });
+  }
+
+  @Version('1')
+  @Patch('gigs/:publicId/visibility')
+  @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
+  updateGigVisibilityByPublicId(
+    @Param() params: V1GigByPublicIdGetRequestParams,
+    @Body() body: V1AdminGigVisibilityPatchBodyDto,
+  ): Promise<V1AdminGigVisibilityPatchResponseBody> {
+    return this.adminGigService.updateGigVisibilityByPublicId({
+      publicId: params.publicId,
+      expectedVersion: body.expectedVersion,
+      isVisible: body.isVisible,
     });
   }
 

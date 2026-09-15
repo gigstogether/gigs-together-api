@@ -116,6 +116,28 @@ Depending on which flows you want to exercise, you may also need:
 
 `APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
 
+### Required Telegram setup
+
+The GigCandidate workflow requires one Telegram bot per environment with the following BotFather and channel configuration:
+
+1. Create two named Mini App direct links for the same bot:
+   - `suggest` uses frontend URL `https://<frontend-host>/suggest/launch` and opens the universal suggestion entry point.
+   - `admin` uses frontend URL `https://<frontend-host>/admin/telegram` and dispatches Gig and GigCandidate edit actions from moderation posts.
+2. Keep Same-Origin Restriction enabled for the Mini Apps. Main App and Menu Button are optional entry points; backend-generated edit links do not depend on them.
+3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
+4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
+5. Register `https://<api-host>/v1/receiver/webhook` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
+6. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
+
+The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
+
+| Action enum member                            | Wire value         | Identifier      | Resulting admin route                        |
+| --------------------------------------------- | ------------------ | --------------- | -------------------------------------------- |
+| `TelegramMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
+| `TelegramMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
+
+The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Missing, malformed, untyped, and unknown actions show an explicit error notification before returning the administrator to `/admin`.
+
 ### Environment variables reference
 
 Current variables defined in `.env.example`:
@@ -123,7 +145,6 @@ Current variables defined in `.env.example`:
 | Variable                                        | Required                                     | Purpose                                                                  |
 | ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
 | `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                         |
-| `BOT_ADMINS`                                    | Usually yes                                  | Telegram admin map used by bot workflows.                                |
 | `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups.                                            |
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
 | `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
@@ -144,10 +165,11 @@ Current variables defined in `.env.example`:
 | `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
 | `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
+| `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
 | `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                            |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
-| `EDIT_GIG_URL`                                  | For edit flows                               | Frontend or app URL for editing gigs.                                    |
+| `EDIT_GIG_URL`                                  | For edit flows                               | Named admin Mini App URL, without a `startapp` query parameter.          |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
 | `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |
@@ -198,7 +220,10 @@ If you are onboarding from scratch, use this order:
 
 ## Running MongoDB locally
 
-The repo includes a simple Docker Compose file for MongoDB.
+The repo includes a Docker Compose file that runs MongoDB as a single-member
+replica set named `rs0`. This supports local multi-document transactions while
+keeping one MongoDB container. The container healthcheck initializes the
+replica set once and waits until its member becomes writable.
 
 Before starting it, make sure your env file contains:
 
@@ -210,6 +235,13 @@ Start MongoDB:
 ```bash
 docker-compose up -d
 ```
+
+Before recreating an existing standalone container, create a local backup.
+MongoDB data and configuration are stored in the named
+`gigs-together-mongodb-data` and `gigs-together-mongodb-config` volumes, so a
+regular `docker-compose down` followed by `docker-compose up -d` preserves the
+database. Do not use `docker-compose down -v`, because `-v` removes those named
+volumes and their data.
 
 Stop MongoDB:
 
@@ -226,14 +258,27 @@ docker ps
 Default connection shape expected by the app:
 
 ```text
-mongodb://<HOST>:<PORT>/<DBNAME>
+mongodb://<HOST>:<PORT>/<DBNAME>?replicaSet=rs0&directConnection=true
 ```
 
 Example local value:
 
 ```text
-MONGO_URI=mongodb://localhost:27017/gigs-together
+MONGO_URI=mongodb://localhost:27017/gigs-together?replicaSet=rs0&directConnection=true
 ```
+
+`directConnection=true` is required for this local Docker setup because only
+one replica-set endpoint is exposed to the host. It is a development setting;
+do not add it to Atlas replica-set or sharded-cluster connection strings.
+
+Verify the local topology after startup:
+
+```bash
+docker exec mongodb-gigs mongosh --quiet --eval "const hello = db.adminCommand({ hello: 1 }); printjson({ setName: hello.setName, isWritablePrimary: hello.isWritablePrimary })"
+```
+
+The expected result contains `setName: 'rs0'` and
+`isWritablePrimary: true`.
 
 ## Running the application
 
@@ -451,35 +496,61 @@ npx nest g s modules/example
 
 ## Database migrations
 
-Apply pending migrations with:
+List migration states with:
+
+```bash
+npm run migrate:list
+```
+
+Dry-run pending migrations (the default) with:
 
 ```bash
 npm run migrate:up
 ```
 
-Dry-run pending migrations with:
+Dry-run one migration by name with:
 
 ```bash
-npm run migrate:up:dry
+npm run migrate:up:single:dry -- example-migration
 ```
 
-Migration files live in `migrations/`.
+Apply one migration by name only after reviewing its dry-run report with:
 
-The dry-run flow is opt-in inside each migration. `npm run migrate:up:dry` only sets `DRY_RUN=true`; a migration must check `isMigrationDryRun()` and call `finishMigrationDryRun()` to avoid being marked as applied.
+```bash
+npm run migrate:up:single:apply -- example-migration
+```
+
+The single-migration scripts embed `--single` before the forwarded migration
+name. Do not append `--single` after `npm run ... --`; current npm versions may
+interpret it as npm configuration instead of forwarding it to the migrator.
+
+Use the migration name without the numeric filename timestamp. For example,
+`1234567890000-example-migration.ts` is run as `example-migration`.
+
+Migration files and their unit tests live in `migrations/`. Only actual
+migrations start with a numeric timestamp; colocated `*.test.ts` files must not.
+
+Dry run is the default. `npm run migrate:up:apply` explicitly sets
+`DRY_RUN=false`; every migration must check `isMigrationDryRun()` and call
+`finishMigrationDryRun()` so a dry run is not marked as applied.
+
+A successful dry run currently ends with `MigrationDryRunCompleteError`. This is
+the expected completion signal that keeps the migration in the pending state;
+review the JSON report printed immediately before it.
 
 Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is available there before running migrations.
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gig`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
-- receiver create/update gig endpoints and `/v1/gig/lookup` are admin-protected
-- admin moderation exposes `POST /v1/admin/gig/:publicId/approve`, `POST /v1/admin/gig/:publicId/reject`, and `POST /v1/admin/gig/:publicId/post`
+- GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
+- admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a gig moves it to `Published`, revalidates the feed, updates moderation/feedback posts, and creates the calendar event; posting to the main channel happens in the separate `.../post` step
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
 - translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 
