@@ -1,7 +1,8 @@
 import { HttpService } from '@nestjs/axios';
+import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import { TGInputMediaType } from './types/message.types';
 import {
@@ -32,7 +33,9 @@ describe('TelegramBotClient', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
+    mockHttpService.post.mockReset();
+    mockHttpService.get.mockReset();
   });
 
   describe('sendMessage', () => {
@@ -81,6 +84,67 @@ describe('TelegramBotClient', () => {
         }),
       ).rejects.toThrow(/non-empty/);
       expect(mockHttpService.post).not.toHaveBeenCalled();
+    });
+
+    it('should retry a remote photo as multipart and log fallback context when Telegram cannot fetch the URL content', async () => {
+      const photoUrl =
+        'https://cdn.example/posters/example.svg?signature=secret#preview';
+      const telegramDescription = 'Bad Request: failed to get HTTP URL content';
+      const sentMessage: TGMessage = {
+        message_id: 2,
+        date: Date.now(),
+        chat: { id: 1, type: 'channel' },
+      };
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      mockHttpService.post
+        .mockReturnValueOnce(
+          throwError(() => ({
+            response: {
+              data: {
+                error_code: 400,
+                description: telegramDescription,
+              },
+            },
+          })),
+        )
+        .mockReturnValueOnce(of({ data: { result: sentMessage } }));
+      mockHttpService.get.mockReturnValue(
+        of({
+          data: new TextEncoder().encode('<svg></svg>').buffer,
+          headers: { 'content-type': 'image/svg+xml' },
+        }),
+      );
+
+      const result = await client.sendPhoto(
+        {
+          chat_id: 1,
+          photo: photoUrl,
+          caption: 'Example',
+        },
+        'gig-candidate-id',
+      );
+
+      expect(result).toEqual(sentMessage);
+      expect(mockHttpService.get).toHaveBeenCalledWith(photoUrl, {
+        responseType: 'arraybuffer',
+        maxContentLength: Infinity,
+      });
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'event=telegram_photo_url_fallback action=retry_multipart',
+        ),
+      );
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'imageUrl=https://cdn.example/posters/example.svg contentType=image/svg+xml contextId=gig-candidate-id',
+        ),
+      );
+      expect(loggerSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('signature=secret'),
+      );
     });
   });
 
