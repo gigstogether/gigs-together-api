@@ -21,7 +21,7 @@ export interface UpdateGigModerationPostPayload {
   };
 }
 
-export interface WeeklyDigestMainChannelPublishResult {
+export interface WeeklyDigestPostResult {
   readonly postUrl: string;
 }
 

@@ -79,9 +79,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
       '<a href="{url}">Open in admin</a>',
-    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink]:
-      '<a href="{url}">{title}</a>',
-    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink]: '{title}',
+    [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
       '<a href="{url}">{ticketsLabel}</a>',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
@@ -193,7 +192,7 @@ describe('TelegramService', () => {
     });
   });
 
-  describe('publishWeeklyDigestToMainChannel', () => {
+  describe('sendWeeklyDigestPost', () => {
     beforeEach(() => {
       process.env.MAIN_CHANNEL_ID = '-1001';
     });
@@ -206,9 +205,7 @@ describe('TelegramService', () => {
         chat: { id: -1001, type: 'channel' },
       });
 
-      await expect(
-        service.publishWeeklyDigestToMainChannel([]),
-      ).resolves.toEqual({
+      await expect(service.sendWeeklyDigestPost([])).resolves.toEqual({
         postUrl: 'https://t.me/c/1/1',
       });
 
@@ -269,9 +266,7 @@ describe('TelegramService', () => {
         },
       ] as unknown as GigDocument[];
 
-      await expect(
-        service.publishWeeklyDigestToMainChannel(gigs),
-      ).resolves.toEqual({
+      await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
         postUrl: 'https://t.me/c/1/1',
       });
 
@@ -332,9 +327,7 @@ describe('TelegramService', () => {
         },
       ] as unknown as GigDocument[];
 
-      await expect(
-        service.publishWeeklyDigestToMainChannel(gigs),
-      ).resolves.toEqual({
+      await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
         postUrl: 'https://t.me/c/1/3',
       });
 
@@ -354,9 +347,7 @@ describe('TelegramService', () => {
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage');
 
-      await expect(
-        service.publishWeeklyDigestToMainChannel([]),
-      ).resolves.toBeUndefined();
+      await expect(service.sendWeeklyDigestPost([])).resolves.toBeUndefined();
 
       expect(sendMessageSpy).not.toHaveBeenCalled();
     });

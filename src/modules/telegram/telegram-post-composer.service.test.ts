@@ -83,9 +83,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">See post</a>',
     [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
       '<a href="{url}">Open in admin</a>',
-    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink]:
-      '<a href="{url}">{title}</a>',
-    [TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink]: '{title}',
+    [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
+    [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
       '<a href="{url}">{ticketsLabel}</a>',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
@@ -171,10 +170,10 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('buildAfterPublishModerationReplyMarkup', () => {
-    it('should return publish callback and edit URL when main post is not published yet', () => {
+  describe('buildGigModerationReplyMarkup', () => {
+    it('should return Post callback and edit URL when the Main post does not exist', () => {
       expect(
-        composer.buildAfterPublishModerationReplyMarkup({
+        composer.buildGigModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
@@ -207,13 +206,13 @@ describe('TelegramPostComposer', () => {
       });
     });
 
-    it('should remove publish button after main post is published', () => {
+    it('should remove Post button after the Main post is created', () => {
       expect(
-        composer.buildAfterPublishModerationReplyMarkup({
+        composer.buildGigModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
-          publishPostUrl: 'https://t.me/x/1',
+          mainPostUrl: 'https://t.me/x/1',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
@@ -236,11 +235,11 @@ describe('TelegramPostComposer', () => {
 
     it('should replace Hide with Show when the Gig is hidden', () => {
       expect(
-        composer.buildAfterPublishModerationReplyMarkup({
+        composer.buildGigModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 8,
           isVisible: false,
-          publishPostUrl: 'https://t.me/x/1',
+          mainPostUrl: 'https://t.me/x/1',
           editGigUrl: 'https://app.example/edit?startapp=x',
         }),
       ).toEqual({
@@ -262,22 +261,22 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('buildPublishedModerationCaption', () => {
-    it('should include gig permalink after gig is published', () => {
+  describe('buildGigModerationCaption', () => {
+    it('should include the Gig permalink', () => {
       expect(
-        composer.buildPublishedModerationCaption({
+        composer.buildGigModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
         }),
       ).toBe('<a href="https://app.example/gigs/concert">Concert</a>');
     });
 
-    it('should include Telegram post link when main post is published', () => {
+    it('should include Telegram post link when the Main post exists', () => {
       expect(
-        composer.buildPublishedModerationCaption({
+        composer.buildGigModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
-          publishPostUrl: 'https://t.me/gigs/42',
+          mainPostUrl: 'https://t.me/gigs/42',
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(

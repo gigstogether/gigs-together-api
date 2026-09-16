@@ -13,6 +13,8 @@ import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
+import { Messenger } from '../../shared/types/messenger.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 
 describe('GigService', () => {
   let service: GigService;
@@ -42,6 +44,7 @@ describe('GigService', () => {
   const findByIdAndUpdateMock = vi.fn();
   const existsMock = vi.fn();
   const uploadPosterMock = vi.fn();
+  const pickTgPostMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -54,6 +57,7 @@ describe('GigService', () => {
     findByIdAndUpdateMock.mockResolvedValue(null);
     existsMock.mockResolvedValue(null);
     uploadPosterMock.mockResolvedValue(undefined);
+    pickTgPostMock.mockReturnValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,7 +83,10 @@ describe('GigService', () => {
         },
         { provide: CalendarService, useValue: {} },
         { provide: GigPosterService, useValue: { upload: uploadPosterMock } },
-        { provide: TelegramService, useValue: {} },
+        {
+          provide: TelegramService,
+          useValue: { pickTgPost: pickTgPostMock },
+        },
         { provide: BucketService, useValue: {} },
       ],
     }).compile();
@@ -407,6 +414,81 @@ describe('GigService', () => {
         },
         { returnDocument: 'after' },
       );
+    });
+  });
+
+  describe('appendGigMainPost', () => {
+    const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+    const post = {
+      id: 42,
+      chatId: -1001,
+      date: 1_789_603_300_000,
+    };
+
+    it('should conditionally store Main post metadata and increment version', async () => {
+      const updatedGig = { _id: gigId, version: 4 };
+      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+
+      await expect(
+        service.appendGigMainPost({
+          gigId: gigId.toString(),
+          expectedVersion: 3,
+          post,
+        }),
+      ).resolves.toBe(updatedGig);
+
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: gigId.toString(),
+          version: 3,
+          posts: {
+            $not: {
+              $elemMatch: {
+                to: Messenger.Telegram,
+                type: PostType.Main,
+              },
+            },
+          },
+        },
+        {
+          $push: {
+            posts: {
+              ...post,
+              to: Messenger.Telegram,
+              type: PostType.Main,
+            },
+          },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after' },
+      );
+    });
+
+    it('should reject a concurrent second Main post metadata write', async () => {
+      findOneAndUpdateMock.mockResolvedValue(null);
+      findByIdExecMock.mockResolvedValue({
+        _id: gigId,
+        version: 3,
+        posts: [
+          {
+            ...post,
+            to: Messenger.Telegram,
+            type: PostType.Main,
+          },
+        ],
+      });
+      pickTgPostMock.mockReturnValue({ id: post.id });
+
+      await expect(
+        service.appendGigMainPost({
+          gigId: gigId.toString(),
+          expectedVersion: 3,
+          post,
+        }),
+      ).rejects.toMatchObject({
+        status: 409,
+        message: 'Gig main post already exists',
+      });
     });
   });
 });
