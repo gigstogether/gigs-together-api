@@ -2,7 +2,8 @@ import type { Connection } from 'mongoose';
 
 import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
 
-const DIGEST_POST_STATE_COLLECTION = 'digestpublicationstates';
+const LEGACY_DIGEST_POST_STATE_COLLECTION = 'digestpublicationstates';
+const TARGET_DIGEST_POST_STATE_COLLECTION = 'digestpoststates';
 
 export interface DigestPostStateMigrationDocument {
   _id: unknown;
@@ -16,12 +17,30 @@ export interface DigestPostStateMigrationWriteResult {
   modifiedCount: number;
 }
 
+export interface DigestPostStateMigrationWrites {
+  collectionRenamed: boolean;
+  dateFields: DigestPostStateMigrationWriteResult;
+}
+
+export interface DigestPostStateMigrationCollections {
+  legacyExists: boolean;
+  targetExists: boolean;
+  legacyDocuments: DigestPostStateMigrationDocument[];
+  targetDocuments: DigestPostStateMigrationDocument[];
+}
+
 export interface DigestPostStateMigrationStore {
-  readAll(): Promise<DigestPostStateMigrationDocument[]>;
+  readCollections(): Promise<DigestPostStateMigrationCollections>;
+  renameCollection(): Promise<void>;
   renamePostDate(): Promise<DigestPostStateMigrationWriteResult>;
 }
 
 export interface DigestPostStateSnapshot {
+  legacyCollectionExists: boolean;
+  targetCollectionExists: boolean;
+  hasCollectionConflict: boolean;
+  legacyCollectionDocuments: number;
+  targetCollectionDocuments: number;
   totalStateDocuments: number;
   legacyDateOnly: number;
   targetDateOnly: number;
@@ -36,8 +55,9 @@ export interface DigestPostStateSnapshot {
 export interface DigestPostStateMigrationReport {
   mode: 'dry-run' | 'apply';
   before: DigestPostStateSnapshot;
-  plannedRenames: number;
-  writes: DigestPostStateMigrationWriteResult;
+  plannedCollectionRenames: number;
+  plannedDateRenames: number;
+  writes: DigestPostStateMigrationWrites;
   projectedAfter: DigestPostStateSnapshot;
   after: DigestPostStateSnapshot;
   canApply: boolean;
@@ -65,8 +85,12 @@ function toRecordId(value: unknown): string {
 }
 
 export function buildDigestPostStateSnapshot(
-  documents: readonly DigestPostStateMigrationDocument[],
+  collections: DigestPostStateMigrationCollections,
 ): DigestPostStateSnapshot {
+  const documents = [
+    ...collections.legacyDocuments,
+    ...collections.targetDocuments,
+  ];
   const blockingRecordIds = new Set<string>();
   let legacyDateOnly = 0;
   let targetDateOnly = 0;
@@ -117,6 +141,11 @@ export function buildDigestPostStateSnapshot(
   }
 
   return {
+    legacyCollectionExists: collections.legacyExists,
+    targetCollectionExists: collections.targetExists,
+    hasCollectionConflict: collections.legacyExists && collections.targetExists,
+    legacyCollectionDocuments: collections.legacyDocuments.length,
+    targetCollectionDocuments: collections.targetDocuments.length,
     totalStateDocuments: documents.length,
     legacyDateOnly,
     targetDateOnly,
@@ -129,7 +158,7 @@ export function buildDigestPostStateSnapshot(
   };
 }
 
-function projectRename(
+function projectDateRename(
   documents: readonly DigestPostStateMigrationDocument[],
 ): DigestPostStateMigrationDocument[] {
   return documents.map((document) => {
@@ -143,8 +172,29 @@ function projectRename(
   });
 }
 
+function projectMigration(
+  collections: DigestPostStateMigrationCollections,
+): DigestPostStateMigrationCollections {
+  const isCollectionRenameRequired =
+    collections.legacyExists && !collections.targetExists;
+  const legacyDocuments = isCollectionRenameRequired
+    ? []
+    : projectDateRename(collections.legacyDocuments);
+  const targetDocuments = isCollectionRenameRequired
+    ? projectDateRename(collections.legacyDocuments)
+    : projectDateRename(collections.targetDocuments);
+
+  return {
+    legacyExists: collections.legacyExists && !isCollectionRenameRequired,
+    targetExists: collections.targetExists || isCollectionRenameRequired,
+    legacyDocuments,
+    targetDocuments,
+  };
+}
+
 function isComplete(snapshot: DigestPostStateSnapshot): boolean {
   return (
+    !snapshot.legacyCollectionExists &&
     snapshot.totalStateDocuments <= 1 &&
     snapshot.legacyDateOnly === 0 &&
     snapshot.targetDateOnly === snapshot.totalStateDocuments &&
@@ -161,30 +211,41 @@ export async function runDigestPostStateMigration(
   store: DigestPostStateMigrationStore,
   isDryRun: boolean,
 ): Promise<DigestPostStateMigrationReport> {
-  const beforeDocuments = await store.readAll();
-  const before = buildDigestPostStateSnapshot(beforeDocuments);
-  const plannedRenames = before.legacyDateOnly;
+  const beforeCollections = await store.readCollections();
+  const before = buildDigestPostStateSnapshot(beforeCollections);
+  const plannedCollectionRenames =
+    before.legacyCollectionExists && !before.targetCollectionExists ? 1 : 0;
+  const plannedDateRenames = before.legacyDateOnly;
   const projectedAfter = buildDigestPostStateSnapshot(
-    projectRename(beforeDocuments),
+    projectMigration(beforeCollections),
   );
   const canApply =
-    before.blockingRecordIds.length === 0 && isComplete(projectedAfter);
+    !before.hasCollectionConflict &&
+    before.blockingRecordIds.length === 0 &&
+    isComplete(projectedAfter);
 
-  let writes = { matchedCount: 0, modifiedCount: 0 };
-  if (!isDryRun && canApply && plannedRenames > 0) {
-    writes = await store.renamePostDate();
+  let isCollectionRenamed = false;
+  let dateFieldWrites = { matchedCount: 0, modifiedCount: 0 };
+  if (!isDryRun && canApply && plannedCollectionRenames > 0) {
+    await store.renameCollection();
+    isCollectionRenamed = true;
+  }
+  if (!isDryRun && canApply && plannedDateRenames > 0) {
+    dateFieldWrites = await store.renamePostDate();
     if (
-      writes.matchedCount !== plannedRenames ||
-      writes.modifiedCount !== plannedRenames
+      dateFieldWrites.matchedCount !== plannedDateRenames ||
+      dateFieldWrites.modifiedCount !== plannedDateRenames
     ) {
       throw new Error(
-        `Digest post state migration expected ${plannedRenames} rename but matched ${writes.matchedCount} and modified ${writes.modifiedCount}`,
+        `Digest post state migration expected ${plannedDateRenames} date rename but matched ${dateFieldWrites.matchedCount} and modified ${dateFieldWrites.modifiedCount}`,
       );
     }
   }
 
-  const afterDocuments = isDryRun ? beforeDocuments : await store.readAll();
-  const after = buildDigestPostStateSnapshot(afterDocuments);
+  const afterCollections = isDryRun
+    ? beforeCollections
+    : await store.readCollections();
+  const after = buildDigestPostStateSnapshot(afterCollections);
   if (!isDryRun && canApply && !isComplete(after)) {
     throw new Error('Digest post state migration post-apply invariants failed');
   }
@@ -192,41 +253,110 @@ export async function runDigestPostStateMigration(
   return {
     mode: isDryRun ? 'dry-run' : 'apply',
     before,
-    plannedRenames,
-    writes,
+    plannedCollectionRenames,
+    plannedDateRenames,
+    writes: {
+      collectionRenamed: isCollectionRenamed,
+      dateFields: dateFieldWrites,
+    },
     projectedAfter,
     after,
     canApply,
     rollback:
-      'Before deploying the renamed runtime model, postedAt can be renamed back to its previous field name. After new digest writes begin, restore from backup instead of guessing field ownership.',
+      'Before deploying the renamed runtime model, rename digestpoststates back to digestpublicationstates and postedAt back to its previous field name. After new digest writes begin, restore from backup instead of guessing collection or field ownership.',
   };
+}
+
+function requireDatabase(
+  connection: Connection,
+): NonNullable<Connection['db']> {
+  const database = connection.db;
+  if (!database) {
+    throw new Error('MongoDB connection is not ready');
+  }
+  return database;
 }
 
 function createMongoStore(
   connection: Connection,
 ): DigestPostStateMigrationStore {
-  const collection = connection.collection(DIGEST_POST_STATE_COLLECTION);
+  const database = requireDatabase(connection);
+
+  async function collectionExists(collectionName: string): Promise<boolean> {
+    return database
+      .listCollections({ name: collectionName }, { nameOnly: true })
+      .hasNext();
+  }
+
+  async function readCollection(
+    collectionName: string,
+  ): Promise<DigestPostStateMigrationDocument[]> {
+    const documents = await database
+      .collection(collectionName)
+      .find(
+        {},
+        {
+          projection: {
+            _id: 1,
+            publishedAt: 1,
+            postedAt: 1,
+            postUrl: 1,
+          },
+        },
+      )
+      .toArray();
+
+    return documents.map((document) => {
+      const result: DigestPostStateMigrationDocument = {
+        _id: document._id,
+      };
+      if (Object.prototype.hasOwnProperty.call(document, 'publishedAt')) {
+        result.publishedAt = document.publishedAt;
+      }
+      if (Object.prototype.hasOwnProperty.call(document, 'postedAt')) {
+        result.postedAt = document.postedAt;
+      }
+      if (Object.prototype.hasOwnProperty.call(document, 'postUrl')) {
+        result.postUrl = document.postUrl;
+      }
+      return result;
+    });
+  }
 
   return {
-    readAll: () =>
-      collection
-        .find(
-          {},
-          {
-            projection: {
-              _id: 1,
-              publishedAt: 1,
-              postedAt: 1,
-              postUrl: 1,
-            },
-          },
-        )
-        .toArray(),
+    async readCollections(): Promise<DigestPostStateMigrationCollections> {
+      const [legacyExists, targetExists] = await Promise.all([
+        collectionExists(LEGACY_DIGEST_POST_STATE_COLLECTION),
+        collectionExists(TARGET_DIGEST_POST_STATE_COLLECTION),
+      ]);
+      const [legacyDocuments, targetDocuments] = await Promise.all([
+        legacyExists
+          ? readCollection(LEGACY_DIGEST_POST_STATE_COLLECTION)
+          : Promise.resolve([]),
+        targetExists
+          ? readCollection(TARGET_DIGEST_POST_STATE_COLLECTION)
+          : Promise.resolve([]),
+      ]);
+
+      return {
+        legacyExists,
+        targetExists,
+        legacyDocuments,
+        targetDocuments,
+      };
+    },
+    async renameCollection(): Promise<void> {
+      await database
+        .collection(LEGACY_DIGEST_POST_STATE_COLLECTION)
+        .rename(TARGET_DIGEST_POST_STATE_COLLECTION, { dropTarget: false });
+    },
     async renamePostDate(): Promise<DigestPostStateMigrationWriteResult> {
-      const result = await collection.updateMany(
-        { publishedAt: { $exists: true }, postedAt: { $exists: false } },
-        { $rename: { publishedAt: 'postedAt' } },
-      );
+      const result = await database
+        .collection(TARGET_DIGEST_POST_STATE_COLLECTION)
+        .updateMany(
+          { publishedAt: { $exists: true }, postedAt: { $exists: false } },
+          { $rename: { publishedAt: 'postedAt' } },
+        );
       return {
         matchedCount: result.matchedCount,
         modifiedCount: result.modifiedCount,
@@ -245,7 +375,7 @@ export async function up(connection: Connection): Promise<void> {
   console.info(JSON.stringify(report, null, 2));
   if (!report.canApply) {
     throw new Error(
-      `Digest post state migration blocked for record IDs: ${report.before.blockingRecordIds.join(', ')}`,
+      `Digest post state migration blocked: legacyCollectionExists=${report.before.legacyCollectionExists}, targetCollectionExists=${report.before.targetCollectionExists}, recordIds=${report.before.blockingRecordIds.join(', ')}`,
     );
   }
   finishMigrationDryRun(isDryRun);

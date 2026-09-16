@@ -4,10 +4,9 @@ import {
 } from './digest-post-state.schema';
 
 describe('DigestPostStateSchema', () => {
-  it('should preserve the existing collection while requiring the renamed fields', () => {
-    expect(DigestPostStateSchema.options.collection).toBe(
-      DIGEST_POST_STATE_COLLECTION,
-    );
+  it('should use the digest post state collection with required fields', () => {
+    expect(DIGEST_POST_STATE_COLLECTION).toBe('digestpoststates');
+    expect(DigestPostStateSchema.options.collection).toBe('digestpoststates');
     expect(DigestPostStateSchema.path('postedAt')?.isRequired).toBe(true);
     expect(DigestPostStateSchema.path('postUrl')?.isRequired).toBe(true);
   });
