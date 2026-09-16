@@ -590,6 +590,7 @@ describe('TelegramPostComposer', () => {
       expect(payload.caption).toContain('Suggested Band');
       expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
+      expect(payload.caption).not.toContain('ES / Barcelona');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).toContain(
         '<a href="https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
@@ -647,6 +648,7 @@ describe('TelegramPostComposer', () => {
       expect(payload.chat_id).toBe('-3002');
       expect(payload.caption).toContain('🟡 Suggested Band');
       expect(payload.caption).not.toContain('Reviewing');
+      expect(payload.caption).not.toContain('ES / Barcelona');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.caption).toContain(

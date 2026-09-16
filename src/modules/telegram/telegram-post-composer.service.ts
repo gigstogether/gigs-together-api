@@ -720,10 +720,6 @@ export class TelegramPostComposerService {
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
     }
-    const locationLine = [gigDraft.country, gigDraft.city]
-      .filter(Boolean)
-      .join(' / ');
-
     const body = this.buildCaption({
       title: this.buildGigCandidateTitleLine(
         gigCandidate.status,
@@ -735,9 +731,7 @@ export class TelegramPostComposerService {
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });
-    const mainInformation = [body, locationLine].filter(Boolean).join('\n');
-
-    return `${mainInformation}\n\n──────────\nSource: ${source.type}`;
+    return `${body}\n\n──────────\nSource: ${source.type}`;
   }
 
   private buildGigCandidateTitleLine(
