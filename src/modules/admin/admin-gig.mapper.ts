@@ -10,8 +10,8 @@ export interface MapGigToFormData {
   readonly gig: PlainGig;
   readonly userSourceProfile: UserSourceProfile;
   readonly posterUrl?: string;
-  readonly publishPostUrl?: string;
-  readonly publishPostDate?: number;
+  readonly mainPostUrl?: string;
+  readonly mainPostDate?: number;
   readonly moderationPostUrl?: string;
   readonly moderationPostDate?: number;
 }
@@ -21,8 +21,8 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     gig,
     userSourceProfile,
     posterUrl,
-    publishPostUrl,
-    publishPostDate,
+    mainPostUrl,
+    mainPostDate,
     moderationPostUrl,
     moderationPostDate,
   } = params;
@@ -59,8 +59,8 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     isVisible: gig.isVisible,
     version: gig.version,
     source,
-    publishPostUrl,
-    publishPostDate,
+    mainPostUrl,
+    mainPostDate,
     moderationPostUrl,
     moderationPostDate,
   };

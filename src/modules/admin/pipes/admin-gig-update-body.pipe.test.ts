@@ -63,12 +63,12 @@ describe('AdminGigUpdateBodyPipe', () => {
     ).toThrow('venue must be a string');
   });
 
-  it('should reject removed Gig status input', () => {
+  it('should reject unsupported legacy Gig input', () => {
     expect(() =>
       pipe.transform({
-        gig: { ...gig, status: 'Published' },
+        gig: { ...gig, legacyStatus: 'removed' },
         expectedVersion: 2,
       }),
-    ).toThrow('gig contains unsupported field: status');
+    ).toThrow('gig contains unsupported field: legacyStatus');
   });
 });

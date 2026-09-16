@@ -91,13 +91,10 @@ export class AdminGigService {
         : undefined;
     const userSourceProfile = getUserSourceProfile(user);
 
-    const publishPost = this.telegramService.pickTgPost(
-      gig.posts,
-      PostType.Main,
-    );
-    const publishPostUrl = await this.gigService.resolvePublicPostUrl({
-      chatId: publishPost?.chatId,
-      postId: publishPost?.id,
+    const mainPost = this.telegramService.pickTgPost(gig.posts, PostType.Main);
+    const mainPostUrl = await this.gigService.resolvePublicPostUrl({
+      chatId: mainPost?.chatId,
+      postId: mainPost?.id,
     });
 
     const moderationPost = this.telegramService.pickTgPost(
@@ -115,8 +112,8 @@ export class AdminGigService {
       gig,
       userSourceProfile,
       posterUrl,
-      publishPostUrl,
-      publishPostDate: publishPost?.date,
+      mainPostUrl,
+      mainPostDate: mainPost?.date,
       moderationPostUrl,
       moderationPostDate: moderationPost?.date,
     });
@@ -257,8 +254,8 @@ export class AdminGigService {
       venue: formData.venue,
       posterUrl: formData.posterUrl,
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
-      publishPostUrl: formData.publishPostUrl,
-      publishPostDate: formData.publishPostDate,
+      mainPostUrl: formData.mainPostUrl,
+      mainPostDate: formData.mainPostDate,
       moderationPostUrl: formData.moderationPostUrl,
       moderationPostDate: formData.moderationPostDate,
     };

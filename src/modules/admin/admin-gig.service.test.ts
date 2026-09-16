@@ -158,8 +158,8 @@ describe('AdminGigService', () => {
             venue: 'Palau Sant Jordi',
             posterUrl: 'https://cdn.example/poster.jpg',
             ticketsUrl: 'https://example.com/tickets',
-            publishPostUrl: 'https://t.me/channel/1',
-            publishPostDate: undefined,
+            mainPostUrl: 'https://t.me/channel/1',
+            mainPostDate: undefined,
             moderationPostUrl: 'https://t.me/c/123/42',
             moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
           },
@@ -206,7 +206,7 @@ describe('AdminGigService', () => {
 
       expect(result.gigs[0]).toEqual(
         expect.objectContaining({
-          publishPostDate: mainPostDate,
+          mainPostDate,
           moderationPostDate,
         }),
       );

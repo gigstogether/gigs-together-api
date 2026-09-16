@@ -24,13 +24,13 @@ import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
 import {
-  BuildAfterPublishModerationReplyMarkupParams,
+  BuildGigModerationReplyMarkupParams,
   BuildCaptionPayload,
   BuildGigCandidateCaptionParams,
   BuildGigPermalinkPayload,
   BuildModerationCaptionPayload,
   BuildModerationLinksParams,
-  BuildPublishedModerationCaptionPayload,
+  BuildGigModerationCaptionPayload,
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
@@ -112,7 +112,7 @@ export class TelegramPostComposerService {
     const messageId = post?.id;
     if (!chatId || !messageId) return undefined;
 
-    const replyMarkup = this.buildAfterPublishModerationReplyMarkup({
+    const replyMarkup = this.buildGigModerationReplyMarkup({
       gigId: gig._id,
       expectedVersion: gig.version,
       isVisible: gig.isVisible,
@@ -313,12 +313,12 @@ export class TelegramPostComposerService {
       });
 
       const titleLine = url
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink,
-            { url, title: gig.title },
-          )
+        ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink, {
+            url,
+            title: gig.title,
+          })
         : this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink,
+            TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink,
             { title: gig.title },
           );
       const ticketsLine = this.postTemplates.render(
@@ -387,7 +387,7 @@ export class TelegramPostComposerService {
   }
 
   /**
-   * Builds the Bot API payload for publishing the weekly digest to the main channel
+   * Builds the Bot API payload for sending the weekly digest to the main channel
    * (empty-week notice, media album, single photo, or plain text).
    */
   composeWeeklyDigest(
@@ -888,17 +888,17 @@ export class TelegramPostComposerService {
       : undefined;
   }
 
-  buildAfterPublishModerationReplyMarkup(
-    params: BuildAfterPublishModerationReplyMarkupParams,
+  buildGigModerationReplyMarkup(
+    params: BuildGigModerationReplyMarkupParams,
   ): TGInlineKeyboardMarkup | undefined {
-    const { gigId, expectedVersion, isVisible, publishPostUrl, editGigUrl } =
+    const { gigId, expectedVersion, isVisible, mainPostUrl, editGigUrl } =
       params;
 
     const row: Array<
       { text: string; url: string } | { text: string; callback_data: string }
     > = [];
 
-    if (!publishPostUrl && gigId !== undefined) {
+    if (!mainPostUrl && gigId !== undefined) {
       row.push({
         text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.buttonPost),
         callback_data: encodeCallbackData({
@@ -941,18 +941,15 @@ export class TelegramPostComposerService {
     return { inline_keyboard: [row] };
   }
 
-  buildPublishedModerationCaption(
-    payload: BuildPublishedModerationCaptionPayload,
-  ): string {
+  buildGigModerationCaption(payload: BuildGigModerationCaptionPayload): string {
     const titleLabel = payload.gigUrl
-      ? this.postTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithLink,
-          { url: payload.gigUrl, title: payload.title },
-        )
-      : this.postTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.publishedModerationTitleWithoutLink,
-          { title: payload.title },
-        );
+      ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink, {
+          url: payload.gigUrl,
+          title: payload.title,
+        })
+      : this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink, {
+          title: payload.title,
+        });
 
     const actionLinks = [
       payload.adminGigUrl
@@ -960,9 +957,9 @@ export class TelegramPostComposerService {
             url: payload.adminGigUrl,
           })
         : undefined,
-      payload.publishPostUrl
+      payload.mainPostUrl
         ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost, {
-            url: payload.publishPostUrl,
+            url: payload.mainPostUrl,
           })
         : undefined,
     ].filter((part): part is string => part !== undefined);
@@ -996,7 +993,7 @@ export class TelegramPostComposerService {
     payload: BuildModerationCaptionPayload,
   ): string {
     const statusLine = this.buildModerationLinks({
-      publishPostUrl: payload.publishPostUrl,
+      mainPostUrl: payload.mainPostUrl,
       adminGigUrl: payload.adminGigUrl,
     });
 
@@ -1012,10 +1009,10 @@ export class TelegramPostComposerService {
 
   private buildModerationLinks(params: BuildModerationLinksParams): string {
     const statusLinks = [
-      params.publishPostUrl
+      params.mainPostUrl
         ? this.postTemplates.render(
             TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
-            { url: params.publishPostUrl },
+            { url: params.mainPostUrl },
           )
         : undefined,
       params.adminGigUrl

@@ -13,20 +13,20 @@ export interface SetGigVisibilityParams {
   readonly moderationPost: GigModerationPostRef;
 }
 
-interface ModerateGigBaseParams {
+interface CreateGigMainPostBaseParams {
   readonly moderationPost?: GigModerationPostRef;
   readonly expectedVersion: number;
 }
 
-export interface ModerateGigByIdParams extends ModerateGigBaseParams {
+export interface CreateGigMainPostByIdParams extends CreateGigMainPostBaseParams {
   readonly gigId: GigId;
   readonly publicId?: never;
 }
 
-export interface ModerateGigByPublicIdParams extends ModerateGigBaseParams {
+export interface CreateGigMainPostByPublicIdParams extends CreateGigMainPostBaseParams {
   readonly publicId: string;
   readonly gigId?: never;
 }
 
-export type ModerateGigParams =
-  ModerateGigByIdParams | ModerateGigByPublicIdParams;
+export type CreateGigMainPostParams =
+  CreateGigMainPostByIdParams | CreateGigMainPostByPublicIdParams;

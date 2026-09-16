@@ -95,7 +95,7 @@ export class TelegramBotClient {
             return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
           }
 
-          // Last resort: send a text-only message so publish doesn't silently fail.
+          // Last resort: send a text-only message so posting does not silently fail.
           const text =
             payload.caption ??
             (payload as unknown as { text?: string }).text ??
