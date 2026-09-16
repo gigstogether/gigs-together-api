@@ -287,6 +287,10 @@ describe('TelegramPostComposer', () => {
   });
 
   describe('buildGigPermalink', () => {
+    afterEach(() => {
+      delete process.env.EDIT_GIG_URL;
+    });
+
     it('should build gigs URL from publicId', () => {
       const input: BuildGigPermalinkPayload = {
         baseUrl: 'https://app.example',
@@ -298,14 +302,11 @@ describe('TelegramPostComposer', () => {
       );
     });
 
-    it('should build admin gigs URL from publicId', () => {
-      const input: BuildGigPermalinkPayload = {
-        baseUrl: 'https://app.example',
-        publicId: 'gig-1',
-      };
+    it('should build admin Gig Mini App URL from publicId', () => {
+      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
 
-      expect(composer.buildAdminGigUrl(input)).toBe(
-        'https://app.example/admin/gigs/gig-1',
+      expect(composer.buildAdminGigUrl('gig-1')).toBe(
+        'https://t.me/GigsTogetherStgBot/admin?startapp=openGig-gig-1',
       );
     });
   });
@@ -590,9 +591,10 @@ describe('TelegramPostComposer', () => {
       expect(payload.caption).toContain('Suggested Band');
       expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
+      expect(payload.caption).not.toContain('ES / Barcelona');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).toContain(
-        '<a href="https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
       expect(payload.reply_markup).toEqual({
         inline_keyboard: [
@@ -647,10 +649,11 @@ describe('TelegramPostComposer', () => {
       expect(payload.chat_id).toBe('-3002');
       expect(payload.caption).toContain('🟡 Suggested Band');
       expect(payload.caption).not.toContain('Reviewing');
+      expect(payload.caption).not.toContain('ES / Barcelona');
       expect(payload.caption).toContain('\n\n──────────\nSource: user');
       expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.caption).toContain(
-        '<a href="https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
       expect(payload.reply_markup?.inline_keyboard[0]).toEqual([
         {
@@ -855,7 +858,7 @@ describe('TelegramPostComposer', () => {
       });
       expect(payload.caption).not.toContain('Rejected');
       expect(payload.caption).toContain(
-        '<a href="https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
     });
 
@@ -909,7 +912,7 @@ describe('TelegramPostComposer', () => {
       expect(payload.caption).not.toContain('🟡');
       expect(payload.caption).not.toContain('Reviewing');
       expect(payload.caption).toContain(
-        '<a href="https://admin.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/20">See moderation post</a>',
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/20">See moderation post</a>',
       );
     });
   });

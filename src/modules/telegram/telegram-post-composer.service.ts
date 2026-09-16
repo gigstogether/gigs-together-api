@@ -49,6 +49,8 @@ export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 export enum TelegramMiniAppStartAction {
   EditGig = 'editGig',
   EditGigCandidate = 'editGigCandidate',
+  OpenGig = 'openGig',
+  OpenGigCandidate = 'openGigCandidate',
 }
 
 const DATE_LOCALE = 'en-GB';
@@ -118,7 +120,7 @@ export class TelegramPostComposerService {
     });
     const fullCaption = this.buildModerationCaption({
       body: this.buildGigBodyCaption(gig),
-      adminGigUrl: this.buildAdminGigUrlByPublicId(gig.publicId),
+      adminGigUrl: this.buildAdminGigUrl(gig.publicId),
     });
 
     if (opts?.updateMedia && post?.fileId) {
@@ -676,7 +678,7 @@ export class TelegramPostComposerService {
     );
     if (adminGigCandidateUrl === undefined) {
       throw new BadRequestException(
-        'Cannot compose GigCandidate channel post: APP_BASE_URL is not configured.',
+        'Cannot compose GigCandidate channel post: EDIT_GIG_URL is not configured.',
       );
     }
 
@@ -720,10 +722,6 @@ export class TelegramPostComposerService {
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
     }
-    const locationLine = [gigDraft.country, gigDraft.city]
-      .filter(Boolean)
-      .join(' / ');
-
     const body = this.buildCaption({
       title: this.buildGigCandidateTitleLine(
         gigCandidate.status,
@@ -735,9 +733,7 @@ export class TelegramPostComposerService {
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });
-    const mainInformation = [body, locationLine].filter(Boolean).join('\n');
-
-    return `${mainInformation}\n\n──────────\nSource: ${source.type}`;
+    return `${body}\n\n──────────\nSource: ${source.type}`;
   }
 
   private buildGigCandidateTitleLine(
@@ -853,24 +849,19 @@ export class TelegramPostComposerService {
   }
 
   private buildEditGigCandidateUrl(gigCandidateId: string): string | undefined {
-    const editGigCandidateBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-    return editGigCandidateBaseUrl
-      ? `${editGigCandidateBaseUrl}?startapp=${encodeURIComponent(`${TelegramMiniAppStartAction.EditGigCandidate}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${gigCandidateId}`)}`
-      : undefined;
+    return this.buildTelegramMiniAppUrl(
+      TelegramMiniAppStartAction.EditGigCandidate,
+      gigCandidateId,
+    );
   }
 
   private buildAdminGigCandidateUrl(
     gigCandidateId: string,
   ): string | undefined {
-    const appBaseUrl = this.getAppBaseUrl();
-    if (!appBaseUrl) {
-      return undefined;
-    }
-
-    return new URL(
-      `/admin/gig-candidates/${encodeURIComponent(gigCandidateId)}`,
-      appBaseUrl,
-    ).toString();
+    return this.buildTelegramMiniAppUrl(
+      TelegramMiniAppStartAction.OpenGigCandidate,
+      gigCandidateId,
+    );
   }
 
   private requireChannelId(
@@ -889,9 +880,11 @@ export class TelegramPostComposerService {
   }
 
   buildEditGigUrl(publicId?: string): string | undefined {
-    const editGigBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-    return editGigBaseUrl && publicId
-      ? `${editGigBaseUrl}?startapp=${encodeURIComponent(`${TelegramMiniAppStartAction.EditGig}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${publicId}`)}`
+    return publicId
+      ? this.buildTelegramMiniAppUrl(
+          TelegramMiniAppStartAction.EditGig,
+          publicId,
+        )
       : undefined;
   }
 
@@ -990,15 +983,13 @@ export class TelegramPostComposerService {
     ).toString();
   }
 
-  buildAdminGigUrl(input: BuildGigPermalinkPayload): string | undefined {
-    if (!input.baseUrl || !input.publicId) {
-      return undefined;
-    }
-
-    return new URL(
-      `/admin/gigs/${encodeURIComponent(input.publicId)}`,
-      input.baseUrl,
-    ).toString();
+  buildAdminGigUrl(publicId?: string): string | undefined {
+    return publicId
+      ? this.buildTelegramMiniAppUrl(
+          TelegramMiniAppStartAction.OpenGig,
+          publicId,
+        )
+      : undefined;
   }
 
   private buildModerationCaption(
@@ -1041,15 +1032,14 @@ export class TelegramPostComposerService {
     return statusLinks.join(' | ');
   }
 
-  private buildAdminGigUrlByPublicId(publicId?: string): string | undefined {
-    if (!publicId) {
-      return undefined;
-    }
-
-    return this.buildAdminGigUrl({
-      baseUrl: this.getAppBaseUrl(),
-      publicId,
-    });
+  private buildTelegramMiniAppUrl(
+    action: TelegramMiniAppStartAction,
+    resourceId: string,
+  ): string | undefined {
+    const miniAppBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
+    return miniAppBaseUrl
+      ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
+      : undefined;
   }
 
   private buildGigBodyCaption(gig: PlainGig): string {

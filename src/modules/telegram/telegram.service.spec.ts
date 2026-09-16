@@ -399,7 +399,7 @@ describe('TelegramService', () => {
         '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
       );
       expect(editMessageCaptionPayload?.caption).toContain(
-        '<a href="https://app.example/admin/gigs/radiohead-barcelona-2026-06-12">Open gig in admin</a>',
+        '<a href="https://app.example/edit?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a>',
       );
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,
@@ -589,7 +589,7 @@ describe('TelegramService', () => {
           chatId: -1003001,
           messageId: 40,
           caption: expect.stringContaining(
-            '<a href="https://app.example/admin/gig-candidates/507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
+            '<a href="https://app.example/edit?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
           ),
           replyMarkup: { inline_keyboard: [] },
         }),

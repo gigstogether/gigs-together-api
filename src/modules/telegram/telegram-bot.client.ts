@@ -20,6 +20,17 @@ export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
 export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
 
+interface TelegramBotErrorData {
+  errorCode: number;
+  description: string;
+}
+
+interface DownloadedRemotePhoto {
+  buffer: Buffer;
+  filename: string;
+  contentType?: string;
+}
+
 /**
  * Low-level Telegram Bot HTTP adapter around `api.telegram.org`.
  *
@@ -68,12 +79,19 @@ export class TelegramBotClient {
         return res.data.result;
       } catch (e) {
         // Telegram can't fetch the file from the provided URL (often HTML/redirect/webp/etc).
-        if (this.isWrongWebPageContentError(e) && this.isHttpUrl(photo)) {
+        const telegramErrorData = this.getTelegramBotErrorData(e);
+        if (
+          this.isRemotePhotoUrlError(telegramErrorData) &&
+          this.isHttpUrl(photo)
+        ) {
           const downloaded = await this.downloadRemoteFileAsInputFile(
             photo,
             gigId,
           );
           if (downloaded) {
+            this.logger.warn(
+              `event=telegram_photo_url_fallback action=retry_multipart imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contentType=${downloaded.contentType ?? 'unknown'} contextId=${gigId || 'none'} telegramDescription=${telegramErrorData.description}`,
+            );
             return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
           }
 
@@ -148,21 +166,59 @@ export class TelegramBotClient {
     return /^https?:\/\//i.test(value);
   }
 
-  private isWrongWebPageContentError(e: any): boolean {
-    const data = e?.response?.data;
-    const description: string | undefined = data?.description;
-    const errorCode: number | undefined = data?.error_code;
+  private getTelegramBotErrorData(
+    e: unknown,
+  ): TelegramBotErrorData | undefined {
+    if (!this.isRecord(e)) {
+      return;
+    }
+
+    const response = e.response;
+    if (!this.isRecord(response)) {
+      return;
+    }
+
+    const data = response.data;
+    if (!this.isRecord(data)) {
+      return;
+    }
+
+    const errorCode = data.error_code;
+    const description = data.description;
+    if (typeof errorCode !== 'number' || typeof description !== 'string') {
+      return;
+    }
+
+    return { errorCode, description };
+  }
+
+  private isRemotePhotoUrlError(
+    telegramErrorData: TelegramBotErrorData | undefined,
+  ): telegramErrorData is TelegramBotErrorData {
+    if (!telegramErrorData || telegramErrorData.errorCode !== 400) {
+      return false;
+    }
+
     return (
-      errorCode === 400 &&
-      typeof description === 'string' &&
-      /wrong type of the web page content/i.test(description)
+      /wrong type of the web page content/i.test(
+        telegramErrorData.description,
+      ) || /failed to get HTTP URL content/i.test(telegramErrorData.description)
     );
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  private getUrlWithoutQueryOrHash(url: string): string {
+    const parsedUrl = new URL(url);
+    return `${parsedUrl.origin}${parsedUrl.pathname}`;
   }
 
   private async downloadRemoteFileAsInputFile(
     url: string,
     gigId?: string,
-  ): Promise<InputFile | undefined> {
+  ): Promise<DownloadedRemotePhoto | undefined> {
     try {
       const res$ = this.httpService.get<ArrayBuffer>(url, {
         responseType: 'arraybuffer',

@@ -266,10 +266,8 @@ export class TelegramService {
       baseUrl: appBaseUrl,
       publicId,
     });
-    const adminGigUrl = this.telegramPostComposerService.buildAdminGigUrl({
-      baseUrl: appBaseUrl,
-      publicId,
-    });
+    const adminGigUrl =
+      this.telegramPostComposerService.buildAdminGigUrl(publicId);
 
     const publishPostChatIdUrl = mainPost
       ? this.telegramPostComposerService.getPostUrl({
