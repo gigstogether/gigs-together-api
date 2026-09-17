@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 
-import { runStage9GigCandidateMigration } from './1787788800000-migrate-legacy-gigs-to-gig-candidates';
-import type { Stage9MigrationStore } from './1787788800000-migrate-legacy-gigs-to-gig-candidates';
+import { runLegacyGigToGigCandidateMigration } from './1787788800000-migrate-legacy-gigs-to-gig-candidates';
+import type { LegacyGigMigrationStore } from './1787788800000-migrate-legacy-gigs-to-gig-candidates';
 
 type TestDocument = Record<string, unknown> & { _id: Types.ObjectId };
 type TestBackup = TestDocument & {
@@ -28,7 +28,7 @@ function adminUser(): TestDocument {
 
 function gig(
   id: string,
-  status: 'Pending' | 'Published' | 'Rejected',
+  status: 'New' | 'Pending' | 'Approved' | 'Published' | 'Rejected',
 ): TestDocument {
   return {
     _id: new Types.ObjectId(id),
@@ -58,7 +58,7 @@ function gig(
 }
 
 function createStore(initialGigs: TestDocument[]): {
-  store: Stage9MigrationStore;
+  store: LegacyGigMigrationStore;
   state: {
     gigs: TestDocument[];
     gigCandidates: TestDocument[];
@@ -72,7 +72,7 @@ function createStore(initialGigs: TestDocument[]): {
     users: [adminUser()],
     backups: [] as TestBackup[],
   };
-  const store: Stage9MigrationStore = {
+  const store: LegacyGigMigrationStore = {
     readGigs: async () => state.gigs,
     readGigCandidates: async () => state.gigCandidates,
     readUsers: async () => state.users,
@@ -134,7 +134,11 @@ describe('legacy Gig to GigCandidate migration', () => {
     const publishedGig = gig('66b000000000000000000002', 'Published');
     const { store, state } = createStore([pendingGig, publishedGig]);
 
-    const report = await runStage9GigCandidateMigration(store, true, undefined);
+    const report = await runLegacyGigToGigCandidateMigration(
+      store,
+      true,
+      undefined,
+    );
 
     expect(report).toMatchObject({
       mode: 'dry-run',
@@ -170,8 +174,8 @@ describe('legacy Gig to GigCandidate migration', () => {
     ]);
 
     await expect(
-      runStage9GigCandidateMigration(store, false, undefined),
-    ).rejects.toThrowError(/STAGE_9_DELETE_CONFIRMATION/);
+      runLegacyGigToGigCandidateMigration(store, false, undefined),
+    ).rejects.toThrowError(/LEGACY_GIG_DELETE_CONFIRMATION/);
     expect(state.gigs).toHaveLength(1);
     expect(state.gigCandidates).toHaveLength(0);
     expect(state.backups).toHaveLength(0);
@@ -182,7 +186,7 @@ describe('legacy Gig to GigCandidate migration', () => {
       gig('66b000000000000000000002', 'Published'),
     ]);
 
-    const report = await runStage9GigCandidateMigration(
+    const report = await runLegacyGigToGigCandidateMigration(
       store,
       false,
       undefined,
@@ -204,7 +208,7 @@ describe('legacy Gig to GigCandidate migration', () => {
     const publishedGig = gig('66b000000000000000000002', 'Published');
     const { store, state } = createStore([pendingGig, publishedGig]);
 
-    const first = await runStage9GigCandidateMigration(
+    const first = await runLegacyGigToGigCandidateMigration(
       store,
       false,
       CONFIRMATION,
@@ -249,7 +253,7 @@ describe('legacy Gig to GigCandidate migration', () => {
     expect(state.gigs[0]).not.toHaveProperty('createdAt');
     expect(state.gigs[0]).not.toHaveProperty('updatedAt');
 
-    const rerun = await runStage9GigCandidateMigration(
+    const rerun = await runLegacyGigToGigCandidateMigration(
       store,
       false,
       CONFIRMATION,
@@ -269,11 +273,48 @@ describe('legacy Gig to GigCandidate migration', () => {
     });
   });
 
+  it('should migrate every non-public migratable status to Reviewing GigCandidates', async () => {
+    const newGig = gig('66b000000000000000000011', 'New');
+    const pendingGig = gig('66b000000000000000000012', 'Pending');
+    const approvedGig = gig('66b000000000000000000013', 'Approved');
+    const { store, state } = createStore([newGig, pendingGig, approvedGig]);
+
+    const report = await runLegacyGigToGigCandidateMigration(
+      store,
+      false,
+      CONFIRMATION,
+    );
+
+    expect(report.before.statusCounts).toMatchObject({
+      New: 1,
+      Pending: 1,
+      Approved: 1,
+    });
+    expect(report.writes).toMatchObject({
+      backups: { upsertedCount: 3 },
+      gigCandidates: { upsertedCount: 3 },
+      legacyGigs: { deletedCount: 3 },
+    });
+    expect(state.gigs).toHaveLength(0);
+    expect(state.backups).toHaveLength(3);
+    expect(state.gigCandidates).toHaveLength(3);
+    expect(
+      state.gigCandidates.map((gigCandidate) => ({
+        id: String(gigCandidate._id),
+        status: gigCandidate.status,
+      })),
+    ).toEqual([
+      { id: String(newGig._id), status: 'Reviewing' },
+      { id: String(pendingGig._id), status: 'Reviewing' },
+      { id: String(approvedGig._id), status: 'Reviewing' },
+    ]);
+  });
+
   it('should block Rejected Gigs without performing writes', async () => {
     const rejectedGig = gig('66b000000000000000000003', 'Rejected');
     const { store, state } = createStore([rejectedGig]);
 
-    const report = await runStage9GigCandidateMigration(
+    const report = await runLegacyGigToGigCandidateMigration(
       store,
       false,
       CONFIRMATION,

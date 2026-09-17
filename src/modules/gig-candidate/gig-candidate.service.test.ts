@@ -447,7 +447,23 @@ describe('GigCandidateService', () => {
       );
     });
 
-    it('should keep submission successful when no active Telegram recipient exists', async () => {
+    it.each([
+      {
+        reason: 'no active User exists',
+        user: null,
+      },
+      {
+        reason: 'the active User has no Telegram identity',
+        user: {
+          id: '66a000000000000000000000001',
+          status: 'active',
+          roles: [],
+          identities: [],
+          createdAt: new Date('2026-08-22T10:00:00.000Z'),
+          updatedAt: new Date('2026-08-22T10:00:00.000Z'),
+        },
+      },
+    ])('should keep submission successful when $reason', async ({ user }) => {
       const created = buildGigCandidate({
         source: {
           type: 'user',
@@ -466,7 +482,7 @@ describe('GigCandidateService', () => {
       telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
         undefined,
       );
-      userServiceMock.findActiveUserById.mockResolvedValue(null);
+      userServiceMock.findActiveUserById.mockResolvedValue(user);
 
       await expect(
         service.handleSubmit({
@@ -489,6 +505,58 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
+    });
+
+    it('should keep submission successful without retrying failed feedback', async () => {
+      const loggerWarnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      const created = buildGigCandidate({
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000001',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
+        undefined,
+      );
+      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValueOnce(
+        new Error('Telegram unavailable'),
+      );
+
+      await expect(
+        service.handleSubmit({
+          body: {
+            gig: {
+              title: 'Band',
+              country: 'ES',
+              city: 'Barcelona',
+              date: '2026-08-01',
+            },
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+          posterFile: undefined,
+        }),
+      ).resolves.toEqual({ id: created.id });
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).toHaveBeenCalledTimes(1);
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        `sendGigCandidateFeedback failed for gigCandidateId=${created.id}: Telegram unavailable`,
+      );
     });
   });
 
@@ -748,7 +816,10 @@ describe('GigCandidateService', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
-    it('should transition once, store Moderation, and then update Intake with the handoff links', async () => {
+    it('should commit moderation once and not retry failed feedback', async () => {
+      const loggerWarnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -793,6 +864,9 @@ describe('GigCandidateService', () => {
       telegramServiceMock.updateGigCandidateIntakePostAfterModeration.mockResolvedValue(
         undefined,
       );
+      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValueOnce(
+        new Error('Telegram unavailable'),
+      );
 
       await expect(
         service.sendGigCandidateToModeration({
@@ -824,6 +898,12 @@ describe('GigCandidateService', () => {
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
+      );
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).toHaveBeenCalledTimes(1);
+      expect(loggerWarnSpy).toHaveBeenCalledWith(
+        `sendGigCandidateFeedback failed for gigCandidateId=${stored.id}: Telegram unavailable`,
       );
     });
 
@@ -1327,6 +1407,9 @@ describe('GigCandidateService', () => {
       telegramServiceMock.updateGigModerationPost.mockRejectedValue(
         new Error('Telegram unavailable'),
       );
+      telegramServiceMock.sendGigCandidateFeedback.mockRejectedValueOnce(
+        new Error('Telegram feedback unavailable'),
+      );
 
       await expect(
         service.approveGigCandidate({
@@ -1338,6 +1421,9 @@ describe('GigCandidateService', () => {
       expect(calendarServiceMock.addEvent).toHaveBeenCalledOnce();
       expect(
         telegramServiceMock.updateGigModerationPost,
+      ).toHaveBeenCalledOnce();
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
       ).toHaveBeenCalledOnce();
     });
   });
