@@ -21,6 +21,12 @@ describe('GigCandidateSchema', () => {
     ).toBe(false);
   });
 
+  it('should contain no legacy ownership or feedback fields', () => {
+    expect(GigCandidateSchema.path('suggestedBy')).toBeUndefined();
+    expect(GigCandidateSchema.path('feedbackMessageId')).toBeUndefined();
+    expect(GigCandidateSchema.path('gigCandidateId')).toBeUndefined();
+  });
+
   it('should require optimistic versions to be integers', () => {
     const validate = GigCandidateSchema.path('version').options.validate;
 

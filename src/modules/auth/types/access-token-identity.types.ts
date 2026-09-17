@@ -3,8 +3,6 @@
  * non-Telegram login flows.
  */
 export type AccessTokenIdentityPayload = TelegramAccessTokenIdentity;
-export type ResolvedAccessTokenIdentityPayload =
-  ResolvedTelegramAccessTokenIdentity;
 
 export interface TelegramIdentitySnapshot {
   readonly firstName: string;
@@ -17,17 +15,9 @@ export interface TelegramIdentitySnapshot {
 
 export interface TelegramAccessTokenIdentity {
   readonly kind: 'telegram';
-  /**
-   * Legacy access and refresh tokens issued before the User foundation do not contain this field.
-   * Authorization resolves it once from the external identity, and token rotation persists it.
-   */
-  readonly userId?: string;
+  readonly userId: string;
   readonly telegramUserId: number;
   readonly snapshot: TelegramIdentitySnapshot;
-}
-
-export interface ResolvedTelegramAccessTokenIdentity extends TelegramAccessTokenIdentity {
-  readonly userId: string;
 }
 
 /**
@@ -43,7 +33,7 @@ export interface AccessTokenPayload {
  * Result of verifying an access token (before mapping to the API user DTO).
  */
 export interface VerifiedAccessToken {
-  readonly identity: ResolvedAccessTokenIdentityPayload;
+  readonly identity: AccessTokenIdentityPayload;
   readonly userId: string;
   readonly isAdmin: boolean;
 }

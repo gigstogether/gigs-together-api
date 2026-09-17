@@ -1,6 +1,4 @@
 import type { Types } from 'mongoose';
-import type { TGUser } from '../../telegram/types/user.types';
-import type { TGMessage } from '../../telegram/types/message.types';
 import type { GigPost, GigPoster, GigStoredSource } from '../gig.schema';
 import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
 
@@ -22,9 +20,6 @@ export interface PlainGig {
   version: number;
   source: GigStoredSource;
   posts: GigPost[];
-  /** Legacy storage retained until the post-cutover cleanup migration. */
-  suggestedBy?: GigSuggestedBy;
-  gigCandidateId?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -104,13 +99,6 @@ export interface GigFormInput {
   venue: string;
   ticketsUrl: string;
   posterUrl?: string;
-}
-
-export interface GigSuggestedBy {
-  userId: TGUser['id'];
-  name?: string;
-  username?: TGUser['username'];
-  feedbackMessageId?: TGMessage['message_id'];
 }
 
 export interface GigFormData {

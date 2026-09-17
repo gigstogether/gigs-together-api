@@ -3,8 +3,8 @@ import type { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import type {
-  ResolvedAccessTokenIdentityPayload,
-  ResolvedTelegramAccessTokenIdentity,
+  AccessTokenIdentityPayload,
+  TelegramAccessTokenIdentity,
 } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 
@@ -18,8 +18,8 @@ function mockConfig(map: Record<string, string>): ConfigService {
 }
 
 function telegramIdentity(
-  overrides: Partial<ResolvedTelegramAccessTokenIdentity> = {},
-): ResolvedTelegramAccessTokenIdentity {
+  overrides: Partial<TelegramAccessTokenIdentity> = {},
+): TelegramAccessTokenIdentity {
   return {
     kind: 'telegram',
     userId: '66a000000000000000000000042',
@@ -29,7 +29,7 @@ function telegramIdentity(
   };
 }
 
-function refreshTelegramIdentity(): ResolvedAccessTokenIdentityPayload {
+function refreshTelegramIdentity(): AccessTokenIdentityPayload {
   return {
     kind: 'telegram',
     userId: '66a000000000000000000009001',
@@ -197,6 +197,28 @@ describe('AuthenticationService', () => {
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
+    it('should reject an access identity without internal userId', () => {
+      const mockJwt = {
+        signAsync: vi.fn(),
+        verifyAsync: vi.fn().mockResolvedValue({
+          typ: 'access',
+          sub: 'telegram:4242',
+          identity: {
+            kind: 'telegram',
+            telegramUserId: 4242,
+            snapshot: { firstName: 'Ada', isBot: false },
+          },
+        }),
+      } as unknown as JwtService;
+      const service = new AuthenticationService(mockJwt, config);
+
+      return expect(service.authenticateAccessToken('x')).rejects.toMatchObject(
+        {
+          message: 'Invalid access token payload',
+        },
+      );
+    });
+
     it('rejects unsupported identity kind in subject derivation', () => {
       const mockJwt = {
         signAsync: vi.fn(),
@@ -318,6 +340,28 @@ describe('AuthenticationService', () => {
       return expect(
         service.authenticateRefreshToken('x'),
       ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('should reject a refresh identity without internal userId', () => {
+      const mockJwt = {
+        signAsync: vi.fn(),
+        verifyAsync: vi.fn().mockResolvedValue({
+          typ: 'refresh',
+          sub: 'telegram:9001',
+          identity: {
+            kind: 'telegram',
+            telegramUserId: 9001,
+            snapshot: { firstName: 'Ryu', isBot: false },
+          },
+        }),
+      } as unknown as JwtService;
+      const service = new AuthenticationService(mockJwt, config);
+
+      return expect(
+        service.authenticateRefreshToken('x'),
+      ).rejects.toMatchObject({
+        message: 'Invalid refresh token payload',
+      });
     });
   });
 

@@ -19,11 +19,10 @@ describe('GigSchema', () => {
     expect(versionOptions.validate(2.5)).toBe(false);
   });
 
-  it('should remove Gig moderation status while retaining legacy suggestedBy', () => {
-    const suggestedByOptions = GigSchema.path('suggestedBy').options;
-
+  it('should contain no obsolete moderation or reverse relationship fields', () => {
     expect(GigSchema.path('status')).toBeUndefined();
-    expect(suggestedByOptions.required).not.toBe(true);
+    expect(GigSchema.path('suggestedBy')).toBeUndefined();
+    expect(GigSchema.path('gigCandidateId')).toBeUndefined();
   });
 
   it('should require immutable source as one discriminated union value', () => {
@@ -90,5 +89,12 @@ describe('GigSchema', () => {
         { collation: { locale: 'en', strength: 2 } },
       ],
     ]);
+  });
+
+  it('should contain no obsolete location or reverse relationship indexes', () => {
+    const indexes = GigSchema.indexes().map(([fields]) => fields);
+
+    expect(indexes).not.toContainEqual({ country: 1, city: 1 });
+    expect(indexes).not.toContainEqual({ gigCandidateId: 1 });
   });
 });
