@@ -7,12 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type {
   AccessTokenIdentityPayload,
-  ResolvedTelegramAccessTokenIdentity,
   VerifiedAccessToken,
 } from './types/access-token-identity.types';
 import { AuthenticationService } from './authentication.service';
 import { UserService } from '../user/user.service';
-import { Messenger } from '../../shared/types/messenger.enum';
 import { UserRole } from '../user/types/user-role.enum';
 
 /**
@@ -110,35 +108,15 @@ export class AuthorizationService {
         if (identity.snapshot.isBot === true) {
           throw new ForbiddenException('Bots are not allowed');
         }
-        const resolvedIdentity = await this.resolveTelegramIdentity(identity);
-        const isAdmin = await this.isAdmin(resolvedIdentity.userId);
+        const isAdmin = await this.isAdmin(identity.userId);
         return {
-          identity: resolvedIdentity,
-          userId: resolvedIdentity.userId,
+          identity,
+          userId: identity.userId,
           isAdmin,
         };
       }
       default:
         throw new UnauthorizedException('Unsupported access token identity');
     }
-  }
-
-  private async resolveTelegramIdentity(
-    identity: AccessTokenIdentityPayload,
-  ): Promise<ResolvedTelegramAccessTokenIdentity> {
-    const existingUserId =
-      typeof identity.userId === 'string' ? identity.userId.trim() : '';
-    if (existingUserId) {
-      return { ...identity, userId: existingUserId };
-    }
-
-    const user = await this.userService.findOrCreateMessengerUser({
-      messenger: Messenger.Telegram,
-      externalUserId: String(identity.telegramUserId),
-      username: identity.snapshot.username,
-      displayName: identity.snapshot.firstName,
-    });
-
-    return { ...identity, userId: user.id };
   }
 }

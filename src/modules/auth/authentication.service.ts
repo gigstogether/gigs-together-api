@@ -5,8 +5,8 @@ import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
-  ResolvedAccessTokenIdentityPayload,
 } from './types/access-token-identity.types';
+import { isRecord } from '../../shared/utils/is-record';
 
 /** Payload shape returned by `verifyAsync` before narrowing to {@link AccessTokenPayload}. */
 interface AccessTokenPayloadShape {
@@ -18,7 +18,15 @@ interface AccessTokenPayloadShape {
 interface RefreshTokenJwtPayload {
   readonly sub: string;
   readonly typ: 'refresh';
-  readonly identity: ResolvedAccessTokenIdentityPayload;
+  readonly identity: AccessTokenIdentityPayload;
+}
+
+interface ParsedTelegramIdentitySnapshot {
+  firstName: string;
+  username?: string;
+  languageCode?: string;
+  isBot?: boolean;
+  extra?: Record<string, unknown>;
 }
 
 /** Shared Express `res.cookie` options except `maxAge` / value. */
@@ -75,9 +83,7 @@ export class AuthenticationService {
     );
   }
 
-  async signAccessToken(
-    identity: ResolvedAccessTokenIdentityPayload,
-  ): Promise<string> {
+  async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {
     const secret = this.requireAccessSecret();
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: AccessTokenPayload = { sub, typ: 'access', identity };
@@ -110,11 +116,7 @@ export class AuthenticationService {
       throw new UnauthorizedException('Expected access token');
     }
 
-    if (!payload?.identity || typeof payload.identity !== 'object') {
-      throw new UnauthorizedException('Invalid access token payload');
-    }
-
-    const identity = payload.identity as AccessTokenIdentityPayload;
+    const identity = this.parseAccessTokenIdentity(payload.identity, 'access');
     const expectedSub = this.subjectFromAccessIdentity(identity);
     if (payload.sub !== expectedSub) {
       throw new UnauthorizedException('Invalid access token subject');
@@ -124,7 +126,7 @@ export class AuthenticationService {
   }
 
   async signRefreshToken(
-    identity: ResolvedAccessTokenIdentityPayload,
+    identity: AccessTokenIdentityPayload,
   ): Promise<string> {
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: RefreshTokenJwtPayload = { sub, typ: 'refresh', identity };
@@ -141,9 +143,9 @@ export class AuthenticationService {
     token: string,
   ): Promise<AccessTokenIdentityPayload> {
     const secret = this.requireRefreshSecret();
-    let payload: RefreshTokenJwtPayload;
+    let payload: AccessTokenPayloadShape;
     try {
-      payload = await this.jwtService.verifyAsync<RefreshTokenJwtPayload>(
+      payload = await this.jwtService.verifyAsync<AccessTokenPayloadShape>(
         token,
         {
           secret,
@@ -158,16 +160,13 @@ export class AuthenticationService {
       throw new UnauthorizedException('Invalid refresh token type');
     }
 
-    if (!payload?.identity || typeof payload.identity !== 'object') {
-      throw new UnauthorizedException('Invalid refresh token payload');
-    }
-
-    const expectedSub = this.subjectFromAccessIdentity(payload.identity);
+    const identity = this.parseAccessTokenIdentity(payload.identity, 'refresh');
+    const expectedSub = this.subjectFromAccessIdentity(identity);
     if (payload.sub !== expectedSub) {
       throw new UnauthorizedException('Invalid refresh token subject');
     }
 
-    return payload.identity;
+    return identity;
   }
 
   getAccessCookieName(): string {
@@ -266,6 +265,60 @@ export class AuthenticationService {
       default:
         throw new UnauthorizedException('Unsupported access token identity');
     }
+  }
+
+  private parseAccessTokenIdentity(
+    value: unknown,
+    tokenKind: CookieKind,
+  ): AccessTokenIdentityPayload {
+    if (
+      !isRecord(value) ||
+      value.kind !== 'telegram' ||
+      typeof value.userId !== 'string' ||
+      value.userId.trim() === '' ||
+      typeof value.telegramUserId !== 'number' ||
+      !Number.isSafeInteger(value.telegramUserId) ||
+      !isRecord(value.snapshot)
+    ) {
+      throw new UnauthorizedException(`Invalid ${tokenKind} token payload`);
+    }
+
+    const snapshot = value.snapshot;
+    if (
+      typeof snapshot.firstName !== 'string' ||
+      snapshot.firstName.trim() === '' ||
+      (snapshot.username !== undefined &&
+        typeof snapshot.username !== 'string') ||
+      (snapshot.languageCode !== undefined &&
+        typeof snapshot.languageCode !== 'string') ||
+      (snapshot.isBot !== undefined && typeof snapshot.isBot !== 'boolean') ||
+      (snapshot.extra !== undefined && !isRecord(snapshot.extra))
+    ) {
+      throw new UnauthorizedException(`Invalid ${tokenKind} token payload`);
+    }
+
+    const parsedSnapshot: ParsedTelegramIdentitySnapshot = {
+      firstName: snapshot.firstName,
+    };
+    if (snapshot.username !== undefined) {
+      parsedSnapshot.username = snapshot.username;
+    }
+    if (snapshot.languageCode !== undefined) {
+      parsedSnapshot.languageCode = snapshot.languageCode;
+    }
+    if (snapshot.isBot !== undefined) {
+      parsedSnapshot.isBot = snapshot.isBot;
+    }
+    if (snapshot.extra !== undefined) {
+      parsedSnapshot.extra = snapshot.extra;
+    }
+
+    return {
+      kind: 'telegram',
+      userId: value.userId.trim(),
+      telegramUserId: value.telegramUserId,
+      snapshot: parsedSnapshot,
+    };
   }
 
   private getSharedCookieOptions(kind: CookieKind): AuthCookieSharedOptions {

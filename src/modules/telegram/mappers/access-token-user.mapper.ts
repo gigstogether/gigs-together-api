@@ -1,5 +1,5 @@
 import type {
-  ResolvedTelegramAccessTokenIdentity,
+  TelegramAccessTokenIdentity,
   TelegramIdentitySnapshot,
 } from '../../auth/types/access-token-identity.types';
 import type { TGUser } from '../types/user.types';
@@ -10,7 +10,7 @@ import type { TGUser } from '../types/user.types';
 export function tgUserToTelegramAccessIdentity(
   tg: TGUser,
   userId: string,
-): ResolvedTelegramAccessTokenIdentity {
+): TelegramAccessTokenIdentity {
   const { id, first_name, username, language_code, is_bot, ...rest } = tg;
   const extraKeys = Object.keys(rest);
   const snapshot: TelegramIdentitySnapshot = {

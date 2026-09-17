@@ -19,7 +19,6 @@ describe('AuthorizationService', () => {
     authenticateRefreshToken: ReturnType<typeof vi.fn>;
   };
   const userService = {
-    findOrCreateMessengerUser: vi.fn().mockResolvedValue({ id: ADMIN_USER_ID }),
     findActiveUserIdsByRole: vi
       .fn()
       .mockResolvedValue([ADMIN_USER_ID, SECOND_ADMIN_USER_ID]),
@@ -54,9 +53,6 @@ describe('AuthorizationService', () => {
     }).compile();
 
     service = module.get<AuthorizationService>(AuthorizationService);
-    userService.findOrCreateMessengerUser.mockResolvedValue({
-      id: ADMIN_USER_ID,
-    });
     userService.findActiveUserIdsByRole.mockResolvedValue([
       ADMIN_USER_ID,
       SECOND_ADMIN_USER_ID,
@@ -142,11 +138,12 @@ describe('AuthorizationService', () => {
   describe('verifyAccessToken', () => {
     const identity: AccessTokenIdentityPayload = {
       kind: 'telegram',
+      userId: ADMIN_USER_ID,
       telegramUserId: 123,
       snapshot: { firstName: 'Ada', isBot: false },
     };
 
-    it('should authenticate then authorize access token', async () => {
+    it('should authenticate then authorize access token by internal userId', async () => {
       authenticationService.authenticateAccessToken.mockResolvedValue(identity);
       await service.refreshAdminsCache();
       const result = await service.verifyAccessToken('jwt');
@@ -154,15 +151,9 @@ describe('AuthorizationService', () => {
         authenticationService.authenticateAccessToken,
       ).toHaveBeenCalledWith('jwt');
       expect(result).toEqual({
-        identity: { ...identity, userId: ADMIN_USER_ID },
+        identity,
         userId: ADMIN_USER_ID,
         isAdmin: true,
-      });
-      expect(userService.findOrCreateMessengerUser).toHaveBeenCalledWith({
-        messenger: 'Telegram',
-        externalUserId: '123',
-        username: undefined,
-        displayName: 'Ada',
       });
     });
 
@@ -181,7 +172,6 @@ describe('AuthorizationService', () => {
         userId: NON_ADMIN_USER_ID,
         isAdmin: false,
       });
-      expect(userService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
     it('should reject bot telegram snapshot', async () => {
@@ -207,6 +197,7 @@ describe('AuthorizationService', () => {
   describe('verifyRefreshToken', () => {
     const identity: AccessTokenIdentityPayload = {
       kind: 'telegram',
+      userId: NON_ADMIN_USER_ID,
       telegramUserId: 999,
       snapshot: { firstName: 'Ryu', isBot: false },
     };
@@ -215,16 +206,13 @@ describe('AuthorizationService', () => {
       authenticationService.authenticateRefreshToken.mockResolvedValue(
         identity,
       );
-      userService.findOrCreateMessengerUser.mockResolvedValue({
-        id: NON_ADMIN_USER_ID,
-      });
       await service.refreshAdminsCache();
       const result = await service.verifyRefreshToken('jwt');
       expect(
         authenticationService.authenticateRefreshToken,
       ).toHaveBeenCalledWith('jwt');
       expect(result).toEqual({
-        identity: { ...identity, userId: NON_ADMIN_USER_ID },
+        identity,
         userId: NON_ADMIN_USER_ID,
         isAdmin: false,
       });

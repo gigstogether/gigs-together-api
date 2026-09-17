@@ -4,7 +4,7 @@ import type { PlainGig } from '../gig/types/gig.types';
 import { mapGigToFormData } from './admin-gig.mapper';
 
 describe('mapGigToFormData', () => {
-  it('should map required source without reading legacy suggestedBy', () => {
+  it('should map required source for the admin response', () => {
     const userId = new Types.ObjectId();
     const gig: PlainGig = {
       _id: new Types.ObjectId(),

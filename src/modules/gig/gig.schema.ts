@@ -1,11 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { Messenger } from '../../shared/types/messenger.enum';
-import type {
-  GigSourceProvider,
-  GigSourceUser,
-  GigSuggestedBy,
-} from './types/gig.types';
+import type { GigSourceProvider, GigSourceUser } from './types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GIG_TITLE_MAX_LENGTH } from './gig.constants';
 
@@ -188,12 +184,6 @@ export class Gig {
   @Prop({ type: [GigPostSchema], required: false, default: [] })
   posts: GigPost[];
 
-  @Prop({ type: Object, required: false })
-  suggestedBy: GigSuggestedBy;
-
-  @Prop({ type: Types.ObjectId, required: false, ref: 'GigCandidate' })
-  gigCandidateId?: Types.ObjectId;
-
   createdAt: Date;
 
   updatedAt: Date;
@@ -206,13 +196,6 @@ export const GigSchema = SchemaFactory.createForClass(Gig);
 GigSchema.index({ publicId: 1 }, { unique: true });
 
 GigSchema.index(
-  { country: 1, city: 1 },
-  { collation: { locale: 'en', strength: 2 } },
-);
-
-GigSchema.index(
   { isVisible: 1, country: 1, city: 1, date: 1, _id: 1 },
   { collation: { locale: 'en', strength: 2 } },
 );
-
-GigSchema.index({ gigCandidateId: 1 }, { unique: true, sparse: true });
