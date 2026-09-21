@@ -19,9 +19,14 @@ import {
   GigCallbackAction,
 } from './callback-action';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
-import { WeeklyDigestMainChannelSendKind } from './types/telegram-post-composer.service.types';
+import {
+  PostEditKind,
+  WeeklyDigestMainChannelSendKind,
+} from './types/telegram-post-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+
+const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -112,6 +117,7 @@ describe('TelegramPostComposer', () => {
   };
 
   beforeEach(async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
 
     const moduleRef = await Test.createTestingModule({
@@ -126,6 +132,10 @@ describe('TelegramPostComposer', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramPostComposerService);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('pickTgPost', () => {
@@ -407,6 +417,92 @@ describe('TelegramPostComposer', () => {
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
     });
+
+    it('should use a fresh cache key for the R2 poster on every Telegram send', () => {
+      vi.mocked(Date.now)
+        .mockReturnValueOnce(TELEGRAM_POSTER_CACHE_BUST)
+        .mockReturnValueOnce(TELEGRAM_POSTER_CACHE_BUST + 1);
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+      const gig = {
+        _id: 'gig3',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [],
+        poster: { bucketPath: 'gigs/show' },
+      } as unknown as GigDocument;
+
+      const firstPayload = composer.composeMainPost(gig);
+      const secondPayload = composer.composeMainPost(gig);
+
+      expect(firstPayload.photo).toBe(
+        `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
+      );
+      expect(secondPayload.photo).toBe(
+        `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST + 1}`,
+      );
+    });
+
+    it('should preserve an external poster URL because its query may be signed', () => {
+      const externalUrl =
+        'https://images.example/poster.jpg?signature=preserve-me';
+      const gig = {
+        _id: 'gig4',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        posts: [],
+        poster: { externalUrl },
+      } as unknown as GigDocument;
+
+      const payload = composer.composeMainPost(gig);
+
+      expect(payload.photo).toBe(externalUrl);
+    });
+
+    it('should cache-bust the R2 poster when replacing Main post media', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+      const gig = {
+        _id: 'gig5',
+        publicId: 'show',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        version: 2,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Main,
+            chatId: -1001,
+            id: 5,
+            fileId: 'old-file-id',
+            date: 86_400_000,
+          },
+        ],
+        poster: { bucketPath: 'gigs/show' },
+      } as unknown as GigDocument;
+
+      const composition = composer.composeMainPostEdit(gig, {
+        updateMedia: true,
+      });
+
+      expect(composition?.kind).toBe(PostEditKind.Media);
+      if (composition?.kind !== PostEditKind.Media) return;
+      const media = composition.payload.media;
+      if (media === undefined) {
+        throw new Error('Expected replacement media');
+      }
+      expect(media.media).toBe(
+        `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
+      );
+    });
   });
 
   describe('composeWeeklyDigest', () => {
@@ -461,12 +557,12 @@ describe('TelegramPostComposer', () => {
       expect(plan.payload.media).toHaveLength(2);
       expect(plan.payload.media[0]).toMatchObject({
         type: TGInputMediaType.Photo,
-        media: 'https://cdn.example/p.jpg',
+        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
         caption: expect.stringMatching(/Alpha/s),
       });
       expect(plan.payload.media[1]).toEqual({
         type: TGInputMediaType.Photo,
-        media: 'https://cdn.example/p.jpg',
+        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
       });
     });
 
@@ -494,7 +590,7 @@ describe('TelegramPostComposer', () => {
         kind: WeeklyDigestMainChannelSendKind.SendPhoto,
         payload: {
           chat_id: '-1003',
-          photo: 'https://cdn.example/only.jpg',
+          photo: `https://cdn.example/only.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
           caption: expect.stringMatching(/Only/s),
           parse_mode: TGParseMode.HTML,
         },
@@ -585,6 +681,9 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3001');
+      expect(payload.photo).toBe(
+        `https://cdn.example/ug.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
+      );
       expect(payload.caption).toContain('Suggested Band');
       expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
@@ -644,6 +743,9 @@ describe('TelegramPostComposer', () => {
       });
 
       expect(payload.chat_id).toBe('-3002');
+      expect(payload.photo).toBe(
+        `https://cdn.example/ug.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
+      );
       expect(payload.caption).toContain('🟡 Suggested Band');
       expect(payload.caption).not.toContain('Reviewing');
       expect(payload.caption).not.toContain('ES / Barcelona');

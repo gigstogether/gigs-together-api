@@ -89,18 +89,10 @@ export class TelegramPostComposerService {
     private readonly postTemplates: TelegramTemplateService,
   ) {}
 
-  private addCacheBustToUrl(url: string, cacheBust: string): string {
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}tgcb=${encodeURIComponent(cacheBust)}`;
-  }
-
-  private getPosterUrlForEdit(poster?: GigPoster): string | undefined {
-    const url = this.getPosterUrl(poster);
-    if (!url) return;
-    // Poster URLs may stay stable (S3 key overwrite, CDN caching, etc). Telegram compares
-    // the "media" string and may return 400 "message is not modified" if the URL is unchanged.
-    // Cache-bust makes the URL string unique per edit.
-    return this.addCacheBustToUrl(url, String(Date.now()));
+  private addTelegramCacheBustToUrl(url: string): string {
+    const cacheBustedUrl = new URL(url);
+    cacheBustedUrl.searchParams.set('tgcb', String(Date.now()));
+    return cacheBustedUrl.toString();
   }
 
   composeModerationPostEdit(
@@ -124,7 +116,7 @@ export class TelegramPostComposerService {
     });
 
     if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getPosterUrlForEdit(gig.poster);
+      const posterUrl = this.getTelegramPosterUrl(gig.poster);
       if (posterUrl) {
         return {
           kind: PostEditKind.Media,
@@ -182,7 +174,7 @@ export class TelegramPostComposerService {
     const caption = this.buildMainPostCaption(gig);
 
     if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getPosterUrlForEdit(gig.poster);
+      const posterUrl = this.getTelegramPosterUrl(gig.poster);
       if (posterUrl) {
         return {
           kind: PostEditKind.Media,
@@ -465,16 +457,23 @@ export class TelegramPostComposerService {
 
   getPosterReferenceForDigestAlbum(gig: PlainGig): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    return moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
+    return moderationPost?.fileId ?? this.getTelegramPosterUrl(gig.poster);
   }
 
-  private getPosterUrl(posterInfo?: GigPoster): string | undefined {
+  private getTelegramPosterUrl(posterInfo?: GigPoster): string | undefined {
     if (!posterInfo) return;
 
     const { bucketPath, externalUrl } = posterInfo;
     if (bucketPath) {
-      return this.bucketService.getPublicFileUrl(bucketPath) ?? externalUrl;
+      const bucketUrl = this.bucketService.getPublicFileUrl(bucketPath);
+      if (bucketUrl) {
+        // R2 poster URLs stay stable when their bytes are replaced. Telegram caches both fetched
+        // media and failed fetches by URL, and editMessageMedia may return "message is not modified"
+        // when the media string is unchanged. A fresh query value forces Telegram to fetch again.
+        return this.addTelegramCacheBustToUrl(bucketUrl);
+      }
     }
+    // Arbitrary external URLs stay unchanged.
     return externalUrl;
   }
 
@@ -494,7 +493,8 @@ export class TelegramPostComposerService {
     const caption = this.buildMainPostCaption(gig);
 
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    const poster = moderationPost?.fileId ?? this.getPosterUrl(gig.poster);
+    const poster =
+      moderationPost?.fileId ?? this.getTelegramPosterUrl(gig.poster);
 
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
@@ -650,7 +650,9 @@ export class TelegramPostComposerService {
   private composeGigCandidateChannelPost(
     params: ComposeGigCandidateChannelPostParams,
   ): TGSendPhoto {
-    const poster = this.getPosterUrl(params.gigCandidate.gigDraft.poster);
+    const poster = this.getTelegramPosterUrl(
+      params.gigCandidate.gigDraft.poster,
+    );
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
         `Cannot compose GigCandidate ${params.channelPurpose} post: gigCandidate has no poster URL.`,
