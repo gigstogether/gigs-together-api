@@ -40,32 +40,36 @@ function finishMigrationDryRun(isDryRun: boolean): void {
 
 type MigrationDocument = Record<string, unknown> & { _id: Types.ObjectId };
 
-interface Stage9BackupDocument extends MigrationDocument {
+interface LegacyGigBackupDocument extends MigrationDocument {
   migration: string;
   originalGig: MigrationDocument;
 }
 
-interface Stage9WriteResult {
+interface LegacyGigMigrationWriteResult {
   matchedCount: number;
   modifiedCount: number;
   upsertedCount?: number;
   deletedCount?: number;
 }
 
-export interface Stage9MigrationStore {
+export interface LegacyGigMigrationStore {
   readGigs(): Promise<MigrationDocument[]>;
   readGigCandidates(): Promise<MigrationDocument[]>;
   readUsers(): Promise<MigrationDocument[]>;
-  readBackups(): Promise<Stage9BackupDocument[]>;
-  backupGigs(gigs: MigrationDocument[]): Promise<Stage9WriteResult>;
+  readBackups(): Promise<LegacyGigBackupDocument[]>;
+  backupGigs(gigs: MigrationDocument[]): Promise<LegacyGigMigrationWriteResult>;
   insertGigCandidates(
     gigCandidates: MigrationDocument[],
-  ): Promise<Stage9WriteResult>;
-  updatePublishedGigs(gigs: MigrationDocument[]): Promise<Stage9WriteResult>;
-  deleteMigratedGigs(ids: Types.ObjectId[]): Promise<Stage9WriteResult>;
+  ): Promise<LegacyGigMigrationWriteResult>;
+  updatePublishedGigs(
+    gigs: MigrationDocument[],
+  ): Promise<LegacyGigMigrationWriteResult>;
+  deleteMigratedGigs(
+    ids: Types.ObjectId[],
+  ): Promise<LegacyGigMigrationWriteResult>;
 }
 
-interface Stage9Analysis {
+interface LegacyGigMigrationAnalysis {
   statusCounts: Record<Status, number>;
   retainedPublishedGigs: number;
   gigCandidatesToCreate: MigrationDocument[];
@@ -78,7 +82,7 @@ interface Stage9Analysis {
   blockingReasons: Record<string, string[]>;
 }
 
-export interface Stage9MigrationReport {
+export interface LegacyGigMigrationReport {
   mode: 'dry-run' | 'apply';
   before: {
     totalGigs: number;
@@ -103,10 +107,10 @@ export interface Stage9MigrationReport {
     totalBackups: number;
   };
   writes: {
-    backups: Stage9WriteResult;
-    gigCandidates: Stage9WriteResult;
-    publishedGigs: Stage9WriteResult;
-    legacyGigs: Stage9WriteResult;
+    backups: LegacyGigMigrationWriteResult;
+    gigCandidates: LegacyGigMigrationWriteResult;
+    publishedGigs: LegacyGigMigrationWriteResult;
+    legacyGigs: LegacyGigMigrationWriteResult;
   };
   after: {
     totalGigs: number;
@@ -121,7 +125,7 @@ export interface Stage9MigrationReport {
   rollback: string;
 }
 
-function emptyWriteResult(): Stage9WriteResult {
+function emptyWriteResult(): LegacyGigMigrationWriteResult {
   return {
     matchedCount: 0,
     modifiedCount: 0,
@@ -324,8 +328,8 @@ function analyze(
   gigs: readonly MigrationDocument[],
   gigCandidates: readonly MigrationDocument[],
   users: readonly MigrationDocument[],
-  backups: readonly Stage9BackupDocument[],
-): Stage9Analysis {
+  backups: readonly LegacyGigBackupDocument[],
+): LegacyGigMigrationAnalysis {
   const statusCounts = createStatusCounts();
   const blockingRecordIds = new Set<string>();
   const blockingReasonsById = new Map<string, Set<string>>();
@@ -373,7 +377,7 @@ function analyze(
         ? gig.isVisible !== true
         : gig.isVisible !== false)
     ) {
-      block(gigId, 'invalidStage8VersionOrVisibility');
+      block(gigId, 'invalidLegacyGigVersionOrVisibility');
     }
     if (hasField(gig, 'gigCandidateId')) {
       block(gigId, 'legacyGigCandidateIdPresent');
@@ -495,7 +499,10 @@ function analyze(
   const provenMigrationIds = new Set(backupsById.keys());
   for (const gigCandidate of gigCandidates) {
     if (!provenMigrationIds.has(toRecordId(gigCandidate._id))) {
-      block(toRecordId(gigCandidate._id), 'gigCandidateHasNoStage9BackupProof');
+      block(
+        toRecordId(gigCandidate._id),
+        'gigCandidateHasNoLegacyGigBackupProof',
+      );
     }
   }
 
@@ -520,8 +527,8 @@ function analyze(
 function snapshot(
   gigs: readonly MigrationDocument[],
   gigCandidates: readonly MigrationDocument[],
-  backups: readonly Stage9BackupDocument[],
-): Stage9MigrationReport['before'] {
+  backups: readonly LegacyGigBackupDocument[],
+): LegacyGigMigrationReport['before'] {
   const statusCounts = createStatusCounts();
   for (const gig of gigs) {
     if (isLegacyStatus(gig.status)) {
@@ -536,11 +543,11 @@ function snapshot(
   };
 }
 
-export async function runStage9GigCandidateMigration(
-  store: Stage9MigrationStore,
+export async function runLegacyGigToGigCandidateMigration(
+  store: LegacyGigMigrationStore,
   isDryRun: boolean,
   deleteConfirmation: string | undefined,
-): Promise<Stage9MigrationReport> {
+): Promise<LegacyGigMigrationReport> {
   const [beforeGigs, beforeGigCandidates, users, beforeBackups] =
     await Promise.all([
       store.readGigs(),
@@ -569,7 +576,7 @@ export async function runStage9GigCandidateMigration(
       deleteConfirmation !== DELETE_CONFIRMATION
     ) {
       throw new Error(
-        `Destructive legacy Gig migration requires STAGE_9_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`,
+        `Destructive legacy Gig migration requires LEGACY_GIG_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`,
       );
     }
     writes.backups = await store.backupGigs(analysis.backupDocumentsToCreate);
@@ -672,20 +679,20 @@ export async function runStage9GigCandidateMigration(
     canApply,
     destructiveApplyConfirmation:
       analysis.legacyGigsToDelete.length > 0
-        ? `STAGE_9_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`
+        ? `LEGACY_GIG_DELETE_CONFIRMATION=${DELETE_CONFIRMATION}`
         : null,
     rollback:
-      'Restore deleted legacy Gigs from stage9_legacy_gigs_backup before unfreezing writes; retained Published Gig updates are additive and must be reverted only from a verified backup if application rollback requires it.',
+      'Restore deleted legacy Gigs from legacy_gig_migration_backups before unfreezing writes; retained Published Gig updates are additive and must be reverted only from a verified backup if application rollback requires it.',
   };
 }
 
-function createMongoStore(connection: Connection): Stage9MigrationStore {
+function createMongoStore(connection: Connection): LegacyGigMigrationStore {
   const gigs = connection.collection<MigrationDocument>('gigs');
   const gigCandidates =
     connection.collection<MigrationDocument>('gigcandidates');
   const users = connection.collection<MigrationDocument>('users');
-  const backups = connection.collection<Stage9BackupDocument>(
-    'stage9_legacy_gigs_backup',
+  const backups = connection.collection<LegacyGigBackupDocument>(
+    'legacy_gig_migration_backups',
   );
 
   return {
@@ -786,10 +793,10 @@ export async function up(connection: Connection): Promise<void> {
   if (!isDryRun) {
     await verifyMongoTopologyIsInspectable(connection);
   }
-  const report = await runStage9GigCandidateMigration(
+  const report = await runLegacyGigToGigCandidateMigration(
     createMongoStore(connection),
     isDryRun,
-    process.env.STAGE_9_DELETE_CONFIRMATION,
+    process.env.LEGACY_GIG_DELETE_CONFIRMATION,
   );
   console.info(JSON.stringify(report, null, 2));
   if (!report.canApply) {

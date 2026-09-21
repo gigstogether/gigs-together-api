@@ -35,6 +35,8 @@ export class TelegramInitDataAuthService {
       const tgUser: TGUser = JSON.parse(parsedData.user);
 
       // TODO: explicitly check if it's a user instead of if it's a bot
+      // Telegram documents is_bot only for receiver, so it is usually absent on the current user.
+      // Treat this check as defense in depth, not as guaranteed bot detection.
       if (tgUser?.is_bot) {
         throw new ForbiddenException('Bots are not allowed');
       }

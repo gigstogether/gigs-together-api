@@ -45,6 +45,7 @@ describe('GigService', () => {
   const existsMock = vi.fn();
   const uploadPosterMock = vi.fn();
   const pickTgPostMock = vi.fn();
+  const getCreateCalendarEventUrlMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -58,6 +59,9 @@ describe('GigService', () => {
     existsMock.mockResolvedValue(null);
     uploadPosterMock.mockResolvedValue(undefined);
     pickTgPostMock.mockReturnValue(undefined);
+    getCreateCalendarEventUrlMock.mockReturnValue(
+      'https://calendar.example/event',
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -81,7 +85,12 @@ describe('GigService', () => {
             lookupGigV1: vi.fn(),
           },
         },
-        { provide: CalendarService, useValue: {} },
+        {
+          provide: CalendarService,
+          useValue: {
+            getCreateCalendarEventUrl: getCreateCalendarEventUrlMock,
+          },
+        },
         { provide: GigPosterService, useValue: { upload: uploadPosterMock } },
         {
           provide: TelegramService,
@@ -171,6 +180,129 @@ describe('GigService', () => {
         strength: 2,
       });
       expect(sortForCollationMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
+    });
+  });
+
+  describe('public Gig queries', () => {
+    it('should query only visible Gigs and omit source from the public feed response', async () => {
+      const from = Date.UTC(2026, 8, 17);
+      const gig = {
+        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+        publicId: 'radiohead-2026-09-20',
+        title: 'Radiohead',
+        date: Date.UTC(2026, 8, 20),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+        isVisible: true,
+        version: 0,
+        source: {
+          type: 'user',
+          userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+          origin: { type: 'admin' },
+        },
+        posts: [],
+      };
+      const publicLimitMock = vi.fn().mockResolvedValue([gig]);
+      const publicSortMock = vi.fn().mockReturnValue({
+        limit: publicLimitMock,
+      });
+      const publicCollationMock = vi.fn().mockReturnValue({
+        sort: publicSortMock,
+      });
+      findMock.mockReturnValueOnce({ collation: publicCollationMock });
+
+      const result = await service.getVisibleGigsV1({
+        from,
+        country: 'ES',
+        city: 'Barcelona',
+        limit: 10,
+      });
+
+      expect(findMock).toHaveBeenCalledWith({
+        isVisible: true,
+        $or: [{ date: { $gte: from } }, { endDate: { $gte: from } }],
+        country: 'ES',
+        city: 'Barcelona',
+      });
+      expect(result.gigs).toHaveLength(1);
+      expect(result.gigs[0]).not.toHaveProperty('source');
+    });
+
+    it('should require visibility when resolving a public Gig date', async () => {
+      const date = Date.UTC(2026, 8, 20);
+      const publicDateCollationMock = vi.fn().mockResolvedValue({ date });
+      findOneMock.mockReturnValueOnce({
+        collation: publicDateCollationMock,
+      });
+
+      await expect(
+        service.getGigDateByPublicId({ publicId: 'radiohead-2026-09-20' }),
+      ).resolves.toEqual({ date: String(date) });
+      expect(findOneMock).toHaveBeenCalledWith({
+        publicId: 'radiohead-2026-09-20',
+        isVisible: true,
+      });
+    });
+
+    it('should require visibility in both sides of the around query', async () => {
+      const anchor = Date.UTC(2026, 8, 20);
+      const beforeLimitMock = vi.fn().mockResolvedValue([]);
+      const afterLimitMock = vi.fn().mockResolvedValue([]);
+      sortForCollationMock
+        .mockReturnValueOnce({ limit: beforeLimitMock })
+        .mockReturnValueOnce({ limit: afterLimitMock });
+
+      await service.getVisibleGigsAroundV1({
+        anchor,
+        beforeLimit: 10,
+        afterLimit: 10,
+        country: 'ES',
+        city: 'Barcelona',
+      });
+
+      expect(findMock).toHaveBeenNthCalledWith(1, {
+        isVisible: true,
+        country: 'ES',
+        city: 'Barcelona',
+        date: { $gte: expect.any(Number), $lt: anchor },
+      });
+      expect(findMock).toHaveBeenNthCalledWith(2, {
+        isVisible: true,
+        country: 'ES',
+        city: 'Barcelona',
+        date: { $gte: anchor },
+      });
+    });
+
+    it('should require visibility when aggregating public Gig dates', async () => {
+      const from = Date.UTC(2026, 8, 17);
+      const to = Date.UTC(2026, 8, 30);
+      const allowDiskUseMock = vi.fn().mockResolvedValue([]);
+      aggregateMock.mockReturnValueOnce({ allowDiskUse: allowDiskUseMock });
+
+      await expect(
+        service.getVisibleGigDatesV1({
+          from,
+          to,
+          country: 'ES',
+          city: 'Barcelona',
+        }),
+      ).resolves.toEqual({ dates: [] });
+      expect(aggregateMock).toHaveBeenCalledWith([
+        {
+          $match: {
+            isVisible: true,
+            date: { $gte: from, $lte: to },
+            country: 'ES',
+            city: 'Barcelona',
+          },
+        },
+        { $group: { _id: '$date' } },
+        { $sort: { _id: 1 } },
+      ]);
+      expect(allowDiskUseMock).toHaveBeenCalledWith(true);
     });
   });
 

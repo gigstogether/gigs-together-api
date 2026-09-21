@@ -18,6 +18,11 @@ interface UploadPosterPayload {
   };
 }
 
+const SVG_IMAGE_MIME_TYPE = 'image/svg+xml';
+const SVG_CONTENT_SNIFF_BYTES = 16 * 1024;
+const SVG_POSTER_ERROR_MESSAGE =
+  'SVG poster files are not supported; use a raster image instead';
+
 @Injectable()
 export class GigPosterService {
   constructor(
@@ -86,6 +91,8 @@ export class GigPosterService {
     input: GigPosterFile,
     context: UploadPosterPayload['context'],
   ): Promise<string> {
+    this.assertGigPosterFileIsNotSvg(input);
+
     const { buffer, mimetype } = input;
     const year = this.getUtcYear(context.date);
     // TODO
@@ -107,6 +114,24 @@ export class GigPosterService {
       mimetype,
       key,
     });
+  }
+
+  private assertGigPosterFileIsNotSvg(file: GigPosterFile): void {
+    const normalizedMimeType = file.mimetype
+      ?.split(';', 1)[0]
+      .trim()
+      .toLowerCase();
+    const fileStart = file.buffer
+      .subarray(0, SVG_CONTENT_SNIFF_BYTES)
+      .toString('utf8')
+      .replace(/^\uFEFF/, '')
+      .trimStart();
+    const hasSvgMarkup =
+      fileStart.startsWith('<') && /<svg(?:\s|>)/i.test(fileStart);
+
+    if (normalizedMimeType === SVG_IMAGE_MIME_TYPE || hasSvgMarkup) {
+      throw new BadRequestException(SVG_POSTER_ERROR_MESSAGE);
+    }
   }
 
   async upload(payload: UploadPosterPayload): Promise<GigPoster | undefined> {
