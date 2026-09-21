@@ -16,6 +16,8 @@ import { GigModerationService } from '../gig/gig-moderation.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
+import { UserService } from '../user/user.service';
+import { AuthorizationService } from '../auth/authorization.service';
 
 describe('ReceiverService', () => {
   let service: ReceiverService;
@@ -52,6 +54,14 @@ describe('ReceiverService', () => {
     rejectGigCandidate: vi.fn(),
   };
 
+  const mockUserService = {
+    findOrCreateMessengerUser: vi.fn(),
+  };
+
+  const mockAuthorizationService = {
+    isAdmin: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.unstubAllEnvs();
 
@@ -74,10 +84,22 @@ describe('ReceiverService', () => {
           provide: GigCandidateService,
           useValue: mockGigCandidateService,
         },
+        {
+          provide: UserService,
+          useValue: mockUserService,
+        },
+        {
+          provide: AuthorizationService,
+          useValue: mockAuthorizationService,
+        },
       ],
     }).compile();
 
     service = module.get<ReceiverService>(ReceiverService);
+    mockUserService.findOrCreateMessengerUser.mockResolvedValue({
+      id: '507f1f77bcf86cd799439088',
+    });
+    mockAuthorizationService.isAdmin.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -129,6 +151,13 @@ describe('ReceiverService', () => {
         date: Date.now(),
         text: '/start',
         chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+          last_name: 'Goodboy',
+          username: 'arina',
+        },
       };
 
       mockTelegramService.sendMessage.mockResolvedValue(undefined);
@@ -138,6 +167,12 @@ describe('ReceiverService', () => {
       expect(mockTelegramService.sendMessage).toHaveBeenCalledWith({
         chat_id: 12345,
         text: `Hi! I'm a Gigs Together bot. I am still in development...`,
+      });
+      expect(mockUserService.findOrCreateMessengerUser).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        externalUserId: '42',
+        username: 'arina',
+        displayName: 'Arina Goodboy',
       });
     });
 
@@ -192,10 +227,7 @@ describe('ReceiverService', () => {
       mockGigModerationService.createGigMainPost.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigModerationService.createGigMainPost).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
@@ -235,10 +267,7 @@ describe('ReceiverService', () => {
       mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
@@ -279,10 +308,7 @@ describe('ReceiverService', () => {
       mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
@@ -313,10 +339,7 @@ describe('ReceiverService', () => {
 
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigModerationService.approveGig).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
@@ -343,10 +366,7 @@ describe('ReceiverService', () => {
         },
       };
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(
         mockGigCandidateService.sendGigCandidateToModeration,
@@ -373,10 +393,7 @@ describe('ReceiverService', () => {
         },
       };
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigCandidateService.rejectGigCandidate).toHaveBeenCalledWith({
         gigCandidateId: '507f1f77bcf86cd799439099',
@@ -402,10 +419,7 @@ describe('ReceiverService', () => {
         },
       };
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
         gigCandidateId: '507f1f77bcf86cd799439099',
@@ -444,15 +458,44 @@ describe('ReceiverService', () => {
         ]),
       );
 
-      await service.handleCallbackQuery(
-        callbackQuery,
-        '507f1f77bcf86cd799439088',
-      );
+      await service.handleCallbackQuery(callbackQuery);
 
       expect(warnSpy).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-gigCandidate-invalid-draft',
         text: 'Failed: GigCandidate gigDraft is incomplete or invalid.',
+        show_alert: true,
+      });
+    });
+
+    it('should reject a callback from a non-admin user', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-non-admin',
+        data: encodeCallbackData({
+          scope: CallbackScope.Gig,
+          action: GigCallbackAction.Hide,
+          id: '507f1f77bcf86cd799439011',
+          expectedVersion: 7,
+        }),
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+      mockAuthorizationService.isAdmin.mockResolvedValue(false);
+
+      await service.handleCallbackQuery(callbackQuery);
+
+      expect(mockGigModerationService.setGigVisibility).not.toHaveBeenCalled();
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: 'callback-non-admin',
+        text: 'Admin privileges required',
         show_alert: true,
       });
     });
