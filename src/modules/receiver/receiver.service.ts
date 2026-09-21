@@ -92,10 +92,6 @@ export class ReceiverService {
       return;
     }
 
-    if (message.from) {
-      await this.resolveUser(message.from);
-    }
-
     const text = message.text || '';
 
     if (text.charAt(0) !== '/') {

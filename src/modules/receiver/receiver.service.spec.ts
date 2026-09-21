@@ -145,7 +145,7 @@ describe('ReceiverService', () => {
       );
     });
 
-    it('should handle the /start command', async () => {
+    it('should handle the /start command without creating a User', async () => {
       const message: TGMessage = {
         message_id: 123,
         date: Date.now(),
@@ -168,12 +168,7 @@ describe('ReceiverService', () => {
         chat_id: 12345,
         text: `Hi! I'm a Gigs Together bot. I am still in development...`,
       });
-      expect(mockUserService.findOrCreateMessengerUser).toHaveBeenCalledWith({
-        messenger: Messenger.Telegram,
-        externalUserId: '42',
-        username: 'arina',
-        displayName: 'Arina Goodboy',
-      });
+      expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
     it('should handle an unknown command', async () => {
