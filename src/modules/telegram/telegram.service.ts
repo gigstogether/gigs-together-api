@@ -224,6 +224,18 @@ export class TelegramService {
     return this.telegramBotClient.sendMessage(composed);
   }
 
+  sendStartCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeStartCommandResponse(chatId);
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
+  sendUnknownCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeUnknownCommandResponse(chatId);
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
   updateRejectedGigCandidatePost(
     payload: UpdateRejectedGigCandidatePostPayload,
   ): Promise<TGMessage> {

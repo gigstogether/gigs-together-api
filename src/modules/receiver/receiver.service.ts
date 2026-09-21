@@ -106,17 +106,11 @@ export class ReceiverService {
   private async handleCommand(command: string, chatId: number) {
     switch (command) {
       case Command.Start: {
-        await this.telegramService.sendMessage({
-          chat_id: chatId,
-          text: `Hi! I'm a Gigs Together bot. I am still in development...`,
-        });
+        await this.telegramService.sendStartCommandResponse(chatId);
         break;
       }
       default: {
-        await this.telegramService.sendMessage({
-          chat_id: chatId,
-          text: `Hey there, I don't know that command.`,
-        });
+        await this.telegramService.sendUnknownCommandResponse(chatId);
       }
     }
   }

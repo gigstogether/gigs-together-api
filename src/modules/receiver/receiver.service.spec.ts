@@ -25,6 +25,8 @@ describe('ReceiverService', () => {
   const mockTelegramService = {
     sendMessage: vi.fn(),
     sendIncomingMessageUnavailable: vi.fn(),
+    sendStartCommandResponse: vi.fn(),
+    sendUnknownCommandResponse: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
     editMainPost: vi.fn(),
@@ -160,14 +162,13 @@ describe('ReceiverService', () => {
         },
       };
 
-      mockTelegramService.sendMessage.mockResolvedValue(undefined);
+      mockTelegramService.sendStartCommandResponse.mockResolvedValue(undefined);
 
       await service.handleMessage(message);
 
-      expect(mockTelegramService.sendMessage).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: `Hi! I'm a Gigs Together bot. I am still in development...`,
-      });
+      expect(mockTelegramService.sendStartCommandResponse).toHaveBeenCalledWith(
+        12345,
+      );
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
@@ -179,14 +180,15 @@ describe('ReceiverService', () => {
         chat: { id: 12345, type: 'private' },
       };
 
-      mockTelegramService.sendMessage.mockResolvedValue(undefined);
+      mockTelegramService.sendUnknownCommandResponse.mockResolvedValue(
+        undefined,
+      );
 
       await service.handleMessage(message);
 
-      expect(mockTelegramService.sendMessage).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: `Hey there, I don't know that command.`,
-      });
+      expect(
+        mockTelegramService.sendUnknownCommandResponse,
+      ).toHaveBeenCalledWith(12345);
     });
 
     it('should ignore empty messages', async () => {

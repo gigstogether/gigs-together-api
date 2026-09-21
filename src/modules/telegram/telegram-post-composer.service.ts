@@ -619,6 +619,20 @@ export class TelegramPostComposerService {
     };
   }
 
+  composeStartCommandResponse(chatId: TGChatId): TGSendMessage {
+    return {
+      chat_id: chatId,
+      text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.commandStart),
+    };
+  }
+
+  composeUnknownCommandResponse(chatId: TGChatId): TGSendMessage {
+    return {
+      chat_id: chatId,
+      text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.commandUnknown),
+    };
+  }
+
   composeRejectedGigCandidatePostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
   ): TGEditMessageCaption {

@@ -53,6 +53,10 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
     [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
       "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
+    [TELEGRAM_TEMPLATE_KEYS.commandStart]:
+      "Hi! I'm a Gigs Together bot. I am still in development...",
+    [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
+      "Hey there, I don't know that command.",
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -218,6 +222,40 @@ describe('TelegramService', () => {
             ],
           ],
         },
+      });
+    });
+  });
+
+  describe('command responses', () => {
+    it('should send the composed start-command response', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 1,
+        date: 1,
+        chat: { id: 12345, type: 'private' },
+      });
+
+      await service.sendStartCommandResponse(12345);
+
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        chat_id: 12345,
+        text: "Hi! I'm a Gigs Together bot. I am still in development...",
+      });
+    });
+
+    it('should send the composed unknown-command response', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 1,
+        date: 1,
+        chat: { id: 12345, type: 'private' },
+      });
+
+      await service.sendUnknownCommandResponse(12345);
+
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        chat_id: 12345,
+        text: "Hey there, I don't know that command.",
       });
     });
   });
