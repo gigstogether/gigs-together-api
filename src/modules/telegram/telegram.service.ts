@@ -137,7 +137,7 @@ export class TelegramService {
         note: 'Weekly digest send to main channel failed',
         context: TelegramService.name,
       });
-      throw e;
+      throw new Error('Weekly digest send to main channel failed');
     }
   }
 

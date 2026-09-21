@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
@@ -99,6 +100,46 @@ function createMockPostTemplates(): MockPostTemplates {
   };
 }
 
+function createDigestUpstreamError(): unknown {
+  return {
+    isAxiosError: true,
+    code: 'ERR_BAD_REQUEST',
+    message: 'Request failed with status code 400',
+    config: {
+      method: 'post',
+      url: 'sendMediaGroup',
+      baseURL: 'https://api.telegram.org/bot-secret-token',
+    },
+    response: {
+      status: 400,
+      data: {
+        ok: false,
+        error_code: 400,
+        description: 'Bad Request: WEBPAGE_CURL_FAILED',
+      },
+    },
+  };
+}
+
+function createDigestGigsWithRemotePosters(): GigDocument[] {
+  return [
+    {
+      _id: 'a',
+      title: 'Alpha',
+      date: 10,
+      posts: [],
+      poster: { bucketPath: 'gigs/a.jpg' },
+    },
+    {
+      _id: 'b',
+      title: 'Beta',
+      date: 20,
+      posts: [],
+      poster: { bucketPath: 'gigs/b.jpg' },
+    },
+  ] as unknown as GigDocument[];
+}
+
 describe('TelegramService', () => {
   let service: TelegramService;
   let testingModule: TestingModule;
@@ -151,6 +192,7 @@ describe('TelegramService', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
     delete process.env.MAIN_CHANNEL_ID;
@@ -348,6 +390,46 @@ describe('TelegramService', () => {
       await expect(service.sendWeeklyDigestPost([])).resolves.toBeUndefined();
 
       expect(sendMessageSpy).not.toHaveBeenCalled();
+    });
+
+    it('should replace an upstream Axios error before it reaches the scheduler', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
+        createDigestUpstreamError(),
+      );
+      vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+
+      const result = service.sendWeeklyDigestPost(
+        createDigestGigsWithRemotePosters(),
+      );
+
+      await expect(result).rejects.toThrow(
+        'Weekly digest send to main channel failed',
+      );
+    });
+
+    it('should omit the Telegram token from the digest failure log', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const loggerErrorSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
+        createDigestUpstreamError(),
+      );
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+
+      await expect(
+        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
+      ).rejects.toThrow('Weekly digest send to main channel failed');
+
+      expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
+        'secret-token',
+      );
     });
   });
 
