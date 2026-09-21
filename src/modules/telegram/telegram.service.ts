@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { TGMessage, TGSendPhoto } from './types/message.types';
+import type { TGChatId, TGMessage, TGSendPhoto } from './types/message.types';
 import { TGParseMode } from './types/message.types';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -212,6 +212,14 @@ export class TelegramService {
     const composed =
       this.telegramPostComposerService.composeGigCandidateFeedbackMessage(
         payload,
+      );
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
+  sendIncomingMessageUnavailable(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeIncomingMessageUnavailable(
+        chatId,
       );
     return this.telegramBotClient.sendMessage(composed);
   }

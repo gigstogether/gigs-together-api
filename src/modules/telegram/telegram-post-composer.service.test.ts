@@ -53,6 +53,10 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
+    [TELEGRAM_TEMPLATE_KEYS.buttonContactAdmins]: 'Contact "Gigs Together!"',
+    [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
+    [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
+      "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -126,6 +130,23 @@ describe('TelegramPostComposer', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramPostComposerService);
+  });
+
+  it('should compose an unavailable-message response from translations', () => {
+    expect(composer.composeIncomingMessageUnavailable(12345)).toEqual({
+      chat_id: 12345,
+      text: "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Contact "Gigs Together!"',
+              url: 'https://t.me/gigs_together',
+            },
+          ],
+        ],
+      },
+    });
   });
 
   describe('pickTgPost', () => {

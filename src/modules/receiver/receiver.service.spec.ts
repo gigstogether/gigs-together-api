@@ -24,6 +24,7 @@ describe('ReceiverService', () => {
 
   const mockTelegramService = {
     sendMessage: vi.fn(),
+    sendIncomingMessageUnavailable: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
     editMainPost: vi.fn(),
@@ -133,16 +134,15 @@ describe('ReceiverService', () => {
         chat: { id: 12345, type: 'private' },
       };
 
-      mockTelegramService.sendMessage.mockResolvedValue(undefined);
+      mockTelegramService.sendIncomingMessageUnavailable.mockResolvedValue(
+        undefined,
+      );
 
       await service.handleMessage(message);
 
-      expect(mockTelegramService.sendMessage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chat_id: 12345,
-          text: expect.stringContaining("the bot can't receive messages"),
-        }),
-      );
+      expect(
+        mockTelegramService.sendIncomingMessageUnavailable,
+      ).toHaveBeenCalledWith(12345);
     });
 
     it('should handle the /start command without creating a User', async () => {

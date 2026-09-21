@@ -49,6 +49,10 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
+    [TELEGRAM_TEMPLATE_KEYS.buttonContactAdmins]: 'Contact "Gigs Together!"',
+    [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
+    [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
+      "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -187,6 +191,34 @@ describe('TelegramService', () => {
         text,
       });
       expect(result).toEqual(mockMessage);
+    });
+  });
+
+  describe('sendIncomingMessageUnavailable', () => {
+    it('should send the composed translated response', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 1,
+        date: 1,
+        chat: { id: 12345, type: 'private' },
+      });
+
+      await service.sendIncomingMessageUnavailable(12345);
+
+      expect(sendMessageSpy).toHaveBeenCalledWith({
+        chat_id: 12345,
+        text: "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Contact "Gigs Together!"',
+                url: 'https://t.me/gigs_together',
+              },
+            ],
+          ],
+        },
+      });
     });
   });
 

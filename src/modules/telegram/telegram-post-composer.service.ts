@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
+  TGChatId,
   TGEditMessageCaption,
   TGInputMedia,
   TGSendMessage,
@@ -592,6 +593,29 @@ export class TelegramPostComposerService {
       text,
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: params.kind === 'acceptedWithPublicLink',
+    };
+  }
+
+  composeIncomingMessageUnavailable(chatId: TGChatId): TGSendMessage {
+    return {
+      chat_id: chatId,
+      text: this.postTemplates.getText(
+        TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable,
+      ),
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: this.postTemplates.getText(
+                TELEGRAM_TEMPLATE_KEYS.buttonContactAdmins,
+              ),
+              url: this.postTemplates.getText(
+                TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
+              ),
+            },
+          ],
+        ],
+      },
     };
   }
 

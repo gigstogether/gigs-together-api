@@ -95,20 +95,7 @@ export class ReceiverService {
     const text = message.text || '';
 
     if (text.charAt(0) !== '/') {
-      await this.telegramService.sendMessage({
-        chat_id: chatId,
-        text: `At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here: `,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Contact "Gigs Together!"',
-                url: process.env.DIRECT_MESSAGES_URL,
-              },
-            ],
-          ],
-        },
-      });
+      await this.telegramService.sendIncomingMessageUnavailable(chatId);
       return;
     }
 
