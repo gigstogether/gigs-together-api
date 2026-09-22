@@ -405,22 +405,26 @@ export class TelegramPostComposerService {
     const caption = this.composeWeeklyDigestCaption(gigs);
 
     const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
-    const posterRefs = firstChunk
-      .map((gig) => this.getPosterReferenceForDigestAlbum(gig))
-      .filter((ref): ref is string => ref !== undefined && ref !== '');
+    const posterItems = firstChunk.flatMap((gig) => {
+      const posterReference = this.getPosterReferenceForDigestAlbum(gig);
+      if (posterReference === undefined || posterReference === '') {
+        return [];
+      }
+      return [{ posterReference, publicId: gig.publicId }];
+    });
 
-    if (posterRefs.length >= 2) {
-      const media: TGInputMedia[] = posterRefs.map((mediaUrl, index) =>
+    if (posterItems.length >= 2) {
+      const media: TGInputMedia[] = posterItems.map((item, index) =>
         index === 0
           ? {
               type: TGInputMediaType.Photo,
-              media: mediaUrl,
+              media: item.posterReference,
               caption,
               parse_mode: TGParseMode.HTML,
             }
           : {
               type: TGInputMediaType.Photo,
-              media: mediaUrl,
+              media: item.posterReference,
             },
       );
 
@@ -430,15 +434,19 @@ export class TelegramPostComposerService {
           chat_id: chatId,
           media,
         },
+        mediaItems: posterItems.map((item, index) => ({
+          position: index + 1,
+          publicId: item.publicId,
+        })),
       };
     }
 
-    if (posterRefs.length === 1) {
+    if (posterItems.length === 1) {
       return {
         kind: WeeklyDigestMainChannelSendKind.SendPhoto,
         payload: {
           chat_id: chatId,
-          photo: posterRefs[0],
+          photo: posterItems[0].posterReference,
           caption,
           parse_mode: TGParseMode.HTML,
         },

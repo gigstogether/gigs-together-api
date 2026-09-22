@@ -32,6 +32,11 @@ export interface ComposeWeeklyDigestParams {
   readonly gigs: readonly PlainGig[];
 }
 
+export interface WeeklyDigestMediaItemContext {
+  position: number;
+  publicId: string;
+}
+
 export type WeeklyDigestMainChannelSendPlan =
   | {
       readonly kind: WeeklyDigestMainChannelSendKind.SendMessage;
@@ -44,6 +49,7 @@ export type WeeklyDigestMainChannelSendPlan =
   | {
       readonly kind: WeeklyDigestMainChannelSendKind.SendMediaGroup;
       readonly payload: TGSendMediaGroup;
+      readonly mediaItems: WeeklyDigestMediaItemContext[];
     };
 
 export type TelegramGigPostEditComposition =

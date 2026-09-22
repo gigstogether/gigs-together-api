@@ -531,6 +531,7 @@ describe('TelegramPostComposer', () => {
       const gigs = [
         {
           _id: 'a',
+          publicId: 'alpha-2026-01-01',
           title: 'Alpha',
           date: 10,
           posts: [],
@@ -538,6 +539,7 @@ describe('TelegramPostComposer', () => {
         },
         {
           _id: 'b',
+          publicId: 'beta-2026-01-02',
           title: 'Beta',
           date: 20,
           posts: [],
@@ -564,6 +566,10 @@ describe('TelegramPostComposer', () => {
         type: TGInputMediaType.Photo,
         media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
       });
+      expect(plan.mediaItems).toEqual([
+        { position: 1, publicId: 'alpha-2026-01-01' },
+        { position: 2, publicId: 'beta-2026-01-02' },
+      ]);
     });
 
     it('should return sendPhoto with digest fallback id when exactly one poster resolves', () => {
