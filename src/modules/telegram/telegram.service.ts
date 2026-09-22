@@ -324,7 +324,12 @@ export class TelegramService {
       this.telegramPostComposerService.composeGigCandidateModerationPostEdit(
         payload,
       );
-    return this.telegramBotClient.editMessageCaption(composed);
+    switch (composed.kind) {
+      case PostEditKind.Media:
+        return this.telegramBotClient.editMessageMedia(composed.payload);
+      case PostEditKind.Caption:
+        return this.telegramBotClient.editMessageCaption(composed.payload);
+    }
   }
 
   async updateGigModerationPost(

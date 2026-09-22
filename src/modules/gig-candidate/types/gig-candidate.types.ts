@@ -98,6 +98,10 @@ export interface UpdateGigCandidateDraftParams {
   gigDraft: Partial<GigData>;
 }
 
+export interface UpdateGigCandidateDraftApplicationParams extends UpdateGigCandidateDraftParams {
+  isTelegramMediaUpdateRequired?: boolean;
+}
+
 export interface SendGigCandidateToModerationParams {
   gigCandidateId: string;
   expectedVersion: number;
@@ -130,6 +134,14 @@ export interface AppendGigCandidatePostIfAbsentParams {
   gigCandidateId: string;
   expectedVersion: number;
   post: GigCandidatePost;
+}
+
+export interface UpdateGigCandidateModerationPostFileIdParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  messageId: number;
+  chatId: number;
+  fileId: string;
 }
 
 export interface FindGigCandidatesParams {

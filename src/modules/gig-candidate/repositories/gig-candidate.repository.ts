@@ -6,6 +6,7 @@ import type {
   RejectGigCandidateRecordParams,
   SendGigCandidateToModerationParams,
   UpdateGigCandidateDraftParams,
+  UpdateGigCandidateModerationPostFileIdParams,
 } from '../types/gig-candidate.types';
 
 export const GIG_CANDIDATE_REPOSITORY = Symbol('GIG_CANDIDATE_REPOSITORY');
@@ -33,5 +34,9 @@ export interface GigCandidateRepository {
 
   appendGigCandidatePostIfAbsent(
     params: AppendGigCandidatePostIfAbsentParams,
+  ): Promise<GigCandidate | null>;
+
+  updateGigCandidateModerationPostFileId(
+    params: UpdateGigCandidateModerationPostFileIdParams,
   ): Promise<GigCandidate | null>;
 }

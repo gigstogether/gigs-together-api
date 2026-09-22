@@ -814,13 +814,16 @@ describe('TelegramPostComposer', () => {
         chatId: -200,
       };
 
-      const payload = composer.composeGigCandidateModerationPostEdit({
+      const composition = composer.composeGigCandidateModerationPostEdit({
         gigCandidate,
         moderationPost,
+        isMediaUpdateRequired: false,
       });
 
-      expect(payload.caption).toContain('🟡 Updated Band');
-      expect(payload.replyMarkup?.inline_keyboard[0]?.[0]).toEqual(
+      expect(composition.kind).toBe(PostEditKind.Caption);
+      if (composition.kind !== PostEditKind.Caption) return;
+      expect(composition.payload.caption).toContain('🟡 Updated Band');
+      expect(composition.payload.replyMarkup?.inline_keyboard[0]?.[0]).toEqual(
         expect.objectContaining({
           callback_data: encodeCallbackData({
             scope: CallbackScope.GigCandidate,
@@ -830,6 +833,63 @@ describe('TelegramPostComposer', () => {
           }),
         }),
       );
+    });
+
+    it('should compose fresh media when replacing a GigCandidate poster', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/gig-candidate.jpg',
+      );
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Updated Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/gig-candidate.jpg' },
+        },
+        version: 4,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1,
+        id: 50,
+        chatId: -200,
+        fileId: 'old-file-id',
+      };
+
+      const composition = composer.composeGigCandidateModerationPostEdit({
+        gigCandidate,
+        moderationPost,
+        isMediaUpdateRequired: true,
+      });
+
+      expect(composition).toEqual({
+        kind: PostEditKind.Media,
+        payload: {
+          chatId: -200,
+          messageId: 50,
+          media: {
+            type: TGInputMediaType.Photo,
+            media: `https://cdn.example/gig-candidate.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
+            caption: expect.stringContaining('🟡 Updated Band'),
+            parse_mode: TGParseMode.HTML,
+          },
+          replyMarkup: expect.objectContaining({
+            inline_keyboard: expect.any(Array),
+          }),
+        },
+      });
     });
 
     it('should throw BadRequestException when INTAKE_CHANNEL_ID is missing', () => {

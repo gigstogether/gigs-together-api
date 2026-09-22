@@ -39,6 +39,7 @@ import {
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
   PostEditKind,
+  TelegramGigCandidatePostEditComposition,
   TelegramGigPostEditComposition,
   WeeklyDigestMainChannelSendKind,
   WeeklyDigestMainChannelSendPlan,
@@ -639,19 +640,50 @@ export class TelegramPostComposerService {
 
   composeGigCandidateModerationPostEdit(
     params: ComposeGigCandidateModerationPostEditParams,
-  ): TGEditMessageCaption {
+  ): TelegramGigCandidatePostEditComposition {
+    const caption = this.buildGigCandidateCaption({
+      gigCandidate: params.gigCandidate,
+      channelPurpose: 'moderation',
+    });
+    const replyMarkup = this.buildGigCandidateModerationReplyMarkup({
+      gigCandidate: params.gigCandidate,
+      expectedVersion: params.gigCandidate.version,
+    });
+
+    if (params.isMediaUpdateRequired) {
+      const posterUrl = this.getTelegramPosterUrl(
+        params.gigCandidate.gigDraft.poster,
+      );
+      if (posterUrl === undefined || posterUrl === '') {
+        throw new BadRequestException(
+          'Cannot update GigCandidate moderation post media: gigCandidate has no poster URL.',
+        );
+      }
+      return {
+        kind: PostEditKind.Media,
+        payload: {
+          chatId: params.moderationPost.chatId,
+          messageId: params.moderationPost.id,
+          media: {
+            type: TGInputMediaType.Photo,
+            media: posterUrl,
+            caption,
+            parse_mode: TGParseMode.HTML,
+          },
+          replyMarkup,
+        },
+      };
+    }
+
     return {
-      chatId: params.moderationPost.chatId,
-      messageId: params.moderationPost.id,
-      caption: this.buildGigCandidateCaption({
-        gigCandidate: params.gigCandidate,
-        channelPurpose: 'moderation',
-      }),
-      parseMode: TGParseMode.HTML,
-      replyMarkup: this.buildGigCandidateModerationReplyMarkup({
-        gigCandidate: params.gigCandidate,
-        expectedVersion: params.gigCandidate.version,
-      }),
+      kind: PostEditKind.Caption,
+      payload: {
+        chatId: params.moderationPost.chatId,
+        messageId: params.moderationPost.id,
+        caption,
+        parseMode: TGParseMode.HTML,
+        replyMarkup,
+      },
     };
   }
 

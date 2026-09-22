@@ -57,6 +57,10 @@ export type TelegramGigPostEditComposition =
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
+export type TelegramGigCandidatePostEditComposition =
+  | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
+  | { kind: PostEditKind.Caption; payload: TGEditMessageCaption };
+
 export interface BuildCaptionPayload {
   date: string | number | Date;
   endDate?: string | number | Date;
@@ -154,6 +158,7 @@ export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
 export interface ComposeGigCandidateModerationPostEditParams {
   gigCandidate: GigCandidate;
   moderationPost: GigCandidatePost;
+  isMediaUpdateRequired: boolean;
 }
 
 export interface ComposedText {

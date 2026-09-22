@@ -36,6 +36,7 @@ describe('GigCandidateService', () => {
     sendGigCandidateToModeration: ReturnType<typeof vi.fn>;
     rejectGigCandidate: ReturnType<typeof vi.fn>;
     updateGigCandidateDraft: ReturnType<typeof vi.fn>;
+    updateGigCandidateModerationPostFileId: ReturnType<typeof vi.fn>;
   } = {
     createId: vi.fn(),
     createGigCandidate: vi.fn(),
@@ -45,6 +46,7 @@ describe('GigCandidateService', () => {
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
     updateGigCandidateDraft: vi.fn(),
+    updateGigCandidateModerationPostFileId: vi.fn(),
   };
 
   const gigPosterServiceMock = {
@@ -781,6 +783,90 @@ describe('GigCandidateService', () => {
         gigDraft: { title: 'New title', poster },
       });
       expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
+    });
+
+    it('should replace moderation media and store its new fileId', async () => {
+      const poster = { bucketPath: 'gigCandidate/poster.jpg' };
+      const posterFile = { buffer: Buffer.from('new poster') };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+        fileId: 'old-file-id',
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: { title: 'Old title', poster },
+        posts: [moderationPost],
+      });
+      const updated = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+        gigDraft: { title: 'New title', poster },
+        posts: [moderationPost],
+      });
+      const persisted = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+        gigDraft: updated.gigDraft,
+        posts: [{ ...moderationPost, fileId: 'new-file-id' }],
+      });
+      gigPosterServiceMock.upload.mockResolvedValue(poster);
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+        updated,
+      );
+      telegramServiceMock.updateGigCandidateModerationPost.mockResolvedValue({
+        message_id: moderationPost.id,
+        date: 1_700_000_002,
+        chat: { id: moderationPost.chatId, type: 'channel' },
+        photo: [
+          {
+            file_id: 'small-file-id',
+            file_unique_id: 'small-unique-id',
+            width: 90,
+            height: 90,
+            file_size: 1_000,
+          },
+          {
+            file_id: 'new-file-id',
+            file_unique_id: 'new-unique-id',
+            width: 800,
+            height: 800,
+            file_size: 100_000,
+          },
+        ],
+      });
+      gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId.mockResolvedValue(
+        persisted,
+      );
+
+      await expect(
+        service.updateAdminGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigDraft: { title: 'New title' },
+          posterFile,
+        }),
+      ).resolves.toEqual(persisted);
+      expect(
+        telegramServiceMock.updateGigCandidateModerationPost,
+      ).toHaveBeenCalledWith({
+        gigCandidate: updated,
+        moderationPost,
+        isMediaUpdateRequired: true,
+      });
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: reviewing.id,
+        expectedVersion: 1,
+        messageId: 50,
+        chatId: -200,
+        fileId: 'new-file-id',
+      });
     });
   });
 
@@ -1650,7 +1736,50 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({
         gigCandidate: updated,
         moderationPost,
+        isMediaUpdateRequired: false,
       });
+    });
+
+    it('should not store a fileId when Telegram returns no photo after media edit', async () => {
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 50,
+        chatId: -200,
+        fileId: 'old-file-id',
+      };
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        posts: [moderationPost],
+      });
+      const updated = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        version: 1,
+        posts: [moderationPost],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
+      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+        updated,
+      );
+      telegramServiceMock.updateGigCandidateModerationPost.mockResolvedValue({
+        message_id: moderationPost.id,
+        date: 1_700_000_002,
+        chat: { id: moderationPost.chatId, type: 'channel' },
+      });
+      vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+
+      await expect(
+        service.updateGigCandidateDraft({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          gigDraft: { title: 'Updated title' },
+          isTelegramMediaUpdateRequired: true,
+        }),
+      ).resolves.toEqual(updated);
+      expect(
+        gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId,
+      ).not.toHaveBeenCalled();
     });
 
     it('should return version conflict before a stale draft update', async () => {

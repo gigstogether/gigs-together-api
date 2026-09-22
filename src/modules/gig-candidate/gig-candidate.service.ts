@@ -42,7 +42,7 @@ import type {
   RejectGigCandidateParams,
   SendGigCandidateToModerationParams,
   UpdateAdminGigCandidateDraftParams,
-  UpdateGigCandidateDraftParams,
+  UpdateGigCandidateDraftApplicationParams,
 } from './types/gig-candidate.types';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
 import { PostType } from '../../shared/types/post-type.enum';
@@ -218,11 +218,14 @@ export class GigCandidateService {
       existingPoster: currentGigCandidate.gigDraft.poster,
       shouldUseDefaultPoster: false,
     });
+    const hasPosterUrl = Boolean(params.posterUrl?.trim());
 
     return this.updateGigCandidateDraft({
       gigCandidateId: params.gigCandidateId,
       expectedVersion: params.expectedVersion,
       gigDraft,
+      isTelegramMediaUpdateRequired:
+        params.posterFile !== undefined || hasPosterUrl,
     });
   }
 
@@ -373,8 +376,10 @@ export class GigCandidateService {
   }
 
   async updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftParams,
+    params: UpdateGigCandidateDraftApplicationParams,
   ): Promise<GigCandidate> {
+    const { isTelegramMediaUpdateRequired = false, ...repositoryParams } =
+      params;
     const command = GigCandidateCommand.UpdateDraft;
     this.assertExpectedVersionIsValid(
       params.gigCandidateId,
@@ -395,10 +400,14 @@ export class GigCandidateService {
     );
 
     const updated =
-      await this.gigCandidateRepository.updateGigCandidateDraft(params);
+      await this.gigCandidateRepository.updateGigCandidateDraft(
+        repositoryParams,
+      );
     if (updated) {
-      await this.updateGigCandidateModerationPostBestEffort(updated);
-      return updated;
+      return this.updateGigCandidateModerationPostBestEffort(
+        updated,
+        isTelegramMediaUpdateRequired,
+      );
     }
 
     const latest = await this.getByIdOrThrow(params.gigCandidateId);
@@ -1014,20 +1023,52 @@ export class GigCandidateService {
 
   private async updateGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
-  ): Promise<void> {
+    isMediaUpdateRequired: boolean,
+  ): Promise<GigCandidate> {
     const moderationPost = this.findTelegramPost(
       gigCandidate,
       PostType.Moderation,
     );
     if (!moderationPost) {
-      return;
+      return gigCandidate;
     }
 
     try {
-      await this.telegramService.updateGigCandidateModerationPost({
-        gigCandidate,
-        moderationPost,
-      });
+      const edited =
+        await this.telegramService.updateGigCandidateModerationPost({
+          gigCandidate,
+          moderationPost,
+          isMediaUpdateRequired,
+        });
+      if (!isMediaUpdateRequired) {
+        return gigCandidate;
+      }
+
+      const fileId = getBiggestTgPhotoFileId(edited.photo);
+      if (fileId === undefined) {
+        this.logger.error(
+          `Telegram moderation media update returned no photo fileId for gigCandidateId=${gigCandidate.id}`,
+        );
+        return gigCandidate;
+      }
+
+      const updated =
+        await this.gigCandidateRepository.updateGigCandidateModerationPostFileId(
+          {
+            gigCandidateId: gigCandidate.id,
+            expectedVersion: gigCandidate.version,
+            messageId: moderationPost.id,
+            chatId: moderationPost.chatId,
+            fileId,
+          },
+        );
+      if (updated) {
+        return updated;
+      }
+
+      this.logger.error(
+        `Telegram moderation fileId was not stored for gigCandidateId=${gigCandidate.id} expectedVersion=${gigCandidate.version}`,
+      );
     } catch (e) {
       this.logTelegramFailure(
         'updateGigCandidateModerationPost',
@@ -1035,6 +1076,7 @@ export class GigCandidateService {
         e,
       );
     }
+    return gigCandidate;
   }
 
   private findTelegramPost(

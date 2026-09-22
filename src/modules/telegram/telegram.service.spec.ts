@@ -732,5 +732,77 @@ describe('TelegramService', () => {
         }),
       );
     });
+
+    it('should replace GigCandidate moderation media when requested', async () => {
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/gig-candidate.jpg',
+      );
+      const bot = testingModule.get(TelegramBotClient);
+      const editedMessage: TGMessage = {
+        message_id: 50,
+        date: 1,
+        chat: { id: -200, type: 'channel' },
+        photo: [
+          {
+            file_id: 'new-file-id',
+            file_unique_id: 'new-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      };
+      const editMessageMediaSpy = vi
+        .spyOn(bot, 'editMessageMedia')
+        .mockResolvedValue(editedMessage);
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1,
+        id: 50,
+        chatId: -200,
+        fileId: 'old-file-id',
+      };
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Updated Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/gig-candidate.jpg' },
+        },
+        version: 4,
+        status: GigCandidateStatus.Reviewing,
+        posts: [moderationPost],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await expect(
+        service.updateGigCandidateModerationPost({
+          gigCandidate,
+          moderationPost,
+          isMediaUpdateRequired: true,
+        }),
+      ).resolves.toBe(editedMessage);
+      expect(editMessageMediaSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: -200,
+          messageId: 50,
+          media: expect.objectContaining({
+            type: TGInputMediaType.Photo,
+            media: expect.stringMatching(
+              /^https:\/\/cdn\.example\/gig-candidate\.jpg\?tgcb=\d+$/,
+            ),
+            caption: expect.stringContaining('🟡 Updated Band'),
+          }),
+        }),
+      );
+    });
   });
 });
