@@ -100,7 +100,9 @@ function createMockPostTemplates(): MockPostTemplates {
   };
 }
 
-function createDigestUpstreamError(): unknown {
+function createDigestUpstreamError(
+  description = 'Bad Request: failed to send message #2 with the error message "WEBPAGE_CURL_FAILED"',
+): unknown {
   return {
     isAxiosError: true,
     code: 'ERR_BAD_REQUEST',
@@ -115,7 +117,7 @@ function createDigestUpstreamError(): unknown {
       data: {
         ok: false,
         error_code: 400,
-        description: 'Bad Request: WEBPAGE_CURL_FAILED',
+        description,
       },
     },
   };
@@ -125,6 +127,7 @@ function createDigestGigsWithRemotePosters(): GigDocument[] {
   return [
     {
       _id: 'a',
+      publicId: 'alpha-2026-01-01',
       title: 'Alpha',
       date: 10,
       posts: [],
@@ -132,6 +135,7 @@ function createDigestGigsWithRemotePosters(): GigDocument[] {
     },
     {
       _id: 'b',
+      publicId: 'beta-2026-01-02',
       title: 'Beta',
       date: 20,
       posts: [],
@@ -317,12 +321,16 @@ describe('TelegramService', () => {
           media: [
             expect.objectContaining({
               type: TGInputMediaType.Photo,
-              media: 'https://cdn.example/poster.jpg',
+              media: expect.stringMatching(
+                /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
+              ),
               caption: expect.stringMatching(/Alpha/s),
             }),
             expect.objectContaining({
               type: TGInputMediaType.Photo,
-              media: 'https://cdn.example/poster.jpg',
+              media: expect.stringMatching(
+                /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
+              ),
             }),
           ],
         }),
@@ -375,7 +383,9 @@ describe('TelegramService', () => {
         'sendPhoto',
         expect.objectContaining({
           chat_id: '-1001',
-          photo: 'https://cdn.example/only.jpg',
+          photo: expect.stringMatching(
+            /^https:\/\/cdn\.example\/only\.jpg\?tgcb=\d+$/,
+          ),
           caption: expect.stringMatching(/Only/s),
         }),
       );
@@ -429,6 +439,62 @@ describe('TelegramService', () => {
 
       expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
         'secret-token',
+      );
+    });
+
+    it('should log the failed digest poster without URL query data', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const loggerErrorSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
+        createDigestUpstreamError(),
+      );
+      mockBucketService.getPublicFileUrl
+        .mockReturnValueOnce(
+          'https://cdn.example/posters/alpha.jpg?signature=alpha-secret',
+        )
+        .mockReturnValueOnce(
+          'https://cdn.example/posters/beta.jpg?signature=beta-secret',
+        );
+
+      await expect(
+        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
+      ).rejects.toThrow('Weekly digest send to main channel failed');
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meta: {
+            telegramError: 'WEBPAGE_CURL_FAILED',
+            position: 2,
+            publicId: 'beta-2026-01-02',
+            posterUrl: 'https://cdn.example/posters/beta.jpg',
+          },
+        }),
+      );
+      expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
+        'beta-secret',
+      );
+    });
+
+    it('should not map a digest poster when the Telegram description format differs', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const loggerErrorSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
+        createDigestUpstreamError('Bad Request: WEBPAGE_CURL_FAILED'),
+      );
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+
+      await expect(
+        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
+      ).rejects.toThrow('Weekly digest send to main channel failed');
+
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.not.objectContaining({ meta: expect.anything() }),
       );
     });
   });

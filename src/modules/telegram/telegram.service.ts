@@ -1,10 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { isAxiosError } from 'axios';
 import type { TGMessage, TGSendPhoto } from './types/message.types';
 import { TGParseMode } from './types/message.types';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
+import { isRecord } from '../../shared/utils/is-record';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
@@ -34,6 +36,9 @@ export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
+
+  private static readonly WEBPAGE_CURL_FAILED_DESCRIPTION_PATTERN =
+    /^Bad Request: failed to send message #([1-9]\d*) with the error message "WEBPAGE_CURL_FAILED"$/;
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =
     this.telegramBotClient.sendMessage.bind(this.telegramBotClient);
@@ -116,12 +121,12 @@ export class TelegramService {
       return;
     }
 
+    let plan: WeeklyDigestMainChannelSendPlan | undefined;
     try {
-      const plan: WeeklyDigestMainChannelSendPlan =
-        this.telegramPostComposerService.composeWeeklyDigest({
-          chatId,
-          gigs,
-        });
+      plan = this.telegramPostComposerService.composeWeeklyDigest({
+        chatId,
+        gigs,
+      });
 
       const postResult = await this.dispatchWeeklyDigestMainChannelPlan(plan);
       if (postResult === undefined) {
@@ -132,13 +137,89 @@ export class TelegramService {
 
       return postResult;
     } catch (e: unknown) {
+      const mediaFailure = this.getWeeklyDigestMediaFailureLogMeta(e, plan);
       logError(this.logger, {
         error: e,
         note: 'Weekly digest send to main channel failed',
         context: TelegramService.name,
+        ...(mediaFailure ? { meta: mediaFailure } : {}),
       });
       throw new Error('Weekly digest send to main channel failed');
     }
+  }
+
+  private getWeeklyDigestMediaFailureLogMeta(
+    e: unknown,
+    plan: WeeklyDigestMainChannelSendPlan | undefined,
+  ): Record<string, unknown> | undefined {
+    const position = this.parseWebpageCurlFailedPosition(e);
+    if (
+      position === undefined ||
+      plan?.kind !== WeeklyDigestMainChannelSendKind.SendMediaGroup
+    ) {
+      return;
+    }
+
+    const mediaItem = plan.mediaItems.find(
+      (item) => item.position === position,
+    );
+    const media = plan.payload.media[position - 1];
+    const meta: Record<string, unknown> = {
+      telegramError: 'WEBPAGE_CURL_FAILED',
+      position,
+    };
+    if (mediaItem === undefined || media === undefined) {
+      return meta;
+    }
+
+    meta.publicId = mediaItem.publicId;
+    const posterUrl = this.getSafeTelegramPosterUrlForLog(media.media);
+    if (posterUrl !== undefined) {
+      meta.posterUrl = posterUrl;
+    }
+    return meta;
+  }
+
+  private parseWebpageCurlFailedPosition(e: unknown): number | undefined {
+    if (!isAxiosError(e) || e.response?.status !== 400) {
+      return;
+    }
+    const data: unknown = e.response.data;
+    if (
+      !isRecord(data) ||
+      data.ok !== false ||
+      data.error_code !== 400 ||
+      typeof data.description !== 'string'
+    ) {
+      return;
+    }
+
+    const match = TelegramService.WEBPAGE_CURL_FAILED_DESCRIPTION_PATTERN.exec(
+      data.description,
+    );
+    if (!match) {
+      return;
+    }
+
+    const position = Number(match[1]);
+    return Number.isSafeInteger(position) ? position : undefined;
+  }
+
+  private getSafeTelegramPosterUrlForLog(
+    mediaReference: string,
+  ): string | undefined {
+    if (!URL.canParse(mediaReference)) {
+      return;
+    }
+    const url = new URL(mediaReference);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return;
+    }
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString();
   }
 
   private async dispatchWeeklyDigestMainChannelPlan(

@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { Types } from 'mongoose';
@@ -357,6 +359,84 @@ describe('AdminGigService', () => {
         publicId: gig.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
         mainPost: { chatId: -100456, messageId: 99 },
+      });
+    });
+
+    it('should store the new Main file_id after replacing the poster', async () => {
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -100456,
+        id: 99,
+        fileId: 'old-file-id',
+        date: 1_700_000_002_000,
+      };
+      const gig = buildPlainGig({ version: 4, posts: [mainPost] });
+      const gigWithUpdatedFileId = buildPlainGig({
+        version: 5,
+        posts: [{ ...mainPost, fileId: 'new-file-id' }],
+      });
+      gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
+      gigServiceMock.updateGigTelegramPostFileId.mockResolvedValue(
+        gigWithUpdatedFileId,
+      );
+      telegramServiceMock.editMainPost.mockResolvedValue({
+        message_id: mainPost.id,
+        date: 1_700_000_003,
+        chat: { id: mainPost.chatId, type: 'channel' },
+        photo: [
+          {
+            file_id: 'small-file-id',
+            file_unique_id: 'small-unique-id',
+            width: 90,
+            height: 90,
+            file_size: 1_000,
+          },
+          {
+            file_id: 'new-file-id',
+            file_unique_id: 'new-unique-id',
+            width: 800,
+            height: 800,
+            file_size: 100_000,
+          },
+        ],
+      });
+      const posterBuffer = Buffer.from('new poster');
+      const posterFile: Express.Multer.File = {
+        fieldname: 'posterFile',
+        originalname: 'poster.jpg',
+        encoding: '7bit',
+        buffer: posterBuffer,
+        mimetype: 'image/jpeg',
+        size: posterBuffer.length,
+        stream: Readable.from(posterBuffer),
+        destination: '',
+        filename: '',
+        path: '',
+      };
+
+      await service.updateGigByPublicId({
+        publicId: gig.publicId,
+        expectedVersion: 3,
+        gig: {
+          title: gig.title,
+          date: '2026-06-12',
+          city: gig.city,
+          country: gig.country,
+          venue: gig.venue,
+          ticketsUrl: gig.ticketsUrl,
+        },
+        posterFile,
+      });
+
+      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
+        updateMedia: true,
+      });
+      expect(gigServiceMock.updateGigTelegramPostFileId).toHaveBeenCalledWith({
+        gigId: gig._id,
+        expectedVersion: 4,
+        type: PostType.Main,
+        fileId: 'new-file-id',
       });
     });
   });
