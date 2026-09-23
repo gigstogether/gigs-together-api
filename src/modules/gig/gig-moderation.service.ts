@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { GigPost } from './gig.schema';
 import { GigService } from './gig.service';
 import type {
@@ -47,10 +46,7 @@ export class GigModerationService {
     // Telegram accepts the message before MongoDB stores its reference. A crash or
     // concurrent request can leave an external duplicate; reconciliation is out of scope.
     const telegramMainPost = await this.telegramService.sendMainPost(gig);
-    const chatId =
-      telegramMainPost?.sender_chat?.id ?? telegramMainPost?.chat?.id;
-    const messageId = telegramMainPost?.message_id;
-    if (!telegramMainPost || chatId === undefined || messageId === undefined) {
+    if (!telegramMainPost) {
       throw new BadRequestException(
         `sendMainPost returned no Telegram message for gig ${gigId}`,
       );
@@ -60,11 +56,11 @@ export class GigModerationService {
       gigId,
       expectedVersion: params.expectedVersion,
       post: {
-        id: messageId,
-        chatId,
-        fileId: getBiggestTgPhotoFileId(telegramMainPost.photo),
+        id: telegramMainPost.messageId,
+        chatId: telegramMainPost.chatId,
+        fileId: telegramMainPost.fileId,
         // Telegram returns Unix seconds; Gig post dates use Unix milliseconds.
-        date: telegramMainPost.date * 1_000,
+        date: telegramMainPost.sentAtSeconds * 1_000,
       },
     });
 
@@ -83,7 +79,10 @@ export class GigModerationService {
         title: updatedGig.title,
         publicId: updatedGig.publicId,
         moderationPost,
-        mainPost: { chatId, messageId },
+        mainPost: {
+          chatId: telegramMainPost.chatId,
+          messageId: telegramMainPost.messageId,
+        },
       });
     } catch (e: unknown) {
       this.logger.warn(

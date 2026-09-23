@@ -11,7 +11,6 @@ import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
 import type { GigFormInput } from '../gig/types/gig.types';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
@@ -141,27 +140,39 @@ export class AdminGigService {
       updatedGig.posts,
       PostType.Moderation,
     );
-    const editedPostType = mainPost ? PostType.Main : PostType.Moderation;
+    const editedPost = mainPost ?? gigModerationPost;
 
     try {
       const edited =
-        mainPost !== undefined
-          ? await this.telegramService.editMainPost(updatedGig, {
-              updateMedia: params.posterFile !== undefined,
+        editedPost !== undefined
+          ? await this.telegramService.editGigPost({
+              gig: updatedGig,
+              post: editedPost,
+              isMediaUpdateRequired: params.posterFile !== undefined,
             })
-          : gigModerationPost !== undefined
-            ? await this.telegramService.editModerationPost(updatedGig, {
-                updateMedia: params.posterFile !== undefined,
-              })
-            : undefined;
-      const fileId = getBiggestTgPhotoFileId(edited?.photo);
-      if (params.posterFile !== undefined && fileId !== undefined) {
-        updatedGig = await this.gigService.updateGigTelegramPostFileId({
-          gigId: updatedGig._id,
-          expectedVersion: updatedGig.version,
-          type: editedPostType,
-          fileId,
-        });
+          : undefined;
+      const fileId = edited?.fileId;
+      if (
+        params.posterFile !== undefined &&
+        fileId !== undefined &&
+        editedPost !== undefined
+      ) {
+        const gigWithUpdatedFileId =
+          await this.gigService.updateGigTelegramPostFileId({
+            gigId: updatedGig._id,
+            expectedVersion: updatedGig.version,
+            type: editedPost.type,
+            messageId: editedPost.id,
+            chatId: editedPost.chatId,
+            fileId,
+          });
+        if (gigWithUpdatedFileId) {
+          updatedGig = gigWithUpdatedFileId;
+        } else {
+          this.logger.error(
+            `Telegram ${editedPost.type} fileId was not stored for publicId=${updatedGig.publicId} expectedVersion=${updatedGig.version}`,
+          );
+        }
       }
     } catch (e: unknown) {
       this.logger.warn(

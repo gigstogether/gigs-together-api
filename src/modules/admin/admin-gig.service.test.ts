@@ -12,6 +12,7 @@ import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';
@@ -63,8 +64,7 @@ describe('AdminGigService', () => {
   const telegramServiceMock = {
     pickTgPost: vi.fn(),
     getPostUrl: vi.fn(),
-    editMainPost: vi.fn(),
-    editModerationPost: vi.fn(),
+    editGigPost: vi.fn(),
     updateGigModerationPost: vi.fn(),
   };
   const feedRevalidateServiceMock = { revalidateFeed: vi.fn() };
@@ -287,7 +287,7 @@ describe('AdminGigService', () => {
     it('should preserve the database update when Telegram editing fails', async () => {
       const gig = buildPlainGig({ version: 4 });
       gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
-      telegramServiceMock.editModerationPost.mockRejectedValue(
+      telegramServiceMock.editGigPost.mockRejectedValue(
         new Error('Telegram unavailable'),
       );
 
@@ -348,8 +348,10 @@ describe('AdminGigService', () => {
         posterFile: undefined,
       });
 
-      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
-        updateMedia: false,
+      expect(telegramServiceMock.editGigPost).toHaveBeenCalledWith({
+        gig,
+        post: mainPost,
+        isMediaUpdateRequired: false,
       });
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
         gigId: gig._id,
@@ -371,35 +373,34 @@ describe('AdminGigService', () => {
         fileId: 'old-file-id',
         date: 1_700_000_002_000,
       };
-      const gig = buildPlainGig({ version: 4, posts: [mainPost] });
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        fileId: 'moderation-file-id',
+        date: 1_700_000_001_000,
+      };
+      const gig = buildPlainGig({
+        version: 4,
+        posts: [moderationPost, mainPost],
+      });
       const gigWithUpdatedFileId = buildPlainGig({
-        version: 5,
-        posts: [{ ...mainPost, fileId: 'new-file-id' }],
+        version: 4,
+        posts: [moderationPost, { ...mainPost, fileId: 'new-file-id' }],
       });
       gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
       gigServiceMock.updateGigTelegramPostFileId.mockResolvedValue(
         gigWithUpdatedFileId,
       );
-      telegramServiceMock.editMainPost.mockResolvedValue({
-        message_id: mainPost.id,
-        date: 1_700_000_003,
-        chat: { id: mainPost.chatId, type: 'channel' },
-        photo: [
-          {
-            file_id: 'small-file-id',
-            file_unique_id: 'small-unique-id',
-            width: 90,
-            height: 90,
-            file_size: 1_000,
-          },
-          {
-            file_id: 'new-file-id',
-            file_unique_id: 'new-unique-id',
-            width: 800,
-            height: 800,
-            file_size: 100_000,
-          },
-        ],
+      telegramServiceMock.editGigPost.mockResolvedValue({
+        kind: PostEditKind.Media,
+        message: {
+          message_id: mainPost.id,
+          date: 1_700_000_003,
+          chat: { id: mainPost.chatId, type: 'channel' },
+        },
+        fileId: 'new-file-id',
       });
       const posterBuffer = Buffer.from('new poster');
       const posterFile: Express.Multer.File = {
@@ -429,15 +430,28 @@ describe('AdminGigService', () => {
         posterFile,
       });
 
-      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
-        updateMedia: true,
+      expect(telegramServiceMock.editGigPost).toHaveBeenCalledWith({
+        gig,
+        post: mainPost,
+        isMediaUpdateRequired: true,
       });
       expect(gigServiceMock.updateGigTelegramPostFileId).toHaveBeenCalledWith({
         gigId: gig._id,
         expectedVersion: 4,
         type: PostType.Main,
+        messageId: mainPost.id,
+        chatId: mainPost.chatId,
         fileId: 'new-file-id',
       });
+      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          expectedVersion: 4,
+          moderationPost: {
+            chatId: moderationPost.chatId,
+            messageId: moderationPost.id,
+          },
+        }),
+      );
     });
   });
 

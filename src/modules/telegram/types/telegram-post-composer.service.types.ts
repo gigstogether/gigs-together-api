@@ -1,4 +1,5 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
+import type { GigPost } from '../../gig/gig.schema';
 import type {
   GigCandidate,
   GigCandidatePost,
@@ -52,14 +53,16 @@ export type WeeklyDigestMainChannelSendPlan =
       readonly mediaItems: WeeklyDigestMediaItemContext[];
     };
 
-export type TelegramGigPostEditComposition =
+export type TelegramPostEditComposition =
   | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
-export type TelegramGigCandidatePostEditComposition =
-  | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
-  | { kind: PostEditKind.Caption; payload: TGEditMessageCaption };
+export interface ComposeGigPostEditParams {
+  gig: PlainGig;
+  post: GigPost;
+  isMediaUpdateRequired: boolean;
+}
 
 export interface BuildCaptionPayload {
   date: string | number | Date;
@@ -155,9 +158,9 @@ export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
   moderationPost: GigCandidatePost;
 }
 
-export interface ComposeGigCandidateModerationPostEditParams {
+export interface ComposeGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
-  moderationPost: GigCandidatePost;
+  post: GigCandidatePost;
   isMediaUpdateRequired: boolean;
 }
 

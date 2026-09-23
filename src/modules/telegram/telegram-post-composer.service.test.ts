@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { GigDocument } from '../gig/gig.schema';
+import type { GigDocument, GigPost } from '../gig/gig.schema';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
@@ -468,6 +468,14 @@ describe('TelegramPostComposer', () => {
       mockBucket.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -1001,
+        id: 5,
+        fileId: 'old-file-id',
+        date: 86_400_000,
+      };
       const gig = {
         _id: 'gig5',
         publicId: 'show',
@@ -476,25 +484,18 @@ describe('TelegramPostComposer', () => {
         venue: 'Hall',
         date: 86_400_000,
         version: 2,
-        posts: [
-          {
-            to: Messenger.Telegram,
-            type: PostType.Main,
-            chatId: -1001,
-            id: 5,
-            fileId: 'old-file-id',
-            date: 86_400_000,
-          },
-        ],
+        posts: [mainPost],
         poster: { bucketPath: 'gigs/show' },
       } as unknown as GigDocument;
 
-      const composition = composer.composeMainPostEdit(gig, {
-        updateMedia: true,
+      const composition = composer.composeGigPostEdit({
+        gig,
+        post: mainPost,
+        isMediaUpdateRequired: true,
       });
 
-      expect(composition?.kind).toBe(PostEditKind.Media);
-      if (composition?.kind !== PostEditKind.Media) return;
+      expect(composition.kind).toBe(PostEditKind.Media);
+      if (composition.kind !== PostEditKind.Media) return;
       const media = composition.payload.media;
       if (media === undefined) {
         throw new Error('Expected replacement media');
@@ -814,9 +815,9 @@ describe('TelegramPostComposer', () => {
         chatId: -200,
       };
 
-      const composition = composer.composeGigCandidateModerationPostEdit({
+      const composition = composer.composeGigCandidatePostEdit({
         gigCandidate,
-        moderationPost,
+        post: moderationPost,
         isMediaUpdateRequired: false,
       });
 
@@ -868,9 +869,9 @@ describe('TelegramPostComposer', () => {
         fileId: 'old-file-id',
       };
 
-      const composition = composer.composeGigCandidateModerationPostEdit({
+      const composition = composer.composeGigCandidatePostEdit({
         gigCandidate,
-        moderationPost,
+        post: moderationPost,
         isMediaUpdateRequired: true,
       });
 

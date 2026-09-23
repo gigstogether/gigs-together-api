@@ -6,7 +6,7 @@ import type {
   TGSendPhoto,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import { GigPost, GigPoster } from '../gig/gig.schema';
+import type { GigPost, GigPoster } from '../gig/gig.schema';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
@@ -23,7 +23,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
-import {
+import type {
   BuildGigModerationReplyMarkupParams,
   BuildCaptionPayload,
   BuildGigCandidateCaptionParams,
@@ -34,15 +34,17 @@ import {
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
-  ComposeGigCandidateModerationPostEditParams,
+  ComposeGigCandidatePostEditParams,
+  ComposeGigPostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
-  PostEditKind,
-  TelegramGigCandidatePostEditComposition,
-  TelegramGigPostEditComposition,
-  WeeklyDigestMainChannelSendKind,
+  TelegramPostEditComposition,
   WeeklyDigestMainChannelSendPlan,
+} from './types/telegram-post-composer.service.types';
+import {
+  PostEditKind,
+  WeeklyDigestMainChannelSendKind,
 } from './types/telegram-post-composer.service.types';
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
@@ -96,14 +98,29 @@ export class TelegramPostComposerService {
     return cacheBustedUrl.toString();
   }
 
-  composeModerationPostEdit(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): TelegramGigPostEditComposition | undefined {
-    const post = this.pickTgPost(gig.posts, PostType.Moderation);
-    const chatId = post?.chatId;
-    const messageId = post?.id;
-    if (!chatId || !messageId) return undefined;
+  composeGigPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.to !== Messenger.Telegram) {
+      throw new BadRequestException('Cannot edit a non-Telegram Gig post');
+    }
+
+    switch (params.post.type) {
+      case PostType.Main:
+        return this.composeGigMainPostEdit(params);
+      case PostType.Moderation:
+        return this.composeGigModerationPostEdit(params);
+      case PostType.Intake:
+        throw new BadRequestException('Cannot edit an intake post for a Gig');
+    }
+  }
+
+  private composeGigModerationPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    const { gig, post, isMediaUpdateRequired } = params;
+    const chatId = post.chatId;
+    const messageId = post.id;
 
     const replyMarkup = this.buildGigModerationReplyMarkup({
       gigId: gig._id,
@@ -116,7 +133,7 @@ export class TelegramPostComposerService {
       adminGigUrl: this.buildAdminGigUrl(gig.publicId),
     });
 
-    if (opts?.updateMedia && post?.fileId) {
+    if (isMediaUpdateRequired && post.fileId) {
       const posterUrl = this.getTelegramPosterUrl(gig.poster);
       if (posterUrl) {
         return {
@@ -136,7 +153,7 @@ export class TelegramPostComposerService {
       }
     }
 
-    if (post?.fileId) {
+    if (post.fileId) {
       return {
         kind: PostEditKind.Caption,
         payload: {
@@ -163,18 +180,16 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeMainPostEdit(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): TelegramGigPostEditComposition | undefined {
-    const post = this.pickTgPost(gig.posts, PostType.Main);
-    const chatId = post?.chatId;
-    const messageId = post?.id;
-    if (!chatId || !messageId) return undefined;
+  private composeGigMainPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    const { gig, post, isMediaUpdateRequired } = params;
+    const chatId = post.chatId;
+    const messageId = post.id;
 
     const caption = this.buildMainPostCaption(gig);
 
-    if (opts?.updateMedia && post?.fileId) {
+    if (isMediaUpdateRequired && post.fileId) {
       const posterUrl = this.getTelegramPosterUrl(gig.poster);
       if (posterUrl) {
         return {
@@ -193,7 +208,7 @@ export class TelegramPostComposerService {
       }
     }
 
-    if (post?.fileId) {
+    if (post.fileId) {
       return {
         kind: PostEditKind.Caption,
         payload: {
@@ -638,9 +653,25 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeGigCandidateModerationPostEdit(
-    params: ComposeGigCandidateModerationPostEditParams,
-  ): TelegramGigCandidatePostEditComposition {
+  composeGigCandidatePostEdit(
+    params: ComposeGigCandidatePostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.to !== Messenger.Telegram) {
+      throw new BadRequestException(
+        'Cannot edit a non-Telegram GigCandidate post',
+      );
+    }
+    if (params.post.type !== PostType.Moderation) {
+      throw new BadRequestException(
+        `Cannot edit a ${params.post.type} post for a GigCandidate`,
+      );
+    }
+    return this.composeGigCandidateModerationPostEdit(params);
+  }
+
+  private composeGigCandidateModerationPostEdit(
+    params: ComposeGigCandidatePostEditParams,
+  ): TelegramPostEditComposition {
     const caption = this.buildGigCandidateCaption({
       gigCandidate: params.gigCandidate,
       channelPurpose: 'moderation',
@@ -662,8 +693,8 @@ export class TelegramPostComposerService {
       return {
         kind: PostEditKind.Media,
         payload: {
-          chatId: params.moderationPost.chatId,
-          messageId: params.moderationPost.id,
+          chatId: params.post.chatId,
+          messageId: params.post.id,
           media: {
             type: TGInputMediaType.Photo,
             media: posterUrl,
@@ -678,8 +709,8 @@ export class TelegramPostComposerService {
     return {
       kind: PostEditKind.Caption,
       payload: {
-        chatId: params.moderationPost.chatId,
-        messageId: params.moderationPost.id,
+        chatId: params.post.chatId,
+        messageId: params.post.id,
         caption,
         parseMode: TGParseMode.HTML,
         replyMarkup,

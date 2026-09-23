@@ -23,6 +23,7 @@ import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
 import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
+import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
@@ -72,7 +73,7 @@ describe('GigCandidateService', () => {
     updateGigCandidateIntakePostAfterModeration: vi.fn(),
     sendGigCandidateFeedback: vi.fn(),
     updateRejectedGigCandidatePost: vi.fn(),
-    updateGigCandidateModerationPost: vi.fn(),
+    editGigCandidatePost: vi.fn(),
     updateGigModerationPost: vi.fn(),
   };
 
@@ -404,10 +405,10 @@ describe('GigCandidateService', () => {
       gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue({
-        message_id: 55,
-        date: 1_700_000_000,
-        chat: { id: -200 },
-        photo: [{ file_id: 'photo-1', width: 1, height: 1 }],
+        messageId: 55,
+        chatId: -200,
+        sentAtSeconds: 1_700_000_000,
+        fileId: 'photo-1',
       });
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         {
@@ -725,9 +726,9 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue({
-        message_id: 50,
-        date: 1_700_000_001,
-        chat: { id: -200 },
+        messageId: 50,
+        chatId: -200,
+        sentAtSeconds: 1_700_000_001,
       });
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         stored,
@@ -818,26 +819,14 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
         updated,
       );
-      telegramServiceMock.updateGigCandidateModerationPost.mockResolvedValue({
-        message_id: moderationPost.id,
-        date: 1_700_000_002,
-        chat: { id: moderationPost.chatId, type: 'channel' },
-        photo: [
-          {
-            file_id: 'small-file-id',
-            file_unique_id: 'small-unique-id',
-            width: 90,
-            height: 90,
-            file_size: 1_000,
-          },
-          {
-            file_id: 'new-file-id',
-            file_unique_id: 'new-unique-id',
-            width: 800,
-            height: 800,
-            file_size: 100_000,
-          },
-        ],
+      telegramServiceMock.editGigCandidatePost.mockResolvedValue({
+        kind: PostEditKind.Media,
+        message: {
+          message_id: moderationPost.id,
+          date: 1_700_000_002,
+          chat: { id: moderationPost.chatId, type: 'channel' },
+        },
+        fileId: 'new-file-id',
       });
       gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId.mockResolvedValue(
         persisted,
@@ -851,11 +840,9 @@ describe('GigCandidateService', () => {
           posterFile,
         }),
       ).resolves.toEqual(persisted);
-      expect(
-        telegramServiceMock.updateGigCandidateModerationPost,
-      ).toHaveBeenCalledWith({
+      expect(telegramServiceMock.editGigCandidatePost).toHaveBeenCalledWith({
         gigCandidate: updated,
-        moderationPost,
+        post: moderationPost,
         isMediaUpdateRequired: true,
       });
       expect(
@@ -940,9 +927,9 @@ describe('GigCandidateService', () => {
         reviewing,
       );
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue({
-        message_id: moderationPost.id,
-        date: 1_700_000_001,
-        chat: { id: moderationPost.chatId },
+        messageId: moderationPost.id,
+        chatId: moderationPost.chatId,
+        sentAtSeconds: 1_700_000_001,
       });
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         stored,
@@ -1731,11 +1718,9 @@ describe('GigCandidateService', () => {
         expectedVersion: 0,
         gigDraft: { title: 'Updated title' },
       });
-      expect(
-        telegramServiceMock.updateGigCandidateModerationPost,
-      ).toHaveBeenCalledWith({
+      expect(telegramServiceMock.editGigCandidatePost).toHaveBeenCalledWith({
         gigCandidate: updated,
-        moderationPost,
+        post: moderationPost,
         isMediaUpdateRequired: false,
       });
     });
@@ -1762,10 +1747,13 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
         updated,
       );
-      telegramServiceMock.updateGigCandidateModerationPost.mockResolvedValue({
-        message_id: moderationPost.id,
-        date: 1_700_000_002,
-        chat: { id: moderationPost.chatId, type: 'channel' },
+      telegramServiceMock.editGigCandidatePost.mockResolvedValue({
+        kind: PostEditKind.Media,
+        message: {
+          message_id: moderationPost.id,
+          date: 1_700_000_002,
+          chat: { id: moderationPost.chatId, type: 'channel' },
+        },
       });
       vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 

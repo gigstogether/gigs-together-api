@@ -24,7 +24,7 @@ describe('ReceiverService', () => {
     sendMessage: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
-    editMainPost: vi.fn(),
+    editGigPost: vi.fn(),
     buildGigStatusReplyMarkup: vi.fn(),
     pickTgPost: vi.fn(),
     sendToModeration: vi.fn(),

@@ -67,9 +67,9 @@ describe('GigModerationService', () => {
     gigService.getGigById.mockResolvedValue(gig);
     telegramService.pickTgPost.mockReturnValue(undefined);
     telegramService.sendMainPost.mockResolvedValue({
-      message_id: 44,
-      chat: { id: -1001, type: 'channel' },
-      date: 1_789_603_300,
+      messageId: 44,
+      chatId: -1001,
+      sentAtSeconds: 1_789_603_300,
     });
     gigService.appendGigMainPost.mockResolvedValue({ ...gig, version: 4 });
 

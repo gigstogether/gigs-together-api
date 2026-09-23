@@ -9,8 +9,13 @@ import { logError } from '../../shared/utils/logging';
 import { isRecord } from '../../shared/utils/is-record';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
-import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import type { GigPost } from '../gig/gig.schema';
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../gig-candidate/types/gig-candidate.types';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { getBiggestTgPhotoFileId } from './utils/photo';
 import type {
   UpdateGigModerationPostPayload,
   UpdateRejectedGigCandidatePostPayload,
@@ -19,11 +24,38 @@ import type {
 import {
   PostEditKind,
   WeeklyDigestMainChannelSendKind,
-  WeeklyDigestMainChannelSendPlan,
+} from './types/telegram-post-composer.service.types';
+import type {
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
-  ComposeGigCandidateModerationPostEditParams,
+  TelegramPostEditComposition,
+  WeeklyDigestMainChannelSendPlan,
 } from './types/telegram-post-composer.service.types';
+
+export interface TelegramPostEditResult {
+  kind: PostEditKind;
+  message: TGMessage;
+  fileId?: string;
+}
+
+export interface TelegramPostSendResult {
+  messageId: number;
+  chatId: number;
+  sentAtSeconds: number;
+  fileId?: string;
+}
+
+export interface EditGigPostParams {
+  gig: PlainGig;
+  post: GigPost;
+  isMediaUpdateRequired: boolean;
+}
+
+export interface EditGigCandidatePostParams {
+  gigCandidate: GigCandidate;
+  post: GigCandidatePost;
+  isMediaUpdateRequired: boolean;
+}
 
 @Injectable()
 export class TelegramService {
@@ -59,50 +91,15 @@ export class TelegramService {
       this.telegramPostComposerService,
     );
 
-  async editModerationPost(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): Promise<TGMessage | undefined> {
-    const composed = this.telegramPostComposerService.composeModerationPostEdit(
-      gig,
-      opts,
-    );
-    if (!composed) return;
-
-    switch (composed.kind) {
-      case PostEditKind.Media:
-        return this.telegramBotClient.editMessageMedia(composed.payload);
-      case PostEditKind.Caption:
-        return this.telegramBotClient.editMessageCaption(composed.payload);
-      case PostEditKind.Text:
-        return this.telegramBotClient.editMessageText(composed.payload);
-    }
-  }
-
   /**
-   * Updates an existing post in the main channel (caption/text).
-   * Does nothing if the gig has no stored post reference.
-   *
-   * NOTE: Can optionally update the media (poster) via editMessageMedia.
+   * Edits an existing Main or Moderation Gig post in Telegram.
+   * The caller supplies the stored post reference so the exact message is targeted.
+   * Updates media when requested; otherwise updates the caption or text.
    */
-  async editMainPost(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): Promise<TGMessage | undefined> {
-    const composed = this.telegramPostComposerService.composeMainPostEdit(
-      gig,
-      opts,
-    );
-    if (!composed) return;
-
-    switch (composed.kind) {
-      case PostEditKind.Media:
-        return this.telegramBotClient.editMessageMedia(composed.payload);
-      case PostEditKind.Caption:
-        return this.telegramBotClient.editMessageCaption(composed.payload);
-      case PostEditKind.Text:
-        return this.telegramBotClient.editMessageText(composed.payload);
-    }
+  editGigPost(params: EditGigPostParams): Promise<TelegramPostEditResult> {
+    const composed =
+      this.telegramPostComposerService.composeGigPostEdit(params);
+    return this.executePostEdit(composed);
   }
 
   async sendWeeklyDigestPost(
@@ -261,30 +258,72 @@ export class TelegramService {
     return { postUrl };
   }
 
-  sendMainPost(gig: PlainGig): Promise<TGMessage | undefined> {
+  async sendMainPost(
+    gig: PlainGig,
+  ): Promise<TelegramPostSendResult | undefined> {
     const composedMainPost: TGSendPhoto =
       this.telegramPostComposerService.composeMainPost(gig);
-    return this.telegramBotClient.sendPhoto(composedMainPost, String(gig._id));
+    const message = await this.telegramBotClient.sendPhoto(
+      composedMainPost,
+      String(gig._id),
+    );
+    return this.mapTelegramPostSendResult(message);
   }
 
-  sendGigCandidateIntakePost(
+  async sendGigCandidateIntakePost(
     gigCandidate: GigCandidate,
-  ): Promise<TGMessage | undefined> {
+  ): Promise<TelegramPostSendResult | undefined> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateIntakePost(
         gigCandidate,
       );
-    return this.telegramBotClient.sendPhoto(composed, gigCandidate.id);
+    const message = await this.telegramBotClient.sendPhoto(
+      composed,
+      gigCandidate.id,
+    );
+    return this.mapTelegramPostSendResult(message);
   }
 
-  sendGigCandidateModerationPost(
+  async sendGigCandidateModerationPost(
     gigCandidate: GigCandidate,
-  ): Promise<TGMessage | undefined> {
+  ): Promise<TelegramPostSendResult | undefined> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateModerationPost(
         gigCandidate,
       );
-    return this.telegramBotClient.sendPhoto(composed, gigCandidate.id);
+    const message = await this.telegramBotClient.sendPhoto(
+      composed,
+      gigCandidate.id,
+    );
+    return this.mapTelegramPostSendResult(message);
+  }
+
+  private mapTelegramPostSendResult(
+    message: TGMessage | undefined,
+  ): TelegramPostSendResult | undefined {
+    if (message === undefined) {
+      return;
+    }
+
+    const chatId = message.sender_chat?.id ?? message.chat?.id;
+    if (
+      !Number.isInteger(message.message_id) ||
+      !Number.isInteger(chatId) ||
+      !Number.isInteger(message.date)
+    ) {
+      throw new Error('Telegram sent post reference is incomplete');
+    }
+
+    const result: TelegramPostSendResult = {
+      messageId: message.message_id,
+      chatId,
+      sentAtSeconds: message.date,
+    };
+    const fileId = getBiggestTgPhotoFileId(message.photo);
+    if (fileId !== undefined) {
+      result.fileId = fileId;
+    }
+    return result;
   }
 
   sendGigCandidateFeedback(
@@ -317,18 +356,44 @@ export class TelegramService {
     return this.telegramBotClient.editMessageCaption(composed);
   }
 
-  updateGigCandidateModerationPost(
-    payload: ComposeGigCandidateModerationPostEditParams,
-  ): Promise<TGMessage> {
+  editGigCandidatePost(
+    params: EditGigCandidatePostParams,
+  ): Promise<TelegramPostEditResult> {
     const composed =
-      this.telegramPostComposerService.composeGigCandidateModerationPostEdit(
-        payload,
-      );
+      this.telegramPostComposerService.composeGigCandidatePostEdit(params);
+    return this.executePostEdit(composed);
+  }
+
+  private async executePostEdit(
+    composed: TelegramPostEditComposition,
+  ): Promise<TelegramPostEditResult> {
     switch (composed.kind) {
-      case PostEditKind.Media:
-        return this.telegramBotClient.editMessageMedia(composed.payload);
-      case PostEditKind.Caption:
-        return this.telegramBotClient.editMessageCaption(composed.payload);
+      case PostEditKind.Media: {
+        const message = await this.telegramBotClient.editMessageMedia(
+          composed.payload,
+        );
+        const result: TelegramPostEditResult = {
+          kind: PostEditKind.Media,
+          message,
+        };
+        const fileId = getBiggestTgPhotoFileId(message.photo);
+        if (fileId !== undefined) {
+          result.fileId = fileId;
+        }
+        return result;
+      }
+      case PostEditKind.Caption: {
+        const message = await this.telegramBotClient.editMessageCaption(
+          composed.payload,
+        );
+        return { kind: PostEditKind.Caption, message };
+      }
+      case PostEditKind.Text: {
+        const message = await this.telegramBotClient.editMessageText(
+          composed.payload,
+        );
+        return { kind: PostEditKind.Text, message };
+      }
     }
   }
 

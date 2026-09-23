@@ -623,4 +623,74 @@ describe('GigService', () => {
       });
     });
   });
+
+  describe('updateGigTelegramPostFileId', () => {
+    const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+
+    it('should update the exact Telegram post without changing version', async () => {
+      const updatedGig = { _id: gigId, version: 4 };
+      findOneAndUpdateMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue(updatedGig),
+      });
+
+      await expect(
+        service.updateGigTelegramPostFileId({
+          gigId: gigId.toString(),
+          expectedVersion: 4,
+          type: PostType.Main,
+          messageId: 99,
+          chatId: -100456,
+          fileId: 'new-file-id',
+        }),
+      ).resolves.toBe(updatedGig);
+
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: gigId.toString(),
+          version: 4,
+          posts: {
+            $elemMatch: {
+              to: Messenger.Telegram,
+              type: PostType.Main,
+              id: 99,
+              chatId: -100456,
+            },
+          },
+        },
+        { $set: { 'posts.$.fileId': 'new-file-id' } },
+        { returnDocument: 'after' },
+      );
+    });
+
+    it('should return null when the expected post snapshot no longer matches', async () => {
+      findOneAndUpdateMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue(null),
+      });
+
+      await expect(
+        service.updateGigTelegramPostFileId({
+          gigId: gigId.toString(),
+          expectedVersion: 4,
+          type: PostType.Moderation,
+          messageId: 42,
+          chatId: -100123,
+          fileId: 'new-file-id',
+        }),
+      ).resolves.toBeNull();
+    });
+
+    it('should reject an empty Telegram file ID before writing', () => {
+      expect(() =>
+        service.updateGigTelegramPostFileId({
+          gigId: gigId.toString(),
+          expectedVersion: 4,
+          type: PostType.Main,
+          messageId: 99,
+          chatId: -100456,
+          fileId: ' ',
+        }),
+      ).toThrow('Telegram file ID must not be empty');
+      expect(findOneAndUpdateMock).not.toHaveBeenCalled();
+    });
+  });
 });

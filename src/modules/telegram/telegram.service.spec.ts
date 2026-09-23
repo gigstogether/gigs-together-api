@@ -4,8 +4,10 @@ import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
+import { Types } from 'mongoose';
 import type { TGMessage } from './types/message.types';
-import type { GigDocument } from '../gig/gig.schema';
+import type { GigDocument, GigPost } from '../gig/gig.schema';
+import type { PlainGig } from '../gig/types/gig.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
@@ -19,6 +21,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { PostEditKind } from './types/telegram-post-composer.service.types';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -142,6 +145,29 @@ function createDigestGigsWithRemotePosters(): GigDocument[] {
       poster: { bucketPath: 'gigs/b.jpg' },
     },
   ] as unknown as GigDocument[];
+}
+
+function createGigForTelegramEdit(post: GigPost): PlainGig {
+  return {
+    _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    publicId: 'radiohead-barcelona-2026-06-12',
+    title: 'Radiohead',
+    date: new Date('2026-06-12T12:00:00.000Z').getTime(),
+    city: 'barcelona',
+    country: 'ES',
+    venue: 'Palau Sant Jordi',
+    ticketsUrl: 'https://tickets.example/radiohead',
+    isVisible: false,
+    version: 4,
+    source: {
+      type: 'user',
+      userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      origin: { type: 'admin' },
+    },
+    posts: [post],
+    createdAt: new Date('2026-05-30T14:22:00.000Z'),
+    updatedAt: new Date('2026-05-30T14:22:00.000Z'),
+  };
 }
 
 describe('TelegramService', () => {
@@ -499,6 +525,191 @@ describe('TelegramService', () => {
     });
   });
 
+  describe('editGigPost', () => {
+    it('should return a caption edit result for a photo post', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const message: TGMessage = {
+        message_id: 99,
+        date: 1,
+        chat: { id: -100456, type: 'channel' },
+      };
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue(message);
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        date: 1_700_000_002_000,
+        id: 99,
+        chatId: -100456,
+        fileId: 'existing-file-id',
+      };
+      const gig = createGigForTelegramEdit(mainPost);
+
+      await expect(
+        service.editGigPost({
+          gig,
+          post: mainPost,
+          isMediaUpdateRequired: false,
+        }),
+      ).resolves.toEqual({
+        kind: PostEditKind.Caption,
+        message,
+      });
+      expect(editMessageCaptionSpy).toHaveBeenCalledOnce();
+    });
+
+    it('should return a text edit result for a text post', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const message: TGMessage = {
+        message_id: 99,
+        date: 1,
+        chat: { id: -100456, type: 'channel' },
+        text: 'Radiohead',
+      };
+      const editMessageTextSpy = vi
+        .spyOn(bot, 'editMessageText')
+        .mockResolvedValue(message);
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        date: 1_700_000_002_000,
+        id: 99,
+        chatId: -100456,
+      };
+      const gig = createGigForTelegramEdit(mainPost);
+
+      await expect(
+        service.editGigPost({
+          gig,
+          post: mainPost,
+          isMediaUpdateRequired: false,
+        }),
+      ).resolves.toEqual({
+        kind: PostEditKind.Text,
+        message,
+      });
+      expect(editMessageTextSpy).toHaveBeenCalledOnce();
+    });
+
+    it('should edit the provided Moderation post', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const message: TGMessage = {
+        message_id: 42,
+        date: 1,
+        chat: { id: -100123, type: 'channel' },
+      };
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue(message);
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 42,
+        chatId: -100123,
+        fileId: 'existing-file-id',
+      };
+      const gig = createGigForTelegramEdit(moderationPost);
+
+      await expect(
+        service.editGigPost({
+          gig,
+          post: moderationPost,
+          isMediaUpdateRequired: false,
+        }),
+      ).resolves.toEqual({
+        kind: PostEditKind.Caption,
+        message,
+      });
+      expect(editMessageCaptionSpy).toHaveBeenCalledOnce();
+    });
+
+    it('should reject an Intake post for a Gig', () => {
+      const intakePost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_001_000,
+        id: 42,
+        chatId: -100123,
+      };
+      const gig = createGigForTelegramEdit(intakePost);
+
+      expect(() =>
+        service.editGigPost({
+          gig,
+          post: intakePost,
+          isMediaUpdateRequired: false,
+        }),
+      ).toThrow('Cannot edit an intake post for a Gig');
+    });
+  });
+
+  describe('sendMainPost', () => {
+    it('should return normalized Telegram post metadata', async () => {
+      process.env.MAIN_CHANNEL_ID = '-100456';
+      const bot = testingModule.get(TelegramBotClient);
+      vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: 99,
+        date: 1_700_000_003,
+        chat: { id: -100456, type: 'channel' },
+        photo: [
+          {
+            file_id: 'small-file-id',
+            file_unique_id: 'small-unique-id',
+            width: 90,
+            height: 90,
+            file_size: 1_000,
+          },
+          {
+            file_id: 'new-file-id',
+            file_unique_id: 'new-unique-id',
+            width: 800,
+            height: 800,
+            file_size: 100_000,
+          },
+        ],
+      });
+      const gig = createGigForTelegramEdit({
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_002_000,
+        id: 42,
+        chatId: -100123,
+        fileId: 'existing-file-id',
+      });
+
+      await expect(service.sendMainPost(gig)).resolves.toEqual({
+        messageId: 99,
+        chatId: -100456,
+        sentAtSeconds: 1_700_000_003,
+        fileId: 'new-file-id',
+      });
+    });
+
+    it('should reject incomplete Telegram post metadata', async () => {
+      process.env.MAIN_CHANNEL_ID = '-100456';
+      const bot = testingModule.get(TelegramBotClient);
+      vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: Number.NaN,
+        date: 1_700_000_003,
+        chat: { id: -100456, type: 'channel' },
+      });
+      const gig = createGigForTelegramEdit({
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_002_000,
+        id: 42,
+        chatId: -100123,
+        fileId: 'existing-file-id',
+      });
+
+      await expect(service.sendMainPost(gig)).rejects.toThrow(
+        'Telegram sent post reference is incomplete',
+      );
+    });
+  });
+
   describe('updateGigModerationPost with main post', () => {
     it('should edit moderation caption with stable gig permalink', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
@@ -784,12 +995,16 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        service.updateGigCandidateModerationPost({
+        service.editGigCandidatePost({
           gigCandidate,
-          moderationPost,
+          post: moderationPost,
           isMediaUpdateRequired: true,
         }),
-      ).resolves.toBe(editedMessage);
+      ).resolves.toEqual({
+        kind: PostEditKind.Media,
+        message: editedMessage,
+        fileId: 'new-file-id',
+      });
       expect(editMessageMediaSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           chatId: -200,

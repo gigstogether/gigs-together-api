@@ -10,8 +10,7 @@ import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import type { TGMessage } from '../telegram/types/message.types';
+import type { TelegramPostSendResult } from '../telegram/telegram.service';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
@@ -22,6 +21,7 @@ import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
 import { isRecord } from '../../shared/utils/is-record';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
 import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
@@ -89,7 +89,7 @@ interface ParsedCreateGigCandidateFields {
 interface StoreGigCandidateTelegramPostParams {
   gigCandidate: GigCandidate;
   postType: PostType.Intake | PostType.Moderation;
-  telegramMessage: TGMessage | undefined;
+  telegramPost: TelegramPostSendResult | undefined;
 }
 
 interface GigCandidateApprovalTransactionResult {
@@ -122,7 +122,7 @@ export class GigCandidateService {
   ): Promise<V1CreateGigCandidateResponseBody> {
     const saved = await this.createGigCandidate(params);
 
-    let telegramIntakePost: TGMessage | undefined;
+    let telegramIntakePost: TelegramPostSendResult | undefined;
     try {
       telegramIntakePost =
         await this.telegramService.sendGigCandidateIntakePost(saved);
@@ -133,7 +133,7 @@ export class GigCandidateService {
     await this.storeGigCandidateTelegramPostBestEffort({
       gigCandidate: saved,
       postType: PostType.Intake,
-      telegramMessage: telegramIntakePost,
+      telegramPost: telegramIntakePost,
     });
     await this.sendGigCandidateSubmittedFeedbackBestEffort(saved);
 
@@ -763,7 +763,7 @@ export class GigCandidateService {
       return gigCandidate;
     }
 
-    let telegramModerationPost: TGMessage | undefined;
+    let telegramModerationPost: TelegramPostSendResult | undefined;
     try {
       telegramModerationPost =
         await this.telegramService.sendGigCandidateModerationPost(gigCandidate);
@@ -779,7 +779,7 @@ export class GigCandidateService {
     const stored = await this.storeGigCandidateTelegramPostBestEffort({
       gigCandidate,
       postType: PostType.Moderation,
-      telegramMessage: telegramModerationPost,
+      telegramPost: telegramModerationPost,
     });
     return stored ?? gigCandidate;
   }
@@ -787,25 +787,13 @@ export class GigCandidateService {
   private async storeGigCandidateTelegramPostBestEffort(
     params: StoreGigCandidateTelegramPostParams,
   ): Promise<GigCandidate | null> {
-    const { gigCandidate, postType, telegramMessage } = params;
-    if (!telegramMessage) {
+    const { gigCandidate, postType, telegramPost } = params;
+    if (!telegramPost) {
       this.logger.warn(
         `Telegram ${postType} send returned no message for gigCandidateId=${gigCandidate.id}`,
       );
       return null;
     }
-
-    const chatId = telegramMessage.sender_chat?.id ?? telegramMessage.chat?.id;
-    const messageId = telegramMessage.message_id;
-    if (chatId === undefined || messageId === undefined) {
-      this.logger.error(
-        `Telegram ${postType} message reference is incomplete for gigCandidateId=${gigCandidate.id}`,
-      );
-      return null;
-    }
-    const biggestTelegramPhotoFileId = getBiggestTgPhotoFileId(
-      telegramMessage.photo,
-    );
 
     try {
       const updated =
@@ -813,16 +801,16 @@ export class GigCandidateService {
           gigCandidateId: gigCandidate.id,
           expectedVersion: gigCandidate.version,
           post: {
-            id: messageId,
-            chatId,
-            ...(biggestTelegramPhotoFileId !== undefined
+            id: telegramPost.messageId,
+            chatId: telegramPost.chatId,
+            ...(telegramPost.fileId !== undefined
               ? {
-                  fileId: biggestTelegramPhotoFileId,
+                  fileId: telegramPost.fileId,
                 }
               : {}),
             to: Messenger.Telegram,
             type: postType,
-            date: telegramMessage.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
+            date: telegramPost.sentAtSeconds * 1_000, // Telegram date is Unix seconds; post date is Unix ms
           },
         });
       if (updated) {
@@ -1034,18 +1022,21 @@ export class GigCandidateService {
     }
 
     try {
-      const edited =
-        await this.telegramService.updateGigCandidateModerationPost({
-          gigCandidate,
-          moderationPost,
-          isMediaUpdateRequired,
-        });
+      const edited = await this.telegramService.editGigCandidatePost({
+        gigCandidate,
+        post: moderationPost,
+        isMediaUpdateRequired,
+      });
       if (!isMediaUpdateRequired) {
         return gigCandidate;
       }
-
-      const fileId = getBiggestTgPhotoFileId(edited.photo);
-      if (fileId === undefined) {
+      if (edited.kind !== PostEditKind.Media) {
+        this.logger.warn(
+          `Telegram moderation media was not updated for gigCandidateId=${gigCandidate.id}`,
+        );
+        return gigCandidate;
+      }
+      if (edited.fileId === undefined) {
         this.logger.error(
           `Telegram moderation media update returned no photo fileId for gigCandidateId=${gigCandidate.id}`,
         );
@@ -1059,7 +1050,7 @@ export class GigCandidateService {
             expectedVersion: gigCandidate.version,
             messageId: moderationPost.id,
             chatId: moderationPost.chatId,
-            fileId,
+            fileId: edited.fileId,
           },
         );
       if (updated) {
@@ -1070,11 +1061,7 @@ export class GigCandidateService {
         `Telegram moderation fileId was not stored for gigCandidateId=${gigCandidate.id} expectedVersion=${gigCandidate.version}`,
       );
     } catch (e) {
-      this.logTelegramFailure(
-        'updateGigCandidateModerationPost',
-        gigCandidate.id,
-        e,
-      );
+      this.logTelegramFailure('editGigCandidatePost', gigCandidate.id, e);
     }
     return gigCandidate;
   }

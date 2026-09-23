@@ -85,6 +85,8 @@ export interface UpdateGigTelegramPostFileIdParams {
   gigId: GigId;
   expectedVersion: number;
   type: PostType;
+  messageId: number;
+  chatId: number;
   fileId: string;
 }
 
@@ -477,40 +479,45 @@ export class GigService {
     );
   }
 
-  async updateGigTelegramPostFileId(
+  updateGigTelegramPostFileId(
     params: UpdateGigTelegramPostFileIdParams,
-  ): Promise<GigDocument> {
+  ): Promise<GigDocument | null> {
     if (!Types.ObjectId.isValid(params.gigId)) {
       throw new BadRequestException(`Invalid MongoDB ID: ${params.gigId}`);
     }
     this.validateExpectedVersion(params.expectedVersion);
-
-    const updated = await this.gigModel.findOneAndUpdate(
-      {
-        _id: params.gigId,
-        version: params.expectedVersion,
-        posts: {
-          $elemMatch: { to: Messenger.Telegram, type: params.type },
-        },
-      },
-      {
-        $set: { 'posts.$.fileId': params.fileId },
-        $inc: { version: 1 },
-      },
-      { returnDocument: 'after' },
-    );
-    if (!updated) {
-      const gig = await this.getGigById(params.gigId);
-      if (gig.version !== params.expectedVersion) {
-        throw new ConflictException(
-          `Gig with ID "${params.gigId}" has a newer version`,
-        );
-      }
-      throw new NotFoundException(
-        `Gig with ID "${params.gigId}" has no ${params.type} Telegram post`,
-      );
+    if (!Number.isInteger(params.messageId)) {
+      throw new BadRequestException('Telegram message ID must be an integer');
     }
-    return updated;
+    if (!Number.isInteger(params.chatId)) {
+      throw new BadRequestException('Telegram chat ID must be an integer');
+    }
+    if (params.fileId.trim() === '') {
+      throw new BadRequestException('Telegram file ID must not be empty');
+    }
+
+    return this.gigModel
+      .findOneAndUpdate(
+        {
+          _id: params.gigId,
+          version: params.expectedVersion,
+          posts: {
+            $elemMatch: {
+              to: Messenger.Telegram,
+              type: params.type,
+              id: params.messageId,
+              chatId: params.chatId,
+            },
+          },
+        },
+        {
+          // fileId is Telegram transport metadata. Keeping the version stable preserves the
+          // expectedVersion already embedded in the current moderation post controls.
+          $set: { 'posts.$.fileId': params.fileId },
+        },
+        { returnDocument: 'after' },
+      )
+      .exec();
   }
 
   async resolvePublicPostUrl(
