@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import type { GigDocument, GigPost } from '../gig/gig.schema';
+import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
@@ -360,7 +360,7 @@ describe('TelegramPostComposer', () => {
       delete process.env.MAIN_CHANNEL_ID;
 
       const gig = {
-        _id: 'gig-env',
+        id: 'gig-env',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
@@ -375,27 +375,27 @@ describe('TelegramPostComposer', () => {
             date: 86_400_000,
           },
         ],
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
       const gig = {
-        _id: 'gig1',
+        id: 'gig1',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
         posts: [],
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
     });
 
     it('should use moderation Telegram file_id as photo when present', () => {
       const gig = {
-        _id: 'gig2',
+        id: 'gig2',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
@@ -410,7 +410,7 @@ describe('TelegramPostComposer', () => {
             date: 86_400_000,
           },
         ],
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       const payload = composer.composeMainPost(gig);
 
@@ -426,14 +426,14 @@ describe('TelegramPostComposer', () => {
         'https://cdn.example/poster.jpg',
       );
       const gig = {
-        _id: 'gig3',
+        id: 'gig3',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
         posts: [],
         poster: { bucketPath: 'gigs/show' },
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       const firstPayload = composer.composeMainPost(gig);
       const secondPayload = composer.composeMainPost(gig);
@@ -450,14 +450,14 @@ describe('TelegramPostComposer', () => {
       const externalUrl =
         'https://images.example/poster.jpg?signature=preserve-me';
       const gig = {
-        _id: 'gig4',
+        id: 'gig4',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
         venue: 'Hall',
         date: 86_400_000,
         posts: [],
         poster: { externalUrl },
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       const payload = composer.composeMainPost(gig);
 
@@ -477,7 +477,7 @@ describe('TelegramPostComposer', () => {
         date: 86_400_000,
       };
       const gig = {
-        _id: 'gig5',
+        id: 'gig5',
         publicId: 'show',
         title: 'Show',
         ticketsUrl: 'https://tickets.example/x',
@@ -486,7 +486,7 @@ describe('TelegramPostComposer', () => {
         version: 2,
         posts: [mainPost],
         poster: { bucketPath: 'gigs/show' },
-      } as unknown as GigDocument;
+      } as unknown as PlainGig;
 
       const composition = composer.composeGigPostEdit({
         gig,
@@ -531,7 +531,7 @@ describe('TelegramPostComposer', () => {
 
       const gigs = [
         {
-          _id: 'a',
+          id: 'a',
           publicId: 'alpha-2026-01-01',
           title: 'Alpha',
           date: 10,
@@ -539,14 +539,14 @@ describe('TelegramPostComposer', () => {
           poster: { bucketPath: 'gigs/a.jpg' },
         },
         {
-          _id: 'b',
+          id: 'b',
           publicId: 'beta-2026-01-02',
           title: 'Beta',
           date: 20,
           posts: [],
           poster: { bucketPath: 'gigs/b.jpg' },
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       const plan = composer.composeWeeklyDigest({
         chatId: '-1002',
@@ -580,13 +580,13 @@ describe('TelegramPostComposer', () => {
 
       const gigs = [
         {
-          _id: 'a',
+          id: 'a',
           title: 'Only',
           date: 10,
           posts: [],
           poster: { bucketPath: 'gigs/a.jpg' },
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       const plan = composer.composeWeeklyDigest({
         chatId: '-1003',
@@ -607,12 +607,12 @@ describe('TelegramPostComposer', () => {
     it('should return caption as plain sendMessage when no posters resolve', () => {
       const gigs = [
         {
-          _id: 'a',
+          id: 'a',
           title: 'TextOnly',
           date: 86_400_000,
           posts: [],
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       const plan = composer.composeWeeklyDigest({
         chatId: '-1004',
@@ -632,14 +632,14 @@ describe('TelegramPostComposer', () => {
       const longTitle = 'X'.repeat(1100);
       const gigs = [
         {
-          _id: '1',
+          id: '1',
           title: longTitle,
           date: 86_400_000,
           venue: 'Hall',
           ticketsUrl: 'https://tickets.example/e',
           posts: [],
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       const text = composer.composeWeeklyDigestCaption(gigs);
 

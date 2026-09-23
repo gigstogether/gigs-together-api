@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { CronTime } from 'cron';
 import type { Model } from 'mongoose';
-import type { GigDocument } from '../gig/gig.schema';
+import type { PlainGig } from '../gig/types/gig.types';
 import { GigService } from '../gig/gig.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
@@ -55,10 +55,9 @@ export class DigestService {
    * Creates the weekly digest post in the main Telegram channel.
    */
   async createPost(): Promise<void> {
-    const documents = await this.getDigestRangeDocuments();
+    const gigs = await this.getDigestRangeGigs();
 
-    const postResult =
-      await this.telegramService.sendWeeklyDigestPost(documents);
+    const postResult = await this.telegramService.sendWeeklyDigestPost(gigs);
 
     const digestPostUrl = postResult?.postUrl;
     if (digestPostUrl) {
@@ -93,10 +92,10 @@ export class DigestService {
     await this.createPost();
   }
 
-  private getDigestRangeDocuments(): Promise<GigDocument[]> {
+  private getDigestRangeGigs(): Promise<PlainGig[]> {
     const { fromMs, toMs } = getDigestUpcomingInclusiveDayRangeMs(new Date());
 
-    return this.gigService.getVisibleGigDocumentsInInclusiveMsRange({
+    return this.gigService.getVisibleGigsInInclusiveMsRange({
       fromMs,
       toMs,
     });

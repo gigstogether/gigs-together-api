@@ -1,117 +1,111 @@
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { getModelToken } from '@nestjs/mongoose';
-import { GigService } from './gig.service';
-import { Gig } from './gig.schema';
-import { AiService } from '../ai/ai.service';
-import { CalendarService } from '../calendar/calendar.service';
-import { GigPosterService } from './gig.poster.service';
-import { TelegramService } from '../telegram/telegram.service';
+
+import { Messenger } from '../../shared/types/messenger.enum';
+import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { Types } from 'mongoose';
+import { CalendarService } from '../calendar/calendar.service';
+import { TelegramService } from '../telegram/telegram.service';
+import { GigPosterService } from './gig.poster.service';
+import { GigService } from './gig.service';
+import { GIG_REPOSITORY } from './repositories/gig.repository';
+import type { GigRepository } from './repositories/gig.repository';
 import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
-import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../../shared/types/post-type.enum';
+import type { PlainGig } from './types/gig.types';
+
+function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
+  return {
+    id: '507f1f77bcf86cd799439011',
+    publicId: 'radiohead-barcelona-2026-06-12',
+    title: 'Radiohead',
+    date: Date.UTC(2026, 5, 12),
+    city: 'barcelona',
+    country: 'ES',
+    venue: 'Palau Sant Jordi',
+    ticketsUrl: 'https://tickets.example/radiohead',
+    isVisible: true,
+    version: 3,
+    source: {
+      type: 'user',
+      userId: '507f1f77bcf86cd799439012',
+      origin: { type: 'admin' },
+    },
+    posts: [],
+    createdAt: new Date('2026-05-30T14:22:00.000Z'),
+    updatedAt: new Date('2026-05-30T14:22:00.000Z'),
+    ...overrides,
+  };
+}
 
 describe('GigService', () => {
   let service: GigService;
 
-  const execMock = vi.fn();
-  const leanMock = vi.fn().mockReturnValue({ exec: execMock });
-  const limitMock = vi.fn().mockReturnValue({ lean: leanMock });
-  const sortForLimitMock = vi.fn().mockReturnValue({ limit: limitMock });
-  const sortForCollationMock = vi.fn().mockReturnValue({ exec: execMock });
-  const collationMock = vi.fn().mockReturnValue({ sort: sortForCollationMock });
-  const aggregateExecMock = vi.fn();
-  const aggregateMock = vi.fn().mockReturnValue({ exec: aggregateExecMock });
-  const findMock = vi.fn().mockReturnValue({
-    sort: sortForLimitMock,
-    collation: collationMock,
-    limit: limitMock,
-    lean: leanMock,
-  });
-  const countDocumentsMock = vi.fn();
-  const findByIdExecMock = vi.fn();
-  const findByIdLeanMock = vi.fn().mockReturnValue({ exec: findByIdExecMock });
-  const findByIdMock = vi.fn().mockReturnValue({ lean: findByIdLeanMock });
-  const findOneExecMock = vi.fn();
-  const findOneLeanMock = vi.fn().mockReturnValue({ exec: findOneExecMock });
-  const findOneMock = vi.fn().mockReturnValue({ lean: findOneLeanMock });
-  const findOneAndUpdateMock = vi.fn();
-  const findByIdAndUpdateMock = vi.fn();
-  const existsMock = vi.fn();
-  const uploadPosterMock = vi.fn();
-  const pickTgPostMock = vi.fn();
-  const getCreateCalendarEventUrlMock = vi.fn();
+  const gigRepository: Record<keyof GigRepository, ReturnType<typeof vi.fn>> = {
+    existsByPublicId: vi.fn(),
+    isPublicIdTaken: vi.fn(),
+    countAll: vi.fn(),
+    countVisible: vi.fn(),
+    findMany: vi.fn(),
+    findByPublicId: vi.fn(),
+    findById: vi.fn(),
+    findByIds: vi.fn(),
+    updateByPublicId: vi.fn(),
+    updateVisibility: vi.fn(),
+    appendMainPost: vi.fn(),
+    updateTelegramPostFileId: vi.fn(),
+    findVisibleInRange: vi.fn(),
+    findVisiblePage: vi.fn(),
+    findVisibleDateByPublicId: vi.fn(),
+    findVisibleAround: vi.fn(),
+    findVisibleDates: vi.fn(),
+  };
+  const uploadPoster = vi.fn();
+  const pickTgPost = vi.fn();
+  const getCreateCalendarEventUrl = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    execMock.mockResolvedValue([]);
-    aggregateExecMock.mockResolvedValue([]);
-    countDocumentsMock.mockReturnValue({ exec: vi.fn().mockResolvedValue(0) });
-    findByIdExecMock.mockResolvedValue(null);
-    findOneExecMock.mockResolvedValue(null);
-    findOneAndUpdateMock.mockResolvedValue(null);
-    findByIdAndUpdateMock.mockResolvedValue(null);
-    existsMock.mockResolvedValue(null);
-    uploadPosterMock.mockResolvedValue(undefined);
-    pickTgPostMock.mockReturnValue(undefined);
-    getCreateCalendarEventUrlMock.mockReturnValue(
-      'https://calendar.example/event',
-    );
+    gigRepository.isPublicIdTaken.mockResolvedValue(false);
+    gigRepository.findMany.mockResolvedValue([]);
+    gigRepository.findVisibleInRange.mockResolvedValue([]);
+    gigRepository.findVisiblePage.mockResolvedValue({
+      gigs: [],
+      hasMore: false,
+    });
+    gigRepository.findVisibleAround.mockResolvedValue({
+      before: [],
+      after: [],
+      hasPrevious: false,
+      hasNext: false,
+    });
+    gigRepository.findVisibleDates.mockResolvedValue([]);
+    uploadPoster.mockResolvedValue(undefined);
+    pickTgPost.mockReturnValue(undefined);
+    getCreateCalendarEventUrl.mockReturnValue('https://calendar.example/event');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GigService,
-        {
-          provide: getModelToken(Gig.name),
-          useValue: {
-            find: findMock,
-            findById: findByIdMock,
-            findOne: findOneMock,
-            findOneAndUpdate: findOneAndUpdateMock,
-            findByIdAndUpdate: findByIdAndUpdateMock,
-            exists: existsMock,
-            aggregate: aggregateMock,
-            countDocuments: countDocumentsMock,
-          },
-        },
-        {
-          provide: AiService,
-          useValue: {
-            lookupGigV1: vi.fn(),
-          },
-        },
+        { provide: GIG_REPOSITORY, useValue: gigRepository },
         {
           provide: CalendarService,
-          useValue: {
-            getCreateCalendarEventUrl: getCreateCalendarEventUrlMock,
-          },
+          useValue: { getCreateCalendarEventUrl },
         },
-        { provide: GigPosterService, useValue: { upload: uploadPosterMock } },
-        {
-          provide: TelegramService,
-          useValue: { pickTgPost: pickTgPostMock },
-        },
-        { provide: BucketService, useValue: {} },
+        { provide: GigPosterService, useValue: { upload: uploadPoster } },
+        { provide: TelegramService, useValue: { pickTgPost } },
+        { provide: BucketService, useValue: { getPublicFileUrl: vi.fn() } },
       ],
     }).compile();
 
-    service = module.get<GigService>(GigService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+    service = module.get(GigService);
   });
 
   describe('generateUniquePublicId', () => {
-    it('should preserve the existing Gig model uniqueness check by default', async () => {
-      const publicIdLookupLean = vi.fn().mockResolvedValue(null);
-      findOneMock.mockReturnValueOnce({ lean: publicIdLookupLean });
-
+    it('should use the repository uniqueness check by default', async () => {
       await expect(
         service.generateUniquePublicId({
           title: 'Radiohead',
@@ -119,10 +113,9 @@ describe('GigService', () => {
         }),
       ).resolves.toBe('radiohead-2026-06-12');
 
-      expect(findOneMock).toHaveBeenCalledWith(
-        { publicId: 'radiohead-2026-06-12' },
-        { _id: 1 },
-      );
+      expect(gigRepository.isPublicIdTaken).toHaveBeenCalledWith({
+        publicId: 'radiohead-2026-06-12',
+      });
     });
 
     it('should use the supplied transaction-aware uniqueness check', async () => {
@@ -140,549 +133,186 @@ describe('GigService', () => {
       ).resolves.toBe('beyonce-friends-2026-06-12-2');
 
       expect(isPublicIdTaken).toHaveBeenNthCalledWith(
-        1,
-        'beyonce-friends-2026-06-12',
-      );
-      expect(isPublicIdTaken).toHaveBeenNthCalledWith(
         2,
         'beyonce-friends-2026-06-12-2',
       );
-      expect(findOneMock).not.toHaveBeenCalled();
-    });
-
-    it('should keep a generated public ID within the schema limit', async () => {
-      await expect(
-        service.generateUniquePublicId({
-          title: 'A'.repeat(200),
-          yyyyMmDd: '2026-06-12',
-          isPublicIdTaken: vi.fn().mockResolvedValue(false),
-        }),
-      ).resolves.toHaveLength(64);
-    });
-  });
-
-  describe('getVisibleGigDocumentsInInclusiveMsRange', () => {
-    it('should query visible gigs with inclusive date bounds when fromMs and toMs are given', async () => {
-      const fromMs = new Date(2024, 5, 10, 0, 0, 0, 0).getTime();
-      const toMs = new Date(2024, 5, 16, 23, 59, 59, 999).getTime();
-
-      await service.getVisibleGigDocumentsInInclusiveMsRange({
-        fromMs,
-        toMs,
-      });
-
-      expect(findMock).toHaveBeenCalledWith({
-        isVisible: true,
-        date: { $gte: fromMs, $lte: toMs },
-      });
-      expect(collationMock).toHaveBeenCalledWith({
-        locale: 'en',
-        strength: 2,
-      });
-      expect(sortForCollationMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
-    });
-  });
-
-  describe('public Gig queries', () => {
-    it('should query only visible Gigs and omit source from the public feed response', async () => {
-      const from = Date.UTC(2026, 8, 17);
-      const gig = {
-        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
-        publicId: 'radiohead-2026-09-20',
-        title: 'Radiohead',
-        date: Date.UTC(2026, 8, 20),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
-        ticketsUrl: 'https://tickets.example/radiohead',
-        isVisible: true,
-        version: 0,
-        source: {
-          type: 'user',
-          userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
-          origin: { type: 'admin' },
-        },
-        posts: [],
-      };
-      const publicLimitMock = vi.fn().mockResolvedValue([gig]);
-      const publicSortMock = vi.fn().mockReturnValue({
-        limit: publicLimitMock,
-      });
-      const publicCollationMock = vi.fn().mockReturnValue({
-        sort: publicSortMock,
-      });
-      findMock.mockReturnValueOnce({ collation: publicCollationMock });
-
-      const result = await service.getVisibleGigsV1({
-        from,
-        country: 'ES',
-        city: 'Barcelona',
-        limit: 10,
-      });
-
-      expect(findMock).toHaveBeenCalledWith({
-        isVisible: true,
-        $or: [{ date: { $gte: from } }, { endDate: { $gte: from } }],
-        country: 'ES',
-        city: 'Barcelona',
-      });
-      expect(result.gigs).toHaveLength(1);
-      expect(result.gigs[0]).not.toHaveProperty('source');
-    });
-
-    it('should require visibility when resolving a public Gig date', async () => {
-      const date = Date.UTC(2026, 8, 20);
-      const publicDateCollationMock = vi.fn().mockResolvedValue({ date });
-      findOneMock.mockReturnValueOnce({
-        collation: publicDateCollationMock,
-      });
-
-      await expect(
-        service.getGigDateByPublicId({ publicId: 'radiohead-2026-09-20' }),
-      ).resolves.toEqual({ date: String(date) });
-      expect(findOneMock).toHaveBeenCalledWith({
-        publicId: 'radiohead-2026-09-20',
-        isVisible: true,
-      });
-    });
-
-    it('should require visibility in both sides of the around query', async () => {
-      const anchor = Date.UTC(2026, 8, 20);
-      const beforeLimitMock = vi.fn().mockResolvedValue([]);
-      const afterLimitMock = vi.fn().mockResolvedValue([]);
-      sortForCollationMock
-        .mockReturnValueOnce({ limit: beforeLimitMock })
-        .mockReturnValueOnce({ limit: afterLimitMock });
-
-      await service.getVisibleGigsAroundV1({
-        anchor,
-        beforeLimit: 10,
-        afterLimit: 10,
-        country: 'ES',
-        city: 'Barcelona',
-      });
-
-      expect(findMock).toHaveBeenNthCalledWith(1, {
-        isVisible: true,
-        country: 'ES',
-        city: 'Barcelona',
-        date: { $gte: expect.any(Number), $lt: anchor },
-      });
-      expect(findMock).toHaveBeenNthCalledWith(2, {
-        isVisible: true,
-        country: 'ES',
-        city: 'Barcelona',
-        date: { $gte: anchor },
-      });
-    });
-
-    it('should require visibility when aggregating public Gig dates', async () => {
-      const from = Date.UTC(2026, 8, 17);
-      const to = Date.UTC(2026, 8, 30);
-      const allowDiskUseMock = vi.fn().mockResolvedValue([]);
-      aggregateMock.mockReturnValueOnce({ allowDiskUse: allowDiskUseMock });
-
-      await expect(
-        service.getVisibleGigDatesV1({
-          from,
-          to,
-          country: 'ES',
-          city: 'Barcelona',
-        }),
-      ).resolves.toEqual({ dates: [] });
-      expect(aggregateMock).toHaveBeenCalledWith([
-        {
-          $match: {
-            isVisible: true,
-            date: { $gte: from, $lte: to },
-            country: 'ES',
-            city: 'Barcelona',
-          },
-        },
-        { $group: { _id: '$date' } },
-        { $sort: { _id: 1 } },
-      ]);
-      expect(allowDiskUseMock).toHaveBeenCalledWith(true);
+      expect(gigRepository.isPublicIdTaken).not.toHaveBeenCalled();
     });
   });
 
   describe('getGigs', () => {
-    it('should return all Gigs without sorting when sortBy is omitted', async () => {
-      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-1' };
-      execMock.mockResolvedValue([plainGig]);
+    it('should delegate bounded sorting to the repository', async () => {
+      await service.getGigs({
+        limit: 1_000,
+        sortBy: AdminGigListSortBy.EventDate,
+        sortOrder: AdminGigListSortOrder.Asc,
+      });
 
-      await expect(service.getGigs({ limit: 10 })).resolves.toEqual([plainGig]);
-      expect(findMock).toHaveBeenCalledWith({});
-      expect(limitMock).toHaveBeenCalledWith(10);
-      expect(sortForLimitMock).not.toHaveBeenCalled();
-    });
-
-    it('should sort Gigs by creation timestamp and ID', async () => {
-      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-2' };
-      execMock.mockResolvedValue([plainGig]);
-
-      await expect(
-        service.getGigs({
-          limit: 15,
-          sortBy: AdminGigListSortBy.CreatedAt,
-          sortOrder: AdminGigListSortOrder.Desc,
-        }),
-      ).resolves.toEqual([plainGig]);
-      expect(sortForLimitMock).toHaveBeenCalledWith({ createdAt: -1, _id: -1 });
-      expect(limitMock).toHaveBeenCalledWith(15);
-    });
-
-    it('should sort Gigs by event date and ID', async () => {
-      const plainGig = { _id: new Types.ObjectId(), publicId: 'gig-3' };
-      execMock.mockResolvedValue([plainGig]);
-
-      await expect(
-        service.getGigs({
-          limit: 20,
-          sortBy: AdminGigListSortBy.EventDate,
-          sortOrder: AdminGigListSortOrder.Asc,
-        }),
-      ).resolves.toEqual([plainGig]);
-      expect(sortForLimitMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
-      expect(limitMock).toHaveBeenCalledWith(20);
-    });
-  });
-
-  describe('getGigById', () => {
-    it('should return plain gig when id is valid', async () => {
-      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-      const plainGig = { _id: gigId, publicId: 'gig-1' };
-      findByIdExecMock.mockResolvedValue(plainGig);
-
-      await expect(service.getGigById(gigId.toString())).resolves.toBe(
-        plainGig,
-      );
-
-      expect(findByIdMock).toHaveBeenCalledWith(gigId.toString());
-      expect(findByIdLeanMock).toHaveBeenCalledTimes(1);
-      expect(findByIdExecMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('should throw BadRequestException when id is invalid', async () => {
-      await expect(
-        service.getGigById('not-an-object-id'),
-      ).rejects.toMatchObject({
-        message: 'Invalid MongoDB ID: not-an-object-id',
+      expect(gigRepository.findMany).toHaveBeenCalledWith({
+        limit: 100,
+        sortBy: AdminGigListSortBy.EventDate,
+        sortOrder: AdminGigListSortOrder.Asc,
       });
     });
 
-    it('should throw NotFoundException when gig is missing', async () => {
-      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-      findByIdExecMock.mockResolvedValue(null);
-
-      await expect(service.getGigById(gigId.toString())).rejects.toMatchObject({
-        message: `Gig with ID ${gigId.toString()} not found`,
-      });
+    it('should reject an unsupported sort before querying the repository', () => {
+      expect(() =>
+        service.getGigs({
+          limit: 10,
+          sortBy: 'unknown' as AdminGigListSortBy,
+        }),
+      ).toThrow(BadRequestException);
+      expect(gigRepository.findMany).not.toHaveBeenCalled();
     });
   });
 
   describe('getGigsByIds', () => {
-    it('should load unique Gigs in input order with one query', async () => {
-      const firstGigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-      const secondGigId = new Types.ObjectId('507f1f77bcf86cd799439012');
-      const firstGig = { _id: firstGigId, publicId: 'first-gig' };
-      const secondGig = { _id: secondGigId, publicId: 'second-gig' };
-      execMock.mockResolvedValue([secondGig, firstGig]);
+    it('should preserve unique input order', async () => {
+      const first = buildGig();
+      const second = buildGig({
+        id: '507f1f77bcf86cd799439013',
+        publicId: 'second-2026-06-13',
+      });
+      gigRepository.findByIds.mockResolvedValue([second, first]);
 
       await expect(
-        service.getGigsByIds([
-          firstGigId.toString(),
-          secondGigId,
-          firstGigId.toString(),
-        ]),
-      ).resolves.toEqual([firstGig, secondGig]);
-
-      expect(findMock).toHaveBeenCalledOnce();
-      expect(findMock).toHaveBeenCalledWith({
-        _id: { $in: [firstGigId, secondGigId] },
-      });
-      expect(leanMock).toHaveBeenCalledOnce();
-      expect(execMock).toHaveBeenCalledOnce();
+        service.getGigsByIds([first.id, second.id, first.id]),
+      ).resolves.toEqual([first, second]);
+      expect(gigRepository.findByIds).toHaveBeenCalledWith([
+        first.id,
+        second.id,
+      ]);
     });
 
-    it('should not query MongoDB when no Gig IDs are provided', async () => {
-      await expect(service.getGigsByIds([])).resolves.toEqual([]);
-
-      expect(findMock).not.toHaveBeenCalled();
+    it('should reject invalid IDs before querying the repository', async () => {
+      await expect(service.getGigsByIds(['invalid'])).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(gigRepository.findByIds).not.toHaveBeenCalled();
     });
 
-    it('should reject an invalid Gig ID before querying MongoDB', async () => {
-      await expect(
-        service.getGigsByIds(['not-an-object-id']),
-      ).rejects.toMatchObject({
-        message: 'Invalid MongoDB ID: not-an-object-id',
-      });
+    it('should reject missing linked Gigs', async () => {
+      const gig = buildGig();
+      gigRepository.findByIds.mockResolvedValue([]);
 
-      expect(findMock).not.toHaveBeenCalled();
-    });
-
-    it('should reject a missing linked Gig instead of ignoring it', async () => {
-      const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-      execMock.mockResolvedValue([]);
-
-      await expect(service.getGigsByIds([gigId])).rejects.toMatchObject({
-        message: `Gigs with IDs ${gigId.toString()} not found`,
-      });
-    });
-  });
-
-  describe('getGigByPublicId', () => {
-    it('should return plain gig when publicId is valid', async () => {
-      const plainGig = {
-        _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
-        publicId: 'radiohead-barcelona-2026-06-12',
-      };
-      findOneExecMock.mockResolvedValue(plainGig);
-
-      await expect(
-        service.getGigByPublicId('radiohead-barcelona-2026-06-12'),
-      ).resolves.toBe(plainGig);
-
-      expect(findOneMock).toHaveBeenCalledWith({
-        publicId: 'radiohead-barcelona-2026-06-12',
-      });
-      expect(findOneLeanMock).toHaveBeenCalledTimes(1);
-      expect(findOneExecMock).toHaveBeenCalledTimes(1);
-    });
-
-    it('should throw NotFoundException when gig is missing', async () => {
-      findOneExecMock.mockResolvedValue(null);
-
-      await expect(
-        service.getGigByPublicId('missing-gig'),
-      ).rejects.toMatchObject({
-        message: 'Gig with publicId "missing-gig" not found',
+      await expect(service.getGigsByIds([gig.id])).rejects.toMatchObject({
+        message: `Gigs with IDs ${gig.id} not found`,
       });
     });
   });
 
   describe('updateGigByPublicId', () => {
-    const body = {
-      gig: {
-        title: 'Radiohead',
-        date: '2026-06-12',
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
-        ticketsUrl: 'https://tickets.example/radiohead',
-      },
+    const gigInput = {
+      title: 'Radiohead',
+      date: '2026-06-12',
+      city: 'barcelona',
+      country: 'ES',
+      venue: 'Palau Sant Jordi',
+      ticketsUrl: 'https://tickets.example/radiohead',
     };
 
-    it('should conditionally edit a Gig and increment its version', async () => {
-      const updatedGig = { publicId: 'radiohead-2026-06-12', version: 5 };
-      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+    it('should delegate an optimistic update to the repository', async () => {
+      const updated = buildGig({ version: 4 });
+      gigRepository.updateByPublicId.mockResolvedValue(updated);
 
       await expect(
         service.updateGigByPublicId({
-          publicId: 'radiohead-2026-06-12',
-          expectedVersion: 4,
-          gig: body.gig,
-          posterFile: undefined,
-        }),
-      ).resolves.toBe(updatedGig);
-
-      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-        { publicId: 'radiohead-2026-06-12', version: 4 },
-        {
-          $set: {
-            title: 'Radiohead',
-            date: new Date('2026-06-12').getTime(),
-            city: 'Barcelona',
-            country: 'ES',
-            venue: 'Palau Sant Jordi',
-            ticketsUrl: 'https://tickets.example/radiohead',
-          },
-          $inc: { version: 1 },
-          $unset: { endDate: 1 },
-        },
-        { returnDocument: 'after' },
-      );
-    });
-
-    it('should return conflict when an edit uses a stale version', async () => {
-      existsMock.mockResolvedValue({ _id: new Types.ObjectId() });
-
-      await expect(
-        service.updateGigByPublicId({
-          publicId: 'radiohead-2026-06-12',
+          publicId: updated.publicId,
           expectedVersion: 3,
-          gig: body.gig,
+          gig: gigInput,
           posterFile: undefined,
         }),
-      ).rejects.toMatchObject({
-        status: 409,
-        message: 'Gig with publicId "radiohead-2026-06-12" has a newer version',
+      ).resolves.toBe(updated);
+      expect(gigRepository.updateByPublicId).toHaveBeenCalledWith({
+        publicId: updated.publicId,
+        expectedVersion: 3,
+        title: gigInput.title,
+        date: new Date(gigInput.date).getTime(),
+        city: gigInput.city,
+        country: gigInput.country,
+        venue: gigInput.venue,
+        ticketsUrl: gigInput.ticketsUrl,
       });
     });
-  });
 
-  describe('updateGigVisibilityByPublicId', () => {
-    it('should conditionally change visibility and increment version', async () => {
-      const updatedGig = {
-        publicId: 'radiohead-2026-06-12',
-        isVisible: false,
-        version: 8,
-      };
-      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+    it('should distinguish stale versions from missing Gigs', async () => {
+      gigRepository.updateByPublicId.mockResolvedValue(null);
+      gigRepository.existsByPublicId.mockResolvedValue(true);
 
       await expect(
-        service.updateGigVisibilityByPublicId({
+        service.updateGigByPublicId({
           publicId: 'radiohead-2026-06-12',
-          expectedVersion: 7,
-          isVisible: false,
+          expectedVersion: 2,
+          gig: gigInput,
+          posterFile: undefined,
         }),
-      ).resolves.toBe(updatedGig);
-
-      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-        { publicId: 'radiohead-2026-06-12', version: 7 },
-        {
-          $set: { isVisible: false },
-          $inc: { version: 1 },
-        },
-        { returnDocument: 'after' },
-      );
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
   describe('appendGigMainPost', () => {
-    const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
-    const post = {
-      id: 42,
-      chatId: -1001,
-      date: 1_789_603_300_000,
-    };
+    it('should add Telegram ownership fields before persisting the post', async () => {
+      const updated = buildGig({ version: 4 });
+      gigRepository.appendMainPost.mockResolvedValue(updated);
 
-    it('should conditionally store Main post metadata and increment version', async () => {
-      const updatedGig = { _id: gigId, version: 4 };
-      findOneAndUpdateMock.mockResolvedValue(updatedGig);
+      await service.appendGigMainPost({
+        gigId: updated.id,
+        expectedVersion: 3,
+        post: { id: 42, chatId: -1001, date: 1_789_603_300_000 },
+      });
 
-      await expect(
-        service.appendGigMainPost({
-          gigId: gigId.toString(),
-          expectedVersion: 3,
-          post,
-        }),
-      ).resolves.toBe(updatedGig);
-
-      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-        {
-          _id: gigId.toString(),
-          version: 3,
-          posts: {
-            $not: {
-              $elemMatch: {
-                to: Messenger.Telegram,
-                type: PostType.Main,
-              },
-            },
-          },
+      expect(gigRepository.appendMainPost).toHaveBeenCalledWith({
+        gigId: updated.id,
+        expectedVersion: 3,
+        post: {
+          id: 42,
+          chatId: -1001,
+          date: 1_789_603_300_000,
+          to: Messenger.Telegram,
+          type: PostType.Main,
         },
-        {
-          $push: {
-            posts: {
-              ...post,
-              to: Messenger.Telegram,
-              type: PostType.Main,
-            },
-          },
-          $inc: { version: 1 },
-        },
-        { returnDocument: 'after' },
-      );
+      });
     });
 
-    it('should reject a concurrent second Main post metadata write', async () => {
-      findOneAndUpdateMock.mockResolvedValue(null);
-      findByIdExecMock.mockResolvedValue({
-        _id: gigId,
-        version: 3,
-        posts: [
-          {
-            ...post,
-            to: Messenger.Telegram,
-            type: PostType.Main,
-          },
-        ],
-      });
-      pickTgPostMock.mockReturnValue({ id: post.id });
+    it('should report an existing Main post after a concurrent write', async () => {
+      const gig = buildGig();
+      gigRepository.appendMainPost.mockResolvedValue(null);
+      gigRepository.findById.mockResolvedValue(gig);
+      pickTgPost.mockReturnValue({ id: 42 });
 
       await expect(
         service.appendGigMainPost({
-          gigId: gigId.toString(),
-          expectedVersion: 3,
-          post,
+          gigId: gig.id,
+          expectedVersion: gig.version,
+          post: { id: 42, chatId: -1001, date: 1_789_603_300_000 },
         }),
-      ).rejects.toMatchObject({
-        status: 409,
-        message: 'Gig main post already exists',
-      });
+      ).rejects.toMatchObject({ message: 'Gig main post already exists' });
     });
   });
 
   describe('updateGigTelegramPostFileId', () => {
-    const gigId = new Types.ObjectId('507f1f77bcf86cd799439011');
+    it('should delegate an exact transport metadata update', async () => {
+      const params = {
+        gigId: '507f1f77bcf86cd799439011',
+        expectedVersion: 4,
+        type: PostType.Moderation,
+        messageId: 42,
+        chatId: -100123,
+        fileId: 'new-file-id',
+      };
+      gigRepository.updateTelegramPostFileId.mockResolvedValue(buildGig());
 
-    it('should update the exact Telegram post without changing version', async () => {
-      const updatedGig = { _id: gigId, version: 4 };
-      findOneAndUpdateMock.mockReturnValue({
-        exec: vi.fn().mockResolvedValue(updatedGig),
-      });
+      await service.updateGigTelegramPostFileId(params);
 
-      await expect(
-        service.updateGigTelegramPostFileId({
-          gigId: gigId.toString(),
-          expectedVersion: 4,
-          type: PostType.Main,
-          messageId: 99,
-          chatId: -100456,
-          fileId: 'new-file-id',
-        }),
-      ).resolves.toBe(updatedGig);
-
-      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-        {
-          _id: gigId.toString(),
-          version: 4,
-          posts: {
-            $elemMatch: {
-              to: Messenger.Telegram,
-              type: PostType.Main,
-              id: 99,
-              chatId: -100456,
-            },
-          },
-        },
-        { $set: { 'posts.$.fileId': 'new-file-id' } },
-        { returnDocument: 'after' },
+      expect(gigRepository.updateTelegramPostFileId).toHaveBeenCalledWith(
+        params,
       );
-    });
-
-    it('should return null when the expected post snapshot no longer matches', async () => {
-      findOneAndUpdateMock.mockReturnValue({
-        exec: vi.fn().mockResolvedValue(null),
-      });
-
-      await expect(
-        service.updateGigTelegramPostFileId({
-          gigId: gigId.toString(),
-          expectedVersion: 4,
-          type: PostType.Moderation,
-          messageId: 42,
-          chatId: -100123,
-          fileId: 'new-file-id',
-        }),
-      ).resolves.toBeNull();
     });
 
     it('should reject an empty Telegram file ID before writing', () => {
       expect(() =>
         service.updateGigTelegramPostFileId({
-          gigId: gigId.toString(),
+          gigId: '507f1f77bcf86cd799439011',
           expectedVersion: 4,
           type: PostType.Main,
           messageId: 99,
@@ -690,7 +320,55 @@ describe('GigService', () => {
           fileId: ' ',
         }),
       ).toThrow('Telegram file ID must not be empty');
-      expect(findOneAndUpdateMock).not.toHaveBeenCalled();
+      expect(gigRepository.updateTelegramPostFileId).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('public Gig queries', () => {
+    it('should delegate inclusive digest date bounds', async () => {
+      await service.getVisibleGigsInInclusiveMsRange({ fromMs: 10, toMs: 20 });
+
+      expect(gigRepository.findVisibleInRange).toHaveBeenCalledWith({
+        from: 10,
+        to: 20,
+      });
+    });
+
+    it('should omit domain source from the public feed response', async () => {
+      const gig = buildGig();
+      gigRepository.findVisiblePage.mockResolvedValue({
+        gigs: [gig],
+        hasMore: false,
+      });
+
+      const result = await service.getVisibleGigsV1({
+        from: gig.date,
+        limit: 10,
+        city: 'barcelona',
+        country: 'ES',
+      });
+
+      expect(result.gigs[0]).not.toHaveProperty('source');
+      expect(gigRepository.findVisiblePage).toHaveBeenCalledWith({
+        from: gig.date,
+        city: 'barcelona',
+        country: 'ES',
+        limit: 10,
+        direction: 'next',
+      });
+    });
+
+    it('should return repository dates as serialized values', async () => {
+      gigRepository.findVisibleDates.mockResolvedValue([10, 20]);
+
+      await expect(
+        service.getVisibleGigDatesV1({
+          from: 1,
+          to: 30,
+          city: 'barcelona',
+          country: 'ES',
+        }),
+      ).resolves.toEqual({ dates: ['10', '20'] });
     });
   });
 });

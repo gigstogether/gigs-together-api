@@ -1,5 +1,5 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
-import type { GigPost } from '../../gig/gig.schema';
+import type { GigPost } from '../../gig/types/gig.types';
 import type {
   GigCandidate,
   GigCandidatePost,

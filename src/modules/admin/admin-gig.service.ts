@@ -159,7 +159,7 @@ export class AdminGigService {
       ) {
         const gigWithUpdatedFileId =
           await this.gigService.updateGigTelegramPostFileId({
-            gigId: updatedGig._id,
+            gigId: updatedGig.id,
             expectedVersion: updatedGig.version,
             type: editedPost.type,
             messageId: editedPost.id,
@@ -219,7 +219,7 @@ export class AdminGigService {
 
     const mainPost = this.telegramService.pickTgPost(gig.posts, PostType.Main);
     const payload: UpdateGigModerationPostPayload = {
-      gigId: gig._id,
+      gigId: gig.id,
       expectedVersion: gig.version,
       isVisible: gig.isVisible,
       title: gig.title,

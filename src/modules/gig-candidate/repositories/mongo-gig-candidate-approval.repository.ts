@@ -44,6 +44,7 @@ type GigStoredSource =
   | (Omit<GigSourceUser, 'userId'> & { userId: Types.ObjectId })
   | GigSourceProvider;
 
+// TODO: Extract this cross-aggregate transaction boundary as GigCandidateApprovalUnitOfWork.
 @Injectable()
 export class MongoGigCandidateApprovalRepository implements GigCandidateApprovalRepository {
   constructor(

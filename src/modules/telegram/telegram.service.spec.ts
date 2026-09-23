@@ -4,10 +4,8 @@ import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
-import { Types } from 'mongoose';
 import type { TGMessage } from './types/message.types';
-import type { GigDocument, GigPost } from '../gig/gig.schema';
-import type { PlainGig } from '../gig/types/gig.types';
+import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
@@ -126,10 +124,10 @@ function createDigestUpstreamError(
   };
 }
 
-function createDigestGigsWithRemotePosters(): GigDocument[] {
+function createDigestGigsWithRemotePosters(): PlainGig[] {
   return [
     {
-      _id: 'a',
+      id: 'a',
       publicId: 'alpha-2026-01-01',
       title: 'Alpha',
       date: 10,
@@ -137,19 +135,19 @@ function createDigestGigsWithRemotePosters(): GigDocument[] {
       poster: { bucketPath: 'gigs/a.jpg' },
     },
     {
-      _id: 'b',
+      id: 'b',
       publicId: 'beta-2026-01-02',
       title: 'Beta',
       date: 20,
       posts: [],
       poster: { bucketPath: 'gigs/b.jpg' },
     },
-  ] as unknown as GigDocument[];
+  ] as unknown as PlainGig[];
 }
 
 function createGigForTelegramEdit(post: GigPost): PlainGig {
   return {
-    _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    id: '507f1f77bcf86cd799439011',
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
@@ -161,7 +159,7 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
     version: 4,
     source: {
       type: 'user',
-      userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      userId: '507f1f77bcf86cd799439012',
       origin: { type: 'admin' },
     },
     posts: [post],
@@ -321,20 +319,20 @@ describe('TelegramService', () => {
 
       const gigs = [
         {
-          _id: 'a',
+          id: 'a',
           title: 'Alpha',
           date: 10,
           posts: [],
           poster: { bucketPath: 'gigs/a.jpg' },
         },
         {
-          _id: 'b',
+          id: 'b',
           title: 'Beta',
           date: 20,
           posts: [],
           poster: { bucketPath: 'gigs/b.jpg' },
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
         postUrl: 'https://t.me/c/1/1',
@@ -393,13 +391,13 @@ describe('TelegramService', () => {
 
       const gigs = [
         {
-          _id: 'a',
+          id: 'a',
           title: 'Only',
           date: 10,
           posts: [],
           poster: { bucketPath: 'gigs/a.jpg' },
         },
-      ] as unknown as GigDocument[];
+      ] as unknown as PlainGig[];
 
       await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
         postUrl: 'https://t.me/c/1/3',

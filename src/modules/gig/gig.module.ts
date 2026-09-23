@@ -11,6 +11,8 @@ import { GigModerationService } from './gig-moderation.service';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { GIG_REPOSITORY } from './repositories/gig.repository';
+import { MongoGigRepository } from './repositories/mongo-gig.repository';
 
 @Module({
   imports: [
@@ -22,6 +24,10 @@ import { TelegramModule } from '../telegram/telegram.module';
     TelegramModule,
   ],
   providers: [
+    {
+      provide: GIG_REPOSITORY,
+      useClass: MongoGigRepository,
+    },
     GigService,
     GigPosterService,
     GigModerationService,

@@ -9,7 +9,7 @@ import { logError } from '../../shared/utils/logging';
 import { isRecord } from '../../shared/utils/is-record';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
-import type { GigPost } from '../gig/gig.schema';
+import type { GigPost } from '../gig/types/gig.types';
 import type {
   GigCandidate,
   GigCandidatePost,
@@ -265,7 +265,7 @@ export class TelegramService {
       this.telegramPostComposerService.composeMainPost(gig);
     const message = await this.telegramBotClient.sendPhoto(
       composedMainPost,
-      String(gig._id),
+      gig.id,
     );
     return this.mapTelegramPostSendResult(message);
   }

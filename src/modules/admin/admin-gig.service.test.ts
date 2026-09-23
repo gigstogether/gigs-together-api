@@ -2,14 +2,12 @@ import { Readable } from 'node:stream';
 
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { Types } from 'mongoose';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import type { GigPost } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
-import type { PlainGig } from '../gig/types/gig.types';
+import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
 import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
@@ -19,7 +17,7 @@ import { AdminGigService } from './admin-gig.service';
 
 function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
-    _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    id: '507f1f77bcf86cd799439011',
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
@@ -31,7 +29,7 @@ function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
     version: 3,
     source: {
       type: 'user',
-      userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      userId: '507f1f77bcf86cd799439012',
       origin: { type: 'admin' },
     },
     posts: [
@@ -354,7 +352,7 @@ describe('AdminGigService', () => {
         isMediaUpdateRequired: false,
       });
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: gig.version,
         isVisible: gig.isVisible,
         title: 'Updated title',
@@ -436,7 +434,7 @@ describe('AdminGigService', () => {
         isMediaUpdateRequired: true,
       });
       expect(gigServiceMock.updateGigTelegramPostFileId).toHaveBeenCalledWith({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: 4,
         type: PostType.Main,
         messageId: mainPost.id,
@@ -472,7 +470,7 @@ describe('AdminGigService', () => {
         isVisible: false,
       });
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: 4,
         isVisible: false,
         title: gig.title,
@@ -514,7 +512,7 @@ describe('AdminGigService', () => {
       });
 
       expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: 5,
         isVisible: true,
         title: gig.title,

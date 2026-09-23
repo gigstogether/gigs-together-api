@@ -1,11 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Gig, GigPoster } from './gig.schema';
 import { firstValueFrom } from 'rxjs';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
 import type { GigPosterFile } from './types/gig-poster.types';
+import type { GigPoster } from './types/gig.types';
 
 interface UploadPosterPayload {
   url?: string;
@@ -26,7 +24,6 @@ const SVG_POSTER_ERROR_MESSAGE =
 @Injectable()
 export class GigPosterService {
   constructor(
-    @InjectModel(Gig.name) private gigModel: Model<Gig>,
     private readonly bucketService: BucketService,
     private readonly httpService: HttpService,
   ) {}

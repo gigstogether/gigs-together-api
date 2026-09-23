@@ -6,14 +6,13 @@ import {
 } from '@nestjs/common';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import type { GigPost } from './gig.schema';
 import { GigService } from './gig.service';
 import type {
   CreateGigMainPostParams,
   GigModerationPostRef,
   SetGigVisibilityParams,
 } from './types/gig-moderation.types';
-import type { PlainGig } from './types/gig.types';
+import type { GigPost, PlainGig } from './types/gig.types';
 import { FeedRevalidateService } from './feed-revalidate.service';
 
 interface GigMainPostRef {
@@ -33,7 +32,7 @@ export class GigModerationService {
 
   async createGigMainPost(params: CreateGigMainPostParams): Promise<void> {
     const gig = await this.getGig(params);
-    const gigId = gig._id.toString();
+    const gigId = gig.id;
     if (gig.version !== params.expectedVersion) {
       throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
     }
@@ -93,7 +92,7 @@ export class GigModerationService {
 
   async setGigVisibility(params: SetGigVisibilityParams): Promise<void> {
     const gig = await this.getGig(params);
-    const gigId = gig._id.toString();
+    const gigId = gig.id;
     if (gig.version !== params.expectedVersion) {
       throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
     }

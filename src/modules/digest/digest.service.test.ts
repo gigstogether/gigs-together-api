@@ -7,13 +7,8 @@ import type {
   GetPreviousDigestCronFireDateParams,
 } from './digest.service';
 import { DigestPostState } from './digest-post-state.schema';
-import { Gig } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
-import { AiService } from '../ai/ai.service';
-import { CalendarService } from '../calendar/calendar.service';
-import { GigPosterService } from '../gig/gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { BucketService } from '../bucket/bucket.service';
 
 describe('getPreviousDigestCronFireDate', () => {
   it('should return the prior weekly instant for default Monday-noon digest cron', () => {
@@ -32,10 +27,7 @@ describe('getPreviousDigestCronFireDate', () => {
 describe('DigestService', () => {
   let service: DigestService;
 
-  const execMock = vi.fn();
-  const sortMock = vi.fn().mockReturnValue({ exec: execMock });
-  const collationMock = vi.fn().mockReturnValue({ sort: sortMock });
-  const findMock = vi.fn().mockReturnValue({ collation: collationMock });
+  const getVisibleGigsInInclusiveMsRangeMock = vi.fn();
   const sendWeeklyDigestPostMock = vi.fn();
 
   const findPublicationOneExec = vi.fn();
@@ -52,7 +44,7 @@ describe('DigestService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    execMock.mockResolvedValue([]);
+    getVisibleGigsInInclusiveMsRangeMock.mockResolvedValue([]);
     sendWeeklyDigestPostMock.mockResolvedValue(digestPostSuccess);
     findPublicationOneExec.mockResolvedValue(null);
     findPublicationOneAndUpdateExec.mockResolvedValue({});
@@ -67,28 +59,19 @@ describe('DigestService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DigestMod.DigestService,
-        GigService,
         {
-          provide: getModelToken(Gig.name),
+          provide: GigService,
           useValue: {
-            find: findMock,
+            getVisibleGigsInInclusiveMsRange:
+              getVisibleGigsInInclusiveMsRangeMock,
           },
         },
-        {
-          provide: AiService,
-          useValue: {
-            lookupGigV1: vi.fn(),
-          },
-        },
-        { provide: CalendarService, useValue: {} },
-        { provide: GigPosterService, useValue: { upload: vi.fn() } },
         {
           provide: TelegramService,
           useValue: {
             sendWeeklyDigestPost: sendWeeklyDigestPostMock,
           },
         },
-        { provide: BucketService, useValue: {} },
         {
           provide: getModelToken(DigestPostState.name),
           useValue: {
@@ -128,7 +111,7 @@ describe('DigestService', () => {
 
       await service.createPostIfEligible();
 
-      expect(findMock).not.toHaveBeenCalled();
+      expect(getVisibleGigsInInclusiveMsRangeMock).not.toHaveBeenCalled();
       expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
     });
 
@@ -138,15 +121,10 @@ describe('DigestService', () => {
 
       await service.createPostIfEligible();
 
-      expect(findMock).toHaveBeenCalledWith({
-        isVisible: true,
-        date: { $gte: fromMs, $lte: toMs },
+      expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalledWith({
+        fromMs,
+        toMs,
       });
-      expect(collationMock).toHaveBeenCalledWith({
-        locale: 'en',
-        strength: 2,
-      });
-      expect(sortMock).toHaveBeenCalledWith({ date: 1, _id: 1 });
     });
 
     it('should send an empty document list when the digest date range has no documents', async () => {
@@ -158,7 +136,7 @@ describe('DigestService', () => {
     it('should send loaded documents when the digest date range has documents', async () => {
       const docA = { _id: 'a', publicId: 'gig-a' };
       const docB = { _id: 'b', publicId: 'gig-b' };
-      execMock.mockResolvedValue([docA, docB]);
+      getVisibleGigsInInclusiveMsRangeMock.mockResolvedValue([docA, docB]);
 
       await service.createPostIfEligible();
 
@@ -172,7 +150,7 @@ describe('DigestService', () => {
 
       await service.createPostIfEligible();
 
-      expect(findMock).not.toHaveBeenCalled();
+      expect(getVisibleGigsInInclusiveMsRangeMock).not.toHaveBeenCalled();
       expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
       expect(findPublicationOneAndUpdateMock).not.toHaveBeenCalled();
     });
@@ -206,7 +184,7 @@ describe('DigestService', () => {
 
       await service.createPostIfEligible();
 
-      expect(findMock).toHaveBeenCalled();
+      expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
       expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
   });
@@ -222,7 +200,7 @@ describe('DigestService', () => {
 
       await service.createPost();
 
-      expect(findMock).toHaveBeenCalled();
+      expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
       expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
 
@@ -236,7 +214,7 @@ describe('DigestService', () => {
       await service.createPost();
 
       expect(findPublicationOneExec).not.toHaveBeenCalled();
-      expect(findMock).toHaveBeenCalled();
+      expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
       expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
     });
   });

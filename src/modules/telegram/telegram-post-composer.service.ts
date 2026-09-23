@@ -6,7 +6,7 @@ import type {
   TGSendPhoto,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import type { GigPost, GigPoster } from '../gig/gig.schema';
+import type { GigPost, GigPoster } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
@@ -123,7 +123,7 @@ export class TelegramPostComposerService {
     const messageId = post.id;
 
     const replyMarkup = this.buildGigModerationReplyMarkup({
-      gigId: gig._id,
+      gigId: gig.id,
       expectedVersion: gig.version,
       isVisible: gig.isVisible,
       editGigUrl: this.buildEditGigUrl(gig.publicId),

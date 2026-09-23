@@ -1,12 +1,10 @@
 import { HttpService } from '@nestjs/axios';
 import { BadRequestException } from '@nestjs/common';
-import { getModelToken } from '@nestjs/mongoose';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { BucketService } from '../bucket/bucket.service';
 import { GigPosterService } from './gig.poster.service';
-import { Gig } from './gig.schema';
 
 describe('GigPosterService', () => {
   let gigPosterService: GigPosterService;
@@ -19,7 +17,6 @@ describe('GigPosterService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GigPosterService,
-        { provide: getModelToken(Gig.name), useValue: {} },
         { provide: BucketService, useValue: bucketService },
         { provide: HttpService, useValue: { get: vi.fn() } },
       ],

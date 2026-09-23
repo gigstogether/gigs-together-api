@@ -1,6 +1,5 @@
 import { ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Types } from 'mongoose';
 
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -12,7 +11,7 @@ import { FeedRevalidateService } from './feed-revalidate.service';
 
 describe('GigModerationService', () => {
   const gig: PlainGig = {
-    _id: new Types.ObjectId(),
+    id: '507f1f77bcf86cd799439011',
     publicId: 'test-gig-2026-09-17',
     title: 'Test Gig',
     date: 1_789_603_200_000,
@@ -24,7 +23,7 @@ describe('GigModerationService', () => {
     version: 3,
     source: {
       type: 'user',
-      userId: new Types.ObjectId(),
+      userId: '507f1f77bcf86cd799439012',
       origin: { type: 'admin' },
     },
     posts: [],
@@ -73,10 +72,10 @@ describe('GigModerationService', () => {
     });
     gigService.appendGigMainPost.mockResolvedValue({ ...gig, version: 4 });
 
-    await service.createGigMainPost({ gigId: gig._id, expectedVersion: 3 });
+    await service.createGigMainPost({ gigId: gig.id, expectedVersion: 3 });
 
     expect(gigService.appendGigMainPost).toHaveBeenCalledWith({
-      gigId: String(gig._id),
+      gigId: gig.id,
       expectedVersion: 3,
       post: { id: 44, chatId: -1001, date: 1_789_603_300_000 },
     });
@@ -86,7 +85,7 @@ describe('GigModerationService', () => {
     gigService.getGigById.mockResolvedValue(gig);
 
     await expect(
-      service.createGigMainPost({ gigId: gig._id, expectedVersion: 2 }),
+      service.createGigMainPost({ gigId: gig.id, expectedVersion: 2 }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(telegramService.sendMainPost).not.toHaveBeenCalled();
   });
@@ -98,7 +97,7 @@ describe('GigModerationService', () => {
     );
 
     await expect(
-      service.createGigMainPost({ gigId: gig._id, expectedVersion: 3 }),
+      service.createGigMainPost({ gigId: gig.id, expectedVersion: 3 }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(telegramService.sendMainPost).not.toHaveBeenCalled();
   });
@@ -122,7 +121,7 @@ describe('GigModerationService', () => {
     telegramService.pickTgPost.mockReturnValue(mainPost);
 
     await service.setGigVisibility({
-      gigId: gig._id,
+      gigId: gig.id,
       expectedVersion: 3,
       isVisible: false,
       moderationPost: { chatId: -1002, messageId: 55 },
@@ -138,7 +137,7 @@ describe('GigModerationService', () => {
       city: gig.city,
     });
     expect(telegramService.updateGigModerationPost).toHaveBeenCalledWith({
-      gigId: String(gig._id),
+      gigId: gig.id,
       expectedVersion: 4,
       isVisible: false,
       title: gig.title,
@@ -156,7 +155,7 @@ describe('GigModerationService', () => {
     telegramService.pickTgPost.mockReturnValue(undefined);
 
     await service.setGigVisibility({
-      gigId: gig._id,
+      gigId: gig.id,
       expectedVersion: 4,
       isVisible: true,
       moderationPost: { chatId: -1002, messageId: 55 },
@@ -168,7 +167,7 @@ describe('GigModerationService', () => {
       isVisible: true,
     });
     expect(telegramService.updateGigModerationPost).toHaveBeenCalledWith({
-      gigId: String(gig._id),
+      gigId: gig.id,
       expectedVersion: 5,
       isVisible: true,
       title: gig.title,
@@ -183,7 +182,7 @@ describe('GigModerationService', () => {
 
     await expect(
       service.setGigVisibility({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: 2,
         isVisible: false,
         moderationPost: { chatId: -1002, messageId: 55 },
@@ -204,7 +203,7 @@ describe('GigModerationService', () => {
 
     await expect(
       service.setGigVisibility({
-        gigId: gig._id,
+        gigId: gig.id,
         expectedVersion: 3,
         isVisible: false,
         moderationPost: { chatId: -1002, messageId: 55 },
