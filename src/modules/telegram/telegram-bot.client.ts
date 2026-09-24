@@ -15,6 +15,7 @@ import type {
 } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
+import { formatErrorMessage } from '../../shared/utils/logging';
 
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
@@ -244,10 +245,9 @@ export class TelegramBotClient {
 
       return { buffer, filename, contentType };
     } catch (e) {
+      // Remove query and hash so signed URLs and sensitive access parameters never reach logs.
       this.logger.warn(
-        `downloadRemoteFileAsInputFile error: ${JSON.stringify(
-          e?.response?.data ?? e,
-        )}`,
+        `downloadRemoteFileAsInputFile failed for imageUrl=${this.getUrlWithoutQueryOrHash(url)} contextId=${gigId ?? 'none'}: ${formatErrorMessage(e)}`,
       );
       return;
     }

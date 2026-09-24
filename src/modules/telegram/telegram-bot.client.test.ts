@@ -146,6 +146,56 @@ describe('TelegramBotClient', () => {
         expect.stringContaining('signature=secret'),
       );
     });
+
+    it('should safely log a failed remote photo download before sending text fallback', async () => {
+      const photoUrl =
+        'https://cdn.example/posters/example.jpg?signature=secret#preview';
+      const sentMessage: TGMessage = {
+        message_id: 3,
+        date: Date.now(),
+        chat: { id: 1, type: 'channel' },
+      };
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      mockHttpService.post
+        .mockReturnValueOnce(
+          throwError(() => ({
+            response: {
+              data: {
+                error_code: 400,
+                description: 'Bad Request: failed to get HTTP URL content',
+              },
+            },
+          })),
+        )
+        .mockReturnValueOnce(of({ data: { result: sentMessage } }));
+      mockHttpService.get.mockReturnValue(
+        throwError(() => ({
+          isAxiosError: true,
+          message: 'Request failed with status code 502',
+          response: { status: 502 },
+        })),
+      );
+
+      const result = await client.sendPhoto(
+        {
+          chat_id: 1,
+          photo: photoUrl,
+          caption: 'Example',
+        },
+        'gig-candidate-id',
+      );
+
+      expect(result).toEqual(sentMessage);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'downloadRemoteFileAsInputFile failed for imageUrl=https://cdn.example/posters/example.jpg contextId=gig-candidate-id: Request failed with status code 502; httpStatus=502',
+      );
+      expect(loggerSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('signature=secret'),
+      );
+    });
   });
 
   describe('sendMediaGroup', () => {

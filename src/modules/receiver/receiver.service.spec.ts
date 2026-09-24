@@ -409,6 +409,53 @@ describe('ReceiverService', () => {
       });
     });
 
+    it('should log safe Telegram details when callback processing fails', async () => {
+      const callbackQuery: TGCallbackQuery = {
+        id: 'callback-gigCandidate-approve-error',
+        data: encodeCallbackData({
+          scope: CallbackScope.GigCandidate,
+          action: GigCandidateCallbackAction.Approve,
+          id: '507f1f77bcf86cd799439099',
+          expectedVersion: 4,
+        }),
+        from: { id: 1, is_bot: false, first_name: 'Arina' },
+        message: {
+          message_id: 42,
+          date: Date.now(),
+          chat: { id: -100123, type: 'channel' },
+        },
+      };
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      mockGigCandidateService.approveGigCandidate.mockRejectedValue({
+        isAxiosError: true,
+        message: 'Request failed with status code 400',
+        response: {
+          status: 400,
+          data: {
+            ok: false,
+            error_code: 400,
+            description: 'Bad Request: message is not modified',
+          },
+        },
+      });
+
+      await service.handleCallbackQuery(
+        callbackQuery,
+        '507f1f77bcf86cd799439088',
+      );
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        'handleCallbackQuery failed: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: message is not modified',
+      );
+      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+        callback_query_id: callbackQuery.id,
+        text: 'Failed: Bad Request: message is not modified',
+        show_alert: true,
+      });
+    });
+
     it('should answer without warning when GigCandidate approval validation fails', async () => {
       const callbackQuery: TGCallbackQuery = {
         id: 'callback-gigCandidate-invalid-draft',

@@ -9,6 +9,7 @@ import {
   parseCallbackData,
 } from '../telegram/callback-action';
 import { TelegramService } from '../telegram/telegram.service';
+import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
@@ -240,9 +241,7 @@ export class ReceiverService {
     } catch (e) {
       if (!(e instanceof GigCandidateApprovalValidationError)) {
         this.logger.warn(
-          `handleCallbackQuery failed: ${JSON.stringify(
-            e?.response?.data ?? e?.message ?? e,
-          )}`,
+          `handleCallbackQuery failed: ${formatTelegramErrorMessage(e)}`,
         );
       }
       await this.telegramService.answerCallbackQuery({
