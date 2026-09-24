@@ -32,6 +32,7 @@ import type {
 } from './repositories/gig.repository';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
+import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 
 interface ResolvePublicPostUrl {
   postId?: number;
@@ -356,7 +357,7 @@ export class GigService {
       }
     } catch (e: unknown) {
       this.logger.warn(
-        `Telegram post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
+        `Telegram post update failed for publicId=${params.publicId} postType=${editedPost?.type ?? 'unknown'}: ${formatTelegramErrorMessage(e)}`,
       );
     }
 
@@ -553,7 +554,7 @@ export class GigService {
       });
     } catch (e: unknown) {
       this.logger.warn(
-        `updateGigModerationPost failed for gig ${gigId}: ${this.formatError(e)}`,
+        `updateGigModerationPost failed for gig ${gigId}: ${formatTelegramErrorMessage(e)}`,
       );
     }
   }
@@ -693,7 +694,7 @@ export class GigService {
       await this.telegramService.updateGigModerationPost(payload);
     } catch (e: unknown) {
       this.logger.warn(
-        `Telegram moderation post update failed for publicId=${gig.publicId}: ${this.formatError(e)}`,
+        `Telegram moderation post update failed for publicId=${gig.publicId}: ${formatTelegramErrorMessage(e)}`,
       );
     }
   }
@@ -703,10 +704,6 @@ export class GigService {
       country: gig.country,
       city: gig.city,
     });
-  }
-
-  private formatError(e: unknown): string {
-    return e instanceof Error ? e.message : String(e);
   }
 
   async resolvePublicPostUrl(

@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -283,6 +283,45 @@ describe('GigService', () => {
         country: updated.country,
         city: updated.city,
       });
+    });
+
+    it('should log safe Telegram response details when post editing fails', async () => {
+      const moderationPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        date: 1_700_000_001_000,
+      };
+      const updated = buildGig({ version: 4, posts: [moderationPost] });
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      gigRepository.updateByPublicId.mockResolvedValue(updated);
+      editGigPost.mockRejectedValueOnce({
+        isAxiosError: true,
+        message: 'Request failed with status code 400',
+        response: {
+          status: 400,
+          data: {
+            ok: false,
+            error_code: 400,
+            description: 'Bad Request: failed to get HTTP URL content',
+          },
+        },
+      });
+
+      await service.updateGigByPublicId({
+        publicId: updated.publicId,
+        expectedVersion: 3,
+        gig: gigInput,
+        posterFile: undefined,
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Telegram post update failed for publicId=${updated.publicId} postType=${PostType.Moderation}: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: failed to get HTTP URL content`,
+      );
+      warnSpy.mockRestore();
     });
 
     it('should edit Main and Moderation posts after updating a Gig', async () => {

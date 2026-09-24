@@ -1,6 +1,21 @@
 import { isAxiosError } from 'axios';
 import type { LoggerService } from '@nestjs/common';
 
+export function formatErrorMessage(e: unknown): string {
+  if (!isAxiosError(e)) {
+    if (e instanceof Error) {
+      return e.message;
+    }
+    return typeof e === 'string' ? e : 'unknown error';
+  }
+
+  const parts = [e.message];
+  if (e.response?.status !== undefined) {
+    parts.push(`httpStatus=${e.response.status}`);
+  }
+  return parts.join('; ');
+}
+
 export function toShortJson(value: unknown, maxLen = 2000): unknown {
   if (value === undefined) return undefined;
   if (value === null) return null;

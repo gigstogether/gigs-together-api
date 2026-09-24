@@ -5,7 +5,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { isAxiosError } from 'axios';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -19,7 +18,8 @@ import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
-import { isRecord } from '../../shared/utils/is-record';
+import { formatErrorMessage } from '../../shared/utils/logging';
+import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
 import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
@@ -620,11 +620,8 @@ export class GigCandidateService {
         },
       });
     } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'updateGigModerationPost',
-        gigCandidate.id,
-        gig.id,
-        e,
+      this.logger.warn(
+        `updateGigModerationPost failed after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}: ${formatTelegramErrorMessage(e)}`,
       );
     }
   }
@@ -636,7 +633,7 @@ export class GigCandidateService {
     e: unknown,
   ): void {
     this.logger.warn(
-      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${this.formatErrorMessage(e)}`,
+      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${formatErrorMessage(e)}`,
     );
   }
 
@@ -828,7 +825,7 @@ export class GigCandidateService {
       return latest;
     } catch (e) {
       this.logger.error(
-        `Persisting Telegram ${postType} reference failed for gigCandidateId=${gigCandidate.id}: ${this.formatErrorMessage(e)}`,
+        `Persisting Telegram ${postType} reference failed for gigCandidateId=${gigCandidate.id}: ${formatTelegramErrorMessage(e)}`,
       );
       return null;
     }
@@ -1096,29 +1093,8 @@ export class GigCandidateService {
     e: unknown,
   ): void {
     this.logger.warn(
-      `${operation} failed for gigCandidateId=${gigCandidateId}: ${this.formatErrorMessage(e)}`,
+      `${operation} failed for gigCandidateId=${gigCandidateId}: ${formatTelegramErrorMessage(e)}`,
     );
-  }
-
-  private formatErrorMessage(e: unknown): string {
-    if (!isAxiosError(e)) {
-      return e instanceof Error ? e.message : 'unknown error';
-    }
-
-    const parts = [e.message];
-    if (e.response?.status !== undefined) {
-      parts.push(`httpStatus=${e.response.status}`);
-    }
-    const responseData = e.response?.data;
-    if (isRecord(responseData)) {
-      if (typeof responseData.error_code === 'number') {
-        parts.push(`telegramErrorCode=${responseData.error_code}`);
-      }
-      if (typeof responseData.description === 'string') {
-        parts.push(`telegramDescription=${responseData.description}`);
-      }
-    }
-    return parts.join('; ');
   }
 
   private assertExpectedVersionIsValid(
