@@ -18,6 +18,7 @@ import { envBool } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
+import type { EditGigPostsParams } from '../telegram/telegram.service';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -315,11 +316,19 @@ export class GigService {
   ): Promise<UpdateGigByPublicIdResult> {
     let updatedGig = await this.updateGigStateByPublicId(params);
     const isMediaUpdateRequired = params.posterFile !== undefined;
+    const telegramEditParams: EditGigPostsParams = {
+      gig: updatedGig,
+      isMediaUpdateRequired,
+    };
+    if (params.posterFile !== undefined) {
+      telegramEditParams.posterFile = {
+        buffer: params.posterFile.buffer,
+        filename: params.posterFile.originalname,
+        contentType: params.posterFile.mimetype,
+      };
+    }
     const telegramEditResult =
-      await this.telegramService.editGigPostsBestEffort({
-        gig: updatedGig,
-        isMediaUpdateRequired,
-      });
+      await this.telegramService.editGigPostsBestEffort(telegramEditParams);
 
     if (isMediaUpdateRequired) {
       const moderationFileId = telegramEditResult.moderation?.result.fileId;

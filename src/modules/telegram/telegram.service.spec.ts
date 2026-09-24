@@ -670,6 +670,11 @@ describe('TelegramService', () => {
         poster: { bucketPath: 'gigs/poster.jpg' },
         posts: [moderationPost, mainPost],
       };
+      const posterFile = {
+        buffer: Buffer.from('poster bytes'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
+      };
       const moderationMessage: TGMessage = {
         message_id: moderationPost.id,
         date: 1_700_000_003,
@@ -705,6 +710,7 @@ describe('TelegramService', () => {
         service.editGigPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
+          posterFile,
         }),
       ).resolves.toEqual({
         moderation: {
@@ -736,6 +742,7 @@ describe('TelegramService', () => {
             caption: expect.stringContaining('https://t.me/c/456/99'),
           }),
         }),
+        posterFile,
       );
       expect(editMessageMediaSpy).toHaveBeenNthCalledWith(
         2,
@@ -749,7 +756,7 @@ describe('TelegramService', () => {
       );
     });
 
-    it('should update Main by URL and refresh Moderation text when its media edit fails', async () => {
+    it('should retry Main with the same file and refresh Moderation text when its media edit fails', async () => {
       mockBucketService.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
@@ -774,6 +781,11 @@ describe('TelegramService', () => {
         ...createGigForTelegramEdit(moderationPost),
         poster: { bucketPath: 'gigs/poster.jpg' },
         posts: [moderationPost, mainPost],
+      };
+      const posterFile = {
+        buffer: Buffer.from('poster bytes'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
       };
       const mainMessage: TGMessage = {
         message_id: mainPost.id,
@@ -818,6 +830,7 @@ describe('TelegramService', () => {
         service.editGigPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
+          posterFile,
         }),
       ).resolves.toEqual({
         main: {
@@ -840,6 +853,7 @@ describe('TelegramService', () => {
             ),
           }),
         }),
+        posterFile,
       );
       expect(editMessageCaptionSpy).toHaveBeenCalledWith(
         expect.objectContaining({

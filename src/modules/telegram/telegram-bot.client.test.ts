@@ -253,6 +253,63 @@ describe('TelegramBotClient', () => {
     });
   });
 
+  describe('editMessageMedia', () => {
+    it('should upload replacement photo bytes as multipart media', async () => {
+      const editedMessage: TGMessage = {
+        message_id: 42,
+        date: 1,
+        chat: { id: -100123, type: 'channel' },
+      };
+      const posterFile = {
+        buffer: Buffer.from('poster bytes'),
+        filename: 'poster.png',
+        contentType: 'image/png',
+      };
+      mockHttpService.post.mockReturnValue(
+        of({ data: { result: editedMessage } }),
+      );
+
+      await expect(
+        client.editMessageMedia(
+          {
+            chatId: -100123,
+            messageId: 42,
+            media: {
+              type: TGInputMediaType.Photo,
+              media: 'https://cdn.example/poster.png',
+              caption: 'Updated poster',
+            },
+          },
+          posterFile,
+        ),
+      ).resolves.toEqual(editedMessage);
+
+      const request = mockHttpService.post.mock.calls[0];
+      expect(request?.[0]).toBe('editMessageMedia');
+      const form = request?.[1];
+      const config = request?.[2];
+      expect(config).toEqual(
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'content-type': expect.stringContaining(
+              'multipart/form-data; boundary=',
+            ),
+          }),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        }),
+      );
+      const multipartBody = form.getBuffer().toString('utf8');
+      expect(multipartBody).toContain('name="chat_id"');
+      expect(multipartBody).toContain('name="message_id"');
+      expect(multipartBody).toContain('"media":"attach://poster"');
+      expect(multipartBody).toContain('name="poster"; filename="poster.png"');
+      expect(multipartBody).toContain('Content-Type: image/png');
+      expect(multipartBody).toContain('poster bytes');
+      expect(multipartBody).not.toContain('https://cdn.example/poster.png');
+    });
+  });
+
   describe('answerCallbackQuery', () => {
     it('should throw RangeError when notification text exceeds Telegram Bot API limit', async () => {
       const text = 'x'.repeat(

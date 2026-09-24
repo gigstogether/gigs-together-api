@@ -410,6 +410,11 @@ describe('GigService', () => {
       expect(editGigPostsBestEffort).toHaveBeenCalledWith({
         gig: updated,
         isMediaUpdateRequired: true,
+        posterFile: {
+          buffer: posterBuffer,
+          filename: posterFile.originalname,
+          contentType: posterFile.mimetype,
+        },
       });
       expect(gigRepository.updateTelegramPostFileId).toHaveBeenNthCalledWith(
         1,
@@ -499,6 +504,15 @@ describe('GigService', () => {
         posterFile,
       });
 
+      expect(editGigPostsBestEffort).toHaveBeenCalledWith({
+        gig: updated,
+        isMediaUpdateRequired: true,
+        posterFile: {
+          buffer: posterBuffer,
+          filename: posterFile.originalname,
+          contentType: posterFile.mimetype,
+        },
+      });
       expect(gigRepository.updateTelegramPostFileId).toHaveBeenCalledWith({
         gigId: updated.id,
         expectedVersion: updated.version,

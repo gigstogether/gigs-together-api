@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
-import type { TGMessage, TGSendPhoto } from './types/message.types';
+import type { InputFile, TGMessage, TGSendPhoto } from './types/message.types';
 import { TGParseMode } from './types/message.types';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -52,11 +52,13 @@ interface EditGigPostParams {
   post: GigPost;
   isMediaUpdateRequired: boolean;
   mediaReference?: string;
+  posterFile?: InputFile;
 }
 
 export interface EditGigPostsParams {
   gig: PlainGig;
   isMediaUpdateRequired: boolean;
+  posterFile?: InputFile;
 }
 
 export interface EditedGigPost {
@@ -123,7 +125,7 @@ export class TelegramService {
   editGigPost(params: EditGigPostParams): Promise<TelegramPostEditResult> {
     const composed =
       this.telegramPostComposerService.composeGigPostEdit(params);
-    return this.executePostEdit(composed);
+    return this.executePostEdit(composed, params.posterFile);
   }
 
   async editGigPostsBestEffort(
@@ -141,11 +143,16 @@ export class TelegramService {
 
     let moderationEditResult: TelegramPostEditResult | undefined;
     if (params.isMediaUpdateRequired && moderationPost !== undefined) {
-      moderationEditResult = await this.editGigPostBestEffort({
+      const moderationEditParams: EditGigPostParams = {
         gig: params.gig,
         post: moderationPost,
         isMediaUpdateRequired: true,
-      });
+      };
+      if (params.posterFile !== undefined) {
+        moderationEditParams.posterFile = params.posterFile;
+      }
+      moderationEditResult =
+        await this.editGigPostBestEffort(moderationEditParams);
       if (moderationEditResult !== undefined) {
         editResult.moderation = {
           post: moderationPost,
@@ -163,6 +170,8 @@ export class TelegramService {
       if (moderationEditResult?.fileId !== undefined) {
         // Upload replacement media once through Moderation, then reuse its fileId for Main.
         mainEditParams.mediaReference = moderationEditResult.fileId;
+      } else if (params.posterFile !== undefined) {
+        mainEditParams.posterFile = params.posterFile;
       }
       const mainEditResult = await this.editGigPostBestEffort(mainEditParams);
       if (mainEditResult !== undefined) {
@@ -466,12 +475,21 @@ export class TelegramService {
 
   private async executePostEdit(
     composed: TelegramPostEditComposition,
+    posterFile?: InputFile,
   ): Promise<TelegramPostEditResult> {
     switch (composed.kind) {
       case PostEditKind.Media: {
-        const message = await this.telegramBotClient.editMessageMedia(
-          composed.payload,
-        );
+        let message: TGMessage;
+        if (posterFile !== undefined) {
+          message = await this.telegramBotClient.editMessageMedia(
+            composed.payload,
+            posterFile,
+          );
+        } else {
+          message = await this.telegramBotClient.editMessageMedia(
+            composed.payload,
+          );
+        }
         const result: TelegramPostEditResult = {
           kind: PostEditKind.Media,
           message,

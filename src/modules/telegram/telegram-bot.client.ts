@@ -118,16 +118,7 @@ export class TelegramBotClient {
 
     // TODO: jpg ?
     const filename = `poster${gigId}.jpg`;
-    if (Buffer.isBuffer(photo)) {
-      form.append('photo', photo, { filename });
-    } else if (typeof photo.buffer !== 'undefined') {
-      form.append('photo', photo.buffer, {
-        filename: photo.filename,
-        contentType: photo.contentType,
-      });
-    } else {
-      form.append('photo', photo, { filename });
-    }
+    this.appendInputFile(form, 'photo', photo, filename);
 
     const res$ = this.httpService.post('sendPhoto', form, {
       headers: form.getHeaders(),
@@ -137,6 +128,23 @@ export class TelegramBotClient {
 
     const res = await firstValueFrom(res$);
     return res.data.result;
+  }
+
+  private appendInputFile(
+    form: FormData,
+    fieldName: string,
+    file: InputFile,
+    defaultFilename: string,
+  ): void {
+    if (Buffer.isBuffer(file)) {
+      form.append(fieldName, file, { filename: defaultFilename });
+      return;
+    }
+
+    form.append(fieldName, file.buffer, {
+      filename: file.filename,
+      contentType: file.contentType,
+    });
   }
 
   async sendMediaGroup(payload: TGSendMediaGroup): Promise<TGMessage[]> {
@@ -344,8 +352,48 @@ export class TelegramBotClient {
     return res.data.result;
   }
 
-  async editMessageMedia(payload: TGEditMessageMedia): Promise<TGMessage> {
+  async editMessageMedia(
+    payload: TGEditMessageMedia,
+    posterFile?: InputFile,
+  ): Promise<TGMessage> {
     const { chatId, messageId, media, replyMarkup } = payload;
+
+    if (posterFile !== undefined) {
+      if (media === undefined) {
+        throw new Error(
+          'editMessageMedia: media payload is required for multipart upload',
+        );
+      }
+
+      const mediaAttachName = 'poster';
+      const form = new FormData();
+      if (chatId !== undefined) {
+        form.append('chat_id', String(chatId));
+      }
+      if (messageId !== undefined) {
+        form.append('message_id', String(messageId));
+      }
+      form.append(
+        'media',
+        JSON.stringify({
+          ...media,
+          media: `attach://${mediaAttachName}`,
+        }),
+      );
+      if (replyMarkup !== undefined) {
+        form.append('reply_markup', JSON.stringify(replyMarkup));
+      }
+      this.appendInputFile(form, mediaAttachName, posterFile, 'poster.jpg');
+
+      const res = await firstValueFrom(
+        this.httpService.post('editMessageMedia', form, {
+          headers: form.getHeaders(),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        }),
+      );
+      return res.data.result;
+    }
 
     const res = await firstValueFrom(
       this.httpService.post('editMessageMedia', {
