@@ -73,6 +73,15 @@ export interface SetGigVisibilityParams {
   moderationPost: GigTelegramPostRef;
 }
 
+interface ChangeGigVisibilityParams extends UpdateGigVisibilityByPublicIdParams {
+  moderationPost?: GigTelegramPostRef;
+}
+
+interface UpdateGigModerationPostBestEffortParams {
+  gig: PlainGig;
+  moderationPost?: GigTelegramPostRef;
+}
+
 interface CreateGigMainPostBaseParams {
   moderationPost?: GigTelegramPostRef;
   expectedVersion: number;
@@ -351,7 +360,7 @@ export class GigService {
       );
     }
 
-    await this.updateGigModerationPostBestEffort(updatedGig);
+    await this.updateGigModerationPostBestEffort({ gig: updatedGig });
     await this.revalidateGigFeed(updatedGig);
 
     return { publicId: updatedGig.publicId };
@@ -404,9 +413,7 @@ export class GigService {
   async updateGigVisibilityByPublicId(
     params: UpdateGigVisibilityByPublicIdParams,
   ): Promise<UpdateGigVisibilityByPublicIdResult> {
-    const updatedGig = await this.updateGigVisibilityStateByPublicId(params);
-    await this.updateGigModerationPostBestEffort(updatedGig);
-    await this.revalidateGigFeed(updatedGig);
+    const updatedGig = await this.changeGigVisibility(params);
 
     return {
       publicId: updatedGig.publicId,
@@ -415,8 +422,8 @@ export class GigService {
     };
   }
 
-  private async updateGigVisibilityStateByPublicId(
-    params: UpdateGigVisibilityByPublicIdParams,
+  private async changeGigVisibility(
+    params: ChangeGigVisibilityParams,
   ): Promise<PlainGig> {
     const publicId = this.normalizeAndValidatePublicId(params.publicId);
     this.validateExpectedVersion(params.expectedVersion);
@@ -429,6 +436,12 @@ export class GigService {
     if (!updated) {
       return this.throwGigVersionConflictOrNotFound(publicId);
     }
+
+    await this.updateGigModerationPostBestEffort({
+      gig: updated,
+      moderationPost: params.moderationPost,
+    });
+    await this.revalidateGigFeed(updated);
 
     return updated;
   }
@@ -558,33 +571,12 @@ export class GigService {
       );
     }
 
-    const updatedGig = await this.updateGigVisibilityStateByPublicId({
+    await this.changeGigVisibility({
       publicId: gig.publicId,
       expectedVersion: params.expectedVersion,
       isVisible: params.isVisible,
+      moderationPost: params.moderationPost,
     });
-
-    await this.revalidateGigFeed(updatedGig);
-
-    const mainPost = this.resolveTelegramPostRef(
-      updatedGig.posts,
-      PostType.Main,
-    );
-    try {
-      await this.telegramService.updateGigModerationPost({
-        gigId,
-        expectedVersion: updatedGig.version,
-        isVisible: updatedGig.isVisible,
-        title: updatedGig.title,
-        publicId: updatedGig.publicId,
-        moderationPost: params.moderationPost,
-        mainPost,
-      });
-    } catch (e: unknown) {
-      this.logger.warn(
-        `updateGigModerationPost failed after changing visibility for gig ${gigId}: ${this.formatError(e)}`,
-      );
-    }
   }
 
   private async appendGigMainPost(
@@ -674,12 +666,12 @@ export class GigService {
   }
 
   private async updateGigModerationPostBestEffort(
-    gig: PlainGig,
+    params: UpdateGigModerationPostBestEffortParams,
   ): Promise<void> {
-    const moderationPost = this.resolveTelegramPostRef(
-      gig.posts,
-      PostType.Moderation,
-    );
+    const { gig } = params;
+    const moderationPost =
+      params.moderationPost ??
+      this.resolveTelegramPostRef(gig.posts, PostType.Moderation);
     if (moderationPost === undefined) {
       return;
     }

@@ -7,6 +7,7 @@ import type {
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate-list-sort';
 import type { GigPosterFile } from '../../gig/types/gig-poster.types';
+import type { ProviderReference } from '../../../shared/types/provider-reference.types';
 
 export interface GigCandidatePoster {
   bucketPath?: string;
@@ -50,15 +51,6 @@ export interface GigCandidateSourceUser {
   origin: GigCandidateSourceUserOrigin;
   originalText?: string;
   attachments?: GigCandidateAttachment[];
-}
-
-export interface ProviderReference {
-  name: string;
-  externalEventId: string;
-  externalVersionId?: string;
-  sourceUrl: string;
-  fetchedAt: Date;
-  providerUpdatedAt?: Date;
 }
 
 export interface GigCandidateSourceProvider {

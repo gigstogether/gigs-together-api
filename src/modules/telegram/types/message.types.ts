@@ -1,6 +1,5 @@
 import type { TGChat } from './chat.types';
 import type { TGUser } from './user.types';
-import type { TGInlineKeyboardMarkup } from './update.types';
 
 export type TGChatId = string | number;
 
@@ -33,6 +32,16 @@ export interface TGInaccessibleMessage {
   chat: TGChat;
   message_id: number;
   date: 0; // Always 0. The field can be used to differentiate regular and inaccessible messages.
+}
+
+export interface TGInlineKeyboardMarkup {
+  inline_keyboard: TGInlineKeyboardButton[][];
+}
+
+interface TGInlineKeyboardButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
 }
 
 export interface TGEditMessageReplyMarkup {

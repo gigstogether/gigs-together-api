@@ -460,7 +460,10 @@ describe('GigService', () => {
         title: updated.title,
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
-        mainPost: undefined,
+      });
+      expect(revalidateFeed).toHaveBeenCalledWith({
+        country: updated.country,
+        city: updated.city,
       });
     });
 

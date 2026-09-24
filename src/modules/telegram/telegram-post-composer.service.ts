@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
   TGEditMessageCaption,
+  TGInlineKeyboardMarkup,
   TGInputMedia,
   TGSendMessage,
   TGSendPhoto,
@@ -18,7 +19,6 @@ import {
 } from './callback-action';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
-import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';

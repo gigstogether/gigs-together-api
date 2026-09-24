@@ -1,6 +1,6 @@
 import type { Messenger } from '../../../shared/types/messenger.enum';
 import type { PostType } from '../../../shared/types/post-type.enum';
-import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
+import type { ProviderReference } from '../../../shared/types/provider-reference.types';
 
 export type GigId = string;
 
