@@ -3,34 +3,18 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type {
   GigCalendarSource,
   GigFormInput,
   GigId,
+  GigPost,
   GigPoster,
   PlainGig,
 } from './types/gig.types';
-import type {
-  V1GigGetRequestQuery,
-  V1GetGigsResponseBody,
-} from './types/requests/v1-gig-get-request';
-import type {
-  V1GigDatesGetRequestQuery,
-  V1GigDatesGetResponseBody,
-} from './types/requests/v1-gig-dates-get-request';
-import type {
-  V1GigAroundGetRequestQuery,
-  V1GigAroundGetResponseBody,
-} from './types/requests/v1-gig-around-get-request';
-import type {
-  V1GigByPublicIdGetInput,
-  V1GigByPublicIdGetResponseBody,
-} from './types/requests/v1-gig-by-public-id-get-request';
-import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
 import { envBool } from '../../shared/utils/env';
-import { CalendarService } from '../calendar/calendar.service';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
@@ -41,22 +25,20 @@ import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
-import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import type {
   FindGigsParams as RepositoryFindGigsParams,
-  FindVisibleGigsAroundParams,
-  FindVisibleGigsInRangeParams,
-  FindVisibleGigsPageParams,
   GigRepository,
 } from './repositories/gig.repository';
+import { FeedRevalidateService } from './feed-revalidate.service';
+import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
 
 interface ResolvePublicPostUrl {
   postId?: number;
   chatId?: number;
 }
 
-interface UpdateGigByPublicIdPayload {
+export interface UpdateGigByPublicIdParams {
   publicId: string;
   expectedVersion: number;
   gig: GigFormInput;
@@ -69,20 +51,60 @@ export interface UpdateGigVisibilityByPublicIdParams {
   isVisible: boolean;
 }
 
-export interface GigTelegramPostInput {
+export interface UpdateGigByPublicIdResult {
+  publicId: string;
+}
+
+export interface UpdateGigVisibilityByPublicIdResult {
+  publicId: string;
+  version: number;
+  isVisible: boolean;
+}
+
+export interface GigTelegramPostRef {
+  chatId: number;
+  messageId: number;
+}
+
+export interface SetGigVisibilityParams {
+  gigId: GigId;
+  expectedVersion: number;
+  isVisible: boolean;
+  moderationPost: GigTelegramPostRef;
+}
+
+interface CreateGigMainPostBaseParams {
+  moderationPost?: GigTelegramPostRef;
+  expectedVersion: number;
+}
+
+export interface CreateGigMainPostByIdParams extends CreateGigMainPostBaseParams {
+  gigId: GigId;
+  publicId?: never;
+}
+
+export interface CreateGigMainPostByPublicIdParams extends CreateGigMainPostBaseParams {
+  publicId: string;
+  gigId?: never;
+}
+
+export type CreateGigMainPostParams =
+  CreateGigMainPostByIdParams | CreateGigMainPostByPublicIdParams;
+
+interface GigTelegramPostInput {
   id: number;
   chatId: number;
   date: number;
   fileId?: string;
 }
 
-export interface AppendGigMainPostParams {
+interface AppendGigMainPostParams {
   gigId: GigId;
   expectedVersion: number;
   post: GigTelegramPostInput;
 }
 
-export interface UpdateGigTelegramPostFileIdParams {
+interface UpdateGigTelegramPostFileIdParams {
   gigId: GigId;
   expectedVersion: number;
   type: PostType;
@@ -96,11 +118,6 @@ export interface GenerateUniquePublicIdPayload {
   yyyyMmDd: string;
   excludeGigId?: string;
   isPublicIdTaken?: (publicId: string) => Promise<boolean>;
-}
-
-interface GigVisibleInclusiveMsRangeParams {
-  readonly fromMs: number;
-  readonly toMs: number;
 }
 
 export interface GetGigsParams {
@@ -117,13 +134,15 @@ export class GigService {
   constructor(
     @Inject(GIG_REPOSITORY)
     private readonly gigRepository: GigRepository,
-    private readonly calendarService: CalendarService,
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
     private readonly telegramService: TelegramService,
+    private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
 
-  private normalizeAndValidatePublicIdOrThrow(publicId: string): string {
+  private readonly logger = new Logger(GigService.name);
+
+  normalizeAndValidatePublicId(publicId: string): string {
     const id = (publicId ?? '').trim();
     if (!id) {
       throw new BadRequestException('publicId is required');
@@ -285,11 +304,65 @@ export class GigService {
   }
 
   async updateGigByPublicId(
-    payload: UpdateGigByPublicIdPayload,
-  ): Promise<PlainGig> {
-    const { publicId, expectedVersion, gig, posterFile } = payload;
+    params: UpdateGigByPublicIdParams,
+  ): Promise<UpdateGigByPublicIdResult> {
+    let updatedGig = await this.updateGigStateByPublicId(params);
+    const mainPost = this.findTelegramPost(updatedGig.posts, PostType.Main);
+    const moderationPost = this.findTelegramPost(
+      updatedGig.posts,
+      PostType.Moderation,
+    );
+    const editedPost = mainPost ?? moderationPost;
 
-    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    try {
+      const edited =
+        editedPost !== undefined
+          ? await this.telegramService.editGigPost({
+              gig: updatedGig,
+              post: editedPost,
+              isMediaUpdateRequired: params.posterFile !== undefined,
+            })
+          : undefined;
+      const fileId = edited?.fileId;
+      if (
+        params.posterFile !== undefined &&
+        fileId !== undefined &&
+        editedPost !== undefined
+      ) {
+        const gigWithUpdatedFileId = await this.updateGigTelegramPostFileId({
+          gigId: updatedGig.id,
+          expectedVersion: updatedGig.version,
+          type: editedPost.type,
+          messageId: editedPost.id,
+          chatId: editedPost.chatId,
+          fileId,
+        });
+        if (gigWithUpdatedFileId) {
+          updatedGig = gigWithUpdatedFileId;
+        } else {
+          this.logger.error(
+            `Telegram ${editedPost.type} fileId was not stored for publicId=${updatedGig.publicId} expectedVersion=${updatedGig.version}`,
+          );
+        }
+      }
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram post update failed for publicId=${params.publicId}: ${this.formatError(e)}`,
+      );
+    }
+
+    await this.updateGigModerationPostBestEffort(updatedGig);
+    await this.revalidateGigFeed(updatedGig);
+
+    return { publicId: updatedGig.publicId };
+  }
+
+  private async updateGigStateByPublicId(
+    params: UpdateGigByPublicIdParams,
+  ): Promise<PlainGig> {
+    const { publicId, expectedVersion, gig, posterFile } = params;
+
+    const id = this.normalizeAndValidatePublicId(publicId);
     this.validateExpectedVersion(expectedVersion);
 
     const dateMs = new Date(gig.date).getTime();
@@ -330,8 +403,22 @@ export class GigService {
 
   async updateGigVisibilityByPublicId(
     params: UpdateGigVisibilityByPublicIdParams,
+  ): Promise<UpdateGigVisibilityByPublicIdResult> {
+    const updatedGig = await this.updateGigVisibilityStateByPublicId(params);
+    await this.updateGigModerationPostBestEffort(updatedGig);
+    await this.revalidateGigFeed(updatedGig);
+
+    return {
+      publicId: updatedGig.publicId,
+      version: updatedGig.version,
+      isVisible: updatedGig.isVisible,
+    };
+  }
+
+  private async updateGigVisibilityStateByPublicId(
+    params: UpdateGigVisibilityByPublicIdParams,
   ): Promise<PlainGig> {
-    const publicId = this.normalizeAndValidatePublicIdOrThrow(params.publicId);
+    const publicId = this.normalizeAndValidatePublicId(params.publicId);
     this.validateExpectedVersion(params.expectedVersion);
 
     const updated = await this.gigRepository.updateVisibility({
@@ -348,7 +435,7 @@ export class GigService {
 
   /** Full Gig form fields by public ID, including hidden Gigs. */
   async getGigByPublicId(publicId: string): Promise<PlainGig> {
-    const id = this.normalizeAndValidatePublicIdOrThrow(publicId);
+    const id = this.normalizeAndValidatePublicId(publicId);
     const gig = await this.gigRepository.findByPublicId(id);
     if (!gig) {
       throw new NotFoundException(`Gig with publicId "${id}" not found`);
@@ -397,7 +484,112 @@ export class GigService {
     return orderedGigs;
   }
 
-  async appendGigMainPost(params: AppendGigMainPostParams): Promise<PlainGig> {
+  async createGigMainPost(params: CreateGigMainPostParams): Promise<void> {
+    const gig = await this.getGigForMainPost(params);
+    const gigId = gig.id;
+    if (gig.version !== params.expectedVersion) {
+      throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
+    }
+    if (this.findTelegramPost(gig.posts, PostType.Main)) {
+      throw new ConflictException('Gig main post already exists');
+    }
+
+    const moderationPost =
+      params.moderationPost ??
+      this.resolveTelegramPostRef(gig.posts, PostType.Moderation);
+    // Telegram accepts the message before MongoDB stores its reference. A crash or
+    // concurrent request can leave an external duplicate; reconciliation is out of scope.
+    const telegramMainPost = await this.telegramService.sendMainPost(gig);
+    if (!telegramMainPost) {
+      throw new BadRequestException(
+        `sendMainPost returned no Telegram message for gig ${gigId}`,
+      );
+    }
+
+    const updatedGig = await this.appendGigMainPost({
+      gigId,
+      expectedVersion: params.expectedVersion,
+      post: {
+        id: telegramMainPost.messageId,
+        chatId: telegramMainPost.chatId,
+        fileId: telegramMainPost.fileId,
+        // Telegram returns Unix seconds; Gig post dates use Unix milliseconds.
+        date: telegramMainPost.sentAtSeconds * 1_000,
+      },
+    });
+
+    if (!moderationPost) {
+      this.logger.warn(
+        `No moderation post linked for gig ${gigId}; skipping updateGigModerationPost`,
+      );
+      return;
+    }
+
+    try {
+      await this.telegramService.updateGigModerationPost({
+        gigId,
+        expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        moderationPost,
+        mainPost: {
+          chatId: telegramMainPost.chatId,
+          messageId: telegramMainPost.messageId,
+        },
+      });
+    } catch (e: unknown) {
+      this.logger.warn(
+        `updateGigModerationPost failed for gig ${gigId}: ${this.formatError(e)}`,
+      );
+    }
+  }
+
+  async setGigVisibility(params: SetGigVisibilityParams): Promise<void> {
+    const gig = await this.getGigById(params.gigId);
+    const gigId = gig.id;
+    if (gig.version !== params.expectedVersion) {
+      throw new ConflictException(`Gig with ID "${gigId}" has a newer version`);
+    }
+    if (gig.isVisible === params.isVisible) {
+      const visibility = params.isVisible ? 'visible' : 'hidden';
+      throw new ConflictException(
+        `Gig with ID "${gigId}" is already ${visibility}`,
+      );
+    }
+
+    const updatedGig = await this.updateGigVisibilityStateByPublicId({
+      publicId: gig.publicId,
+      expectedVersion: params.expectedVersion,
+      isVisible: params.isVisible,
+    });
+
+    await this.revalidateGigFeed(updatedGig);
+
+    const mainPost = this.resolveTelegramPostRef(
+      updatedGig.posts,
+      PostType.Main,
+    );
+    try {
+      await this.telegramService.updateGigModerationPost({
+        gigId,
+        expectedVersion: updatedGig.version,
+        isVisible: updatedGig.isVisible,
+        title: updatedGig.title,
+        publicId: updatedGig.publicId,
+        moderationPost: params.moderationPost,
+        mainPost,
+      });
+    } catch (e: unknown) {
+      this.logger.warn(
+        `updateGigModerationPost failed after changing visibility for gig ${gigId}: ${this.formatError(e)}`,
+      );
+    }
+  }
+
+  private async appendGigMainPost(
+    params: AppendGigMainPostParams,
+  ): Promise<PlainGig> {
     this.validateGigId(params.gigId);
     this.validateExpectedVersion(params.expectedVersion);
 
@@ -420,7 +612,7 @@ export class GigService {
         `Gig with ID "${params.gigId}" has a newer version`,
       );
     }
-    if (this.telegramService.pickTgPost(gig.posts, PostType.Main)) {
+    if (this.findTelegramPost(gig.posts, PostType.Main)) {
       throw new ConflictException('Gig main post already exists');
     }
     throw new ConflictException(
@@ -428,7 +620,7 @@ export class GigService {
     );
   }
 
-  updateGigTelegramPostFileId(
+  private updateGigTelegramPostFileId(
     params: UpdateGigTelegramPostFileIdParams,
   ): Promise<PlainGig | null> {
     this.validateGigId(params.gigId);
@@ -444,6 +636,85 @@ export class GigService {
     }
 
     return this.gigRepository.updateTelegramPostFileId(params);
+  }
+
+  private async getGigForMainPost(
+    params: CreateGigMainPostParams,
+  ): Promise<PlainGig> {
+    if (params.gigId !== undefined) {
+      return this.getGigById(params.gigId);
+    }
+    if (params.publicId !== undefined) {
+      return this.getGigByPublicId(params.publicId);
+    }
+    throw new BadRequestException('Either gigId or publicId must be provided');
+  }
+
+  private findTelegramPost(
+    posts: GigPost[] | undefined,
+    type: PostType,
+  ): GigPost | undefined {
+    return posts?.find(
+      (post) => post.to === Messenger.Telegram && post.type === type,
+    );
+  }
+
+  private resolveTelegramPostRef(
+    posts: GigPost[] | undefined,
+    type: PostType,
+  ): GigTelegramPostRef | undefined {
+    const post = this.findTelegramPost(posts, type);
+    if (!post?.chatId || post.id == null) {
+      return undefined;
+    }
+    return {
+      chatId: post.chatId,
+      messageId: post.id,
+    };
+  }
+
+  private async updateGigModerationPostBestEffort(
+    gig: PlainGig,
+  ): Promise<void> {
+    const moderationPost = this.resolveTelegramPostRef(
+      gig.posts,
+      PostType.Moderation,
+    );
+    if (moderationPost === undefined) {
+      return;
+    }
+
+    const mainPost = this.resolveTelegramPostRef(gig.posts, PostType.Main);
+    const payload: UpdateGigModerationPostPayload = {
+      gigId: gig.id,
+      expectedVersion: gig.version,
+      isVisible: gig.isVisible,
+      title: gig.title,
+      publicId: gig.publicId,
+      moderationPost,
+    };
+    if (mainPost !== undefined) {
+      payload.mainPost = mainPost;
+    }
+
+    try {
+      await this.telegramService.updateGigModerationPost(payload);
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram moderation post update failed for publicId=${gig.publicId}: ${this.formatError(e)}`,
+      );
+    }
+  }
+
+  private revalidateGigFeed(gig: PlainGig): Promise<void> {
+    return this.feedRevalidateService.revalidateFeed({
+      country: gig.country,
+      city: gig.city,
+    });
+  }
+
+  private formatError(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
   }
 
   async resolvePublicPostUrl(
@@ -465,257 +736,6 @@ export class GigService {
           messageId: postId,
         })
       : undefined;
-  }
-
-  /**
-   * Maps domain gigs to the same public shape as list endpoints (calendar URLs, poster URLs, etc.).
-   * Exposed for DigestModule and other internal callers that query gigs.
-   */
-  async mapGigsToV1Gigs(
-    gigs: PlainGig[],
-  ): Promise<V1GetGigsResponseBody['gigs']> {
-    const externalFallbackEnabled = envBool(
-      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
-      true,
-    );
-
-    const mapped: V1GetGigsResponseBody['gigs'] = [];
-    for (const gig of gigs) {
-      const post = this.telegramService.pickTgPost(gig.posts, PostType.Main);
-
-      const postUrl = await this.resolvePublicPostUrl({
-        postId: post?.id,
-        chatId: post?.chatId,
-      });
-
-      const calendarPayload = this.gigToCalendarPayload(gig);
-      const calendarUrl =
-        this.calendarService.getCreateCalendarEventUrl(calendarPayload);
-
-      mapped.push({
-        id: gig.publicId,
-        title: gig.title,
-        date: gig.date.toString(), // TODO
-        endDate: gig.endDate?.toString(),
-        city: gig.city,
-        country: gig.country,
-        venue: gig.venue,
-        ticketsUrl: gig.ticketsUrl,
-        calendarUrl,
-        postUrl,
-        posterUrl:
-          (gig.poster?.bucketPath
-            ? this.bucketService.getPublicFileUrl(gig.poster.bucketPath)
-            : undefined) ??
-          (externalFallbackEnabled ? gig.poster?.externalUrl : undefined),
-      });
-    }
-
-    return mapped;
-  }
-
-  /**
-   * Visible gigs in `[fromMs, toMs]` by gig `date`, ascending, same filter rules as v1 list (no cursor).
-   */
-  getVisibleGigsInInclusiveMsRange(
-    params: GigVisibleInclusiveMsRangeParams,
-  ): Promise<PlainGig[]> {
-    return this.gigRepository.findVisibleInRange({
-      from: params.fromMs,
-      to: params.toMs,
-    });
-  }
-
-  // TODO: no versioning should be in services
-  async getVisibleGigsV1(
-    query: V1GigGetRequestQuery,
-  ): Promise<V1GetGigsResponseBody> {
-    const {
-      limit = 100,
-      cursor,
-      from,
-      to,
-      city,
-      country,
-      direction = 'next',
-    } = query;
-
-    if (to !== undefined && to < from) {
-      throw new BadRequestException('to must be >= from');
-    }
-
-    if (limit > GigService.MAX_LIMIT) {
-      throw new BadRequestException(
-        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
-      );
-    }
-
-    const findVisibleGigsPageParams: FindVisibleGigsPageParams = {
-      from,
-      limit,
-      direction,
-    };
-    if (to !== undefined) {
-      findVisibleGigsPageParams.to = to;
-    }
-    if (city !== undefined) {
-      findVisibleGigsPageParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsPageParams.country = country;
-    }
-    if (cursor !== undefined) {
-      const decodedCursor = decodeGigCursorOrThrow(cursor);
-      findVisibleGigsPageParams.cursor = {
-        date: decodedCursor.date,
-        gigId: decodedCursor.mongoId,
-      };
-    }
-
-    const page = await this.gigRepository.findVisiblePage(
-      findVisibleGigsPageParams,
-    );
-    const gigsAsc = page.gigs;
-    const mapped = await this.mapGigsToV1Gigs(gigsAsc);
-
-    if (direction === 'prev') {
-      const prevCursor =
-        page.hasMore && gigsAsc.length > 0
-          ? encodeGigCursor({
-              date: gigsAsc[0].date,
-              mongoId: gigsAsc[0].id,
-            })
-          : undefined;
-
-      return { gigs: mapped, prevCursor };
-    }
-
-    // Provide a cursor for loading items before the current window without additional lookups.
-    // Note: this cursor does NOT guarantee that earlier items exist.
-    const prevCursor =
-      gigsAsc.length > 0
-        ? encodeGigCursor({
-            date: gigsAsc[0].date,
-            mongoId: gigsAsc[0].id,
-          })
-        : undefined;
-
-    const nextCursor =
-      page.hasMore && gigsAsc.length > 0
-        ? encodeGigCursor({
-            date: gigsAsc[gigsAsc.length - 1].date,
-            mongoId: gigsAsc[gigsAsc.length - 1].id,
-          })
-        : undefined;
-
-    return { gigs: mapped, prevCursor, nextCursor };
-  }
-
-  /**
-   * Visible gig anchor date for hash / deep-link resolution (feed client). Body: `{ date }` only.
-   */
-  async getGigDateByPublicId(
-    input: V1GigByPublicIdGetInput,
-  ): Promise<V1GigByPublicIdGetResponseBody> {
-    const publicId = this.normalizeAndValidatePublicIdOrThrow(input.publicId);
-
-    const date = await this.gigRepository.findVisibleDateByPublicId(publicId);
-    if (date === null) {
-      throw new NotFoundException(`Gig with publicId "${publicId}" not found`);
-    }
-
-    return {
-      date: date.toString(),
-    };
-  }
-
-  async getVisibleGigsAroundV1(
-    query: V1GigAroundGetRequestQuery,
-  ): Promise<V1GigAroundGetResponseBody> {
-    const {
-      anchor,
-      beforeLimit = 100,
-      afterLimit = 100,
-      city,
-      country,
-    } = query;
-
-    if (
-      beforeLimit > GigService.MAX_LIMIT ||
-      afterLimit > GigService.MAX_LIMIT
-    ) {
-      throw new BadRequestException(
-        `Size limit exceeded. Maximum size is ${GigService.MAX_LIMIT}.`,
-      );
-    }
-
-    const findVisibleGigsAroundParams: FindVisibleGigsAroundParams = {
-      anchor,
-      todayStart: startOfTodayMs(),
-      beforeLimit,
-      afterLimit,
-    };
-    if (city !== undefined) {
-      findVisibleGigsAroundParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsAroundParams.country = country;
-    }
-
-    const result = await this.gigRepository.findVisibleAround(
-      findVisibleGigsAroundParams,
-    );
-    const before = await this.mapGigsToV1Gigs(result.before);
-    const after = await this.mapGigsToV1Gigs(result.after);
-
-    const prevCursor =
-      result.hasPrevious && result.before.length > 0
-        ? encodeGigCursor({
-            date: result.before[0].date,
-            mongoId: result.before[0].id,
-          })
-        : undefined;
-
-    const nextCursor =
-      result.hasNext && result.after.length > 0
-        ? encodeGigCursor({
-            date: result.after[result.after.length - 1].date,
-            mongoId: result.after[result.after.length - 1].id,
-          })
-        : undefined;
-
-    return { before, after, prevCursor, nextCursor };
-  }
-
-  async getVisibleGigDatesV1(
-    query: V1GigDatesGetRequestQuery,
-  ): Promise<V1GigDatesGetResponseBody> {
-    const { from, to, city, country } = query;
-
-    if (to !== undefined && to < from) {
-      throw new BadRequestException('to must be >= from');
-    }
-
-    const findVisibleGigsInRangeParams: FindVisibleGigsInRangeParams = {
-      from,
-    };
-    if (to !== undefined) {
-      findVisibleGigsInRangeParams.to = to;
-    }
-    if (city !== undefined) {
-      findVisibleGigsInRangeParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsInRangeParams.country = country;
-    }
-
-    const dates = await this.gigRepository.findVisibleDates(
-      findVisibleGigsInRangeParams,
-    );
-
-    return {
-      dates: dates.map(String),
-    };
   }
 
   gigToCalendarPayload(gig: GigCalendarSource): CalendarishEvent {

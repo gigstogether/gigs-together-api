@@ -7,7 +7,7 @@ import type {
   GetPreviousDigestCronFireDateParams,
 } from './digest.service';
 import { DigestPostState } from './digest-post-state.schema';
-import { GigService } from '../gig/gig.service';
+import { GigFeedService } from '../gig/gig-feed.service';
 import { TelegramService } from '../telegram/telegram.service';
 
 describe('getPreviousDigestCronFireDate', () => {
@@ -60,7 +60,7 @@ describe('DigestService', () => {
       providers: [
         DigestMod.DigestService,
         {
-          provide: GigService,
+          provide: GigFeedService,
           useValue: {
             getVisibleGigsInInclusiveMsRange:
               getVisibleGigsInInclusiveMsRangeMock,

@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { CronTime } from 'cron';
 import type { Model } from 'mongoose';
 import type { PlainGig } from '../gig/types/gig.types';
-import { GigService } from '../gig/gig.service';
+import { GigFeedService } from '../gig/gig-feed.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 import { DigestPostState } from './digest-post-state.schema';
@@ -45,7 +45,7 @@ export class DigestService {
   private readonly logger = new Logger(DigestService.name);
 
   constructor(
-    private readonly gigService: GigService,
+    private readonly gigFeedService: GigFeedService,
     private readonly telegramService: TelegramService,
     @InjectModel(DigestPostState.name)
     private readonly digestPostStateModel: Model<DigestPostStateDocument>,
@@ -95,7 +95,7 @@ export class DigestService {
   private getDigestRangeGigs(): Promise<PlainGig[]> {
     const { fromMs, toMs } = getDigestUpcomingInclusiveDayRangeMs(new Date());
 
-    return this.gigService.getVisibleGigsInInclusiveMsRange({
+    return this.gigFeedService.getVisibleGigsInInclusiveMsRange({
       fromMs,
       toMs,
     });

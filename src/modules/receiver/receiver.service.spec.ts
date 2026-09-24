@@ -12,7 +12,6 @@ import {
   GigCandidateCallbackAction,
   GigCallbackAction,
 } from '../telegram/callback-action';
-import { GigModerationService } from '../gig/gig-moderation.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
@@ -37,12 +36,7 @@ describe('ReceiverService', () => {
     updateGigByPublicId: vi.fn(),
     updateTelegramPostFileId: vi.fn(),
     updateGigStatus: vi.fn(),
-  };
-
-  const mockGigModerationService = {
-    approveGig: vi.fn(),
     createGigMainPost: vi.fn(),
-    rejectGig: vi.fn(),
     setGigVisibility: vi.fn(),
   };
 
@@ -65,10 +59,6 @@ describe('ReceiverService', () => {
         {
           provide: GigService,
           useValue: mockGigService,
-        },
-        {
-          provide: GigModerationService,
-          useValue: mockGigModerationService,
         },
         {
           provide: GigCandidateService,
@@ -189,7 +179,7 @@ describe('ReceiverService', () => {
         },
       };
 
-      mockGigModerationService.createGigMainPost.mockResolvedValue(undefined);
+      mockGigService.createGigMainPost.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(
@@ -197,7 +187,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.createGigMainPost).toHaveBeenCalledWith({
+      expect(mockGigService.createGigMainPost).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 6,
         moderationPost: {
@@ -232,7 +222,7 @@ describe('ReceiverService', () => {
           chat: { id: -100123, type: 'channel' },
         },
       };
-      mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
+      mockGigService.setGigVisibility.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(
@@ -240,7 +230,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
+      expect(mockGigService.setGigVisibility).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 7,
         isVisible: false,
@@ -276,7 +266,7 @@ describe('ReceiverService', () => {
           chat: { id: -100123, type: 'channel' },
         },
       };
-      mockGigModerationService.setGigVisibility.mockResolvedValue(undefined);
+      mockGigService.setGigVisibility.mockResolvedValue(undefined);
       mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(
@@ -284,7 +274,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.setGigVisibility).toHaveBeenCalledWith({
+      expect(mockGigService.setGigVisibility).toHaveBeenCalledWith({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 8,
         isVisible: true,
@@ -318,7 +308,7 @@ describe('ReceiverService', () => {
         '507f1f77bcf86cd799439088',
       );
 
-      expect(mockGigModerationService.approveGig).not.toHaveBeenCalled();
+      expect(mockGigService.createGigMainPost).not.toHaveBeenCalled();
       expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-legacy',
         text: 'Something unexpected happened, I dunno what to do',

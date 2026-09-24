@@ -41,7 +41,7 @@ import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-ad
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import { GigModerationService } from '../gig/gig-moderation.service';
+import { GigService } from '../gig/gig.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
 import {
@@ -76,7 +76,7 @@ export class AdminController {
     private readonly localeService: LocaleService,
     private readonly translationService: TranslationService,
     private readonly translationRevalidateService: TranslationRevalidateService,
-    private readonly gigModerationService: GigModerationService,
+    private readonly gigService: GigService,
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly digestService: DigestService,
   ) {}
@@ -114,7 +114,7 @@ export class AdminController {
     @Param() params: V1GigByPublicIdGetRequestParams,
     @Body() body: V1AdminGigVersionedActionBodyDto,
   ): Promise<void> {
-    return this.gigModerationService.createGigMainPost({
+    return this.gigService.createGigMainPost({
       publicId: params.publicId,
       expectedVersion: body.expectedVersion,
     });
@@ -129,7 +129,7 @@ export class AdminController {
     @UploadedFile() posterFile: Express.Multer.File | undefined,
     @Body(AdminGigUpdateBodyPipe) body: AdminGigUpdateBody,
   ): Promise<V1AdminGigUpdateResponseBody> {
-    return this.adminGigService.updateGigByPublicId({
+    return this.gigService.updateGigByPublicId({
       publicId: params.publicId,
       expectedVersion: body.expectedVersion,
       gig: body.gig,
@@ -144,7 +144,7 @@ export class AdminController {
     @Param() params: V1GigByPublicIdGetRequestParams,
     @Body() body: V1AdminGigVisibilityPatchBodyDto,
   ): Promise<V1AdminGigVisibilityPatchResponseBody> {
-    return this.adminGigService.updateGigVisibilityByPublicId({
+    return this.gigService.updateGigVisibilityByPublicId({
       publicId: params.publicId,
       expectedVersion: body.expectedVersion,
       isVisible: body.isVisible,

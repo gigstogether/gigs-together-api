@@ -7,12 +7,12 @@ import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
 import { HttpModule } from '@nestjs/axios';
 import { GigPosterService } from './gig.poster.service';
-import { GigModerationService } from './gig-moderation.service';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import { MongoGigRepository } from './repositories/mongo-gig.repository';
+import { GigFeedService } from './gig-feed.service';
 
 @Module({
   imports: [
@@ -29,14 +29,14 @@ import { MongoGigRepository } from './repositories/mongo-gig.repository';
       useClass: MongoGigRepository,
     },
     GigService,
+    GigFeedService,
     GigPosterService,
-    GigModerationService,
     FeedRevalidateService,
   ],
   exports: [
     MongooseModule,
     GigService,
-    GigModerationService,
+    GigFeedService,
     FeedRevalidateService,
     GigPosterService,
   ],

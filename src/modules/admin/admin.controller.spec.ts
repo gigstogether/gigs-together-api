@@ -2,7 +2,7 @@ import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
 import type { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import type { GigModerationService } from '../gig/gig-moderation.service';
+import type { GigService } from '../gig/gig.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
 import type { TranslationRevalidateService } from '../translation/translation-revalidate.service';
@@ -26,9 +26,16 @@ describe('AdminController', () => {
     }),
   } satisfies Pick<AdminGigService, 'getGigsList' | 'getGigByPublicId'>;
 
-  const gigModerationService = {
+  const gigService = {
     createGigMainPost: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<GigModerationService, 'createGigMainPost'>;
+    updateGigByPublicId: vi.fn(),
+    updateGigVisibilityByPublicId: vi.fn(),
+  } satisfies Pick<
+    GigService,
+    | 'createGigMainPost'
+    | 'updateGigByPublicId'
+    | 'updateGigVisibilityByPublicId'
+  >;
 
   const localeService = {
     getAllLocalesOrdered: vi
@@ -108,7 +115,7 @@ describe('AdminController', () => {
     localeService as unknown as LocaleService,
     translationService as unknown as TranslationService,
     translationRevalidateService as unknown as TranslationRevalidateService,
-    gigModerationService as unknown as GigModerationService,
+    gigService as unknown as GigService,
     feedRevalidateService as unknown as FeedRevalidateService,
     digestService as unknown as DigestService,
   );
@@ -154,7 +161,7 @@ describe('AdminController', () => {
   });
 
   describe('createGigMainPostByPublicId', () => {
-    it('should create main Telegram post via gig moderation service', async () => {
+    it('should create main Telegram post via gig service', async () => {
       await expect(
         controller.createGigMainPostByPublicId(
           { publicId: 'gig-42' },
@@ -162,9 +169,58 @@ describe('AdminController', () => {
         ),
       ).resolves.toBeUndefined();
 
-      expect(gigModerationService.createGigMainPost).toHaveBeenCalledWith({
+      expect(gigService.createGigMainPost).toHaveBeenCalledWith({
         publicId: 'gig-42',
         expectedVersion: 5,
+      });
+    });
+  });
+
+  describe('updateGigByPublicId', () => {
+    it('should update the Gig via gig service', async () => {
+      const gig = {
+        title: 'Radiohead',
+        date: '2026-06-12',
+        city: 'barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example',
+      };
+      gigService.updateGigByPublicId.mockResolvedValue({ publicId: 'gig-42' });
+
+      await expect(
+        controller.updateGigByPublicId({ publicId: 'gig-42' }, undefined, {
+          expectedVersion: 5,
+          gig,
+        }),
+      ).resolves.toEqual({ publicId: 'gig-42' });
+
+      expect(gigService.updateGigByPublicId).toHaveBeenCalledWith({
+        publicId: 'gig-42',
+        expectedVersion: 5,
+        gig,
+        posterFile: undefined,
+      });
+    });
+  });
+
+  describe('updateGigVisibilityByPublicId', () => {
+    it('should update Gig visibility via gig service', async () => {
+      gigService.updateGigVisibilityByPublicId.mockResolvedValue({
+        publicId: 'gig-42',
+        version: 6,
+        isVisible: true,
+      });
+
+      await expect(
+        controller.updateGigVisibilityByPublicId(
+          { publicId: 'gig-42' },
+          { expectedVersion: 5, isVisible: true },
+        ),
+      ).resolves.toEqual({
+        publicId: 'gig-42',
+        version: 6,
+        isVisible: true,
       });
     });
   });

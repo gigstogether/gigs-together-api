@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import { GigModerationService } from '../gig/gig-moderation.service';
+import { GigService } from '../gig/gig.service';
 import {
   CallbackScope,
   GigCandidateCallbackAction,
@@ -21,7 +21,7 @@ enum Command {
 export class ReceiverService {
   constructor(
     private readonly telegramService: TelegramService,
-    private readonly gigModerationService: GigModerationService,
+    private readonly gigService: GigService,
     private readonly gigCandidateService: GigCandidateService,
   ) {}
 
@@ -157,7 +157,7 @@ export class ReceiverService {
       case CallbackScope.Gig: {
         switch (parsed.action) {
           case GigCallbackAction.Hide: {
-            await this.gigModerationService.setGigVisibility({
+            await this.gigService.setGigVisibility({
               gigId: parsed.id,
               expectedVersion: parsed.expectedVersion,
               isVisible: false,
@@ -169,7 +169,7 @@ export class ReceiverService {
             break;
           }
           case GigCallbackAction.Show: {
-            await this.gigModerationService.setGigVisibility({
+            await this.gigService.setGigVisibility({
               gigId: parsed.id,
               expectedVersion: parsed.expectedVersion,
               isVisible: true,
@@ -181,7 +181,7 @@ export class ReceiverService {
             break;
           }
           case GigCallbackAction.Post: {
-            await this.gigModerationService.createGigMainPost({
+            await this.gigService.createGigMainPost({
               gigId: parsed.id,
               expectedVersion: parsed.expectedVersion,
               moderationPost: {
