@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 
-import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -69,7 +69,7 @@ describe('GigService', () => {
   const uploadPoster = vi.fn();
   const pickTgPost = vi.fn();
   const sendMainPost = vi.fn();
-  const editGigPost = vi.fn();
+  const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
   const revalidateFeed = vi.fn();
 
@@ -91,6 +91,7 @@ describe('GigService', () => {
     gigRepository.findVisibleDates.mockResolvedValue([]);
     uploadPoster.mockResolvedValue(undefined);
     pickTgPost.mockReturnValue(undefined);
+    editGigPostsBestEffort.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,7 +103,7 @@ describe('GigService', () => {
           useValue: {
             pickTgPost,
             sendMainPost,
-            editGigPost,
+            editGigPostsBestEffort,
             updateGigModerationPost,
           },
         },
@@ -259,17 +260,17 @@ describe('GigService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('should preserve the Gig update when Telegram editing fails', async () => {
-      const moderationPost = {
+    it('should preserve the Gig update when Telegram reports no successful edits', async () => {
+      const mainPost = {
         to: Messenger.Telegram,
-        type: PostType.Moderation,
+        type: PostType.Main,
         chatId: -100123,
         id: 42,
         date: 1_700_000_001_000,
       };
-      const updated = buildGig({ version: 4, posts: [moderationPost] });
+      const updated = buildGig({ version: 4, posts: [mainPost] });
       gigRepository.updateByPublicId.mockResolvedValue(updated);
-      editGigPost.mockRejectedValue(new Error('Telegram unavailable'));
+      editGigPostsBestEffort.mockResolvedValue({});
 
       await expect(
         service.updateGigByPublicId({
@@ -283,45 +284,6 @@ describe('GigService', () => {
         country: updated.country,
         city: updated.city,
       });
-    });
-
-    it('should log safe Telegram response details when post editing fails', async () => {
-      const moderationPost = {
-        to: Messenger.Telegram,
-        type: PostType.Moderation,
-        chatId: -100123,
-        id: 42,
-        date: 1_700_000_001_000,
-      };
-      const updated = buildGig({ version: 4, posts: [moderationPost] });
-      const warnSpy = vi
-        .spyOn(Logger.prototype, 'warn')
-        .mockImplementation(() => undefined);
-      gigRepository.updateByPublicId.mockResolvedValue(updated);
-      editGigPost.mockRejectedValueOnce({
-        isAxiosError: true,
-        message: 'Request failed with status code 400',
-        response: {
-          status: 400,
-          data: {
-            ok: false,
-            error_code: 400,
-            description: 'Bad Request: failed to get HTTP URL content',
-          },
-        },
-      });
-
-      await service.updateGigByPublicId({
-        publicId: updated.publicId,
-        expectedVersion: 3,
-        gig: gigInput,
-        posterFile: undefined,
-      });
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        `Telegram post update failed for publicId=${updated.publicId} postType=${PostType.Moderation}: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: failed to get HTTP URL content`,
-      );
-      warnSpy.mockRestore();
     });
 
     it('should edit Main and Moderation posts after updating a Gig', async () => {
@@ -353,23 +315,13 @@ describe('GigService', () => {
         posterFile: undefined,
       });
 
-      expect(editGigPost).toHaveBeenCalledWith({
+      expect(editGigPostsBestEffort).toHaveBeenCalledWith({
         gig: updated,
-        post: mainPost,
         isMediaUpdateRequired: false,
-      });
-      expect(updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: updated.id,
-        expectedVersion: updated.version,
-        isVisible: updated.isVisible,
-        title: updated.title,
-        publicId: updated.publicId,
-        moderationPost: { chatId: -100123, messageId: 42 },
-        mainPost: { chatId: -100456, messageId: 99 },
       });
     });
 
-    it('should store the new Main fileId after replacing the poster', async () => {
+    it('should reuse the Moderation fileId when replacing both Telegram post posters', async () => {
       const mainPost = {
         to: Messenger.Telegram,
         type: PostType.Main,
@@ -383,15 +335,130 @@ describe('GigService', () => {
         type: PostType.Moderation,
         chatId: -100123,
         id: 42,
+        fileId: 'old-moderation-file-id',
         date: 1_700_000_001_000,
       };
       const updated = buildGig({
         version: 4,
         posts: [moderationPost, mainPost],
       });
-      const updatedWithFileId = buildGig({
+      const updatedWithModerationFileId = buildGig({
         version: 4,
-        posts: [moderationPost, { ...mainPost, fileId: 'new-file-id' }],
+        posts: [
+          { ...moderationPost, fileId: 'new-moderation-file-id' },
+          mainPost,
+        ],
+      });
+      const updatedWithBothFileIds = buildGig({
+        version: 4,
+        posts: [
+          { ...moderationPost, fileId: 'new-moderation-file-id' },
+          { ...mainPost, fileId: 'new-main-file-id' },
+        ],
+      });
+      const posterBuffer = Buffer.from('new poster');
+      const posterFile: Express.Multer.File = {
+        fieldname: 'posterFile',
+        originalname: 'poster.jpg',
+        encoding: '7bit',
+        buffer: posterBuffer,
+        mimetype: 'image/jpeg',
+        size: posterBuffer.length,
+        stream: Readable.from(posterBuffer),
+        destination: '',
+        filename: '',
+        path: '',
+      };
+      gigRepository.updateByPublicId.mockResolvedValue(updated);
+      gigRepository.updateTelegramPostFileId
+        .mockResolvedValueOnce(updatedWithModerationFileId)
+        .mockResolvedValueOnce(updatedWithBothFileIds);
+      editGigPostsBestEffort.mockResolvedValue({
+        moderation: {
+          post: moderationPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: {
+              message_id: moderationPost.id,
+              date: 1_700_000_003,
+              chat: { id: moderationPost.chatId, type: 'channel' },
+            },
+            fileId: 'new-moderation-file-id',
+          },
+        },
+        main: {
+          post: mainPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: {
+              message_id: mainPost.id,
+              date: 1_700_000_004,
+              chat: { id: mainPost.chatId, type: 'channel' },
+            },
+            fileId: 'new-main-file-id',
+          },
+        },
+      });
+
+      await service.updateGigByPublicId({
+        publicId: updated.publicId,
+        expectedVersion: 3,
+        gig: gigInput,
+        posterFile,
+      });
+
+      expect(editGigPostsBestEffort).toHaveBeenCalledWith({
+        gig: updated,
+        isMediaUpdateRequired: true,
+      });
+      expect(gigRepository.updateTelegramPostFileId).toHaveBeenNthCalledWith(
+        1,
+        {
+          gigId: updated.id,
+          expectedVersion: updated.version,
+          type: PostType.Moderation,
+          messageId: moderationPost.id,
+          chatId: moderationPost.chatId,
+          fileId: 'new-moderation-file-id',
+        },
+      );
+      expect(gigRepository.updateTelegramPostFileId).toHaveBeenNthCalledWith(
+        2,
+        {
+          gigId: updated.id,
+          expectedVersion: updated.version,
+          type: PostType.Main,
+          messageId: mainPost.id,
+          chatId: mainPost.chatId,
+          fileId: 'new-main-file-id',
+        },
+      );
+    });
+
+    it('should store the Main fileId when only the Main Telegram edit succeeds', async () => {
+      const moderationPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        fileId: 'old-moderation-file-id',
+        date: 1_700_000_001_000,
+      };
+      const mainPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -100456,
+        id: 99,
+        fileId: 'old-main-file-id',
+        date: 1_700_000_002_000,
+      };
+      const updated = buildGig({
+        version: 4,
+        posts: [moderationPost, mainPost],
+      });
+      const updatedWithMainFileId = buildGig({
+        version: 4,
+        posts: [moderationPost, { ...mainPost, fileId: 'new-main-file-id' }],
       });
       const posterBuffer = Buffer.from('new poster');
       const posterFile: Express.Multer.File = {
@@ -408,16 +475,21 @@ describe('GigService', () => {
       };
       gigRepository.updateByPublicId.mockResolvedValue(updated);
       gigRepository.updateTelegramPostFileId.mockResolvedValue(
-        updatedWithFileId,
+        updatedWithMainFileId,
       );
-      editGigPost.mockResolvedValue({
-        kind: PostEditKind.Media,
-        message: {
-          message_id: mainPost.id,
-          date: 1_700_000_003,
-          chat: { id: mainPost.chatId, type: 'channel' },
+      editGigPostsBestEffort.mockResolvedValue({
+        main: {
+          post: mainPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: {
+              message_id: mainPost.id,
+              date: 1_700_000_004,
+              chat: { id: mainPost.chatId, type: 'channel' },
+            },
+            fileId: 'new-main-file-id',
+          },
         },
-        fileId: 'new-file-id',
       });
 
       await service.updateGigByPublicId({
@@ -433,7 +505,7 @@ describe('GigService', () => {
         type: PostType.Main,
         messageId: mainPost.id,
         chatId: mainPost.chatId,
-        fileId: 'new-file-id',
+        fileId: 'new-main-file-id',
       });
     });
   });

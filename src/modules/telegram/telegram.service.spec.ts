@@ -643,6 +643,216 @@ describe('TelegramService', () => {
     });
   });
 
+  describe('editGigPostsBestEffort', () => {
+    it('should update Moderation first and reuse its fileId for Main', async () => {
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+      const bot = testingModule.get(TelegramBotClient);
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 42,
+        chatId: -100123,
+        fileId: 'old-moderation-file-id',
+      };
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        date: 1_700_000_002_000,
+        id: 99,
+        chatId: -100456,
+        fileId: 'old-main-file-id',
+      };
+      const gig = {
+        ...createGigForTelegramEdit(moderationPost),
+        poster: { bucketPath: 'gigs/poster.jpg' },
+        posts: [moderationPost, mainPost],
+      };
+      const moderationMessage: TGMessage = {
+        message_id: moderationPost.id,
+        date: 1_700_000_003,
+        chat: { id: moderationPost.chatId, type: 'channel' },
+        photo: [
+          {
+            file_id: 'new-moderation-file-id',
+            file_unique_id: 'new-moderation-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      };
+      const mainMessage: TGMessage = {
+        message_id: mainPost.id,
+        date: 1_700_000_004,
+        chat: { id: mainPost.chatId, type: 'channel' },
+        photo: [
+          {
+            file_id: 'new-main-file-id',
+            file_unique_id: 'new-main-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      };
+      const editMessageMediaSpy = vi
+        .spyOn(bot, 'editMessageMedia')
+        .mockResolvedValueOnce(moderationMessage)
+        .mockResolvedValueOnce(mainMessage);
+
+      await expect(
+        service.editGigPostsBestEffort({
+          gig,
+          isMediaUpdateRequired: true,
+        }),
+      ).resolves.toEqual({
+        moderation: {
+          post: moderationPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: moderationMessage,
+            fileId: 'new-moderation-file-id',
+          },
+        },
+        main: {
+          post: mainPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: mainMessage,
+            fileId: 'new-main-file-id',
+          },
+        },
+      });
+      expect(editMessageMediaSpy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          chatId: moderationPost.chatId,
+          messageId: moderationPost.id,
+          media: expect.objectContaining({
+            media: expect.stringMatching(
+              /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
+            ),
+            caption: expect.stringContaining('https://t.me/c/456/99'),
+          }),
+        }),
+      );
+      expect(editMessageMediaSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          chatId: mainPost.chatId,
+          messageId: mainPost.id,
+          media: expect.objectContaining({
+            media: 'new-moderation-file-id',
+          }),
+        }),
+      );
+    });
+
+    it('should update Main by URL and refresh Moderation text when its media edit fails', async () => {
+      mockBucketService.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/poster.jpg',
+      );
+      const bot = testingModule.get(TelegramBotClient);
+      const moderationPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1_700_000_001_000,
+        id: 42,
+        chatId: -100123,
+        fileId: 'old-moderation-file-id',
+      };
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        date: 1_700_000_002_000,
+        id: 99,
+        chatId: -100456,
+        fileId: 'old-main-file-id',
+      };
+      const gig = {
+        ...createGigForTelegramEdit(moderationPost),
+        poster: { bucketPath: 'gigs/poster.jpg' },
+        posts: [moderationPost, mainPost],
+      };
+      const mainMessage: TGMessage = {
+        message_id: mainPost.id,
+        date: 1_700_000_004,
+        chat: { id: mainPost.chatId, type: 'channel' },
+        photo: [
+          {
+            file_id: 'new-main-file-id',
+            file_unique_id: 'new-main-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      };
+      const warnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      const editMessageMediaSpy = vi
+        .spyOn(bot, 'editMessageMedia')
+        .mockRejectedValueOnce({
+          isAxiosError: true,
+          message: 'Request failed with status code 400',
+          response: {
+            status: 400,
+            data: {
+              ok: false,
+              error_code: 400,
+              description: 'Bad Request: failed to get HTTP URL content',
+            },
+          },
+        })
+        .mockResolvedValueOnce(mainMessage);
+      const editMessageCaptionSpy = vi
+        .spyOn(bot, 'editMessageCaption')
+        .mockResolvedValue({
+          message_id: moderationPost.id,
+          date: 1_700_000_005,
+          chat: { id: moderationPost.chatId, type: 'channel' },
+        });
+
+      await expect(
+        service.editGigPostsBestEffort({
+          gig,
+          isMediaUpdateRequired: true,
+        }),
+      ).resolves.toEqual({
+        main: {
+          post: mainPost,
+          result: {
+            kind: PostEditKind.Media,
+            message: mainMessage,
+            fileId: 'new-main-file-id',
+          },
+        },
+      });
+      expect(editMessageMediaSpy).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          chatId: mainPost.chatId,
+          messageId: mainPost.id,
+          media: expect.objectContaining({
+            media: expect.stringMatching(
+              /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
+            ),
+          }),
+        }),
+      );
+      expect(editMessageCaptionSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: moderationPost.chatId,
+          messageId: moderationPost.id,
+        }),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        `Telegram post update failed for publicId=${gig.publicId} postType=${PostType.Moderation}: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: failed to get HTTP URL content`,
+      );
+    });
+  });
+
   describe('sendMainPost', () => {
     it('should return normalized Telegram post metadata', async () => {
       process.env.MAIN_CHANNEL_ID = '-100456';

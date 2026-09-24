@@ -7,6 +7,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { isRecord } from '../../shared/utils/is-record';
+import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
 import type { GigPost } from '../gig/types/gig.types';
@@ -16,6 +17,7 @@ import type {
 } from '../gig-candidate/types/gig-candidate.types';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { getBiggestTgPhotoFileId } from './utils/photo';
+import { formatTelegramErrorMessage } from './telegram-error';
 import type {
   UpdateGigModerationPostPayload,
   UpdateRejectedGigCandidatePostPayload,
@@ -45,10 +47,32 @@ export interface TelegramPostSendResult {
   fileId?: string;
 }
 
-export interface EditGigPostParams {
+interface EditGigPostParams {
   gig: PlainGig;
   post: GigPost;
   isMediaUpdateRequired: boolean;
+  mediaReference?: string;
+}
+
+export interface EditGigPostsParams {
+  gig: PlainGig;
+  isMediaUpdateRequired: boolean;
+}
+
+export interface EditedGigPost {
+  post: GigPost;
+  result: TelegramPostEditResult;
+}
+
+export interface EditGigPostsResult {
+  moderation?: EditedGigPost;
+  main?: EditedGigPost;
+}
+
+interface UpdateGigModerationPostAfterEditParams {
+  gig: PlainGig;
+  moderationPost: GigPost;
+  mainPost?: GigPost;
 }
 
 export interface EditGigCandidatePostParams {
@@ -100,6 +124,82 @@ export class TelegramService {
     const composed =
       this.telegramPostComposerService.composeGigPostEdit(params);
     return this.executePostEdit(composed);
+  }
+
+  async editGigPostsBestEffort(
+    params: EditGigPostsParams,
+  ): Promise<EditGigPostsResult> {
+    const moderationPost = this.telegramPostComposerService.pickTgPost(
+      params.gig.posts,
+      PostType.Moderation,
+    );
+    const mainPost = this.telegramPostComposerService.pickTgPost(
+      params.gig.posts,
+      PostType.Main,
+    );
+    const editResult: EditGigPostsResult = {};
+
+    let moderationEditResult: TelegramPostEditResult | undefined;
+    if (params.isMediaUpdateRequired && moderationPost !== undefined) {
+      moderationEditResult = await this.editGigPostBestEffort({
+        gig: params.gig,
+        post: moderationPost,
+        isMediaUpdateRequired: true,
+      });
+      if (moderationEditResult !== undefined) {
+        editResult.moderation = {
+          post: moderationPost,
+          result: moderationEditResult,
+        };
+      }
+    }
+
+    if (mainPost !== undefined) {
+      const mainEditParams: EditGigPostParams = {
+        gig: params.gig,
+        post: mainPost,
+        isMediaUpdateRequired: params.isMediaUpdateRequired,
+      };
+      if (moderationEditResult?.fileId !== undefined) {
+        // Upload replacement media once through Moderation, then reuse its fileId for Main.
+        mainEditParams.mediaReference = moderationEditResult.fileId;
+      }
+      const mainEditResult = await this.editGigPostBestEffort(mainEditParams);
+      if (mainEditResult !== undefined) {
+        editResult.main = {
+          post: mainPost,
+          result: mainEditResult,
+        };
+      }
+    }
+
+    if (moderationPost !== undefined && editResult.moderation === undefined) {
+      const moderationUpdateParams: UpdateGigModerationPostAfterEditParams = {
+        gig: params.gig,
+        moderationPost,
+      };
+      if (mainPost !== undefined) {
+        moderationUpdateParams.mainPost = mainPost;
+      }
+      await this.updateGigModerationPostAfterEditBestEffort(
+        moderationUpdateParams,
+      );
+    }
+
+    return editResult;
+  }
+
+  private async editGigPostBestEffort(
+    params: EditGigPostParams,
+  ): Promise<TelegramPostEditResult | undefined> {
+    try {
+      return await this.editGigPost(params);
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram post update failed for publicId=${params.gig.publicId} postType=${params.post.type}: ${formatTelegramErrorMessage(e)}`,
+      );
+      return undefined;
+    }
   }
 
   async sendWeeklyDigestPost(
@@ -453,6 +553,36 @@ export class TelegramService {
       disableWebPagePreview: true,
       replyMarkup,
     });
+  }
+
+  private async updateGigModerationPostAfterEditBestEffort(
+    params: UpdateGigModerationPostAfterEditParams,
+  ): Promise<void> {
+    const payload: UpdateGigModerationPostPayload = {
+      gigId: params.gig.id,
+      expectedVersion: params.gig.version,
+      isVisible: params.gig.isVisible,
+      title: params.gig.title,
+      publicId: params.gig.publicId,
+      moderationPost: {
+        chatId: params.moderationPost.chatId,
+        messageId: params.moderationPost.id,
+      },
+    };
+    if (params.mainPost !== undefined) {
+      payload.mainPost = {
+        chatId: params.mainPost.chatId,
+        messageId: params.mainPost.id,
+      };
+    }
+
+    try {
+      await this.updateGigModerationPost(payload);
+    } catch (e: unknown) {
+      this.logger.warn(
+        `Telegram moderation post update failed for publicId=${params.gig.publicId}: ${formatTelegramErrorMessage(e)}`,
+      );
+    }
   }
 
   public async getChatUsername(

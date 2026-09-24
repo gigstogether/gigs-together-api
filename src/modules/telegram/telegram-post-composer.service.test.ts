@@ -487,6 +487,7 @@ describe('TelegramPostComposer', () => {
         posts: [mainPost],
         poster: { bucketPath: 'gigs/show' },
       } as unknown as PlainGig;
+      mockBucket.getPublicFileUrl.mockClear();
 
       const composition = composer.composeGigPostEdit({
         gig,
@@ -503,6 +504,45 @@ describe('TelegramPostComposer', () => {
       expect(media.media).toBe(
         `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
       );
+    });
+
+    it('should use the provided Telegram poster reference when replacing Main post media', () => {
+      const mainPost: GigPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -1001,
+        id: 5,
+        fileId: 'old-file-id',
+        date: 86_400_000,
+      };
+      const gig = {
+        id: 'gig5',
+        publicId: 'show',
+        title: 'Show',
+        ticketsUrl: 'https://tickets.example/x',
+        venue: 'Hall',
+        date: 86_400_000,
+        version: 2,
+        posts: [mainPost],
+        poster: { bucketPath: 'gigs/show' },
+      } as unknown as PlainGig;
+      mockBucket.getPublicFileUrl.mockClear();
+
+      const composition = composer.composeGigPostEdit({
+        gig,
+        post: mainPost,
+        isMediaUpdateRequired: true,
+        mediaReference: 'moderation-file-id',
+      });
+
+      expect(composition.kind).toBe(PostEditKind.Media);
+      if (composition.kind !== PostEditKind.Media) return;
+      const media = composition.payload.media;
+      if (media === undefined) {
+        throw new Error('Expected replacement media');
+      }
+      expect(media.media).toBe('moderation-file-id');
+      expect(mockBucket.getPublicFileUrl).not.toHaveBeenCalled();
     });
   });
 

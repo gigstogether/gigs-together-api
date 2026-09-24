@@ -115,11 +115,8 @@ interface AppendGigMainPostParams {
 }
 
 interface UpdateGigTelegramPostFileIdParams {
-  gigId: GigId;
-  expectedVersion: number;
-  type: PostType;
-  messageId: number;
-  chatId: number;
+  gig: PlainGig;
+  post: GigPost;
   fileId: string;
 }
 
@@ -317,51 +314,35 @@ export class GigService {
     params: UpdateGigByPublicIdParams,
   ): Promise<UpdateGigByPublicIdResult> {
     let updatedGig = await this.updateGigStateByPublicId(params);
-    const mainPost = this.findTelegramPost(updatedGig.posts, PostType.Main);
-    const moderationPost = this.findTelegramPost(
-      updatedGig.posts,
-      PostType.Moderation,
-    );
-    const editedPost = mainPost ?? moderationPost;
+    const isMediaUpdateRequired = params.posterFile !== undefined;
+    const telegramEditResult =
+      await this.telegramService.editGigPostsBestEffort({
+        gig: updatedGig,
+        isMediaUpdateRequired,
+      });
 
-    try {
-      const edited =
-        editedPost !== undefined
-          ? await this.telegramService.editGigPost({
-              gig: updatedGig,
-              post: editedPost,
-              isMediaUpdateRequired: params.posterFile !== undefined,
-            })
-          : undefined;
-      const fileId = edited?.fileId;
+    if (isMediaUpdateRequired) {
+      const moderationFileId = telegramEditResult.moderation?.result.fileId;
       if (
-        params.posterFile !== undefined &&
-        fileId !== undefined &&
-        editedPost !== undefined
+        telegramEditResult.moderation !== undefined &&
+        moderationFileId !== undefined
       ) {
-        const gigWithUpdatedFileId = await this.updateGigTelegramPostFileId({
-          gigId: updatedGig.id,
-          expectedVersion: updatedGig.version,
-          type: editedPost.type,
-          messageId: editedPost.id,
-          chatId: editedPost.chatId,
-          fileId,
+        updatedGig = await this.updateGigTelegramPostFileId({
+          gig: updatedGig,
+          post: telegramEditResult.moderation.post,
+          fileId: moderationFileId,
         });
-        if (gigWithUpdatedFileId) {
-          updatedGig = gigWithUpdatedFileId;
-        } else {
-          this.logger.error(
-            `Telegram ${editedPost.type} fileId was not stored for publicId=${updatedGig.publicId} expectedVersion=${updatedGig.version}`,
-          );
-        }
       }
-    } catch (e: unknown) {
-      this.logger.warn(
-        `Telegram post update failed for publicId=${params.publicId} postType=${editedPost?.type ?? 'unknown'}: ${formatTelegramErrorMessage(e)}`,
-      );
-    }
 
-    await this.updateGigModerationPostBestEffort({ gig: updatedGig });
+      const mainFileId = telegramEditResult.main?.result.fileId;
+      if (telegramEditResult.main !== undefined && mainFileId !== undefined) {
+        updatedGig = await this.updateGigTelegramPostFileId({
+          gig: updatedGig,
+          post: telegramEditResult.main.post,
+          fileId: mainFileId,
+        });
+      }
+    }
     await this.revalidateGigFeed(updatedGig);
 
     return { publicId: updatedGig.publicId };
@@ -613,22 +594,38 @@ export class GigService {
     );
   }
 
-  private updateGigTelegramPostFileId(
+  private async updateGigTelegramPostFileId(
     params: UpdateGigTelegramPostFileIdParams,
-  ): Promise<PlainGig | null> {
-    this.validateGigId(params.gigId);
-    this.validateExpectedVersion(params.expectedVersion);
-    if (!Number.isInteger(params.messageId)) {
+  ): Promise<PlainGig> {
+    this.validateGigId(params.gig.id);
+    this.validateExpectedVersion(params.gig.version);
+    if (!Number.isInteger(params.post.id)) {
       throw new BadRequestException('Telegram message ID must be an integer');
     }
-    if (!Number.isInteger(params.chatId)) {
+    if (!Number.isInteger(params.post.chatId)) {
       throw new BadRequestException('Telegram chat ID must be an integer');
     }
     if (params.fileId.trim() === '') {
       throw new BadRequestException('Telegram file ID must not be empty');
     }
 
-    return this.gigRepository.updateTelegramPostFileId(params);
+    const gigWithUpdatedFileId =
+      await this.gigRepository.updateTelegramPostFileId({
+        gigId: params.gig.id,
+        expectedVersion: params.gig.version,
+        type: params.post.type,
+        messageId: params.post.id,
+        chatId: params.post.chatId,
+        fileId: params.fileId,
+      });
+    if (gigWithUpdatedFileId) {
+      return gigWithUpdatedFileId;
+    }
+
+    this.logger.error(
+      `Telegram ${params.post.type} fileId was not stored for publicId=${params.gig.publicId} expectedVersion=${params.gig.version}`,
+    );
+    return params.gig;
   }
 
   private async getGigForMainPost(

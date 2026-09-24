@@ -121,21 +121,34 @@ export class TelegramPostComposerService {
     const { gig, post, isMediaUpdateRequired } = params;
     const chatId = post.chatId;
     const messageId = post.id;
+    const mainPost = this.pickTgPost(gig.posts, PostType.Main);
+    let mainPostUrl: string | undefined;
+    if (mainPost !== undefined) {
+      mainPostUrl = this.getPostUrl({
+        chatId: mainPost.chatId,
+        messageId: mainPost.id,
+      });
+    }
 
     const replyMarkup = this.buildGigModerationReplyMarkup({
       gigId: gig.id,
       expectedVersion: gig.version,
       isVisible: gig.isVisible,
+      mainPostUrl,
       editGigUrl: this.buildEditGigUrl(gig.publicId),
     });
     const fullCaption = this.buildModerationCaption({
       body: this.buildGigBodyCaption(gig),
+      mainPostUrl,
       adminGigUrl: this.buildAdminGigUrl(gig.publicId),
     });
 
     if (isMediaUpdateRequired && post.fileId) {
-      const posterUrl = this.getTelegramPosterUrl(gig.poster);
-      if (posterUrl) {
+      let mediaReference = params.mediaReference;
+      if (mediaReference === undefined) {
+        mediaReference = this.getTelegramPosterUrl(gig.poster);
+      }
+      if (mediaReference) {
         return {
           kind: PostEditKind.Media,
           payload: {
@@ -143,7 +156,7 @@ export class TelegramPostComposerService {
             messageId,
             media: {
               type: TGInputMediaType.Photo,
-              media: posterUrl,
+              media: mediaReference,
               caption: fullCaption,
               parse_mode: TGParseMode.HTML,
             },
@@ -190,8 +203,11 @@ export class TelegramPostComposerService {
     const caption = this.buildMainPostCaption(gig);
 
     if (isMediaUpdateRequired && post.fileId) {
-      const posterUrl = this.getTelegramPosterUrl(gig.poster);
-      if (posterUrl) {
+      let mediaReference = params.mediaReference;
+      if (mediaReference === undefined) {
+        mediaReference = this.getTelegramPosterUrl(gig.poster);
+      }
+      if (mediaReference) {
         return {
           kind: PostEditKind.Media,
           payload: {
@@ -199,7 +215,7 @@ export class TelegramPostComposerService {
             messageId,
             media: {
               type: TGInputMediaType.Photo,
-              media: posterUrl,
+              media: mediaReference,
               caption,
               parse_mode: TGParseMode.HTML,
             },
@@ -421,26 +437,26 @@ export class TelegramPostComposerService {
     const caption = this.composeWeeklyDigestCaption(gigs);
 
     const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
-    const posterItems = firstChunk.flatMap((gig) => {
-      const posterReference = this.getPosterReferenceForDigestAlbum(gig);
-      if (posterReference === undefined || posterReference === '') {
+    const digestMediaItems = firstChunk.flatMap((gig) => {
+      const mediaReference = this.getDigestMediaReference(gig);
+      if (mediaReference === undefined || mediaReference === '') {
         return [];
       }
-      return [{ posterReference, publicId: gig.publicId }];
+      return [{ mediaReference, publicId: gig.publicId }];
     });
 
-    if (posterItems.length >= 2) {
-      const media: TGInputMedia[] = posterItems.map((item, index) =>
+    if (digestMediaItems.length >= 2) {
+      const media: TGInputMedia[] = digestMediaItems.map((item, index) =>
         index === 0
           ? {
               type: TGInputMediaType.Photo,
-              media: item.posterReference,
+              media: item.mediaReference,
               caption,
               parse_mode: TGParseMode.HTML,
             }
           : {
               type: TGInputMediaType.Photo,
-              media: item.posterReference,
+              media: item.mediaReference,
             },
       );
 
@@ -450,19 +466,19 @@ export class TelegramPostComposerService {
           chat_id: chatId,
           media,
         },
-        mediaItems: posterItems.map((item, index) => ({
+        mediaItems: digestMediaItems.map((item, index) => ({
           position: index + 1,
           publicId: item.publicId,
         })),
       };
     }
 
-    if (posterItems.length === 1) {
+    if (digestMediaItems.length === 1) {
       return {
         kind: WeeklyDigestMainChannelSendKind.SendPhoto,
         payload: {
           chat_id: chatId,
-          photo: posterItems[0].posterReference,
+          photo: digestMediaItems[0].mediaReference,
           caption,
           parse_mode: TGParseMode.HTML,
         },
@@ -479,7 +495,7 @@ export class TelegramPostComposerService {
     };
   }
 
-  getPosterReferenceForDigestAlbum(gig: PlainGig): string | undefined {
+  getDigestMediaReference(gig: PlainGig): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     return moderationPost?.fileId ?? this.getTelegramPosterUrl(gig.poster);
   }
