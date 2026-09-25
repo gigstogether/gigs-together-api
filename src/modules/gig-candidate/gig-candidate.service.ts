@@ -11,7 +11,7 @@ import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import type { TelegramPostSendResult } from '../telegram/telegram.service';
-import type { InputFileData } from '../telegram/types/message.types';
+import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
@@ -138,7 +138,9 @@ export class GigCandidateService {
   ): Promise<V1CreateGigCandidateResponseBody> {
     const created = await this.createGigCandidate(params);
     const saved = created.gigCandidate;
-    const telegramPosterFile = this.mapTelegramPosterFile(created.posterFile);
+    const telegramPosterFile = mapPreparedGigPosterToTelegramInputFile(
+      created.posterFile,
+    );
 
     let telegramIntakePost: TelegramPostSendResult | undefined;
     try {
@@ -828,7 +830,8 @@ export class GigCandidateService {
 
     let telegramModerationPost: TelegramPostSendResult | undefined;
     try {
-      const telegramPosterFile = this.mapTelegramPosterFile(posterFile);
+      const telegramPosterFile =
+        mapPreparedGigPosterToTelegramInputFile(posterFile);
       telegramModerationPost =
         await this.telegramService.sendGigCandidateModerationPost(
           gigCandidate,
@@ -1106,7 +1109,8 @@ export class GigCandidateService {
 
     try {
       const isMediaUpdateRequired = posterFile !== undefined;
-      const telegramPosterFile = this.mapTelegramPosterFile(posterFile);
+      const telegramPosterFile =
+        mapPreparedGigPosterToTelegramInputFile(posterFile);
       const edited = await this.telegramService.editGigCandidatePost({
         gigCandidate,
         post: moderationPost,
@@ -1150,23 +1154,6 @@ export class GigCandidateService {
       this.logTelegramFailure('editGigCandidatePost', gigCandidate.id, e);
     }
     return gigCandidate;
-  }
-
-  private mapTelegramPosterFile(
-    posterFile?: PreparedGigPosterFile,
-  ): InputFileData | undefined {
-    if (posterFile === undefined) {
-      return undefined;
-    }
-
-    const inputFile: InputFileData = {
-      buffer: posterFile.buffer,
-      filename: posterFile.filename,
-    };
-    if (posterFile.mimetype !== undefined) {
-      inputFile.contentType = posterFile.mimetype;
-    }
-    return inputFile;
   }
 
   private findTelegramPost(

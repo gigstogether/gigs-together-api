@@ -35,11 +35,11 @@ import type {
 import { FeedRevalidateService } from './feed-revalidate.service';
 import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
-import type { InputFileData } from '../telegram/types/message.types';
 
 interface ResolvePublicPostUrl {
   postId?: number;
@@ -333,14 +333,9 @@ export class GigService {
       isMediaUpdateRequired,
     };
     if (stateUpdateResult.posterFile !== undefined) {
-      const posterFile: InputFileData = {
-        buffer: stateUpdateResult.posterFile.buffer,
-        filename: stateUpdateResult.posterFile.filename,
-      };
-      if (stateUpdateResult.posterFile.mimetype !== undefined) {
-        posterFile.contentType = stateUpdateResult.posterFile.mimetype;
-      }
-      telegramEditParams.posterFile = posterFile;
+      telegramEditParams.posterFile = mapPreparedGigPosterToTelegramInputFile(
+        stateUpdateResult.posterFile,
+      );
     }
     const telegramEditResult =
       await this.telegramService.editGigPostsBestEffort(telegramEditParams);
