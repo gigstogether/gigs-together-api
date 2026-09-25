@@ -24,8 +24,7 @@ export interface TGSendMessage {
   text: string;
   parse_mode?: TGParseMode;
   disable_web_page_preview?: boolean;
-
-  [key: string]: unknown;
+  reply_markup?: TGInlineKeyboardMarkup;
 }
 
 export interface TGInaccessibleMessage {

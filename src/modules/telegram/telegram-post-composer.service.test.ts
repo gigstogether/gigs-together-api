@@ -727,6 +727,9 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       });
 
+      if (!('photo' in payload)) {
+        throw new Error('Expected a photo Intake payload');
+      }
       expect(payload.chat_id).toBe('-3001');
       expect(payload.photo).toBe(
         `https://cdn.example/ug.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
@@ -763,6 +766,38 @@ describe('TelegramPostComposer', () => {
           ],
         ],
       });
+    });
+
+    it('should compose a text Intake post when GigCandidate has no poster', () => {
+      const payload = composer.composeGigCandidateIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        chat_id: '-3001',
+        text: expect.stringContaining('Suggested Band'),
+        parse_mode: TGParseMode.HTML,
+        reply_markup: expect.objectContaining({
+          inline_keyboard: expect.any(Array),
+        }),
+      });
+      expect('photo' in payload).toBe(false);
     });
 
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
@@ -850,6 +885,7 @@ describe('TelegramPostComposer', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1,
         id: 50,
         chatId: -200,
@@ -1045,25 +1081,32 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       };
 
-      const payload = composer.composeRejectedGigCandidatePostEdit({
+      const composition = composer.composeRejectedGigCandidatePostEdit({
         gigCandidate,
         post: {
           to: Messenger.Telegram,
           type: PostType.Intake,
+          fileId: 'intake-file-id',
           date: 1,
           id: 10,
           chatId: -100,
         },
       });
 
-      expect(payload).toMatchObject({
-        chatId: -100,
-        messageId: 10,
-        caption: expect.stringContaining('🔴 Suggested Band'),
-        replyMarkup: { inline_keyboard: [] },
+      expect(composition).toMatchObject({
+        kind: PostEditKind.Caption,
+        payload: {
+          chatId: -100,
+          messageId: 10,
+          caption: expect.stringContaining('🔴 Suggested Band'),
+          replyMarkup: { inline_keyboard: [] },
+        },
       });
-      expect(payload.caption).not.toContain('Rejected');
-      expect(payload.caption).toContain(
+      if (composition.kind !== PostEditKind.Caption) {
+        throw new Error('Expected a caption edit');
+      }
+      expect(composition.payload.caption).not.toContain('Rejected');
+      expect(composition.payload.caption).toContain(
         '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
     });
@@ -1089,8 +1132,70 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       };
 
-      const payload = composer.composeGigCandidateIntakePostAfterModerationEdit(
-        {
+      const composition =
+        composer.composeGigCandidateIntakePostAfterModerationEdit({
+          gigCandidate,
+          intakePost: {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            fileId: 'intake-file-id',
+            date: 1,
+            id: 10,
+            chatId: -1003001,
+          },
+          moderationPost: {
+            to: Messenger.Telegram,
+            type: PostType.Moderation,
+            fileId: 'moderation-file-id',
+            date: 2,
+            id: 20,
+            chatId: -1003002,
+          },
+        });
+
+      expect(composition).toMatchObject({
+        kind: PostEditKind.Caption,
+        payload: {
+          chatId: -1003001,
+          messageId: 10,
+          replyMarkup: { inline_keyboard: [] },
+        },
+      });
+      if (composition.kind !== PostEditKind.Caption) {
+        throw new Error('Expected a caption edit');
+      }
+      expect(composition.payload.caption).toContain('Suggested Band');
+      expect(composition.payload.caption).not.toContain('🟡');
+      expect(composition.payload.caption).not.toContain('Reviewing');
+      expect(composition.payload.caption).toContain(
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/20">See moderation post</a>',
+      );
+    });
+
+    it('should edit a text Intake post as text after moderation handoff', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 3,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const composition =
+        composer.composeGigCandidateIntakePostAfterModerationEdit({
           gigCandidate,
           intakePost: {
             to: Messenger.Telegram,
@@ -1102,24 +1207,22 @@ describe('TelegramPostComposer', () => {
           moderationPost: {
             to: Messenger.Telegram,
             type: PostType.Moderation,
+            fileId: 'moderation-file-id',
             date: 2,
             id: 20,
             chatId: -1003002,
           },
-        },
-      );
+        });
 
-      expect(payload).toMatchObject({
-        chatId: -1003001,
-        messageId: 10,
-        replyMarkup: { inline_keyboard: [] },
+      expect(composition).toMatchObject({
+        kind: PostEditKind.Text,
+        payload: {
+          chatId: -1003001,
+          messageId: 10,
+          text: expect.stringContaining('Suggested Band'),
+          replyMarkup: { inline_keyboard: [] },
+        },
       });
-      expect(payload.caption).toContain('Suggested Band');
-      expect(payload.caption).not.toContain('🟡');
-      expect(payload.caption).not.toContain('Reviewing');
-      expect(payload.caption).toContain(
-        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/20">See moderation post</a>',
-      );
     });
   });
 });

@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGEditMessageCaption,
   TGInlineKeyboardMarkup,
   TGInputMedia,
   TGSendMessage,
@@ -77,6 +76,12 @@ interface ComposeGigCandidateChannelPostParams {
 interface BuildGigCandidateModerationReplyMarkupParams {
   gigCandidate: GigCandidate;
   expectedVersion: number;
+}
+
+interface ComposeGigCandidateExistingPostEditParams {
+  post: GigCandidate['posts'][number];
+  text: string;
+  replyMarkup: TGInlineKeyboardMarkup;
 }
 
 /**
@@ -550,18 +555,34 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeGigCandidateIntakePost(gigCandidate: GigCandidate): TGSendPhoto {
+  composeGigCandidateIntakePost(
+    gigCandidate: GigCandidate,
+  ): TGSendMessage | TGSendPhoto {
     const chatId = this.requireChannelId(
       process.env.INTAKE_CHANNEL_ID,
       'INTAKE_CHANNEL_ID',
       'intake',
     );
 
+    const replyMarkup = this.buildGigCandidateIntakeReplyMarkup(gigCandidate);
+    const poster = this.getTelegramPosterUrl(gigCandidate.gigDraft.poster);
+    if (poster === undefined || poster === '') {
+      return {
+        chat_id: chatId,
+        text: this.buildGigCandidateCaption({
+          gigCandidate,
+          channelPurpose: 'intake',
+        }),
+        parse_mode: TGParseMode.HTML,
+        reply_markup: replyMarkup,
+      };
+    }
+
     return this.composeGigCandidateChannelPost({
       gigCandidate,
       chatId,
       channelPurpose: 'intake',
-      replyMarkup: this.buildGigCandidateIntakeReplyMarkup(gigCandidate),
+      replyMarkup,
     });
   }
 
@@ -637,36 +658,32 @@ export class TelegramPostComposerService {
 
   composeRejectedGigCandidatePostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
-  ): TGEditMessageCaption {
+  ): TelegramPostEditComposition {
     const channelPurpose =
       params.post.type === PostType.Intake ? 'intake' : 'moderation';
 
-    return {
-      chatId: params.post.chatId,
-      messageId: params.post.id,
-      caption: this.buildGigCandidateCaption({
+    return this.composeGigCandidateExistingPostEdit({
+      post: params.post,
+      text: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
         channelPurpose,
       }),
-      parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
-    };
+    });
   }
 
   composeGigCandidateIntakePostAfterModerationEdit(
     params: ComposeGigCandidateIntakePostAfterModerationEditParams,
-  ): TGEditMessageCaption {
-    return {
-      chatId: params.intakePost.chatId,
-      messageId: params.intakePost.id,
-      caption: this.buildGigCandidateCaption({
+  ): TelegramPostEditComposition {
+    return this.composeGigCandidateExistingPostEdit({
+      post: params.intakePost,
+      text: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
         channelPurpose: 'intake',
         moderationPost: params.moderationPost,
       }),
-      parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
-    };
+    });
   }
 
   composeGigCandidatePostEdit(
@@ -755,6 +772,34 @@ export class TelegramPostComposerService {
       }),
       parse_mode: TGParseMode.HTML,
       reply_markup: params.replyMarkup,
+    };
+  }
+
+  private composeGigCandidateExistingPostEdit(
+    params: ComposeGigCandidateExistingPostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.fileId === undefined) {
+      return {
+        kind: PostEditKind.Text,
+        payload: {
+          chatId: params.post.chatId,
+          messageId: params.post.id,
+          text: params.text,
+          parseMode: TGParseMode.HTML,
+          replyMarkup: params.replyMarkup,
+        },
+      };
+    }
+
+    return {
+      kind: PostEditKind.Caption,
+      payload: {
+        chatId: params.post.chatId,
+        messageId: params.post.id,
+        caption: params.text,
+        parseMode: TGParseMode.HTML,
+        replyMarkup: params.replyMarkup,
+      },
     };
   }
 

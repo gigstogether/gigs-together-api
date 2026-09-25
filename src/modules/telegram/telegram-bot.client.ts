@@ -90,13 +90,6 @@ export class TelegramBotClient {
             );
             return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
           }
-
-          // Last resort: send a text-only message so posting does not silently fail.
-          const text =
-            payload.caption ??
-            (payload as unknown as { text?: string }).text ??
-            photo;
-          return this.sendMessage({ chat_id: payload.chat_id, text });
         }
         throw e;
       }

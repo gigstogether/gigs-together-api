@@ -147,30 +147,23 @@ describe('TelegramBotClient', () => {
       );
     });
 
-    it('should safely log a failed remote photo download before sending text fallback', async () => {
+    it('should keep the photo post unsent when the remote photo download fails', async () => {
       const photoUrl =
         'https://cdn.example/posters/example.jpg?signature=secret#preview';
-      const sentMessage: TGMessage = {
-        message_id: 3,
-        date: Date.now(),
-        chat: { id: 1, type: 'channel' },
+      const telegramError = {
+        response: {
+          data: {
+            error_code: 400,
+            description: 'Bad Request: failed to get HTTP URL content',
+          },
+        },
       };
       const loggerSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
+      const sendMessageSpy = vi.spyOn(client, 'sendMessage');
 
-      mockHttpService.post
-        .mockReturnValueOnce(
-          throwError(() => ({
-            response: {
-              data: {
-                error_code: 400,
-                description: 'Bad Request: failed to get HTTP URL content',
-              },
-            },
-          })),
-        )
-        .mockReturnValueOnce(of({ data: { result: sentMessage } }));
+      mockHttpService.post.mockReturnValueOnce(throwError(() => telegramError));
       mockHttpService.get.mockReturnValue(
         throwError(() => ({
           isAxiosError: true,
@@ -179,22 +172,25 @@ describe('TelegramBotClient', () => {
         })),
       );
 
-      const result = await client.sendPhoto(
-        {
-          chat_id: 1,
-          photo: photoUrl,
-          caption: 'Example',
-        },
-        'gig-candidate-id',
-      );
+      await expect(
+        client.sendPhoto(
+          {
+            chat_id: 1,
+            photo: photoUrl,
+            caption: 'Example',
+          },
+          'gig-candidate-id',
+        ),
+      ).rejects.toBe(telegramError);
 
-      expect(result).toEqual(sentMessage);
       expect(loggerSpy).toHaveBeenCalledWith(
         'downloadRemoteFileAsInputFile failed for imageUrl=https://cdn.example/posters/example.jpg contextId=gig-candidate-id: Request failed with status code 502; httpStatus=502',
       );
       expect(loggerSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('signature=secret'),
       );
+      expect(sendMessageSpy).not.toHaveBeenCalled();
+      expect(mockHttpService.post).toHaveBeenCalledTimes(1);
     });
   });
 

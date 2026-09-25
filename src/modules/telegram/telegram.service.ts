@@ -11,6 +11,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { isRecord } from '../../shared/utils/is-record';
+import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { PlainGig } from '../gig/types/gig.types';
@@ -49,6 +50,10 @@ export interface TelegramPostSendResult {
   chatId: number;
   sentAtSeconds: number;
   fileId?: string;
+}
+
+interface TelegramPhotoPostSendResult extends TelegramPostSendResult {
+  fileId: string;
 }
 
 interface EditGigPostParams {
@@ -387,7 +392,7 @@ export class TelegramService {
       composedMainPost,
       gig.id,
     );
-    return this.mapTelegramPostSendResult(message);
+    return this.mapTelegramPhotoPostSendResult(message);
   }
 
   async sendGigCandidateIntakePost(
@@ -398,6 +403,10 @@ export class TelegramService {
       this.telegramPostComposerService.composeGigCandidateIntakePost(
         gigCandidate,
       );
+    if (!('photo' in composed)) {
+      const message = await this.telegramBotClient.sendMessage(composed);
+      return this.mapTelegramPostSendResult(message);
+    }
     return this.sendGigCandidatePhoto({
       composed,
       gigCandidateId: gigCandidate.id,
@@ -413,6 +422,16 @@ export class TelegramService {
       this.telegramPostComposerService.composeGigCandidateModerationPost(
         gigCandidate,
       );
+    if (posterFile === undefined) {
+      const intakePost = gigCandidate.posts.find(
+        (post) =>
+          post.to === Messenger.Telegram && post.type === PostType.Intake,
+      );
+      const intakeFileId = intakePost?.fileId?.trim();
+      if (intakeFileId) {
+        composed.photo = intakeFileId;
+      }
+    }
     return this.sendGigCandidatePhoto({
       composed,
       gigCandidateId: gigCandidate.id,
@@ -422,7 +441,7 @@ export class TelegramService {
 
   private async sendGigCandidatePhoto(
     params: SendGigCandidatePhotoParams,
-  ): Promise<TelegramPostSendResult | undefined> {
+  ): Promise<TelegramPhotoPostSendResult | undefined> {
     const { composed, gigCandidateId, posterFile } = params;
     if (posterFile !== undefined) {
       composed.photo = posterFile;
@@ -431,16 +450,12 @@ export class TelegramService {
       composed,
       gigCandidateId,
     );
-    return this.mapTelegramPostSendResult(message);
+    return this.mapTelegramPhotoPostSendResult(message);
   }
 
   private mapTelegramPostSendResult(
-    message: TGMessage | undefined,
-  ): TelegramPostSendResult | undefined {
-    if (message === undefined) {
-      return;
-    }
-
+    message: TGMessage,
+  ): TelegramPostSendResult {
     const chatId = message.sender_chat?.id ?? message.chat?.id;
     if (
       !Number.isInteger(message.message_id) ||
@@ -455,11 +470,22 @@ export class TelegramService {
       chatId,
       sentAtSeconds: message.date,
     };
-    const fileId = getBiggestTgPhotoFileId(message.photo);
-    if (fileId !== undefined) {
-      result.fileId = fileId;
-    }
     return result;
+  }
+
+  private mapTelegramPhotoPostSendResult(
+    message: TGMessage | undefined,
+  ): TelegramPhotoPostSendResult | undefined {
+    if (message === undefined) {
+      return;
+    }
+    const result = this.mapTelegramPostSendResult(message);
+
+    const fileId = getBiggestTgPhotoFileId(message.photo);
+    if (fileId === undefined) {
+      throw new Error('Telegram photo response has no fileId');
+    }
+    return { ...result, fileId };
   }
 
   sendGigCandidateFeedback(
@@ -472,24 +498,26 @@ export class TelegramService {
     return this.telegramBotClient.sendMessage(composed);
   }
 
-  updateRejectedGigCandidatePost(
+  async updateRejectedGigCandidatePost(
     payload: UpdateRejectedGigCandidatePostPayload,
   ): Promise<TGMessage> {
     const composed =
       this.telegramPostComposerService.composeRejectedGigCandidatePostEdit(
         payload,
       );
-    return this.telegramBotClient.editMessageCaption(composed);
+    const result = await this.executePostEdit(composed);
+    return result.message;
   }
 
-  updateGigCandidateIntakePostAfterModeration(
+  async updateGigCandidateIntakePostAfterModeration(
     payload: ComposeGigCandidateIntakePostAfterModerationEditParams,
   ): Promise<TGMessage> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateIntakePostAfterModerationEdit(
         payload,
       );
-    return this.telegramBotClient.editMessageCaption(composed);
+    const result = await this.executePostEdit(composed);
+    return result.message;
   }
 
   editGigCandidatePost(

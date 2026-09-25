@@ -165,6 +165,7 @@ describe('MongoGigCandidateRepository', () => {
   describe('sendGigCandidateToModeration', () => {
     it('should conditionally transition only New status and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
+      const poster = { bucketPath: 'gigs/default.jpg' };
       findOneAndUpdateMock.mockReturnValue(
         updateQueryResult({
           _id: gigCandidateId,
@@ -173,7 +174,7 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: 'form' },
           },
-          gigDraft: {},
+          gigDraft: { poster },
           version: 1,
           status: GigCandidateStatus.Reviewing,
           posts: [],
@@ -185,6 +186,7 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.sendGigCandidateToModeration({
         gigCandidateId,
         expectedVersion: 0,
+        poster,
       });
 
       expect(result?.status).toBe(GigCandidateStatus.Reviewing);
@@ -195,7 +197,10 @@ describe('MongoGigCandidateRepository', () => {
           version: 0,
         },
         {
-          $set: { status: GigCandidateStatus.Reviewing },
+          $set: {
+            status: GigCandidateStatus.Reviewing,
+            'gigDraft.poster': poster,
+          },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },

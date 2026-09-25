@@ -63,6 +63,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     const moderationPost = {
       to: Messenger.Telegram,
       type: PostType.Moderation,
+      fileId: 'moderation-file-id',
       date: 1_700_000_001_000,
       id: 50,
       chatId: -200,
@@ -285,6 +286,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     const moderationPost = {
       to: Messenger.Telegram,
       type: PostType.Moderation,
+      fileId: 'moderation-file-id',
       date: 1_700_000_001_000,
       id: 50,
       chatId: -200,

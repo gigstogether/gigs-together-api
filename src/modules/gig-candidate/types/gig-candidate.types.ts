@@ -12,14 +12,24 @@ import type {
 } from '../../gig/types/gig-poster.types';
 import type { ProviderReference } from '../../../shared/types/provider-reference.types';
 
-export interface GigCandidatePost {
+interface GigCandidatePostBase {
   to: Messenger;
-  type: PostType.Intake | PostType.Moderation;
   date: number;
   id: number;
   chatId: number;
-  fileId?: string;
 }
+
+export interface GigCandidateTextPost extends GigCandidatePostBase {
+  type: PostType.Intake;
+  fileId?: never;
+}
+
+export interface GigCandidatePhotoPost extends GigCandidatePostBase {
+  type: PostType.Intake | PostType.Moderation;
+  fileId: string;
+}
+
+export type GigCandidatePost = GigCandidateTextPost | GigCandidatePhotoPost;
 
 export type GigCandidateAttachment = Record<string, unknown>;
 
@@ -95,6 +105,11 @@ export interface UpdateGigCandidateDraftApplicationParams extends UpdateGigCandi
 export interface SendGigCandidateToModerationParams {
   gigCandidateId: string;
   expectedVersion: number;
+}
+
+// TODO: move to dedicated layer (repository)
+export interface SendGigCandidateToModerationWithPosterParams extends SendGigCandidateToModerationParams {
+  poster: NonNullable<GigData['poster']>;
 }
 
 export interface RejectGigCandidateParams {

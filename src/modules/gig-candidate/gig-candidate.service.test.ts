@@ -94,6 +94,7 @@ describe('GigCandidateService', () => {
 
   beforeEach(async () => {
     vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
+    gigPosterServiceMock.upload.mockResolvedValue(undefined);
     gigServiceMock.generateUniquePublicId.mockImplementation(
       async (params: {
         isPublicIdTaken?: (publicId: string) => Promise<boolean>;
@@ -316,7 +317,6 @@ describe('GigCandidateService', () => {
           date: Date.parse('2026-08-01T00:00:00.000Z'),
           city: 'Barcelona',
           country: 'ES',
-          poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
         },
         version: 0,
         status: GigCandidateStatus.New,
@@ -326,14 +326,6 @@ describe('GigCandidateService', () => {
       };
 
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
-      gigPosterServiceMock.upload.mockResolvedValue({
-        storedPoster: created.gigDraft.poster,
-        posterFile: {
-          buffer: Buffer.from('poster'),
-          mimetype: 'image/jpeg',
-          filename: 'poster.jpg',
-        },
-      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
         undefined,
@@ -378,14 +370,16 @@ describe('GigCandidateService', () => {
           }),
         }),
       );
+      const createParams =
+        gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
+      expect(createParams?.gigDraft).not.toHaveProperty('poster');
       expect(result).toEqual({ id: created.id });
+      expect(gigPosterServiceMock.upload).toHaveBeenCalledWith(
+        expect.objectContaining({ url: undefined, file: undefined }),
+      );
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
-      ).toHaveBeenCalledWith(created, {
-        buffer: Buffer.from('poster'),
-        filename: 'poster.jpg',
-        contentType: 'image/jpeg',
-      });
+      ).toHaveBeenCalledWith(created, undefined);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         { kind: 'submitted', title: 'B', chatId: '42' },
       );
@@ -449,7 +443,10 @@ describe('GigCandidateService', () => {
           tgUser: { id: 1, first_name: 'A' },
           isAdmin: false,
         },
-        posterFile: undefined,
+        posterFile: {
+          buffer: Buffer.from('poster'),
+          mimetype: 'image/jpeg',
+        },
       });
 
       expect(
@@ -603,10 +600,20 @@ describe('GigCandidateService', () => {
           userId,
           origin: { type: 'admin' },
         },
-        gigDraft: { title: 'Band' },
+        gigDraft: {
+          title: 'Band',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
-      gigPosterServiceMock.upload.mockResolvedValue(undefined);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: created.gigDraft.poster!,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          mimetype: 'image/jpeg',
+          filename: 'poster.jpg',
+        },
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
         undefined,
@@ -628,20 +635,27 @@ describe('GigCandidateService', () => {
           userId,
           origin: { type: 'admin' },
         },
-        gigDraft: { title: 'Band' },
+        gigDraft: created.gigDraft,
       });
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
       ).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(created, undefined);
+      ).toHaveBeenCalledWith(created, {
+        buffer: Buffer.from('default poster'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
+      });
     });
 
     it('should send admin lifecycle feedback only when enabled', async () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
-        gigDraft: { title: 'Band' },
+        gigDraft: {
+          title: 'Band',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
         source: {
           type: 'user',
           userId: '507f1f77bcf86cd799439088',
@@ -649,6 +663,14 @@ describe('GigCandidateService', () => {
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: created.gigDraft.poster!,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          filename: 'poster.jpg',
+          mimetype: 'image/jpeg',
+        },
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
         undefined,
@@ -699,9 +721,17 @@ describe('GigCandidateService', () => {
           userId: '507f1f77bcf86cd799439088',
           origin: { type: 'admin' },
         },
-        gigDraft: {},
+        gigDraft: { poster: { bucketPath: 'gigs/default.jpg' } },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: created.gigDraft.poster!,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          filename: 'poster.jpg',
+          mimetype: 'image/jpeg',
+        },
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
         undefined,
@@ -746,6 +776,7 @@ describe('GigCandidateService', () => {
             date: 1_700_000_001_000,
             id: 50,
             chatId: -200,
+            fileId: 'moderation-file-id',
           },
         ],
       });
@@ -759,6 +790,7 @@ describe('GigCandidateService', () => {
         messageId: 50,
         chatId: -200,
         sentAtSeconds: 1_700_000_001,
+        fileId: 'moderation-file-id',
       });
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         stored,
@@ -934,6 +966,30 @@ describe('GigCandidateService', () => {
   });
 
   describe('sendGigCandidateToModeration', () => {
+    it('should keep New status when no moderation poster can be prepared', async () => {
+      vi.stubEnv('DEFAULT_GIG_POSTER_URL', '');
+      const newGigCandidate = buildGigCandidate({
+        gigDraft: { title: 'Band' },
+        version: 1,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 1,
+        }),
+      ).rejects.toThrow(
+        `Cannot prepare GigCandidate ${newGigCandidate.id} for moderation without a poster.`,
+      );
+      expect(
+        gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).not.toHaveBeenCalled();
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).not.toHaveBeenCalled();
+    });
+
     it('should commit moderation once and not retry failed feedback', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')
@@ -952,6 +1008,10 @@ describe('GigCandidateService', () => {
       });
       const reviewing = buildGigCandidate({
         ...newGigCandidate,
+        gigDraft: {
+          ...newGigCandidate.gigDraft,
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
         status: GigCandidateStatus.Reviewing,
         version: 2,
       });
@@ -961,6 +1021,7 @@ describe('GigCandidateService', () => {
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,
+        fileId: 'moderation-file-id',
       };
       const stored = buildGigCandidate({
         ...reviewing,
@@ -968,6 +1029,14 @@ describe('GigCandidateService', () => {
         posts: [intakePost, moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: reviewing.gigDraft.poster!,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          filename: 'poster.jpg',
+          mimetype: 'image/jpeg',
+        },
+      });
       gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
         reviewing,
       );
@@ -975,6 +1044,7 @@ describe('GigCandidateService', () => {
         messageId: moderationPost.id,
         chatId: moderationPost.chatId,
         sentAtSeconds: 1_700_000_001,
+        fileId: moderationPost.fileId,
       });
       gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
         stored,
@@ -997,6 +1067,14 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({
         gigCandidateId: newGigCandidate.id,
         expectedVersion: 1,
+        poster: reviewing.gigDraft.poster,
+      });
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(reviewing, {
+        buffer: Buffer.from('default poster'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
       });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
@@ -1034,10 +1112,12 @@ describe('GigCandidateService', () => {
         chatId: -100,
       };
       const newGigCandidate = buildGigCandidate({
+        gigDraft: { poster: { bucketPath: 'gigs/poster.jpg' } },
         version: 1,
         posts: [intakePost],
       });
       const reviewing = buildGigCandidate({
+        gigDraft: newGigCandidate.gigDraft,
         status: GigCandidateStatus.Reviewing,
         version: 2,
         posts: [intakePost],
@@ -1063,6 +1143,7 @@ describe('GigCandidateService', () => {
 
     it('should not transition a Reviewing GigCandidate twice on repeated callback', async () => {
       const reviewing = buildGigCandidate({
+        gigDraft: { poster: { bucketPath: 'gigs/poster.jpg' } },
         status: GigCandidateStatus.Reviewing,
         version: 2,
       });
@@ -1089,11 +1170,13 @@ describe('GigCandidateService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,
       };
       const reviewing = buildGigCandidate({
+        gigDraft: { poster: { bucketPath: 'gigs/poster.jpg' } },
         status: GigCandidateStatus.Reviewing,
         version: 3,
         posts: [moderationPost],
@@ -1125,11 +1208,13 @@ describe('GigCandidateService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,
       };
       const reviewing = buildGigCandidate({
+        gigDraft: { poster: { bucketPath: 'gigs/poster.jpg' } },
         status: GigCandidateStatus.Reviewing,
         version: 3,
         posts: [intakePost, moderationPost],
@@ -1166,6 +1251,7 @@ describe('GigCandidateService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,
@@ -1296,6 +1382,7 @@ describe('GigCandidateService', () => {
           {
             to: Messenger.Telegram,
             type: PostType.Moderation,
+            fileId: 'moderation-file-id-1',
             date: 1_700_000_001_000,
             id: 50,
             chatId: -200,
@@ -1303,6 +1390,7 @@ describe('GigCandidateService', () => {
           {
             to: Messenger.Telegram,
             type: PostType.Moderation,
+            fileId: 'moderation-file-id-2',
             date: 1_700_000_002_000,
             id: 51,
             chatId: -200,
@@ -1495,6 +1583,7 @@ describe('GigCandidateService', () => {
           {
             to: Messenger.Telegram,
             type: PostType.Moderation,
+            fileId: 'moderation-file-id',
             date: 1_700_000_001_000,
             id: 50,
             chatId: -200,
@@ -1638,6 +1727,7 @@ describe('GigCandidateService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,
@@ -1730,6 +1820,7 @@ describe('GigCandidateService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1_700_000_001_000,
         id: 50,
         chatId: -200,

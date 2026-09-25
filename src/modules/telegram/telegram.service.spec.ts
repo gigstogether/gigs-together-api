@@ -935,6 +935,54 @@ describe('TelegramService', () => {
     });
   });
 
+  describe('sendGigCandidateIntakePost', () => {
+    it('should send a text post when GigCandidate has no poster', async () => {
+      process.env.INTAKE_CHANNEL_ID = '-100';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 40,
+        date: 1_700_000_000,
+        chat: { id: -100, type: 'channel' },
+      });
+      const sendPhotoSpy = vi.spyOn(bot, 'sendPhoto');
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: 1_700_000_000_000,
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await expect(
+        service.sendGigCandidateIntakePost(gigCandidate),
+      ).resolves.toEqual({
+        messageId: 40,
+        chatId: -100,
+        sentAtSeconds: 1_700_000_000,
+      });
+      expect(sendMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chat_id: '-100',
+          text: expect.stringContaining('Band'),
+        }),
+      );
+      expect(sendPhotoSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('sendGigCandidateModerationPost', () => {
     it('should send a prepared poster file without asking Telegram to download its URL', async () => {
       process.env.MODERATION_CHANNEL_ID = '-200';
@@ -961,7 +1009,16 @@ describe('TelegramService', () => {
         },
         version: 0,
         status: GigCandidateStatus.Reviewing,
-        posts: [],
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1_700_000_000_000,
+            id: 40,
+            chatId: -100,
+            fileId: 'existing-intake-file-id',
+          },
+        ],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -994,6 +1051,152 @@ describe('TelegramService', () => {
         }),
         gigCandidate.id,
       );
+    });
+
+    it('should reuse the Intake photo fileId when the original file is unavailable', async () => {
+      process.env.MODERATION_CHANNEL_ID = '-200';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: 1_700_000_000_000,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { externalUrl: 'https://cdn.example/poster.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1_700_000_000_000,
+            id: 40,
+            chatId: -100,
+            fileId: 'intake-file-id',
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const sendPhotoSpy = vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: 50,
+        date: 1_700_000_001,
+        chat: { id: -200, type: 'channel' },
+        photo: [
+          {
+            file_id: 'moderation-file-id',
+            file_unique_id: 'moderation-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      });
+
+      await service.sendGigCandidateModerationPost(gigCandidate);
+
+      expect(sendPhotoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ photo: 'intake-file-id' }),
+        gigCandidate.id,
+      );
+    });
+
+    it('should fall back to the poster URL when the Intake post is text', async () => {
+      process.env.MODERATION_CHANNEL_ID = '-200';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: 1_700_000_000_000,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { externalUrl: 'https://cdn.example/poster.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            date: 1_700_000_000_000,
+            id: 40,
+            chatId: -100,
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const sendPhotoSpy = vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: 50,
+        date: 1_700_000_001,
+        chat: { id: -200, type: 'channel' },
+        photo: [
+          {
+            file_id: 'moderation-file-id',
+            file_unique_id: 'moderation-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      });
+
+      await service.sendGigCandidateModerationPost(gigCandidate);
+
+      expect(sendPhotoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          photo: 'https://cdn.example/poster.jpg',
+        }),
+        gigCandidate.id,
+      );
+    });
+
+    it('should reject a successful photo response without fileId', async () => {
+      process.env.MODERATION_CHANNEL_ID = '-200';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: 1_700_000_000_000,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { externalUrl: 'https://cdn.example/poster.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: 50,
+        date: 1_700_000_001,
+        chat: { id: -200, type: 'channel' },
+      });
+
+      await expect(
+        service.sendGigCandidateModerationPost(gigCandidate),
+      ).rejects.toThrow('Telegram photo response has no fileId');
     });
   });
 
@@ -1135,6 +1338,7 @@ describe('TelegramService', () => {
       const post: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 1,
         id: 50,
         chatId: -200,
@@ -1186,6 +1390,7 @@ describe('TelegramService', () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
+        fileId: 'intake-file-id',
         date: 1,
         id: 40,
         chatId: -1003001,
@@ -1193,6 +1398,7 @@ describe('TelegramService', () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
+        fileId: 'moderation-file-id',
         date: 2,
         id: 50,
         chatId: -1003002,
@@ -1230,6 +1436,68 @@ describe('TelegramService', () => {
           caption: expect.stringContaining(
             '<a href="https://app.example/edit?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
           ),
+          replyMarkup: { inline_keyboard: [] },
+        }),
+      );
+    });
+
+    it('should update a text Intake after moderation handoff', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
+      const bot = testingModule.get(TelegramBotClient);
+      const editMessageTextSpy = vi
+        .spyOn(bot, 'editMessageText')
+        .mockResolvedValue({
+          message_id: 40,
+          date: 1,
+          chat: { id: -1003001, type: 'channel' },
+        });
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1,
+        id: 40,
+        chatId: -1003001,
+      };
+      const moderationPost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        fileId: 'moderation-file-id',
+        date: 2,
+        id: 50,
+        chatId: -1003002,
+      };
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000042',
+          origin: { type: 'form' },
+        },
+        gigDraft: {
+          title: 'Suggested Band',
+          date: 1,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 3,
+        status: GigCandidateStatus.Reviewing,
+        posts: [intakePost, moderationPost],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await service.updateGigCandidateIntakePostAfterModeration({
+        gigCandidate,
+        intakePost,
+        moderationPost,
+      });
+
+      expect(editMessageTextSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chatId: -1003001,
+          messageId: 40,
+          text: expect.stringContaining('See moderation post'),
           replyMarkup: { inline_keyboard: [] },
         }),
       );
