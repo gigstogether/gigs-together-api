@@ -381,7 +381,11 @@ describe('GigCandidateService', () => {
       expect(result).toEqual({ id: created.id });
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
-      ).toHaveBeenCalledWith(created);
+      ).toHaveBeenCalledWith(created, {
+        buffer: Buffer.from('poster'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
+      });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         { kind: 'submitted', title: 'B', chatId: '42' },
       );
@@ -631,7 +635,7 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(created);
+      ).toHaveBeenCalledWith(created, undefined);
     });
 
     it('should send admin lifecycle feedback only when enabled', async () => {
@@ -716,6 +720,14 @@ describe('GigCandidateService', () => {
     });
 
     it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
+      const posterFile = {
+        buffer: Buffer.from('poster'),
+        mimetype: 'image/jpeg',
+      };
+      const preparedPosterFile = {
+        ...posterFile,
+        filename: 'poster.jpg',
+      };
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
@@ -738,6 +750,10 @@ describe('GigCandidateService', () => {
         ],
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: { bucketPath: 'gigs/gig-candidate.jpg' },
+        posterFile: preparedPosterFile,
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue({
         messageId: 50,
@@ -752,8 +768,16 @@ describe('GigCandidateService', () => {
         service.createAdminGigCandidate({
           userId: '507f1f77bcf86cd799439088',
           gigDraft: {},
+          posterFile,
         }),
       ).resolves.toEqual(stored);
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(created, {
+        buffer: preparedPosterFile.buffer,
+        filename: preparedPosterFile.filename,
+        contentType: preparedPosterFile.mimetype,
+      });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
       ).toHaveBeenCalledWith(
@@ -861,7 +885,10 @@ describe('GigCandidateService', () => {
         gigCandidate: updated,
         post: moderationPost,
         isMediaUpdateRequired: true,
-        posterFile: { ...posterFile, filename: 'poster.jpg' },
+        posterFile: {
+          buffer: posterFile.buffer,
+          filename: 'poster.jpg',
+        },
       });
       expect(
         gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId,

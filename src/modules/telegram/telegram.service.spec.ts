@@ -224,6 +224,9 @@ describe('TelegramService', () => {
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
     delete process.env.MAIN_CHANNEL_ID;
+    delete process.env.INTAKE_CHANNEL_ID;
+    delete process.env.MODERATION_CHANNEL_ID;
+    delete process.env.EDIT_GIG_URL;
     delete process.env.APP_BASE_URL;
   });
 
@@ -932,6 +935,68 @@ describe('TelegramService', () => {
     });
   });
 
+  describe('sendGigCandidateModerationPost', () => {
+    it('should send a prepared poster file without asking Telegram to download its URL', async () => {
+      process.env.MODERATION_CHANNEL_ID = '-200';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+      const bot = testingModule.get(TelegramBotClient);
+      const posterFile = {
+        buffer: Buffer.from('poster bytes'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
+      };
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: 'user',
+          userId: '66a000000000000000000000042',
+          origin: { type: 'admin' },
+        },
+        gigDraft: {
+          title: 'Band',
+          date: 1_700_000_000_000,
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { externalUrl: 'https://cdn.example/poster.jpg' },
+        },
+        version: 0,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const sendPhotoSpy = vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
+        message_id: 50,
+        date: 1_700_000_001,
+        chat: { id: -200, type: 'channel' },
+        photo: [
+          {
+            file_id: 'new-file-id',
+            file_unique_id: 'new-unique-id',
+            width: 800,
+            height: 800,
+          },
+        ],
+      });
+
+      await expect(
+        service.sendGigCandidateModerationPost(gigCandidate, posterFile),
+      ).resolves.toEqual({
+        messageId: 50,
+        chatId: -200,
+        sentAtSeconds: 1_700_000_001,
+        fileId: 'new-file-id',
+      });
+      expect(sendPhotoSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chat_id: '-200',
+          photo: posterFile,
+        }),
+        gigCandidate.id,
+      );
+    });
+  });
+
   describe('updateGigModerationPost with main post', () => {
     it('should edit moderation caption with stable gig permalink', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
@@ -1031,6 +1096,10 @@ describe('TelegramService', () => {
   });
 
   describe('GigCandidate lifecycle messages', () => {
+    beforeEach(() => {
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
+    });
+
     it('should send newly composed feedback as a direct message', async () => {
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({

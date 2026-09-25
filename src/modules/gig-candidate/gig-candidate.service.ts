@@ -10,6 +10,7 @@ import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
 import type { TelegramPostSendResult } from '../telegram/telegram.service';
+import type { InputFileData } from '../telegram/types/message.types';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
@@ -83,6 +84,11 @@ interface PreparedGigCandidateDraftPoster {
   posterFile?: PreparedGigPosterFile;
 }
 
+interface CreatedGigCandidate {
+  gigCandidate: GigCandidate;
+  posterFile?: PreparedGigPosterFile;
+}
+
 interface ParsedCreateGigCandidateFields {
   title: string;
   date: string;
@@ -128,12 +134,17 @@ export class GigCandidateService {
   async handleSubmit(
     params: HandleGigCandidateSubmitParams,
   ): Promise<V1CreateGigCandidateResponseBody> {
-    const saved = await this.createGigCandidate(params);
+    const created = await this.createGigCandidate(params);
+    const saved = created.gigCandidate;
+    const telegramPosterFile = this.mapTelegramPosterFile(created.posterFile);
 
     let telegramIntakePost: TelegramPostSendResult | undefined;
     try {
       telegramIntakePost =
-        await this.telegramService.sendGigCandidateIntakePost(saved);
+        await this.telegramService.sendGigCandidateIntakePost(
+          saved,
+          telegramPosterFile,
+        );
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
     }
@@ -188,7 +199,10 @@ export class GigCandidateService {
     });
 
     const withModerationPost =
-      await this.ensureGigCandidateModerationPostBestEffort(saved);
+      await this.ensureGigCandidateModerationPostBestEffort(
+        saved,
+        preparedPoster.posterFile,
+      );
     await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
       withModerationPost,
     );
@@ -430,7 +444,7 @@ export class GigCandidateService {
 
   private async createGigCandidate(
     params: HandleGigCandidateSubmitParams,
-  ): Promise<GigCandidate> {
+  ): Promise<CreatedGigCandidate> {
     const { body, user, posterFile } = params;
     const gig = this.parseAndValidateCreateBody(body.gig);
 
@@ -461,7 +475,7 @@ export class GigCandidateService {
     });
     const poster = posterUploadResult?.storedPoster;
 
-    return this.gigCandidateRepository.createGigCandidate({
+    const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
       status: GigCandidateStatus.New,
       source: {
@@ -480,6 +494,12 @@ export class GigCandidateService {
         ...(poster !== undefined ? { poster } : {}),
       },
     });
+
+    const result: CreatedGigCandidate = { gigCandidate };
+    if (posterUploadResult?.posterFile !== undefined) {
+      result.posterFile = posterUploadResult.posterFile;
+    }
+    return result;
   }
 
   private async approveGigCandidateInTransaction(
@@ -769,6 +789,7 @@ export class GigCandidateService {
 
   private async ensureGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
+    posterFile?: PreparedGigPosterFile,
   ): Promise<GigCandidate> {
     if (this.findTelegramPost(gigCandidate, PostType.Moderation)) {
       return gigCandidate;
@@ -776,8 +797,12 @@ export class GigCandidateService {
 
     let telegramModerationPost: TelegramPostSendResult | undefined;
     try {
+      const telegramPosterFile = this.mapTelegramPosterFile(posterFile);
       telegramModerationPost =
-        await this.telegramService.sendGigCandidateModerationPost(gigCandidate);
+        await this.telegramService.sendGigCandidateModerationPost(
+          gigCandidate,
+          telegramPosterFile,
+        );
     } catch (e) {
       this.logTelegramFailure(
         'sendGigCandidateModerationPost',
@@ -1034,11 +1059,12 @@ export class GigCandidateService {
 
     try {
       const isMediaUpdateRequired = posterFile !== undefined;
+      const telegramPosterFile = this.mapTelegramPosterFile(posterFile);
       const edited = await this.telegramService.editGigCandidatePost({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired,
-        posterFile,
+        posterFile: telegramPosterFile,
       });
       if (!isMediaUpdateRequired) {
         return gigCandidate;
@@ -1077,6 +1103,23 @@ export class GigCandidateService {
       this.logTelegramFailure('editGigCandidatePost', gigCandidate.id, e);
     }
     return gigCandidate;
+  }
+
+  private mapTelegramPosterFile(
+    posterFile?: PreparedGigPosterFile,
+  ): InputFileData | undefined {
+    if (posterFile === undefined) {
+      return undefined;
+    }
+
+    const inputFile: InputFileData = {
+      buffer: posterFile.buffer,
+      filename: posterFile.filename,
+    };
+    if (posterFile.mimetype !== undefined) {
+      inputFile.contentType = posterFile.mimetype;
+    }
+    return inputFile;
   }
 
   private findTelegramPost(

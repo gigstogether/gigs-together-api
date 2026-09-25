@@ -81,6 +81,12 @@ interface UpdateGigModerationPostAfterEditParams {
   mainPost?: GigPost;
 }
 
+interface SendGigCandidatePhotoParams {
+  composed: TGSendPhoto;
+  gigCandidateId: string;
+  posterFile?: InputFileData;
+}
+
 export interface EditGigCandidatePostParams {
   gigCandidate: GigCandidate;
   post: GigCandidatePost;
@@ -386,28 +392,44 @@ export class TelegramService {
 
   async sendGigCandidateIntakePost(
     gigCandidate: GigCandidate,
+    posterFile?: InputFileData,
   ): Promise<TelegramPostSendResult | undefined> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateIntakePost(
         gigCandidate,
       );
-    const message = await this.telegramBotClient.sendPhoto(
+    return this.sendGigCandidatePhoto({
       composed,
-      gigCandidate.id,
-    );
-    return this.mapTelegramPostSendResult(message);
+      gigCandidateId: gigCandidate.id,
+      posterFile,
+    });
   }
 
   async sendGigCandidateModerationPost(
     gigCandidate: GigCandidate,
+    posterFile?: InputFileData,
   ): Promise<TelegramPostSendResult | undefined> {
     const composed =
       this.telegramPostComposerService.composeGigCandidateModerationPost(
         gigCandidate,
       );
+    return this.sendGigCandidatePhoto({
+      composed,
+      gigCandidateId: gigCandidate.id,
+      posterFile,
+    });
+  }
+
+  private async sendGigCandidatePhoto(
+    params: SendGigCandidatePhotoParams,
+  ): Promise<TelegramPostSendResult | undefined> {
+    const { composed, gigCandidateId, posterFile } = params;
+    if (posterFile !== undefined) {
+      composed.photo = posterFile;
+    }
     const message = await this.telegramBotClient.sendPhoto(
       composed,
-      gigCandidate.id,
+      gigCandidateId,
     );
     return this.mapTelegramPostSendResult(message);
   }
