@@ -574,6 +574,7 @@ export class TelegramPostComposerService {
           channelPurpose: 'intake',
         }),
         parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
         reply_markup: replyMarkup,
       };
     }
@@ -786,6 +787,7 @@ export class TelegramPostComposerService {
           messageId: params.post.id,
           text: params.text,
           parseMode: TGParseMode.HTML,
+          disableWebPagePreview: true,
           replyMarkup: params.replyMarkup,
         },
       };

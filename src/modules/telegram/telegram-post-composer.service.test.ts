@@ -793,6 +793,7 @@ describe('TelegramPostComposer', () => {
         chat_id: '-3001',
         text: expect.stringContaining('Suggested Band'),
         parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
         reply_markup: expect.objectContaining({
           inline_keyboard: expect.any(Array),
         }),
@@ -1220,6 +1221,7 @@ describe('TelegramPostComposer', () => {
           chatId: -1003001,
           messageId: 10,
           text: expect.stringContaining('Suggested Band'),
+          disableWebPagePreview: true,
           replyMarkup: { inline_keyboard: [] },
         },
       });
