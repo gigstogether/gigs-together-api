@@ -371,10 +371,12 @@ export class TelegramBotClient {
       if (replyMarkup !== undefined) {
         form.append('reply_markup', JSON.stringify(replyMarkup));
       }
-      form.append(mediaAttachName, posterFile.buffer, {
-        filename: posterFile.filename,
-        contentType: posterFile.contentType,
-      });
+      this.appendInputFile(
+        form,
+        mediaAttachName,
+        posterFile,
+        posterFile.filename,
+      );
 
       const res = await firstValueFrom(
         this.httpService.post('editMessageMedia', form, {
