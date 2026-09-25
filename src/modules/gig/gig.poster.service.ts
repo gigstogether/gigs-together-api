@@ -2,7 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { firstValueFrom } from 'rxjs';
 import { BucketService } from '../bucket/bucket.service';
 import { HttpService } from '@nestjs/axios';
-import type { GigPosterFile } from './types/gig-poster.types';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from './types/gig-poster.types';
 import type { GigPoster } from './types/gig.types';
 
 interface UploadPosterPayload {
@@ -14,6 +17,11 @@ interface UploadPosterPayload {
     city: string;
     publicId: string;
   };
+}
+
+export interface GigPosterUploadResult {
+  storedPoster: GigPoster;
+  posterFile: PreparedGigPosterFile;
 }
 
 const SVG_IMAGE_MIME_TYPE = 'image/svg+xml';
@@ -28,7 +36,7 @@ export class GigPosterService {
     private readonly httpService: HttpService,
   ) {}
 
-  private async download(url: string): Promise<GigPosterFile> {
+  private async download(url: string): Promise<PreparedGigPosterFile> {
     try {
       new URL(url);
     } catch {
@@ -56,15 +64,54 @@ export class GigPosterService {
         );
       }
 
-      return {
+      const downloadedFile: PreparedGigPosterFile = {
         buffer: Buffer.from(res.data),
-        mimetype: ct,
+        filename: this.buildPosterFilename(ct),
       };
+      if (ct !== undefined) {
+        downloadedFile.mimetype = ct;
+      }
+      return downloadedFile;
     } catch (e) {
       // Keep message user-friendly; don't leak internals.
       const msg = String(e?.message ?? 'unknown error');
       throw new BadRequestException(`Failed to download poster: ${msg}`);
     }
+  }
+
+  private getImageExtension(mimetype: string | undefined): string | undefined {
+    const normalizedMimeType = mimetype?.split(';', 1)[0].trim().toLowerCase();
+    switch (normalizedMimeType) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      case 'image/bmp':
+        return 'bmp';
+      case 'image/tiff':
+        return 'tiff';
+      case 'image/avif':
+        return 'avif';
+      case 'image/heic':
+        return 'heic';
+      case 'image/heif':
+        return 'heif';
+      default:
+        return undefined;
+    }
+  }
+
+  private buildPosterFilename(mimetype: string | undefined): string {
+    const extension = this.getImageExtension(mimetype);
+    if (extension === undefined) {
+      return 'poster';
+    }
+    return `poster.${extension}`;
   }
 
   private getBucketPrefix(): string {
@@ -131,27 +178,38 @@ export class GigPosterService {
     }
   }
 
-  async upload(payload: UploadPosterPayload): Promise<GigPoster | undefined> {
+  async upload(
+    payload: UploadPosterPayload,
+  ): Promise<GigPosterUploadResult | undefined> {
     const { url, file, context } = payload;
 
     if (file) {
-      const bucketPath = await this.uploadToBucket(
-        {
-          buffer: file.buffer,
-          mimetype: file.mimetype,
-        },
-        context,
-      );
+      const preparedFile: PreparedGigPosterFile = {
+        buffer: file.buffer,
+        filename: this.buildPosterFilename(file.mimetype),
+      };
+      if (file.mimetype !== undefined) {
+        preparedFile.mimetype = file.mimetype;
+      }
+      const bucketPath = await this.uploadToBucket(preparedFile, context);
 
-      return { bucketPath };
+      return {
+        storedPoster: { bucketPath },
+        posterFile: preparedFile,
+      };
     }
 
     if (!url) return;
 
     const downloaded = await this.download(url);
+    const bucketPath = await this.uploadToBucket(downloaded, context);
+
     return {
-      bucketPath: await this.uploadToBucket(downloaded, context),
-      externalUrl: url,
+      storedPoster: {
+        bucketPath,
+        externalUrl: url,
+      },
+      posterFile: downloaded,
     };
   }
 }

@@ -30,10 +30,16 @@ import { GIG_REPOSITORY } from './repositories/gig.repository';
 import type {
   FindGigsParams as RepositoryFindGigsParams,
   GigRepository,
+  UpdateGigByPublicIdRecordParams,
 } from './repositories/gig.repository';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from './types/gig-poster.types';
+import type { InputFileData } from '../telegram/types/message.types';
 
 interface ResolvePublicPostUrl {
   postId?: number;
@@ -44,7 +50,7 @@ export interface UpdateGigByPublicIdParams {
   publicId: string;
   expectedVersion: number;
   gig: GigFormInput;
-  posterFile: Express.Multer.File | undefined;
+  posterFile: GigPosterFile | undefined;
 }
 
 export interface UpdateGigVisibilityByPublicIdParams {
@@ -119,6 +125,11 @@ interface UpdateGigTelegramPostFileIdParams {
   gig: PlainGig;
   post: GigPost;
   fileId: string;
+}
+
+interface UpdateGigStateByPublicIdResult {
+  gig: PlainGig;
+  posterFile?: PreparedGigPosterFile;
 }
 
 export interface GenerateUniquePublicIdPayload {
@@ -314,18 +325,22 @@ export class GigService {
   async updateGigByPublicId(
     params: UpdateGigByPublicIdParams,
   ): Promise<UpdateGigByPublicIdResult> {
-    let updatedGig = await this.updateGigStateByPublicId(params);
-    const isMediaUpdateRequired = params.posterFile !== undefined;
+    const stateUpdateResult = await this.updateGigStateByPublicId(params);
+    let updatedGig = stateUpdateResult.gig;
+    const isMediaUpdateRequired = stateUpdateResult.posterFile !== undefined;
     const telegramEditParams: EditGigPostsParams = {
       gig: updatedGig,
       isMediaUpdateRequired,
     };
-    if (params.posterFile !== undefined) {
-      telegramEditParams.posterFile = {
-        buffer: params.posterFile.buffer,
-        filename: params.posterFile.originalname,
-        contentType: params.posterFile.mimetype,
+    if (stateUpdateResult.posterFile !== undefined) {
+      const posterFile: InputFileData = {
+        buffer: stateUpdateResult.posterFile.buffer,
+        filename: stateUpdateResult.posterFile.filename,
       };
+      if (stateUpdateResult.posterFile.mimetype !== undefined) {
+        posterFile.contentType = stateUpdateResult.posterFile.mimetype;
+      }
+      telegramEditParams.posterFile = posterFile;
     }
     const telegramEditResult =
       await this.telegramService.editGigPostsBestEffort(telegramEditParams);
@@ -359,7 +374,7 @@ export class GigService {
 
   private async updateGigStateByPublicId(
     params: UpdateGigByPublicIdParams,
-  ): Promise<PlainGig> {
+  ): Promise<UpdateGigStateByPublicIdResult> {
     const { publicId, expectedVersion, gig, posterFile } = params;
 
     const id = this.normalizeAndValidatePublicId(publicId);
@@ -372,7 +387,7 @@ export class GigService {
         ? new Date(gig.endDate).getTime()
         : undefined;
 
-    const poster: GigPoster | undefined = await this.uploadPoster({
+    const posterUploadResult = await this.uploadPoster({
       url: gig.posterUrl,
       file: posterFile,
       context: {
@@ -383,22 +398,32 @@ export class GigService {
       },
     });
 
-    const updated = await this.gigRepository.updateByPublicId({
+    const repositoryParams: UpdateGigByPublicIdRecordParams = {
       publicId: id,
       expectedVersion,
       title: gig.title,
       date: dateMs,
-      ...(endDateMs !== undefined ? { endDate: endDateMs } : {}),
       city: gig.city,
       country: gig.country,
       venue: gig.venue,
       ticketsUrl: gig.ticketsUrl,
-      ...(poster !== undefined ? { poster } : {}),
-    });
+    };
+    if (endDateMs !== undefined) {
+      repositoryParams.endDate = endDateMs;
+    }
+    if (posterUploadResult !== undefined) {
+      repositoryParams.poster = posterUploadResult.storedPoster;
+    }
+
+    const updated = await this.gigRepository.updateByPublicId(repositoryParams);
     if (!updated) {
       return this.throwGigVersionConflictOrNotFound(id);
     }
-    return updated;
+    const result: UpdateGigStateByPublicIdResult = { gig: updated };
+    if (posterUploadResult !== undefined) {
+      result.posterFile = posterUploadResult.posterFile;
+    }
+    return result;
   }
 
   async updateGigVisibilityByPublicId(

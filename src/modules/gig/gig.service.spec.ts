@@ -1,5 +1,3 @@
-import { Readable } from 'node:stream';
-
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -19,6 +17,10 @@ import {
   AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
 import type { PlainGig } from './types/gig.types';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from './types/gig-poster.types';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
@@ -357,18 +359,18 @@ describe('GigService', () => {
         ],
       });
       const posterBuffer = Buffer.from('new poster');
-      const posterFile: Express.Multer.File = {
-        fieldname: 'posterFile',
-        originalname: 'poster.jpg',
-        encoding: '7bit',
+      const posterFile: GigPosterFile = {
         buffer: posterBuffer,
         mimetype: 'image/jpeg',
-        size: posterBuffer.length,
-        stream: Readable.from(posterBuffer),
-        destination: '',
-        filename: '',
-        path: '',
       };
+      const preparedPosterFile: PreparedGigPosterFile = {
+        ...posterFile,
+        filename: 'poster.jpg',
+      };
+      uploadPoster.mockResolvedValue({
+        storedPoster: { bucketPath: 'gigs/2026/es/barcelona/radiohead' },
+        posterFile: preparedPosterFile,
+      });
       gigRepository.updateByPublicId.mockResolvedValue(updated);
       gigRepository.updateTelegramPostFileId
         .mockResolvedValueOnce(updatedWithModerationFileId)
@@ -412,7 +414,7 @@ describe('GigService', () => {
         isMediaUpdateRequired: true,
         posterFile: {
           buffer: posterBuffer,
-          filename: posterFile.originalname,
+          filename: preparedPosterFile.filename,
           contentType: posterFile.mimetype,
         },
       });
@@ -466,18 +468,18 @@ describe('GigService', () => {
         posts: [moderationPost, { ...mainPost, fileId: 'new-main-file-id' }],
       });
       const posterBuffer = Buffer.from('new poster');
-      const posterFile: Express.Multer.File = {
-        fieldname: 'posterFile',
-        originalname: 'poster.jpg',
-        encoding: '7bit',
+      const posterFile: GigPosterFile = {
         buffer: posterBuffer,
         mimetype: 'image/jpeg',
-        size: posterBuffer.length,
-        stream: Readable.from(posterBuffer),
-        destination: '',
-        filename: '',
-        path: '',
       };
+      const preparedPosterFile: PreparedGigPosterFile = {
+        ...posterFile,
+        filename: 'poster.jpg',
+      };
+      uploadPoster.mockResolvedValue({
+        storedPoster: { bucketPath: 'gigs/2026/es/barcelona/radiohead' },
+        posterFile: preparedPosterFile,
+      });
       gigRepository.updateByPublicId.mockResolvedValue(updated);
       gigRepository.updateTelegramPostFileId.mockResolvedValue(
         updatedWithMainFileId,
@@ -509,7 +511,7 @@ describe('GigService', () => {
         isMediaUpdateRequired: true,
         posterFile: {
           buffer: posterBuffer,
-          filename: posterFile.originalname,
+          filename: preparedPosterFile.filename,
           contentType: posterFile.mimetype,
         },
       });
@@ -520,6 +522,49 @@ describe('GigService', () => {
         messageId: mainPost.id,
         chatId: mainPost.chatId,
         fileId: 'new-main-file-id',
+      });
+    });
+
+    it('should send downloaded external poster bytes to Telegram', async () => {
+      const mainPost = {
+        to: Messenger.Telegram,
+        type: PostType.Main,
+        chatId: -100456,
+        id: 99,
+        fileId: 'old-main-file-id',
+        date: 1_700_000_002_000,
+      };
+      const posterBuffer = Buffer.from('downloaded poster');
+      const poster = {
+        bucketPath: 'gigs/2026/es/barcelona/radiohead',
+        externalUrl: 'https://images.example/new-poster.jpg',
+      };
+      const updated = buildGig({ version: 4, poster, posts: [mainPost] });
+      uploadPoster.mockResolvedValue({
+        storedPoster: poster,
+        posterFile: {
+          buffer: posterBuffer,
+          mimetype: 'image/png',
+          filename: 'poster.png',
+        },
+      });
+      gigRepository.updateByPublicId.mockResolvedValue(updated);
+
+      await service.updateGigByPublicId({
+        publicId: updated.publicId,
+        expectedVersion: 3,
+        gig: { ...gigInput, posterUrl: poster.externalUrl },
+        posterFile: undefined,
+      });
+
+      expect(editGigPostsBestEffort).toHaveBeenCalledWith({
+        gig: updated,
+        isMediaUpdateRequired: true,
+        posterFile: {
+          buffer: posterBuffer,
+          filename: 'poster.png',
+          contentType: 'image/png',
+        },
       });
     });
   });

@@ -1,6 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
-import type { InputFile, TGMessage, TGSendPhoto } from './types/message.types';
+import type {
+  InputFileData,
+  TGMessage,
+  TGSendPhoto,
+} from './types/message.types';
 import { TGParseMode } from './types/message.types';
 import { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -52,13 +56,13 @@ interface EditGigPostParams {
   post: GigPost;
   isMediaUpdateRequired: boolean;
   mediaReference?: string;
-  posterFile?: InputFile;
+  posterFile?: InputFileData;
 }
 
 export interface EditGigPostsParams {
   gig: PlainGig;
   isMediaUpdateRequired: boolean;
-  posterFile?: InputFile;
+  posterFile?: InputFileData;
 }
 
 export interface EditedGigPost {
@@ -475,7 +479,7 @@ export class TelegramService {
 
   private async executePostEdit(
     composed: TelegramPostEditComposition,
-    posterFile?: InputFile,
+    posterFile?: InputFileData,
   ): Promise<TelegramPostEditResult> {
     switch (composed.kind) {
       case PostEditKind.Media: {

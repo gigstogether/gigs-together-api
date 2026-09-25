@@ -326,7 +326,14 @@ describe('GigCandidateService', () => {
       };
 
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
-      gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: created.gigDraft.poster,
+        posterFile: {
+          buffer: Buffer.from('poster'),
+          mimetype: 'image/jpeg',
+          filename: 'poster.jpg',
+        },
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
         undefined,
@@ -402,7 +409,14 @@ describe('GigCandidateService', () => {
         updatedAt: new Date(),
       };
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
-      gigPosterServiceMock.upload.mockResolvedValue(created.gigDraft.poster);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: created.gigDraft.poster,
+        posterFile: {
+          buffer: Buffer.from('poster'),
+          mimetype: 'image/jpeg',
+          filename: 'poster.jpg',
+        },
+      });
       gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
       telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue({
         messageId: 55,
@@ -814,7 +828,10 @@ describe('GigCandidateService', () => {
         gigDraft: updated.gigDraft,
         posts: [{ ...moderationPost, fileId: 'new-file-id' }],
       });
-      gigPosterServiceMock.upload.mockResolvedValue(poster);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: poster,
+        posterFile: { ...posterFile, filename: 'poster.jpg' },
+      });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
       gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
         updated,

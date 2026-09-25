@@ -444,7 +444,7 @@ export class GigCandidateService {
     const posterUrl =
       explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
 
-    const poster = await this.gigPosterService.upload({
+    const posterUploadResult = await this.gigPosterService.upload({
       url: posterUrl,
       file: posterFile,
       context: {
@@ -454,6 +454,7 @@ export class GigCandidateService {
         publicId: posterPublicId,
       },
     });
+    const poster = posterUploadResult?.storedPoster;
 
     return this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
@@ -733,19 +734,20 @@ export class GigCandidateService {
       : undefined;
     const posterUrl =
       explicitPosterUrl ?? (params.posterFile ? undefined : defaultPosterUrl);
-    const poster =
-      params.posterFile || posterUrl
-        ? await this.gigPosterService.upload({
-            url: posterUrl,
-            file: params.posterFile,
-            context: {
-              date: gigDraft.date ?? new Date(),
-              city: gigDraft.city ?? 'unknown',
-              country: gigDraft.country ?? 'unknown',
-              publicId: `gc-${params.gigCandidateId}`,
-            },
-          })
-        : params.existingPoster;
+    let poster = params.existingPoster;
+    if (params.posterFile !== undefined || posterUrl !== undefined) {
+      const posterUploadResult = await this.gigPosterService.upload({
+        url: posterUrl,
+        file: params.posterFile,
+        context: {
+          date: gigDraft.date ?? new Date(),
+          city: gigDraft.city ?? 'unknown',
+          country: gigDraft.country ?? 'unknown',
+          publicId: `gc-${params.gigCandidateId}`,
+        },
+      });
+      poster = posterUploadResult?.storedPoster;
+    }
 
     return {
       ...gigDraft,

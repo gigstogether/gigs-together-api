@@ -100,10 +100,13 @@ export interface TGEditMessageMedia {
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
-export type InputFile =
-  | Buffer
-  // | Readable
-  | { buffer: Buffer; filename: string; contentType?: string };
+export interface InputFileData {
+  buffer: Buffer;
+  filename: string;
+  contentType?: string;
+}
+
+export type InputFile = Buffer | InputFileData;
 
 export interface TGSendPhoto {
   chat_id: TGChatId;

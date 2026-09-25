@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
 import type {
   InputFile,
+  InputFileData,
   TGEditMessageCaption,
   TGEditMessageMedia,
   TGEditMessageReplyMarkup,
@@ -24,12 +25,6 @@ export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
 interface TelegramBotErrorData {
   errorCode: number;
   description: string;
-}
-
-interface DownloadedRemotePhoto {
-  buffer: Buffer;
-  filename: string;
-  contentType?: string;
 }
 
 /**
@@ -227,7 +222,7 @@ export class TelegramBotClient {
   private async downloadRemoteFileAsInputFile(
     url: string,
     gigId?: string,
-  ): Promise<DownloadedRemotePhoto | undefined> {
+  ): Promise<InputFileData | undefined> {
     try {
       const res$ = this.httpService.get<ArrayBuffer>(url, {
         responseType: 'arraybuffer',
@@ -354,7 +349,7 @@ export class TelegramBotClient {
 
   async editMessageMedia(
     payload: TGEditMessageMedia,
-    posterFile?: InputFile,
+    posterFile?: InputFileData,
   ): Promise<TGMessage> {
     const { chatId, messageId, media, replyMarkup } = payload;
 
@@ -383,7 +378,10 @@ export class TelegramBotClient {
       if (replyMarkup !== undefined) {
         form.append('reply_markup', JSON.stringify(replyMarkup));
       }
-      this.appendInputFile(form, mediaAttachName, posterFile, 'poster.jpg');
+      form.append(mediaAttachName, posterFile.buffer, {
+        filename: posterFile.filename,
+        contentType: posterFile.contentType,
+      });
 
       const res = await firstValueFrom(
         this.httpService.post('editMessageMedia', form, {
