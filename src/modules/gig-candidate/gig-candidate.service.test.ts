@@ -374,9 +374,7 @@ describe('GigCandidateService', () => {
         gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
       expect(createParams?.gigDraft).not.toHaveProperty('poster');
       expect(result).toEqual({ id: created.id });
-      expect(gigPosterServiceMock.upload).toHaveBeenCalledWith(
-        expect.objectContaining({ url: undefined, file: undefined }),
-      );
+      expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created, undefined);
@@ -449,6 +447,19 @@ describe('GigCandidateService', () => {
         },
       });
 
+      expect(gigPosterServiceMock.upload).toHaveBeenCalledWith({
+        url: undefined,
+        file: {
+          buffer: Buffer.from('poster'),
+          mimetype: 'image/jpeg',
+        },
+        context: {
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+          city: 'Barcelona',
+          country: 'ES',
+          publicId: `gc-${created.id}`,
+        },
+      });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
       ).toHaveBeenCalledWith(

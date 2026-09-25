@@ -482,21 +482,29 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const posterPublicId = `gc-${id}`;
+    const gigDraft: Partial<GigCandidate['gigDraft']> = {
+      title: gig.title,
+      date: dateMs,
+      city: gig.city,
+      country: gig.country,
+    };
+    if (endDateMs !== undefined) {
+      gigDraft.endDate = endDateMs;
+    }
+    if (gig.venue !== undefined) {
+      gigDraft.venue = gig.venue;
+    }
+    if (gig.ticketsUrl !== undefined) {
+      gigDraft.ticketsUrl = gig.ticketsUrl;
+    }
 
-    const explicitPosterUrl = (gig.posterUrl ?? '').trim() || undefined;
-
-    const posterUploadResult = await this.gigPosterService.upload({
-      url: explicitPosterUrl,
-      file: posterFile,
-      context: {
-        date: gig.date,
-        city: gig.city,
-        country: gig.country,
-        publicId: posterPublicId,
-      },
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
+      gigCandidateId: id,
+      gigDraft,
+      posterUrl: gig.posterUrl,
+      posterFile,
+      shouldUseDefaultPoster: false,
     });
-    const poster = posterUploadResult?.storedPoster;
 
     const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
@@ -506,21 +514,12 @@ export class GigCandidateService {
         userId: user.userId,
         origin: { type: 'form' },
       },
-      gigDraft: {
-        title: gig.title,
-        date: dateMs,
-        ...(endDateMs !== undefined ? { endDate: endDateMs } : {}),
-        city: gig.city,
-        country: gig.country,
-        ...(gig.venue !== undefined ? { venue: gig.venue } : {}),
-        ...(gig.ticketsUrl !== undefined ? { ticketsUrl: gig.ticketsUrl } : {}),
-        ...(poster !== undefined ? { poster } : {}),
-      },
+      gigDraft: preparedPoster.gigDraft,
     });
 
     const result: CreatedGigCandidate = { gigCandidate };
-    if (posterUploadResult?.posterFile !== undefined) {
-      result.posterFile = posterUploadResult.posterFile;
+    if (preparedPoster.posterFile !== undefined) {
+      result.posterFile = preparedPoster.posterFile;
     }
     return result;
   }
