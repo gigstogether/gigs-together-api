@@ -17,6 +17,7 @@ import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
+import type { GigData } from '../gig/types/gig.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
@@ -25,7 +26,10 @@ import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
 import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
-import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
+import type {
+  GigCandidateRepository,
+  SendGigCandidateToModerationWithPosterParams,
+} from './repositories/gig-candidate.repository';
 import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import type {
   GigApprovalResult,
@@ -34,25 +38,17 @@ import type {
 } from './repositories/gig-candidate-approval.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
-import type {
-  GigCandidate,
-  ApproveGigCandidateParams,
-  CreateAdminGigCandidateParams,
-  FindGigCandidatesParams,
-  GigCandidateDraftLookupResult,
-  LookupGigCandidateDraftParams,
-  RejectGigCandidateParams,
-  SendGigCandidateToModerationParams,
-  SendGigCandidateToModerationWithPosterParams,
-  UpdateAdminGigCandidateDraftParams,
-  UpdateGigCandidateDraftApplicationParams,
-} from './types/gig-candidate.types';
+import type { GigCandidate } from './types/gig-candidate.types';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from '../gig/types/gig-poster.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
+import type {
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from './gig-candidate-list-sort';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -63,6 +59,68 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+
+export interface FindGigCandidatesParams {
+  status: GigCandidateStatus;
+  limit: number;
+  sortBy?: AdminGigCandidateListSortBy;
+  sortOrder?: AdminGigCandidateListSortOrder;
+}
+
+export interface CreateAdminGigCandidateParams {
+  userId: string;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface UpdateAdminGigCandidateDraftParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface LookupGigCandidateDraftParams {
+  title: string;
+  location: string;
+}
+
+export interface GigCandidateDraftLookupResult {
+  title: string;
+  date: string;
+  endDate?: string;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  posterUrl?: string;
+}
+
+export interface SendGigCandidateToModerationParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+}
+
+export interface RejectGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  rejectedByUserId: string;
+}
+
+export interface ApproveGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  approvedByUserId: string;
+}
+
+export interface UpdateGigCandidateDraftApplicationParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
+  posterFile?: PreparedGigPosterFile;
+}
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 

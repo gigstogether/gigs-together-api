@@ -5,17 +5,17 @@ import type { Model } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
+import type { GigCandidate as GigCandidateDomain } from '../types/gig-candidate.types';
 import type {
   AppendGigCandidatePostIfAbsentParams,
   CreateGigCandidateParams,
-  GigCandidate as GigCandidateDomain,
   FindGigCandidatesParams,
+  GigCandidateRepository,
   RejectGigCandidateRecordParams,
-  SendGigCandidateToModerationParams,
   SendGigCandidateToModerationWithPosterParams,
   UpdateGigCandidateDraftParams,
   UpdateGigCandidateModerationPostFileIdParams,
-} from '../types/gig-candidate.types';
+} from './gig-candidate.repository';
 import {
   ADMIN_GIG_CANDIDATE_LIST_DEFAULT_SORT_ORDER,
   AdminGigCandidateListSortBy,
@@ -23,9 +23,13 @@ import {
 } from '../gig-candidate-list-sort';
 import { GigCandidate } from '../gig-candidate.schema';
 import type { GigCandidateDocument } from '../gig-candidate.schema';
-import type { GigCandidateRepository } from './gig-candidate.repository';
 import { GigCandidateRepositoryMapper } from './gig-candidate.repository.mapper';
 import type { GigCandidateLeanDocument } from './gig-candidate.repository.mapper';
+
+interface ConditionalGigCandidateUpdateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+}
 
 const GIG_CANDIDATE_LEAN_PROJECTION = {
   _id: 1,
@@ -306,7 +310,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
   }
 
   private isValidConditionalUpdate(
-    params: SendGigCandidateToModerationParams,
+    params: ConditionalGigCandidateUpdateParams,
   ): boolean {
     return (
       Types.ObjectId.isValid(params.gigCandidateId) &&
