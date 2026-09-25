@@ -861,6 +861,7 @@ describe('GigCandidateService', () => {
         gigCandidate: updated,
         post: moderationPost,
         isMediaUpdateRequired: true,
+        posterFile: { ...posterFile, filename: 'poster.jpg' },
       });
       expect(
         gigCandidateRepositoryMock.updateGigCandidateModerationPostFileId,
@@ -1739,6 +1740,7 @@ describe('GigCandidateService', () => {
         gigCandidate: updated,
         post: moderationPost,
         isMediaUpdateRequired: false,
+        posterFile: undefined,
       });
     });
 
@@ -1779,7 +1781,10 @@ describe('GigCandidateService', () => {
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: { title: 'Updated title' },
-          isTelegramMediaUpdateRequired: true,
+          posterFile: {
+            buffer: Buffer.from('updated poster'),
+            filename: 'poster.jpg',
+          },
         }),
       ).resolves.toEqual(updated);
       expect(

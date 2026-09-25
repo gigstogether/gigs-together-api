@@ -85,6 +85,7 @@ export interface EditGigCandidatePostParams {
   gigCandidate: GigCandidate;
   post: GigCandidatePost;
   isMediaUpdateRequired: boolean;
+  posterFile?: InputFileData;
 }
 
 @Injectable()
@@ -474,7 +475,7 @@ export class TelegramService {
   ): Promise<TelegramPostEditResult> {
     const composed =
       this.telegramPostComposerService.composeGigCandidatePostEdit(params);
-    return this.executePostEdit(composed);
+    return this.executePostEdit(composed, params.posterFile);
   }
 
   private async executePostEdit(

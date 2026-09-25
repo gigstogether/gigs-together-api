@@ -1187,6 +1187,11 @@ describe('TelegramService', () => {
       const editMessageMediaSpy = vi
         .spyOn(bot, 'editMessageMedia')
         .mockResolvedValue(editedMessage);
+      const posterFile = {
+        buffer: Buffer.from('updated poster'),
+        filename: 'poster.jpg',
+        contentType: 'image/jpeg',
+      };
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Moderation,
@@ -1221,6 +1226,7 @@ describe('TelegramService', () => {
           gigCandidate,
           post: moderationPost,
           isMediaUpdateRequired: true,
+          posterFile,
         }),
       ).resolves.toEqual({
         kind: PostEditKind.Media,
@@ -1239,6 +1245,7 @@ describe('TelegramService', () => {
             caption: expect.stringContaining('🟡 Updated Band'),
           }),
         }),
+        posterFile,
       );
     });
   });

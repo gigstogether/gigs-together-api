@@ -6,13 +6,11 @@ import type {
   AdminGigCandidateListSortBy,
   AdminGigCandidateListSortOrder,
 } from '../gig-candidate-list-sort';
-import type { GigPosterFile } from '../../gig/types/gig-poster.types';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from '../../gig/types/gig-poster.types';
 import type { ProviderReference } from '../../../shared/types/provider-reference.types';
-
-export interface GigCandidatePoster {
-  bucketPath?: string;
-  externalUrl?: string;
-}
 
 export interface GigCandidatePost {
   to: Messenger;
@@ -91,7 +89,7 @@ export interface UpdateGigCandidateDraftParams {
 }
 
 export interface UpdateGigCandidateDraftApplicationParams extends UpdateGigCandidateDraftParams {
-  isTelegramMediaUpdateRequired?: boolean;
+  posterFile?: PreparedGigPosterFile;
 }
 
 export interface SendGigCandidateToModerationParams {

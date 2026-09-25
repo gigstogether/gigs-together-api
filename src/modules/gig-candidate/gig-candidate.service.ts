@@ -44,7 +44,10 @@ import type {
   UpdateAdminGigCandidateDraftParams,
   UpdateGigCandidateDraftApplicationParams,
 } from './types/gig-candidate.types';
-import type { GigPosterFile } from '../gig/types/gig-poster.types';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from '../gig/types/gig-poster.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import {
@@ -73,6 +76,11 @@ interface PrepareGigCandidateDraftPosterParams {
   posterFile?: GigPosterFile;
   existingPoster?: GigCandidate['gigDraft']['poster'];
   shouldUseDefaultPoster: boolean;
+}
+
+interface PreparedGigCandidateDraftPoster {
+  gigDraft: Partial<GigCandidate['gigDraft']>;
+  posterFile?: PreparedGigPosterFile;
 }
 
 interface ParsedCreateGigCandidateFields {
@@ -160,7 +168,7 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const gigDraft = await this.prepareGigCandidateDraftPoster({
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
       gigCandidateId,
       gigDraft: params.gigDraft,
       posterUrl: params.posterUrl,
@@ -176,7 +184,7 @@ export class GigCandidateService {
         userId: params.userId,
         origin: { type: 'admin' },
       },
-      gigDraft,
+      gigDraft: preparedPoster.gigDraft,
     });
 
     const withModerationPost =
@@ -210,7 +218,7 @@ export class GigCandidateService {
       command,
     );
 
-    const gigDraft = await this.prepareGigCandidateDraftPoster({
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
       gigCandidateId: currentGigCandidate.id,
       gigDraft: params.gigDraft,
       posterUrl: params.posterUrl,
@@ -218,14 +226,12 @@ export class GigCandidateService {
       existingPoster: currentGigCandidate.gigDraft.poster,
       shouldUseDefaultPoster: false,
     });
-    const hasPosterUrl = Boolean(params.posterUrl?.trim());
 
     return this.updateGigCandidateDraft({
       gigCandidateId: params.gigCandidateId,
       expectedVersion: params.expectedVersion,
-      gigDraft,
-      isTelegramMediaUpdateRequired:
-        params.posterFile !== undefined || hasPosterUrl,
+      gigDraft: preparedPoster.gigDraft,
+      posterFile: preparedPoster.posterFile,
     });
   }
 
@@ -378,8 +384,7 @@ export class GigCandidateService {
   async updateGigCandidateDraft(
     params: UpdateGigCandidateDraftApplicationParams,
   ): Promise<GigCandidate> {
-    const { isTelegramMediaUpdateRequired = false, ...repositoryParams } =
-      params;
+    const { posterFile, ...repositoryParams } = params;
     const command = GigCandidateCommand.UpdateDraft;
     this.assertExpectedVersionIsValid(
       params.gigCandidateId,
@@ -406,7 +411,7 @@ export class GigCandidateService {
     if (updated) {
       return this.updateGigCandidateModerationPostBestEffort(
         updated,
-        isTelegramMediaUpdateRequired,
+        posterFile,
       );
     }
 
@@ -724,7 +729,7 @@ export class GigCandidateService {
 
   private async prepareGigCandidateDraftPoster(
     params: PrepareGigCandidateDraftPosterParams,
-  ): Promise<Partial<GigCandidate['gigDraft']>> {
+  ): Promise<PreparedGigCandidateDraftPoster> {
     const gigDraft = { ...params.gigDraft };
     delete gigDraft.poster;
 
@@ -735,6 +740,7 @@ export class GigCandidateService {
     const posterUrl =
       explicitPosterUrl ?? (params.posterFile ? undefined : defaultPosterUrl);
     let poster = params.existingPoster;
+    let preparedPosterFile: PreparedGigPosterFile | undefined;
     if (params.posterFile !== undefined || posterUrl !== undefined) {
       const posterUploadResult = await this.gigPosterService.upload({
         url: posterUrl,
@@ -747,12 +753,18 @@ export class GigCandidateService {
         },
       });
       poster = posterUploadResult?.storedPoster;
+      preparedPosterFile = posterUploadResult?.posterFile;
     }
 
-    return {
-      ...gigDraft,
-      ...(poster !== undefined ? { poster } : {}),
-    };
+    if (poster !== undefined) {
+      gigDraft.poster = poster;
+    }
+
+    const result: PreparedGigCandidateDraftPoster = { gigDraft };
+    if (preparedPosterFile !== undefined) {
+      result.posterFile = preparedPosterFile;
+    }
+    return result;
   }
 
   private async ensureGigCandidateModerationPostBestEffort(
@@ -1010,7 +1022,7 @@ export class GigCandidateService {
 
   private async updateGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
-    isMediaUpdateRequired: boolean,
+    posterFile?: PreparedGigPosterFile,
   ): Promise<GigCandidate> {
     const moderationPost = this.findTelegramPost(
       gigCandidate,
@@ -1021,10 +1033,12 @@ export class GigCandidateService {
     }
 
     try {
+      const isMediaUpdateRequired = posterFile !== undefined;
       const edited = await this.telegramService.editGigCandidatePost({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired,
+        posterFile,
       });
       if (!isMediaUpdateRequired) {
         return gigCandidate;
