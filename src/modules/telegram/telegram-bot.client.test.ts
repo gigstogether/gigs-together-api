@@ -9,6 +9,7 @@ import {
   TelegramBotClient,
   TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS,
 } from './telegram-bot.client';
+import { RemoteImageService } from '../remote-image/remote-image.service';
 
 describe('TelegramBotClient', () => {
   let client: TelegramBotClient;
@@ -16,6 +17,9 @@ describe('TelegramBotClient', () => {
   const mockHttpService = {
     post: vi.fn(),
     get: vi.fn(),
+  };
+  const remoteImageService = {
+    download: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -25,6 +29,10 @@ describe('TelegramBotClient', () => {
         {
           provide: HttpService,
           useValue: mockHttpService,
+        },
+        {
+          provide: RemoteImageService,
+          useValue: remoteImageService,
         },
       ],
     }).compile();
@@ -36,6 +44,7 @@ describe('TelegramBotClient', () => {
     vi.restoreAllMocks();
     mockHttpService.post.mockReset();
     mockHttpService.get.mockReset();
+    remoteImageService.download.mockReset();
   });
 
   describe('sendMessage', () => {
@@ -111,12 +120,10 @@ describe('TelegramBotClient', () => {
           })),
         )
         .mockReturnValueOnce(of({ data: { result: sentMessage } }));
-      mockHttpService.get.mockReturnValue(
-        of({
-          data: new TextEncoder().encode('<svg></svg>').buffer,
-          headers: { 'content-type': 'image/svg+xml' },
-        }),
-      );
+      remoteImageService.download.mockResolvedValue({
+        buffer: Buffer.from('<svg></svg>'),
+        contentType: 'image/svg+xml',
+      });
 
       const result = await client.sendPhoto(
         {
@@ -128,10 +135,7 @@ describe('TelegramBotClient', () => {
       );
 
       expect(result).toEqual(sentMessage);
-      expect(mockHttpService.get).toHaveBeenCalledWith(photoUrl, {
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-      });
+      expect(remoteImageService.download).toHaveBeenCalledWith(photoUrl);
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining(
           'event=telegram_photo_url_fallback action=retry_multipart',
@@ -164,13 +168,11 @@ describe('TelegramBotClient', () => {
       const sendMessageSpy = vi.spyOn(client, 'sendMessage');
 
       mockHttpService.post.mockReturnValueOnce(throwError(() => telegramError));
-      mockHttpService.get.mockReturnValue(
-        throwError(() => ({
-          isAxiosError: true,
-          message: 'Request failed with status code 502',
-          response: { status: 502 },
-        })),
-      );
+      remoteImageService.download.mockRejectedValue({
+        isAxiosError: true,
+        message: 'Request failed with status code 502',
+        response: { status: 502 },
+      });
 
       await expect(
         client.sendPhoto(
@@ -184,7 +186,7 @@ describe('TelegramBotClient', () => {
       ).rejects.toBe(telegramError);
 
       expect(loggerSpy).toHaveBeenCalledWith(
-        'downloadRemoteFileAsInputFile failed for imageUrl=https://cdn.example/posters/example.jpg contextId=gig-candidate-id: Request failed with status code 502; httpStatus=502',
+        'event=telegram_photo_url_fallback action=download_failed imageUrl=https://cdn.example/posters/example.jpg contextId=gig-candidate-id error=Request failed with status code 502; httpStatus=502',
       );
       expect(loggerSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('signature=secret'),

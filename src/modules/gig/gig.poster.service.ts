@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { firstValueFrom } from 'rxjs';
 import { BucketService } from '../bucket/bucket.service';
-import { HttpService } from '@nestjs/axios';
+import {
+  InvalidRemoteImageUrlError,
+  RemoteImageContentTypeError,
+  RemoteImageService,
+} from '../remote-image/remote-image.service';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
@@ -33,48 +36,32 @@ const SVG_POSTER_ERROR_MESSAGE =
 export class GigPosterService {
   constructor(
     private readonly bucketService: BucketService,
-    private readonly httpService: HttpService,
+    private readonly remoteImageService: RemoteImageService,
   ) {}
 
   private async download(url: string): Promise<PreparedGigPosterFile> {
     try {
-      new URL(url);
-    } catch {
-      throw new BadRequestException('posterUrl must be a valid URL');
-    }
-
-    try {
-      const res = await firstValueFrom(
-        this.httpService.get<ArrayBuffer>(url, {
-          responseType: 'arraybuffer',
-          timeout: 15_000,
-        }),
-      );
-      const raw = res.headers['content-type'] ?? res.headers['Content-Type'];
-      const ct =
-        typeof raw === 'string'
-          ? raw
-          : Array.isArray(raw) && typeof raw[0] === 'string'
-            ? raw[0]
-            : undefined;
-
-      if (ct && !ct.toLowerCase().startsWith('image/')) {
-        throw new BadRequestException(
-          `posterUrl must point to an image (content-type: "${ct}")`,
-        );
-      }
+      const remoteImage = await this.remoteImageService.download(url);
 
       const downloadedFile: PreparedGigPosterFile = {
-        buffer: Buffer.from(res.data),
-        filename: this.buildPosterFilename(ct),
+        buffer: remoteImage.buffer,
+        filename: this.buildPosterFilename(remoteImage.contentType),
       };
-      if (ct !== undefined) {
-        downloadedFile.mimetype = ct;
+      if (remoteImage.contentType !== undefined) {
+        downloadedFile.mimetype = remoteImage.contentType;
       }
       return downloadedFile;
     } catch (e) {
+      if (e instanceof InvalidRemoteImageUrlError) {
+        throw new BadRequestException('posterUrl must be a valid URL');
+      }
+      if (e instanceof RemoteImageContentTypeError) {
+        throw new BadRequestException(
+          `Failed to download poster: posterUrl must point to an image (content-type: "${e.contentType}")`,
+        );
+      }
       // Keep message user-friendly; don't leak internals.
-      const msg = String(e?.message ?? 'unknown error');
+      const msg = e instanceof Error ? e.message : 'unknown error';
       throw new BadRequestException(`Failed to download poster: ${msg}`);
     }
   }

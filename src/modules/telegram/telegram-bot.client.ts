@@ -17,6 +17,8 @@ import type {
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import { formatErrorMessage } from '../../shared/utils/logging';
+import { RemoteImageService } from '../remote-image/remote-image.service';
+import type { DownloadedRemoteImage } from '../remote-image/remote-image.service';
 
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
@@ -34,8 +36,8 @@ interface TelegramBotErrorData {
  * `*Service`), but named **Client** to reflect its role: a thin outbound adapter to the
  * external Bot API rather than application/domain orchestration.
  *
- * Dependency injection supplies {@link HttpService} only; logging relies on Nest's
- * {@link Logger} constructed with this class name (no separate logger provider).
+ * Dependency injection supplies {@link HttpService} and {@link RemoteImageService}; logging
+ * relies on Nest's {@link Logger} constructed with this class name (no separate logger provider).
  *
  * Does not assert caption/message UTF-16 length when formatting may apply — Telegram counts
  * after entity parsing. Keeps unambiguous checks: {@link answerCallbackQuery} plain {@code text},
@@ -45,7 +47,10 @@ interface TelegramBotErrorData {
 export class TelegramBotClient {
   private readonly logger = new Logger(TelegramBotClient.name);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly remoteImageService: RemoteImageService,
+  ) {}
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     const res$ = this.httpService.post('sendMessage', payload);
@@ -80,16 +85,28 @@ export class TelegramBotClient {
           this.isRemotePhotoUrlError(telegramErrorData) &&
           this.isHttpUrl(photo)
         ) {
-          const downloaded = await this.downloadRemoteFileAsInputFile(
-            photo,
-            gigId,
-          );
-          if (downloaded) {
+          let remoteImage: DownloadedRemoteImage;
+          try {
+            remoteImage = await this.remoteImageService.download(photo);
+          } catch (downloadE) {
+            // Remove query and hash so signed URLs and sensitive access parameters never reach logs.
             this.logger.warn(
-              `event=telegram_photo_url_fallback action=retry_multipart imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contentType=${downloaded.contentType ?? 'unknown'} contextId=${gigId || 'none'} telegramDescription=${telegramErrorData.description}`,
+              `event=telegram_photo_url_fallback action=download_failed imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contextId=${gigId || 'none'} error=${formatErrorMessage(downloadE)}`,
             );
-            return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
+            throw e;
           }
+
+          const downloaded: InputFileData = {
+            buffer: remoteImage.buffer,
+            filename: this.guessFilenameFromUrl(photo) ?? `poster${gigId}.jpg`,
+          };
+          if (remoteImage.contentType !== undefined) {
+            downloaded.contentType = remoteImage.contentType;
+          }
+          this.logger.warn(
+            `event=telegram_photo_url_fallback action=retry_multipart imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contentType=${downloaded.contentType ?? 'unknown'} contextId=${gigId || 'none'} telegramDescription=${telegramErrorData.description}`,
+          );
+          return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
         }
         throw e;
       }
@@ -210,43 +227,6 @@ export class TelegramBotClient {
   private getUrlWithoutQueryOrHash(url: string): string {
     const parsedUrl = new URL(url);
     return `${parsedUrl.origin}${parsedUrl.pathname}`;
-  }
-
-  private async downloadRemoteFileAsInputFile(
-    url: string,
-    gigId?: string,
-  ): Promise<InputFileData | undefined> {
-    try {
-      const res$ = this.httpService.get<ArrayBuffer>(url, {
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-      });
-      const res = await firstValueFrom(res$);
-
-      const contentType = (res.headers?.['content-type'] ??
-        res.headers?.['Content-Type']) as string | undefined;
-
-      // If it's clearly not an image, don't try to upload it as a photo.
-      if (contentType && !contentType.toLowerCase().startsWith('image/')) {
-        this.logger.warn(
-          `downloadRemoteFileAsInputFile: non-image content-type (${contentType}) for ${url}`,
-        );
-        return;
-      }
-
-      const buffer = Buffer.from(res.data);
-      // TODO: ??
-      const filename =
-        this.guessFilenameFromUrl(url) ?? `poster${gigId ?? ''}.jpg`;
-
-      return { buffer, filename, contentType };
-    } catch (e) {
-      // Remove query and hash so signed URLs and sensitive access parameters never reach logs.
-      this.logger.warn(
-        `downloadRemoteFileAsInputFile failed for imageUrl=${this.getUrlWithoutQueryOrHash(url)} contextId=${gigId ?? 'none'}: ${formatErrorMessage(e)}`,
-      );
-      return;
-    }
   }
 
   private guessFilenameFromUrl(url: string): string | undefined {

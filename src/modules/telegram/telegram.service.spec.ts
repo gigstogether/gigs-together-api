@@ -20,6 +20,7 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { PostEditKind } from './types/telegram-post-composer.service.types';
+import { RemoteImageService } from '../remote-image/remote-image.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -189,6 +190,10 @@ describe('TelegramService', () => {
     getPublicFileUrl: vi.fn(),
   };
 
+  const mockRemoteImageService = {
+    download: vi.fn(),
+  };
+
   beforeEach(async () => {
     mockPostTemplates = createMockPostTemplates();
 
@@ -210,6 +215,10 @@ describe('TelegramService', () => {
           useValue: mockBucketService,
         },
         {
+          provide: RemoteImageService,
+          useValue: mockRemoteImageService,
+        },
+        {
           provide: CACHE_MANAGER,
           useValue: mockChatLookupCache,
         },
@@ -221,6 +230,7 @@ describe('TelegramService', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    mockRemoteImageService.download.mockReset();
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
     delete process.env.MAIN_CHANNEL_ID;

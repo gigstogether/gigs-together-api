@@ -5,7 +5,6 @@ import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
 import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
-import { HttpModule } from '@nestjs/axios';
 import { GigPosterService } from './gig.poster.service';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { AuthModule } from '../auth/auth.module';
@@ -13,13 +12,14 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import { MongoGigRepository } from './repositories/mongo-gig.repository';
 import { GigFeedService } from './gig-feed.service';
+import { RemoteImageModule } from '../remote-image/remote-image.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Gig.name, schema: GigSchema }]),
     CalendarModule,
     BucketModule,
-    HttpModule,
+    RemoteImageModule,
     AuthModule,
     TelegramModule,
   ],
