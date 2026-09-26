@@ -4,8 +4,6 @@ import { TelegramTemplateService } from '../telegram-template.service';
 import type { TGChatId, TGSendMessage } from '../types/message.types';
 import { TGParseMode } from '../types/message.types';
 
-const SUGGEST_GIG_PATH = '/suggest/launch';
-
 type UserResponseTemplateKey =
   | typeof TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable
   | typeof TELEGRAM_TEMPLATE_KEYS.commandStart
@@ -43,6 +41,7 @@ export class TelegramBotReplyComposerService {
     const contactAdminsUrl = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
     );
+    const suggestGigUrl = this.getSuggestGigUrl();
 
     return {
       chat_id: chatId,
@@ -58,7 +57,7 @@ export class TelegramBotReplyComposerService {
               text: this.telegramTemplates.getText(
                 TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig,
               ),
-              url: this.buildSuggestGigUrl(),
+              url: suggestGigUrl,
             },
           ],
         ],
@@ -74,14 +73,24 @@ export class TelegramBotReplyComposerService {
       .replaceAll('"', '&quot;');
   }
 
-  private buildSuggestGigUrl(): string {
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    if (appBaseUrl === '') {
+  private getSuggestGigUrl(): string {
+    const suggestGigUrl = (process.env.SUGGEST_GIG_URL ?? '').trim();
+    if (suggestGigUrl === '') {
       throw new BadRequestException(
-        'Cannot compose user response: APP_BASE_URL is not configured.',
+        'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
       );
     }
 
-    return new URL(SUGGEST_GIG_PATH, appBaseUrl).toString();
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(suggestGigUrl);
+    } catch (e) {
+      throw new BadRequestException(
+        'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
+        { cause: e },
+      );
+    }
+
+    return parsedUrl.toString();
   }
 }

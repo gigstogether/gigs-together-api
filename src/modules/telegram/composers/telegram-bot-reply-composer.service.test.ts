@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TelegramBotReplyComposerService } from './telegram-bot-reply-composer.service';
@@ -68,7 +67,10 @@ describe('TelegramBotReplyComposerService', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramBotReplyComposerService);
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+    vi.stubEnv(
+      'SUGGEST_GIG_URL',
+      'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+    );
   });
 
   afterEach(() => {
@@ -103,7 +105,7 @@ describe('TelegramBotReplyComposerService', () => {
           [
             {
               text: 'Suggest a gig',
-              url: 'https://gigs.example/suggest/launch',
+              url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
             },
           ],
         ],
@@ -111,13 +113,39 @@ describe('TelegramBotReplyComposerService', () => {
     });
   });
 
-  it('should reject a user response when app URL is missing', () => {
-    vi.stubEnv('APP_BASE_URL', '');
+  it('should compose the same Mini App direct link for a group chat ID', () => {
+    const response = composer.composeStartCommandResponse(-100123);
+
+    expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
+      text: 'Suggest a gig',
+      url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+    });
+  });
+
+  it('should reject a user response when suggest Mini App URL is missing', () => {
+    vi.stubEnv('SUGGEST_GIG_URL', '');
 
     expect(() => composer.composeStartCommandResponse(12345)).toThrowError(
-      new BadRequestException(
-        'Cannot compose user response: APP_BASE_URL is not configured.',
-      ),
+      'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
     );
+  });
+
+  it('should reject a user response when suggest Mini App URL is invalid', () => {
+    vi.stubEnv('SUGGEST_GIG_URL', 'not-a-url');
+
+    expect(() => composer.composeStartCommandResponse(12345)).toThrowError(
+      'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
+    );
+  });
+
+  it('should accept a valid non-Telegram suggest URL', () => {
+    vi.stubEnv('SUGGEST_GIG_URL', 'https://example.com/suggest');
+
+    const response = composer.composeStartCommandResponse(12345);
+
+    expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
+      text: 'Suggest a gig',
+      url: 'https://example.com/suggest',
+    });
   });
 });

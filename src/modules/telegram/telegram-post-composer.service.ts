@@ -46,7 +46,7 @@ import {
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
 
-export enum TelegramMiniAppStartAction {
+export enum AdminMiniAppStartAction {
   EditGig = 'editGig',
   EditGigCandidate = 'editGigCandidate',
   OpenGig = 'openGig',
@@ -62,7 +62,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
-const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
+const ADMIN_MINI_APP_START_ACTION_SEPARATOR = '-';
 
 interface ComposeGigCandidateChannelPostParams {
   gigCandidate: GigCandidate;
@@ -988,8 +988,8 @@ export class TelegramPostComposerService {
   }
 
   private buildEditGigCandidateUrl(gigCandidateId: string): string | undefined {
-    return this.buildTelegramMiniAppUrl(
-      TelegramMiniAppStartAction.EditGigCandidate,
+    return this.buildAdminMiniAppUrl(
+      AdminMiniAppStartAction.EditGigCandidate,
       gigCandidateId,
     );
   }
@@ -997,8 +997,8 @@ export class TelegramPostComposerService {
   private buildAdminGigCandidateUrl(
     gigCandidateId: string,
   ): string | undefined {
-    return this.buildTelegramMiniAppUrl(
-      TelegramMiniAppStartAction.OpenGigCandidate,
+    return this.buildAdminMiniAppUrl(
+      AdminMiniAppStartAction.OpenGigCandidate,
       gigCandidateId,
     );
   }
@@ -1020,10 +1020,7 @@ export class TelegramPostComposerService {
 
   buildEditGigUrl(publicId?: string): string | undefined {
     return publicId
-      ? this.buildTelegramMiniAppUrl(
-          TelegramMiniAppStartAction.EditGig,
-          publicId,
-        )
+      ? this.buildAdminMiniAppUrl(AdminMiniAppStartAction.EditGig, publicId)
       : undefined;
   }
 
@@ -1121,20 +1118,17 @@ export class TelegramPostComposerService {
 
   buildAdminGigUrl(publicId?: string): string | undefined {
     return publicId
-      ? this.buildTelegramMiniAppUrl(
-          TelegramMiniAppStartAction.OpenGig,
-          publicId,
-        )
+      ? this.buildAdminMiniAppUrl(AdminMiniAppStartAction.OpenGig, publicId)
       : undefined;
   }
 
-  private buildTelegramMiniAppUrl(
-    action: TelegramMiniAppStartAction,
+  private buildAdminMiniAppUrl(
+    action: AdminMiniAppStartAction,
     resourceId: string,
   ): string | undefined {
     const miniAppBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
     return miniAppBaseUrl
-      ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
+      ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${ADMIN_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
       : undefined;
   }
 

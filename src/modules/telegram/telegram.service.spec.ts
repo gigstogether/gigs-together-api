@@ -199,6 +199,10 @@ describe('TelegramService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv(
+      'SUGGEST_GIG_URL',
+      'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+    );
     mockPostTemplates = createMockPostTemplates();
 
     testingModule = await Test.createTestingModule({
@@ -281,7 +285,6 @@ describe('TelegramService', () => {
 
   describe('sendIncomingMessageUnavailable', () => {
     it('should send the composed translated response', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 1,
@@ -301,7 +304,7 @@ describe('TelegramService', () => {
             [
               {
                 text: 'Suggest a gig',
-                url: 'https://gigs.example/suggest/launch',
+                url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
               },
             ],
           ],
@@ -312,7 +315,6 @@ describe('TelegramService', () => {
 
   describe('command responses', () => {
     it('should send the composed start-command response', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 1,
@@ -332,7 +334,7 @@ describe('TelegramService', () => {
             [
               {
                 text: 'Suggest a gig',
-                url: 'https://gigs.example/suggest/launch',
+                url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
               },
             ],
           ],
@@ -340,8 +342,34 @@ describe('TelegramService', () => {
       });
     });
 
+    it('should send the same Mini App direct link for a group chat ID', async () => {
+      const bot = testingModule.get(TelegramBotClient);
+      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
+        message_id: 1,
+        date: 1,
+        chat: { id: -100123, type: 'supergroup' },
+      });
+
+      await service.sendStartCommandResponse(-100123);
+
+      expect(sendMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          chat_id: -100123,
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: 'Suggest a gig',
+                  url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+                },
+              ],
+            ],
+          },
+        }),
+      );
+    });
+
     it('should send the composed unknown-command response', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 1,
@@ -361,7 +389,7 @@ describe('TelegramService', () => {
             [
               {
                 text: 'Suggest a gig',
-                url: 'https://gigs.example/suggest/launch',
+                url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
               },
             ],
           ],
