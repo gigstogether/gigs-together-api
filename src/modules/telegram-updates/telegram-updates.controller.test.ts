@@ -1,3 +1,4 @@
+import { PATH_METADATA, VERSION_METADATA } from '@nestjs/common/constants';
 import { TelegramUpdatesController } from './telegram-updates.controller';
 import type { TelegramUpdatesService } from './telegram-updates.service';
 import type { TelegramWebhookRequest } from './guards/telegram-webhook.guard';
@@ -16,6 +17,27 @@ describe('TelegramUpdatesController', () => {
     vi.clearAllMocks();
     telegramUpdatesService.handleMessage.mockResolvedValue(undefined);
     telegramUpdatesService.handleCallbackQuery.mockResolvedValue(undefined);
+  });
+
+  it('should expose the versioned Telegram updates resource route', () => {
+    const controllerPath = Reflect.getMetadata(
+      PATH_METADATA,
+      TelegramUpdatesController,
+    );
+    const handlerPath = Reflect.getMetadata(
+      PATH_METADATA,
+      TelegramUpdatesController.prototype.handleUpdate,
+    );
+    const version = Reflect.getMetadata(
+      VERSION_METADATA,
+      TelegramUpdatesController.prototype.handleUpdate,
+    );
+
+    expect({ controllerPath, handlerPath, version }).toEqual({
+      controllerPath: 'telegram/updates',
+      handlerPath: '/',
+      version: '1',
+    });
   });
 
   it('should route a public message from an authenticated webhook', async () => {

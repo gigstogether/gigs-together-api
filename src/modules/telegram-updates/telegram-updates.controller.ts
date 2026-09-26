@@ -15,8 +15,7 @@ import { TelegramWebhookGuard } from './guards/telegram-webhook.guard';
 import type { TelegramWebhookRequest } from './guards/telegram-webhook.guard';
 import { TelegramUpdatesService } from './telegram-updates.service';
 
-// TODO: Migrate the webhook to /v1/telegram/updates for endpoint naming consistency, then update the Telegram webhook registration.
-@Controller('receiver')
+@Controller('telegram/updates')
 @UseFilters(TelegramUpdatesExceptionFilter)
 export class TelegramUpdatesController {
   constructor(
@@ -24,7 +23,7 @@ export class TelegramUpdatesController {
   ) {}
 
   @Version('1')
-  @Post('webhook')
+  @Post()
   @HttpCode(200)
   @UseFilters(TelegramWebhookExceptionFilter)
   @UseGuards(TelegramWebhookGuard)

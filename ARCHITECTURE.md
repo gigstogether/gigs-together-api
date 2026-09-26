@@ -253,11 +253,9 @@ Typical path:
 3. `TelegramUpdatesService` routes messages and callback queries
 4. downstream services perform authorization and Gig or GigCandidate actions
 
-Current endpoint:
+Endpoint:
 
-- `/v1/receiver/webhook`
-
-The route remains for backward compatibility with the registered Telegram webhook and should eventually migrate to `/v1/telegram/updates`.
+- `/v1/telegram/updates`
 
 ## Persistence Model
 
