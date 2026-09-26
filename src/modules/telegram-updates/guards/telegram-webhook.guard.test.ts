@@ -1,9 +1,9 @@
 import type { ExecutionContext } from '@nestjs/common';
-import { ReceiverWebhookGuard } from './receiver-webhook.guard';
-import type { ReceiverWebhookRequest } from './receiver-webhook.guard';
+import { TelegramWebhookGuard } from './telegram-webhook.guard';
+import type { TelegramWebhookRequest } from './telegram-webhook.guard';
 
-describe('ReceiverWebhookGuard', () => {
-  const guard = new ReceiverWebhookGuard();
+describe('TelegramWebhookGuard', () => {
+  const guard = new TelegramWebhookGuard();
   const previousBotSecret = process.env.BOT_SECRET;
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('ReceiverWebhookGuard', () => {
   });
 });
 
-function createRequest(secret: string): ReceiverWebhookRequest {
+function createRequest(secret: string): TelegramWebhookRequest {
   return {
     headers: { 'x-telegram-bot-api-secret-token': secret },
     body: {
@@ -57,10 +57,10 @@ function createRequest(secret: string): ReceiverWebhookRequest {
         },
       },
     },
-  } as unknown as ReceiverWebhookRequest;
+  } as unknown as TelegramWebhookRequest;
 }
 
-function createContext(request: ReceiverWebhookRequest): ExecutionContext {
+function createContext(request: TelegramWebhookRequest): ExecutionContext {
   return {
     switchToHttp: () => ({ getRequest: () => request }),
   } as ExecutionContext;

@@ -16,9 +16,9 @@ import { isAxiosError } from 'axios';
  */
 @Catch()
 @Injectable()
-export class ReceiverWebhookExceptionFilter implements ExceptionFilter {
+export class TelegramWebhookExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: ConsoleLogger) {
-    this.logger.setContext(ReceiverWebhookExceptionFilter.name);
+    this.logger.setContext(TelegramWebhookExceptionFilter.name);
   }
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -61,7 +61,7 @@ export class ReceiverWebhookExceptionFilter implements ExceptionFilter {
         ...axiosPart,
       },
       exception instanceof Error ? exception.stack : undefined,
-      ReceiverWebhookExceptionFilter.name,
+      TelegramWebhookExceptionFilter.name,
     );
 
     response.status(200).send();

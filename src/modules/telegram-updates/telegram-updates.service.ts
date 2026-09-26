@@ -26,7 +26,7 @@ enum Command {
 }
 
 @Injectable()
-export class ReceiverService {
+export class TelegramUpdatesService {
   constructor(
     private readonly telegramService: TelegramService,
     private readonly telegramBotReplyService: TelegramBotReplyService,
@@ -36,7 +36,7 @@ export class ReceiverService {
     private readonly authorizationService: AuthorizationService,
   ) {}
 
-  private readonly logger = new Logger(ReceiverService.name);
+  private readonly logger = new Logger(TelegramUpdatesService.name);
 
   private formatCallbackQueryError(e: unknown): string {
     const tgDescription = this.readTelegramErrorDescription(e);

@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 
-export type ReceiverWebhookRequest = Request & {
+export type TelegramWebhookRequest = Request & {
   telegramWebhook?:
     | {
         isAuthenticated: true;
@@ -20,9 +20,9 @@ export type ReceiverWebhookRequest = Request & {
  * can safely no-op when authentication fails.
  */
 @Injectable()
-export class ReceiverWebhookGuard implements CanActivate {
+export class TelegramWebhookGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<ReceiverWebhookRequest>();
+    const request = context.switchToHttp().getRequest<TelegramWebhookRequest>();
 
     const secretHeader = request.headers['x-telegram-bot-api-secret-token'] as
       string | undefined;

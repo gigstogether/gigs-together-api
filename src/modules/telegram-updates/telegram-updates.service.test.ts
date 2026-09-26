@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { ReceiverService } from './receiver.service';
+import { TelegramUpdatesService } from './telegram-updates.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
@@ -19,8 +19,8 @@ import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candid
 import { UserService } from '../user/user.service';
 import { AuthorizationService } from '../auth/authorization.service';
 
-describe('ReceiverService', () => {
-  let service: ReceiverService;
+describe('TelegramUpdatesService', () => {
+  let service: TelegramUpdatesService;
 
   const mockTelegramService = {
     sendMessage: vi.fn(),
@@ -68,7 +68,7 @@ describe('ReceiverService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ReceiverService,
+        TelegramUpdatesService,
         {
           provide: TelegramService,
           useValue: mockTelegramService,
@@ -96,7 +96,7 @@ describe('ReceiverService', () => {
       ],
     }).compile();
 
-    service = module.get<ReceiverService>(ReceiverService);
+    service = module.get<TelegramUpdatesService>(TelegramUpdatesService);
     mockUserService.findOrCreateMessengerUser.mockResolvedValue({
       id: '507f1f77bcf86cd799439088',
     });

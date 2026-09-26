@@ -1,21 +1,21 @@
-import { ReceiverController } from './receiver.controller';
-import type { ReceiverService } from './receiver.service';
-import type { ReceiverWebhookRequest } from './guards/receiver-webhook.guard';
+import { TelegramUpdatesController } from './telegram-updates.controller';
+import type { TelegramUpdatesService } from './telegram-updates.service';
+import type { TelegramWebhookRequest } from './guards/telegram-webhook.guard';
 import type { TGUpdate } from '../telegram/types/update.types';
 
-describe('ReceiverController', () => {
-  const receiverService = {
+describe('TelegramUpdatesController', () => {
+  const telegramUpdatesService = {
     handleMessage: vi.fn(),
     handleCallbackQuery: vi.fn(),
   };
-  const controller = new ReceiverController(
-    receiverService as unknown as ReceiverService,
+  const controller = new TelegramUpdatesController(
+    telegramUpdatesService as unknown as TelegramUpdatesService,
   );
 
   beforeEach(() => {
     vi.clearAllMocks();
-    receiverService.handleMessage.mockResolvedValue(undefined);
-    receiverService.handleCallbackQuery.mockResolvedValue(undefined);
+    telegramUpdatesService.handleMessage.mockResolvedValue(undefined);
+    telegramUpdatesService.handleCallbackQuery.mockResolvedValue(undefined);
   });
 
   it('should route a public message from an authenticated webhook', async () => {
@@ -36,7 +36,7 @@ describe('ReceiverController', () => {
       message,
     });
 
-    expect(receiverService.handleMessage).toHaveBeenCalledWith(message);
+    expect(telegramUpdatesService.handleMessage).toHaveBeenCalledWith(message);
   });
 
   it('should route a callback for authorization in the service', async () => {
@@ -54,7 +54,7 @@ describe('ReceiverController', () => {
       callback_query: callbackQuery,
     });
 
-    expect(receiverService.handleCallbackQuery).toHaveBeenCalledWith(
+    expect(telegramUpdatesService.handleCallbackQuery).toHaveBeenCalledWith(
       callbackQuery,
     );
   });
@@ -70,15 +70,15 @@ describe('ReceiverController', () => {
       },
     });
 
-    expect(receiverService.handleMessage).not.toHaveBeenCalled();
-    expect(receiverService.handleCallbackQuery).not.toHaveBeenCalled();
+    expect(telegramUpdatesService.handleMessage).not.toHaveBeenCalled();
+    expect(telegramUpdatesService.handleCallbackQuery).not.toHaveBeenCalled();
   });
 });
 
-function createRequest(isAuthenticated: boolean): ReceiverWebhookRequest {
+function createRequest(isAuthenticated: boolean): TelegramWebhookRequest {
   return {
     telegramWebhook: isAuthenticated
       ? { isAuthenticated: true }
       : { isAuthenticated: false, reason: 'Invalid secret token' },
-  } as ReceiverWebhookRequest;
+  } as TelegramWebhookRequest;
 }

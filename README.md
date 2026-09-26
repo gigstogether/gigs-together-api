@@ -43,8 +43,8 @@ src/
   app.module.ts            root module and environment loading
   modules/
     gig/                   public gig API and gig lookup
-    receiver/              Telegram/receiver-facing endpoints
-    telegram/              Telegram integration
+    telegram-updates/      inbound Telegram webhook update handling
+    telegram/              Telegram Bot API client, outbound messaging, and message composition
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
     admin/                 admin dashboard, moderation, locale management
     calendar/              Google Calendar integration

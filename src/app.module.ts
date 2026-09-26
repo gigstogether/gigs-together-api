@@ -9,7 +9,7 @@ import { GigModule } from './modules/gig/gig.module';
 import { TelegramModule } from './modules/telegram/telegram.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CalendarModule } from './modules/calendar/calendar.module';
-import { ReceiverModule } from './modules/receiver/receiver.module';
+import { TelegramUpdatesModule } from './modules/telegram-updates/telegram-updates.module';
 import { BucketModule } from './modules/bucket/bucket.module';
 import { AiModule } from './modules/ai/ai.module';
 import { LocationModule } from './modules/location/location.module';
@@ -44,7 +44,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     TelegramModule,
     AuthModule,
     CalendarModule,
-    ReceiverModule,
+    TelegramUpdatesModule,
     BucketModule,
     AiModule,
     LocationModule,
