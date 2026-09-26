@@ -37,10 +37,15 @@ export interface TGInlineKeyboardMarkup {
   inline_keyboard: TGInlineKeyboardButton[][];
 }
 
-interface TGInlineKeyboardButton {
+export interface TGWebAppInfo {
+  url: string;
+}
+
+export interface TGInlineKeyboardButton {
   text: string;
   url?: string;
   callback_data?: string;
+  web_app?: TGWebAppInfo;
 }
 
 export interface TGEditMessageReplyMarkup {

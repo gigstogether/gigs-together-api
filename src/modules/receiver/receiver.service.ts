@@ -14,6 +14,7 @@ import {
 } from '../telegram/callback-action';
 import { TelegramService } from '../telegram/telegram.service';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import type { TGUser } from '../telegram/types/user.types';
@@ -88,30 +89,30 @@ export class ReceiverService {
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
-    const chatId = message?.chat?.id;
-    if (!chatId) {
+    const chat = message?.chat;
+    if (!chat?.id) {
       return;
     }
 
     const text = message.text || '';
 
     if (text.charAt(0) !== '/') {
-      await this.telegramService.sendIncomingMessageUnavailable(chatId);
+      await this.telegramService.sendIncomingMessageUnavailable(chat);
       return;
     }
 
     const command = text.substring(1).toLowerCase();
-    await this.handleCommand(command, chatId);
+    await this.handleCommand(command, chat);
   }
 
-  private async handleCommand(command: string, chatId: number) {
+  private async handleCommand(command: string, chat: TGChat) {
     switch (command) {
       case Command.Start: {
-        await this.telegramService.sendStartCommandResponse(chatId);
+        await this.telegramService.sendStartCommandResponse(chat);
         break;
       }
       default: {
-        await this.telegramService.sendUnknownCommandResponse(chatId);
+        await this.telegramService.sendUnknownCommandResponse(chat);
       }
     }
   }

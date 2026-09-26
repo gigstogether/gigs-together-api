@@ -2,12 +2,11 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type {
   InputFileData,
-  TGChatId,
   TGMessage,
   TGSendPhoto,
 } from './types/message.types';
 import { TGParseMode } from './types/message.types';
-import { TGChat } from './types/chat.types';
+import type { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
@@ -501,25 +500,23 @@ export class TelegramService {
     return this.telegramBotClient.sendMessage(composed);
   }
 
-  sendIncomingMessageUnavailable(chatId: TGChatId): Promise<TGMessage> {
+  sendIncomingMessageUnavailable(chat: TGChat): Promise<TGMessage> {
     const composed =
       this.telegramBotReplyComposerService.composeIncomingMessageUnavailable(
-        chatId,
+        chat,
       );
     return this.telegramBotClient.sendMessage(composed);
   }
 
-  sendStartCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+  sendStartCommandResponse(chat: TGChat): Promise<TGMessage> {
     const composed =
-      this.telegramBotReplyComposerService.composeStartCommandResponse(chatId);
+      this.telegramBotReplyComposerService.composeStartCommandResponse(chat);
     return this.telegramBotClient.sendMessage(composed);
   }
 
-  sendUnknownCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+  sendUnknownCommandResponse(chat: TGChat): Promise<TGMessage> {
     const composed =
-      this.telegramBotReplyComposerService.composeUnknownCommandResponse(
-        chatId,
-      );
+      this.telegramBotReplyComposerService.composeUnknownCommandResponse(chat);
     return this.telegramBotClient.sendMessage(composed);
   }
 

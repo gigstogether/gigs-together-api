@@ -134,7 +134,7 @@ describe('ReceiverService', () => {
 
       expect(
         mockTelegramService.sendIncomingMessageUnavailable,
-      ).toHaveBeenCalledWith(12345);
+      ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
     });
 
     it('should handle the /start command without creating a User', async () => {
@@ -157,7 +157,7 @@ describe('ReceiverService', () => {
       await service.handleMessage(message);
 
       expect(mockTelegramService.sendStartCommandResponse).toHaveBeenCalledWith(
-        12345,
+        { id: 12345, type: 'private' },
       );
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
@@ -178,7 +178,7 @@ describe('ReceiverService', () => {
 
       expect(
         mockTelegramService.sendUnknownCommandResponse,
-      ).toHaveBeenCalledWith(12345);
+      ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
     });
 
     it('should ignore empty messages', async () => {
