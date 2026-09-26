@@ -10,9 +10,6 @@ import type {
   TGEditMessageMedia,
   TGEditMessageText,
   TGMessage,
-  TGSendMediaGroup,
-  TGSendMessage,
-  TGSendPhoto,
 } from './message.types';
 import type { TGChat } from './chat.types';
 
@@ -21,37 +18,6 @@ export enum PostEditKind {
   Caption = 'caption',
   Text = 'text',
 }
-
-export enum WeeklyDigestMainChannelSendKind {
-  SendMessage = 'sendMessage',
-  SendPhoto = 'sendPhoto',
-  SendMediaGroup = 'sendMediaGroup',
-}
-
-export interface ComposeWeeklyDigestParams {
-  readonly chatId: TGChatId;
-  readonly gigs: readonly PlainGig[];
-}
-
-export interface WeeklyDigestMediaItemContext {
-  position: number;
-  publicId: string;
-}
-
-export type WeeklyDigestMainChannelSendPlan =
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMessage;
-      readonly payload: TGSendMessage;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendPhoto;
-      readonly payload: TGSendPhoto;
-    }
-  | {
-      readonly kind: WeeklyDigestMainChannelSendKind.SendMediaGroup;
-      readonly payload: TGSendMediaGroup;
-      readonly mediaItems: WeeklyDigestMediaItemContext[];
-    };
 
 export type TelegramPostEditComposition =
   | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
@@ -153,9 +119,4 @@ export interface ComposeGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
   post: GigCandidatePost;
   isMediaUpdateRequired: boolean;
-}
-
-export interface ComposedText {
-  plain: string;
-  html: string;
 }

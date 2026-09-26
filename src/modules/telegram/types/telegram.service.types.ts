@@ -21,10 +21,6 @@ export interface UpdateGigModerationPostPayload {
   };
 }
 
-export interface WeeklyDigestPostResult {
-  readonly postUrl: string;
-}
-
 export interface UpdateRejectedGigCandidatePostPayload {
   gigCandidate: GigCandidate;
   post: GigCandidatePost;

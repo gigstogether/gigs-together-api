@@ -4,7 +4,7 @@ import { CronTime } from 'cron';
 import type { Model } from 'mongoose';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigFeedService } from '../gig/gig-feed.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramDigestService } from '../telegram/services/telegram-digest.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 import { DigestPostState } from './digest-post-state.schema';
 import type { DigestPostStateDocument } from './digest-post-state.schema';
@@ -46,7 +46,7 @@ export class DigestService {
 
   constructor(
     private readonly gigFeedService: GigFeedService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramDigestService: TelegramDigestService,
     @InjectModel(DigestPostState.name)
     private readonly digestPostStateModel: Model<DigestPostStateDocument>,
   ) {}
@@ -57,7 +57,8 @@ export class DigestService {
   async createPost(): Promise<void> {
     const gigs = await this.getDigestRangeGigs();
 
-    const postResult = await this.telegramService.sendWeeklyDigestPost(gigs);
+    const postResult =
+      await this.telegramDigestService.sendWeeklyDigestPost(gigs);
 
     const digestPostUrl = postResult?.postUrl;
     if (digestPostUrl) {

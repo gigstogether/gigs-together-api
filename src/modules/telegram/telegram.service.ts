@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { isAxiosError } from 'axios';
 import type {
   InputFileData,
   TGMessage,
@@ -10,7 +9,6 @@ import type { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
-import { isRecord } from '../../shared/utils/is-record';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramBotClient } from './telegram-bot.client';
@@ -26,17 +24,12 @@ import { formatTelegramErrorMessage } from './telegram-error';
 import type {
   UpdateGigModerationPostPayload,
   UpdateRejectedGigCandidatePostPayload,
-  WeeklyDigestPostResult,
 } from './types/telegram.service.types';
-import {
-  PostEditKind,
-  WeeklyDigestMainChannelSendKind,
-} from './types/telegram-post-composer.service.types';
+import { PostEditKind } from './types/telegram-post-composer.service.types';
 import type {
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
   TelegramPostEditComposition,
-  WeeklyDigestMainChannelSendPlan,
 } from './types/telegram-post-composer.service.types';
 
 export interface TelegramPostEditResult {
@@ -110,9 +103,6 @@ export class TelegramService {
   private readonly logger = new Logger(TelegramService.name);
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
-
-  private static readonly WEBPAGE_CURL_FAILED_DESCRIPTION_PATTERN =
-    /^Bad Request: failed to send message #([1-9]\d*) with the error message "WEBPAGE_CURL_FAILED"$/;
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =
     this.telegramBotClient.sendMessage.bind(this.telegramBotClient);
@@ -225,162 +215,6 @@ export class TelegramService {
       );
       return undefined;
     }
-  }
-
-  async sendWeeklyDigestPost(
-    gigs: readonly PlainGig[],
-  ): Promise<WeeklyDigestPostResult | undefined> {
-    const chatIdRaw = process.env.MAIN_CHANNEL_ID;
-    const chatId =
-      chatIdRaw !== undefined && chatIdRaw !== null
-        ? String(chatIdRaw).trim()
-        : '';
-
-    if (!chatId) {
-      this.logger.warn(
-        'sendWeeklyDigestPost skipped: MAIN_CHANNEL_ID is empty',
-      );
-      return;
-    }
-
-    let plan: WeeklyDigestMainChannelSendPlan | undefined;
-    try {
-      plan = this.telegramPostComposerService.composeWeeklyDigest({
-        chatId,
-        gigs,
-      });
-
-      const postResult = await this.dispatchWeeklyDigestMainChannelPlan(plan);
-      if (postResult === undefined) {
-        throw new Error(
-          'Weekly digest send finished without a Telegram message_id or post URL',
-        );
-      }
-
-      return postResult;
-    } catch (e: unknown) {
-      const mediaFailure = this.getWeeklyDigestMediaFailureLogMeta(e, plan);
-      logError(this.logger, {
-        error: e,
-        note: 'Weekly digest send to main channel failed',
-        context: TelegramService.name,
-        ...(mediaFailure ? { meta: mediaFailure } : {}),
-      });
-      throw new Error('Weekly digest send to main channel failed');
-    }
-  }
-
-  private getWeeklyDigestMediaFailureLogMeta(
-    e: unknown,
-    plan: WeeklyDigestMainChannelSendPlan | undefined,
-  ): Record<string, unknown> | undefined {
-    const position = this.parseWebpageCurlFailedPosition(e);
-    if (
-      position === undefined ||
-      plan?.kind !== WeeklyDigestMainChannelSendKind.SendMediaGroup
-    ) {
-      return;
-    }
-
-    const mediaItem = plan.mediaItems.find(
-      (item) => item.position === position,
-    );
-    const media = plan.payload.media[position - 1];
-    const meta: Record<string, unknown> = {
-      telegramError: 'WEBPAGE_CURL_FAILED',
-      position,
-    };
-    if (mediaItem === undefined || media === undefined) {
-      return meta;
-    }
-
-    meta.publicId = mediaItem.publicId;
-    const posterUrl = this.getSafeTelegramPosterUrlForLog(media.media);
-    if (posterUrl !== undefined) {
-      meta.posterUrl = posterUrl;
-    }
-    return meta;
-  }
-
-  private parseWebpageCurlFailedPosition(e: unknown): number | undefined {
-    if (!isAxiosError(e) || e.response?.status !== 400) {
-      return;
-    }
-    const data: unknown = e.response.data;
-    if (
-      !isRecord(data) ||
-      data.ok !== false ||
-      data.error_code !== 400 ||
-      typeof data.description !== 'string'
-    ) {
-      return;
-    }
-
-    const match = TelegramService.WEBPAGE_CURL_FAILED_DESCRIPTION_PATTERN.exec(
-      data.description,
-    );
-    if (!match) {
-      return;
-    }
-
-    const position = Number(match[1]);
-    return Number.isSafeInteger(position) ? position : undefined;
-  }
-
-  private getSafeTelegramPosterUrlForLog(
-    mediaReference: string,
-  ): string | undefined {
-    if (!URL.canParse(mediaReference)) {
-      return;
-    }
-    const url = new URL(mediaReference);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      return;
-    }
-    url.username = '';
-    url.password = '';
-    url.search = '';
-    url.hash = '';
-    return url.toString();
-  }
-
-  private async dispatchWeeklyDigestMainChannelPlan(
-    plan: WeeklyDigestMainChannelSendPlan,
-  ): Promise<WeeklyDigestPostResult | undefined> {
-    const chatId = plan.payload.chat_id;
-
-    let messageId: number | undefined;
-    switch (plan.kind) {
-      case WeeklyDigestMainChannelSendKind.SendMessage: {
-        const msg = await this.telegramBotClient.sendMessage(plan.payload);
-        messageId = msg.message_id;
-        break;
-      }
-      case WeeklyDigestMainChannelSendKind.SendPhoto: {
-        const msg = await this.telegramBotClient.sendPhoto(plan.payload);
-        messageId = msg?.message_id;
-        break;
-      }
-      case WeeklyDigestMainChannelSendKind.SendMediaGroup: {
-        const msgs = await this.telegramBotClient.sendMediaGroup(plan.payload);
-        messageId = msgs[0]?.message_id;
-        break;
-      }
-    }
-
-    if (messageId === undefined) {
-      return;
-    }
-
-    const postUrl = this.telegramPostComposerService.getPostUrl({
-      chatId,
-      messageId,
-    });
-    if (postUrl === undefined) {
-      return;
-    }
-
-    return { postUrl };
   }
 
   async sendMainPost(

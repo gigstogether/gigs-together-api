@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
   TGInlineKeyboardMarkup,
-  TGInputMedia,
   TGSendMessage,
   TGSendPhoto,
 } from './types/message.types';
@@ -19,7 +18,6 @@ import {
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
 import type {
@@ -28,23 +26,15 @@ import type {
   BuildGigCandidateCaptionParams,
   BuildGigPermalinkPayload,
   BuildGigModerationCaptionPayload,
-  ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
   ComposeGigCandidatePostEditParams,
   ComposeGigPostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
-  ComposeWeeklyDigestParams,
   GetPostUrlPayload,
   TelegramPostEditComposition,
-  WeeklyDigestMainChannelSendPlan,
 } from './types/telegram-post-composer.service.types';
-import {
-  PostEditKind,
-  WeeklyDigestMainChannelSendKind,
-} from './types/telegram-post-composer.service.types';
-
-export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
+import { PostEditKind } from './types/telegram-post-composer.service.types';
 
 export enum AdminMiniAppStartAction {
   EditGig = 'editGig',
@@ -61,7 +51,6 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
   weekday: 'short',
 };
 
-const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 const ADMIN_MINI_APP_START_ACTION_SEPARATOR = '-';
 
 interface ComposeGigCandidateChannelPostParams {
@@ -314,201 +303,7 @@ export class TelegramPostComposerService {
     });
   }
 
-  formatWeeklyDigestCaptionLines(gigDocs: readonly PlainGig[]): ComposedText {
-    const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
-      weekday: DATE_FORMAT.weekday,
-      month: DATE_FORMAT.month,
-      day: DATE_FORMAT.day,
-    });
-
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    // TODO
-    const header = this.postTemplates.getText(
-      TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader,
-    );
-    const footer = this.postTemplates.getText(
-      TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter,
-    );
-    const ticketsLabel = this.postTemplates.getText(
-      TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel,
-    );
-
-    const gigs = gigDocs.map((gig: PlainGig) => {
-      const dateLabel = formatter.format(new Date(gig.date));
-      const endDateLabel = gig.endDate
-        ? formatter.format(new Date(gig.endDate))
-        : undefined;
-      const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
-      const url = this.buildGigPermalink({
-        baseUrl: appBaseUrl,
-        publicId: gig.publicId,
-      });
-
-      const titleLine = url
-        ? this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink, {
-            url,
-            title: gig.title,
-          })
-        : this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink,
-            { title: gig.title },
-          );
-      const ticketsLine = this.postTemplates.render(
-        TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink,
-        { url: gig.ticketsUrl, ticketsLabel },
-      );
-
-      return {
-        dates: datesLabel,
-        title: gig.title,
-        venue: gig.venue,
-        ticketsLabel,
-        titleLine,
-        ticketsLine,
-      };
-    });
-
-    const plainLines: string[] = [header];
-    for (const gig of gigs) {
-      plainLines.push(
-        this.postTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain,
-          gig,
-        ),
-      );
-    }
-    plainLines.push(footer);
-    const plainText = plainLines.join(WEEKLY_DIGEST_GIGS_SEPARATOR);
-
-    const htmlLines: string[] = [header];
-    for (const gig of gigs) {
-      htmlLines.push(
-        this.postTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml,
-          gig,
-        ),
-      );
-    }
-    htmlLines.push(footer);
-    const htmlText = htmlLines.join(WEEKLY_DIGEST_GIGS_SEPARATOR);
-    return { plain: plainText, html: htmlText };
-  }
-
-  composeWeeklyDigestCaption(gigs: readonly PlainGig[]): string {
-    const { plain, html } = this.formatWeeklyDigestCaptionLines(gigs);
-
-    if (plain.length <= TELEGRAM_MEDIA_CAPTION_MAX_CHARS) {
-      return html;
-    }
-
-    let body = html;
-
-    const ellipsis = '\n…';
-
-    const budget = TELEGRAM_MEDIA_CAPTION_MAX_CHARS - ellipsis.length;
-    if (budget <= 0) {
-      return '…'.slice(0, TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
-    }
-
-    body = body.slice(0, budget);
-    const lastBreak = body.lastIndexOf('\n\n');
-    if (lastBreak > budget * 0.5) {
-      body = body.slice(0, lastBreak);
-    }
-    return `${body.trimEnd()}${ellipsis}`;
-  }
-
-  /**
-   * Builds the Bot API payload for sending the weekly digest to the main channel
-   * (empty-week notice, media album, single photo, or plain text).
-   */
-  composeWeeklyDigest(
-    params: ComposeWeeklyDigestParams,
-  ): WeeklyDigestMainChannelSendPlan {
-    const { chatId, gigs } = params;
-
-    if (gigs.length === 0) {
-      return {
-        kind: WeeklyDigestMainChannelSendKind.SendMessage,
-        payload: {
-          chat_id: chatId,
-          text: this.postTemplates.getText(
-            TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
-          ),
-          // TODO: read parse_mode from translations
-          parse_mode: TGParseMode.HTML,
-          disable_web_page_preview: true,
-        },
-      };
-    }
-
-    const caption = this.composeWeeklyDigestCaption(gigs);
-
-    const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
-    const digestMediaItems = firstChunk.flatMap((gig) => {
-      const mediaReference = this.getDigestMediaReference(gig);
-      if (mediaReference === undefined || mediaReference === '') {
-        return [];
-      }
-      return [{ mediaReference, publicId: gig.publicId }];
-    });
-
-    if (digestMediaItems.length >= 2) {
-      const media: TGInputMedia[] = digestMediaItems.map((item, index) =>
-        index === 0
-          ? {
-              type: TGInputMediaType.Photo,
-              media: item.mediaReference,
-              caption,
-              parse_mode: TGParseMode.HTML,
-            }
-          : {
-              type: TGInputMediaType.Photo,
-              media: item.mediaReference,
-            },
-      );
-
-      return {
-        kind: WeeklyDigestMainChannelSendKind.SendMediaGroup,
-        payload: {
-          chat_id: chatId,
-          media,
-        },
-        mediaItems: digestMediaItems.map((item, index) => ({
-          position: index + 1,
-          publicId: item.publicId,
-        })),
-      };
-    }
-
-    if (digestMediaItems.length === 1) {
-      return {
-        kind: WeeklyDigestMainChannelSendKind.SendPhoto,
-        payload: {
-          chat_id: chatId,
-          photo: digestMediaItems[0].mediaReference,
-          caption,
-          parse_mode: TGParseMode.HTML,
-        },
-      };
-    }
-
-    return {
-      kind: WeeklyDigestMainChannelSendKind.SendMessage,
-      payload: {
-        chat_id: chatId,
-        text: caption,
-        parse_mode: TGParseMode.HTML,
-      },
-    };
-  }
-
-  getDigestMediaReference(gig: PlainGig): string | undefined {
-    const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
-    return moderationPost?.fileId ?? this.getTelegramPosterUrl(gig.poster);
-  }
-
-  private getTelegramPosterUrl(posterInfo?: GigPoster): string | undefined {
+  getTelegramPosterUrl(posterInfo?: GigPoster): string | undefined {
     if (!posterInfo) return;
 
     const { bucketPath, externalUrl } = posterInfo;

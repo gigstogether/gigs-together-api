@@ -6,7 +6,6 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
-import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -19,10 +18,7 @@ import {
   GigCallbackAction,
 } from './callback-action';
 import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
-import {
-  PostEditKind,
-  WeeklyDigestMainChannelSendKind,
-} from './types/telegram-post-composer.service.types';
+import { PostEditKind } from './types/telegram-post-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 
@@ -45,12 +41,6 @@ function renderPlainTemplate(
 
 function createMockPostTemplates(): MockPostTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty]:
-      'There are no gigs scheduled for this week.',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader]:
-      "Here's what is happening this week:",
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonHide]: '🙈 Hide',
@@ -83,12 +73,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">See main post</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
-      '<a href="{url}">{ticketsLabel}</a>',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
-      '{titleLine}\n{dates}\n{venue} • {ticketsLine}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain]:
-      '{title}\n{dates}\n{venue} • {ticketsLabel}',
   };
 
   return {
@@ -539,148 +523,6 @@ describe('TelegramPostComposer', () => {
       }
       expect(media.media).toBe('moderation-file-id');
       expect(mockBucket.getPublicFileUrl).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('composeWeeklyDigest', () => {
-    it('should return empty-week sendMessage when gigs list is empty', () => {
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1001',
-        gigs: [],
-      });
-
-      expect(plan).toEqual({
-        kind: WeeklyDigestMainChannelSendKind.SendMessage,
-        payload: {
-          chat_id: '-1001',
-          text: mockPostTemplates.getText(
-            TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
-          ),
-          parse_mode: TGParseMode.HTML,
-          disable_web_page_preview: true,
-        },
-      });
-    });
-
-    it('should return sendMediaGroup with caption on first item when at least two posters resolve', () => {
-      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
-
-      const gigs = [
-        {
-          id: 'a',
-          publicId: 'alpha-2026-01-01',
-          title: 'Alpha',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-        {
-          id: 'b',
-          publicId: 'beta-2026-01-02',
-          title: 'Beta',
-          date: 20,
-          posts: [],
-          poster: { bucketPath: 'gigs/b.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1002',
-        gigs,
-      });
-
-      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMediaGroup);
-      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMediaGroup) return;
-
-      expect(plan.payload.chat_id).toBe('-1002');
-      expect(plan.payload.media).toHaveLength(2);
-      expect(plan.payload.media[0]).toMatchObject({
-        type: TGInputMediaType.Photo,
-        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-        caption: expect.stringMatching(/Alpha/s),
-      });
-      expect(plan.payload.media[1]).toEqual({
-        type: TGInputMediaType.Photo,
-        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-      });
-      expect(plan.mediaItems).toEqual([
-        { position: 1, publicId: 'alpha-2026-01-01' },
-        { position: 2, publicId: 'beta-2026-01-02' },
-      ]);
-    });
-
-    it('should return sendPhoto with digest fallback id when exactly one poster resolves', () => {
-      mockBucket.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/only.jpg',
-      );
-
-      const gigs = [
-        {
-          id: 'a',
-          title: 'Only',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1003',
-        gigs,
-      });
-
-      expect(plan).toEqual({
-        kind: WeeklyDigestMainChannelSendKind.SendPhoto,
-        payload: {
-          chat_id: '-1003',
-          photo: `https://cdn.example/only.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-          caption: expect.stringMatching(/Only/s),
-          parse_mode: TGParseMode.HTML,
-        },
-      });
-    });
-
-    it('should return caption as plain sendMessage when no posters resolve', () => {
-      const gigs = [
-        {
-          id: 'a',
-          title: 'TextOnly',
-          date: 86_400_000,
-          posts: [],
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1004',
-        gigs,
-      });
-
-      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMessage);
-      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMessage) return;
-
-      expect(plan.payload.chat_id).toBe('-1004');
-      expect(plan.payload.text).toContain('TextOnly');
-    });
-  });
-
-  describe('composeWeeklyDigestCaption', () => {
-    it('should append ellipsis when plain digest exceeds Telegram caption limit', () => {
-      const longTitle = 'X'.repeat(1100);
-      const gigs = [
-        {
-          id: '1',
-          title: longTitle,
-          date: 86_400_000,
-          venue: 'Hall',
-          ticketsUrl: 'https://tickets.example/e',
-          posts: [],
-        },
-      ] as unknown as PlainGig[];
-
-      const text = composer.composeWeeklyDigestCaption(gigs);
-
-      expect(text.endsWith('\n…')).toBe(true);
-      expect(text.length).toBeLessThanOrEqual(TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
     });
   });
 
