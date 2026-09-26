@@ -66,6 +66,10 @@ const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
 const SUGGEST_GIG_PATH = '/suggest/launch';
 
+type UserCommandTemplateKey =
+  | typeof TELEGRAM_TEMPLATE_KEYS.commandStart
+  | typeof TELEGRAM_TEMPLATE_KEYS.commandUnknown;
+
 interface ComposeGigCandidateChannelPostParams {
   gigCandidate: GigCandidate;
   chatId: string;
@@ -686,13 +690,30 @@ export class TelegramPostComposerService {
   }
 
   composeStartCommandResponse(chatId: TGChatId): TGSendMessage {
+    return this.composeUserCommandResponse(
+      chatId,
+      TELEGRAM_TEMPLATE_KEYS.commandStart,
+    );
+  }
+
+  composeUnknownCommandResponse(chatId: TGChatId): TGSendMessage {
+    return this.composeUserCommandResponse(
+      chatId,
+      TELEGRAM_TEMPLATE_KEYS.commandUnknown,
+    );
+  }
+
+  private composeUserCommandResponse(
+    chatId: TGChatId,
+    templateKey: UserCommandTemplateKey,
+  ): TGSendMessage {
     const contactAdminsUrl = this.postTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
     );
 
     return {
       chat_id: chatId,
-      text: this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.commandStart, {
+      text: this.postTemplates.render(templateKey, {
         contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
       }),
       parse_mode: TGParseMode.HTML,
@@ -709,13 +730,6 @@ export class TelegramPostComposerService {
           ],
         ],
       },
-    };
-  }
-
-  composeUnknownCommandResponse(chatId: TGChatId): TGSendMessage {
-    return {
-      chat_id: chatId,
-      text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.commandUnknown),
     };
   }
 

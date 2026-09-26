@@ -57,8 +57,6 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
     [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
       "At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here:",
-    [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
-      "Hey there, I don't know that command.",
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
@@ -66,6 +64,8 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.commandStart]:
       'Hi! I’m the Gigs Together bot 👋\n\nI’ll send you updates about the gigs you suggest — when they’re received, sent to moderation, accepted, or declined.\n\nI can’t reply to messages. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
+    [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
+      'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
@@ -337,6 +337,7 @@ describe('TelegramService', () => {
     });
 
     it('should send the composed unknown-command response', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 1,
@@ -348,7 +349,19 @@ describe('TelegramService', () => {
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: 12345,
-        text: "Hey there, I don't know that command.",
+        text: 'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Suggest a gig',
+                url: 'https://gigs.example/suggest/launch',
+              },
+            ],
+          ],
+        },
       });
     });
   });
