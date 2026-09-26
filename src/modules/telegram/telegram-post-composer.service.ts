@@ -66,7 +66,8 @@ const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
 const SUGGEST_GIG_PATH = '/suggest/launch';
 
-type UserCommandTemplateKey =
+type UserResponseTemplateKey =
+  | typeof TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable
   | typeof TELEGRAM_TEMPLATE_KEYS.commandStart
   | typeof TELEGRAM_TEMPLATE_KEYS.commandUnknown;
 
@@ -667,45 +668,29 @@ export class TelegramPostComposerService {
   }
 
   composeIncomingMessageUnavailable(chatId: TGChatId): TGSendMessage {
-    return {
-      chat_id: chatId,
-      text: this.postTemplates.getText(
-        TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable,
-      ),
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: this.postTemplates.getText(
-                TELEGRAM_TEMPLATE_KEYS.buttonContactAdmins,
-              ),
-              url: this.postTemplates.getText(
-                TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
-              ),
-            },
-          ],
-        ],
-      },
-    };
+    return this.composeUserResponse(
+      chatId,
+      TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable,
+    );
   }
 
   composeStartCommandResponse(chatId: TGChatId): TGSendMessage {
-    return this.composeUserCommandResponse(
+    return this.composeUserResponse(
       chatId,
       TELEGRAM_TEMPLATE_KEYS.commandStart,
     );
   }
 
   composeUnknownCommandResponse(chatId: TGChatId): TGSendMessage {
-    return this.composeUserCommandResponse(
+    return this.composeUserResponse(
       chatId,
       TELEGRAM_TEMPLATE_KEYS.commandUnknown,
     );
   }
 
-  private composeUserCommandResponse(
+  private composeUserResponse(
     chatId: TGChatId,
-    templateKey: UserCommandTemplateKey,
+    templateKey: UserResponseTemplateKey,
   ): TGSendMessage {
     const contactAdminsUrl = this.postTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
