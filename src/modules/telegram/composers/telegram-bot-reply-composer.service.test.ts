@@ -76,10 +76,7 @@ describe('TelegramBotReplyComposerService', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramBotReplyComposerService);
-    vi.stubEnv(
-      'SUGGEST_GIG_URL',
-      'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
-    );
+    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
     vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
   });
 
@@ -130,7 +127,7 @@ describe('TelegramBotReplyComposerService', () => {
 
     expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
       text: 'Suggest a gig',
-      url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+      url: 'https://t.me/GigsTogetherStgBot/suggest',
     });
   });
 

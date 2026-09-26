@@ -46,10 +46,7 @@ describe('TelegramBotReplyService', () => {
 
   beforeEach(async () => {
     vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-    vi.stubEnv(
-      'SUGGEST_GIG_URL',
-      'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
-    );
+    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
     sendMessage.mockResolvedValue({
       message_id: 1,
       chat: { id: 12345, type: 'private' },
@@ -126,7 +123,7 @@ describe('TelegramBotReplyService', () => {
             [
               {
                 text: 'Suggest a gig',
-                url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
+                url: 'https://t.me/GigsTogetherStgBot/suggest',
               },
             ],
           ],

@@ -127,7 +127,7 @@ The GigCandidate workflow requires one Telegram bot per environment with the fol
 3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
 4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
 5. Register `https://<api-host>/v1/telegram/updates` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
-6. Set `SUGGEST_GIG_URL=https://t.me/<bot_username>/suggest?startapp=suggest`. Shared-chat suggestion buttons use this named Mini App direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
+6. Set `SUGGEST_GIG_URL=https://t.me/<bot_username>/suggest`. Shared-chat suggestion buttons use this named Mini App direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
 7. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
 
 The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
