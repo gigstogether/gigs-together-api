@@ -58,19 +58,11 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
-    [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithLink]:
       '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
-    [TELEGRAM_TEMPLATE_KEYS.commandStart]:
-      'Hi! I’m the Gigs Together bot 👋\n\nI’ll send you updates about the gigs you suggest — when they’re received, sent to moderation, accepted, or declined.\n\nI can’t reply to messages. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
-    [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
-      'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
-    [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
-      'I can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
@@ -140,79 +132,6 @@ describe('TelegramPostComposer', () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-  });
-
-  it('should compose an unavailable-message response from translations', () => {
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-
-    expect(composer.composeIncomingMessageUnavailable(12345)).toEqual({
-      chat_id: 12345,
-      text: 'I can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-      parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Suggest a gig',
-              url: 'https://gigs.example/suggest/launch',
-            },
-          ],
-        ],
-      },
-    });
-  });
-
-  it('should compose the start-command response from translations', () => {
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-
-    expect(composer.composeStartCommandResponse(12345)).toEqual({
-      chat_id: 12345,
-      text: 'Hi! I’m the Gigs Together bot 👋\n\nI’ll send you updates about the gigs you suggest — when they’re received, sent to moderation, accepted, or declined.\n\nI can’t reply to messages. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-      parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Suggest a gig',
-              url: 'https://gigs.example/suggest/launch',
-            },
-          ],
-        ],
-      },
-    });
-  });
-
-  it('should reject the start-command response when app URL is missing', () => {
-    vi.stubEnv('APP_BASE_URL', '');
-
-    expect(() => composer.composeStartCommandResponse(12345)).toThrowError(
-      new BadRequestException(
-        'Cannot compose start command response: APP_BASE_URL is not configured.',
-      ),
-    );
-  });
-
-  it('should compose the unknown-command response from translations', () => {
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-
-    expect(composer.composeUnknownCommandResponse(12345)).toEqual({
-      chat_id: 12345,
-      text: 'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-      parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Suggest a gig',
-              url: 'https://gigs.example/suggest/launch',
-            },
-          ],
-        ],
-      },
-    });
   });
 
   describe('pickTgPost', () => {

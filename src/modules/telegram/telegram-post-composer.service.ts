@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGChatId,
   TGInlineKeyboardMarkup,
   TGInputMedia,
   TGSendMessage,
@@ -64,12 +63,6 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
-const SUGGEST_GIG_PATH = '/suggest/launch';
-
-type UserResponseTemplateKey =
-  | typeof TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable
-  | typeof TELEGRAM_TEMPLATE_KEYS.commandStart
-  | typeof TELEGRAM_TEMPLATE_KEYS.commandUnknown;
 
 interface ComposeGigCandidateChannelPostParams {
   gigCandidate: GigCandidate;
@@ -667,57 +660,6 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeIncomingMessageUnavailable(chatId: TGChatId): TGSendMessage {
-    return this.composeUserResponse(
-      chatId,
-      TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable,
-    );
-  }
-
-  composeStartCommandResponse(chatId: TGChatId): TGSendMessage {
-    return this.composeUserResponse(
-      chatId,
-      TELEGRAM_TEMPLATE_KEYS.commandStart,
-    );
-  }
-
-  composeUnknownCommandResponse(chatId: TGChatId): TGSendMessage {
-    return this.composeUserResponse(
-      chatId,
-      TELEGRAM_TEMPLATE_KEYS.commandUnknown,
-    );
-  }
-
-  private composeUserResponse(
-    chatId: TGChatId,
-    templateKey: UserResponseTemplateKey,
-  ): TGSendMessage {
-    const contactAdminsUrl = this.postTemplates.getText(
-      TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
-    );
-
-    return {
-      chat_id: chatId,
-      text: this.postTemplates.render(templateKey, {
-        contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
-      }),
-      parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: this.postTemplates.getText(
-                TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig,
-              ),
-              url: this.buildSuggestGigUrl(),
-            },
-          ],
-        ],
-      },
-    };
-  }
-
   composeRejectedGigCandidatePostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
   ): TelegramPostEditComposition {
@@ -964,10 +906,6 @@ export class TelegramPostComposerService {
       .replaceAll('>', '&gt;');
   }
 
-  private escapeTelegramHtmlAttribute(value: string): string {
-    return this.escapeTelegramHtmlText(value).replaceAll('"', '&quot;');
-  }
-
   private buildGigCandidateIntakeReplyMarkup(
     gigCandidate: GigCandidate,
   ): TGInlineKeyboardMarkup {
@@ -1202,17 +1140,6 @@ export class TelegramPostComposerService {
 
   private getAppBaseUrl(): string {
     return (process.env.APP_BASE_URL ?? '').trim();
-  }
-
-  private buildSuggestGigUrl(): string {
-    const appBaseUrl = this.getAppBaseUrl();
-    if (appBaseUrl === '') {
-      throw new BadRequestException(
-        'Cannot compose start command response: APP_BASE_URL is not configured.',
-      );
-    }
-
-    return new URL(SUGGEST_GIG_PATH, appBaseUrl).toString();
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {

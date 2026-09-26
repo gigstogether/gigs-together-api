@@ -19,6 +19,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
 import { PostEditKind } from './types/telegram-post-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 
@@ -205,6 +206,7 @@ describe('TelegramService', () => {
         TelegramService,
         TelegramBotClient,
         TelegramPostComposerService,
+        TelegramBotReplyComposerService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
