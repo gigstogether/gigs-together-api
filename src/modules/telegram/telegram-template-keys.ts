@@ -18,6 +18,7 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   buttonShow: 'button.show',
   buttonSendToModeration: 'button.sendToModeration',
   buttonContactAdmins: 'button.contactAdmins',
+  buttonSuggestGig: 'button.suggestGig',
   linkContactAdmins: 'link.contactAdmins',
   incomingMessageUnavailable: 'incomingMessage.unavailable',
   commandStart: 'command.start',

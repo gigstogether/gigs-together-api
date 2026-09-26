@@ -64,6 +64,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 
 const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 const TELEGRAM_MINI_APP_START_ACTION_SEPARATOR = '-';
+const SUGGEST_GIG_PATH = '/suggest/launch';
 
 interface ComposeGigCandidateChannelPostParams {
   gigCandidate: GigCandidate;
@@ -685,9 +686,29 @@ export class TelegramPostComposerService {
   }
 
   composeStartCommandResponse(chatId: TGChatId): TGSendMessage {
+    const contactAdminsUrl = this.postTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
+    );
+
     return {
       chat_id: chatId,
-      text: this.postTemplates.getText(TELEGRAM_TEMPLATE_KEYS.commandStart),
+      text: this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.commandStart, {
+        contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
+      }),
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: this.postTemplates.getText(
+                TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig,
+              ),
+              url: this.buildSuggestGigUrl(),
+            },
+          ],
+        ],
+      },
     };
   }
 
@@ -944,6 +965,10 @@ export class TelegramPostComposerService {
       .replaceAll('>', '&gt;');
   }
 
+  private escapeTelegramHtmlAttribute(value: string): string {
+    return this.escapeTelegramHtmlText(value).replaceAll('"', '&quot;');
+  }
+
   private buildGigCandidateIntakeReplyMarkup(
     gigCandidate: GigCandidate,
   ): TGInlineKeyboardMarkup {
@@ -1178,6 +1203,17 @@ export class TelegramPostComposerService {
 
   private getAppBaseUrl(): string {
     return (process.env.APP_BASE_URL ?? '').trim();
+  }
+
+  private buildSuggestGigUrl(): string {
+    const appBaseUrl = this.getAppBaseUrl();
+    if (appBaseUrl === '') {
+      throw new BadRequestException(
+        'Cannot compose start command response: APP_BASE_URL is not configured.',
+      );
+    }
+
+    return new URL(SUGGEST_GIG_PATH, appBaseUrl).toString();
   }
 
   getPostUrl(payload: GetPostUrlPayload): string | undefined {
