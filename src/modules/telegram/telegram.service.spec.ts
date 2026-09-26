@@ -59,7 +59,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
-    [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
@@ -76,10 +75,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">Open gig in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost]:
       '<a href="{url}">See main post</a>',
-    [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
-      '<a href="{url}">See post</a>',
-    [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
-      '<a href="{url}">Open in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
@@ -657,7 +652,9 @@ describe('TelegramService', () => {
   });
 
   describe('editGigPostsBestEffort', () => {
-    it('should update Moderation first and reuse its fileId for Main', async () => {
+    it('should keep compact Moderation shape and reuse its fileId for Main after poster update', async () => {
+      process.env.APP_BASE_URL = 'https://app.example';
+      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       mockBucketService.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
@@ -752,8 +749,20 @@ describe('TelegramService', () => {
             media: expect.stringMatching(
               /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
             ),
-            caption: expect.stringContaining('https://t.me/c/456/99'),
+            caption:
+              '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>\n\n<a href="https://app.example/edit?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a> | <a href="https://t.me/c/456/99">See main post</a>',
           }),
+          replyMarkup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '✏️ Edit',
+                  url: 'https://app.example/edit?startapp=editGig-radiohead-barcelona-2026-06-12',
+                },
+                expect.objectContaining({ text: '👁 Show' }),
+              ],
+            ],
+          },
         }),
         posterFile,
       );

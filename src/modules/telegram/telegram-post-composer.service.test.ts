@@ -65,7 +65,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
-    [TELEGRAM_TEMPLATE_KEYS.moderationGig]: '{statusLine}\n\n{body}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
@@ -82,10 +81,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">Open gig in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigLinkSeeMainPost]:
       '<a href="{url}">See main post</a>',
-    [TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost]:
-      '<a href="{url}">See post</a>',
-    [TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin]:
-      '<a href="{url}">Open in admin</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
     [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:

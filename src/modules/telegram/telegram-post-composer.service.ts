@@ -27,8 +27,6 @@ import type {
   BuildCaptionPayload,
   BuildGigCandidateCaptionParams,
   BuildGigPermalinkPayload,
-  BuildModerationCaptionPayload,
-  BuildModerationLinksParams,
   BuildGigModerationCaptionPayload,
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
@@ -142,8 +140,13 @@ export class TelegramPostComposerService {
       mainPostUrl,
       editGigUrl: this.buildEditGigUrl(gig.publicId),
     });
-    const fullCaption = this.buildModerationCaption({
-      body: this.buildGigBodyCaption(gig),
+    const gigUrl = this.buildGigPermalink({
+      baseUrl: this.getAppBaseUrl(),
+      publicId: gig.publicId,
+    });
+    const fullCaption = this.buildGigModerationCaption({
+      title: gig.title,
+      gigUrl,
       mainPostUrl,
       adminGigUrl: this.buildAdminGigUrl(gig.publicId),
     });
@@ -1125,46 +1128,6 @@ export class TelegramPostComposerService {
       : undefined;
   }
 
-  private buildModerationCaption(
-    payload: BuildModerationCaptionPayload,
-  ): string {
-    const statusLine = this.buildModerationLinks({
-      mainPostUrl: payload.mainPostUrl,
-      adminGigUrl: payload.adminGigUrl,
-    });
-
-    if (statusLine === '') {
-      return payload.body;
-    }
-
-    return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.moderationGig, {
-      statusLine,
-      body: payload.body,
-    });
-  }
-
-  private buildModerationLinks(params: BuildModerationLinksParams): string {
-    const statusLinks = [
-      params.mainPostUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
-            { url: params.mainPostUrl },
-          )
-        : undefined,
-      params.adminGigUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin,
-            { url: params.adminGigUrl },
-          )
-        : undefined,
-    ].filter(Boolean);
-
-    if (statusLinks.length === 0) {
-      return '';
-    }
-    return statusLinks.join(' | ');
-  }
-
   private buildTelegramMiniAppUrl(
     action: TelegramMiniAppStartAction,
     resourceId: string,
@@ -1173,16 +1136,6 @@ export class TelegramPostComposerService {
     return miniAppBaseUrl
       ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
       : undefined;
-  }
-
-  private buildGigBodyCaption(gig: PlainGig): string {
-    return this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
-    });
   }
 
   private getAppBaseUrl(): string {

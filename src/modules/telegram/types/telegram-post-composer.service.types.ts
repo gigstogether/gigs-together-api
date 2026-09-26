@@ -112,17 +112,6 @@ export interface BuildGigModerationCaptionPayload {
   readonly adminGigUrl?: string;
 }
 
-export interface BuildModerationCaptionPayload {
-  body: string;
-  mainPostUrl?: string;
-  adminGigUrl?: string;
-}
-
-export interface BuildModerationLinksParams {
-  mainPostUrl?: string;
-  adminGigUrl?: string;
-}
-
 export interface BuildGigCandidateCaptionParams {
   gigCandidate: GigCandidate;
   channelPurpose: 'intake' | 'moderation';
