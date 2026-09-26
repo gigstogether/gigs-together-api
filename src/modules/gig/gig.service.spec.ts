@@ -6,7 +6,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { GigPosterService } from './gig.poster.service';
 import { GigService } from './gig.service';

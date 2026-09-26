@@ -6,6 +6,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramGigCandidateComposerService } from './composers/telegram-gig-candidate-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -17,8 +18,8 @@ import {
   GigCandidateCallbackAction,
   GigCallbackAction,
 } from './callback-action';
-import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
-import { PostEditKind } from './types/telegram-post-composer.service.types';
+import type { BuildGigPermalinkPayload } from './telegram-post-composer.service.types';
+import { PostEditKind } from './telegram-post-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 
@@ -87,8 +88,9 @@ function createMockPostTemplates(): MockPostTemplates {
   };
 }
 
-describe('TelegramPostComposer', () => {
+describe('TelegramPostComposerService', () => {
   let composer: TelegramPostComposerService;
+  let gigCandidateComposer: TelegramGigCandidateComposerService;
   let mockPostTemplates: MockPostTemplates;
 
   const mockBucket = {
@@ -102,6 +104,7 @@ describe('TelegramPostComposer', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramPostComposerService,
+        TelegramGigCandidateComposerService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -111,6 +114,7 @@ describe('TelegramPostComposer', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramPostComposerService);
+    gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
   });
 
   afterEach(() => {
@@ -526,7 +530,7 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('GigCandidate post composition', () => {
+  describe('TelegramGigCandidateComposerService', () => {
     beforeEach(() => {
       process.env.INTAKE_CHANNEL_ID = '-3001';
       process.env.MODERATION_CHANNEL_ID = '-3002';
@@ -544,7 +548,7 @@ describe('TelegramPostComposer', () => {
     it('should compose Intake with Send to moderation and Reject actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
-      const payload = composer.composeGigCandidateIntakePost({
+      const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -607,7 +611,7 @@ describe('TelegramPostComposer', () => {
     });
 
     it('should compose a text Intake post when GigCandidate has no poster', () => {
-      const payload = composer.composeGigCandidateIntakePost({
+      const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -642,7 +646,7 @@ describe('TelegramPostComposer', () => {
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
-      const payload = composer.composeGigCandidateModerationPost({
+      const payload = gigCandidateComposer.composeModerationPost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -730,7 +734,7 @@ describe('TelegramPostComposer', () => {
         chatId: -200,
       };
 
-      const composition = composer.composeGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composePostEdit({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired: false,
@@ -784,7 +788,7 @@ describe('TelegramPostComposer', () => {
         fileId: 'old-file-id',
       };
 
-      const composition = composer.composeGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composePostEdit({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired: true,
@@ -813,7 +817,7 @@ describe('TelegramPostComposer', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       expect(() =>
-        composer.composeGigCandidateIntakePost({
+        gigCandidateComposer.composeIntakePost({
           id: '507f1f77bcf86cd799439099',
           source: {
             type: 'user',
@@ -838,7 +842,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose submitted feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'submitted',
           title: 'Band & Friends',
@@ -853,7 +857,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose rejected feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
           title: 'Band & Friends',
@@ -868,7 +872,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose accepted-for-moderation feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedForModeration',
           title: 'Band & Friends',
@@ -883,7 +887,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose accepted feedback with a titled link and disabled preview', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
@@ -920,7 +924,7 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       };
 
-      const composition = composer.composeRejectedGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composeRejectedPostEdit({
         gigCandidate,
         post: {
           to: Messenger.Telegram,
@@ -972,7 +976,7 @@ describe('TelegramPostComposer', () => {
       };
 
       const composition =
-        composer.composeGigCandidateIntakePostAfterModerationEdit({
+        gigCandidateComposer.composeIntakePostAfterModerationEdit({
           gigCandidate,
           intakePost: {
             to: Messenger.Telegram,
@@ -1034,7 +1038,7 @@ describe('TelegramPostComposer', () => {
       };
 
       const composition =
-        composer.composeGigCandidateIntakePostAfterModerationEdit({
+        gigCandidateComposer.composeIntakePostAfterModerationEdit({
           gigCandidate,
           intakePost: {
             to: Messenger.Telegram,

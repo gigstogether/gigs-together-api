@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigCandidateService } from '../telegram/services/telegram-gig-candidate.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -23,7 +24,7 @@ import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
 import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
-import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
@@ -75,6 +76,16 @@ describe('GigCandidateService', () => {
     updateRejectedGigCandidatePost: vi.fn(),
     editGigCandidatePost: vi.fn(),
     updateGigModerationPost: vi.fn(),
+  };
+
+  const telegramGigCandidateServiceMock = {
+    sendIntakePost: telegramServiceMock.sendGigCandidateIntakePost,
+    sendModerationPost: telegramServiceMock.sendGigCandidateModerationPost,
+    updateIntakePostAfterModeration:
+      telegramServiceMock.updateGigCandidateIntakePostAfterModeration,
+    sendFeedback: telegramServiceMock.sendGigCandidateFeedback,
+    updateRejectedPost: telegramServiceMock.updateRejectedGigCandidatePost,
+    editPost: telegramServiceMock.editGigCandidatePost,
   };
 
   const userServiceMock = {
@@ -136,6 +147,10 @@ describe('GigCandidateService', () => {
         },
         { provide: GigPosterService, useValue: gigPosterServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
+        {
+          provide: TelegramGigCandidateService,
+          useValue: telegramGigCandidateServiceMock,
+        },
         { provide: AiService, useValue: aiServiceMock },
         { provide: CalendarService, useValue: calendarServiceMock },
         { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },

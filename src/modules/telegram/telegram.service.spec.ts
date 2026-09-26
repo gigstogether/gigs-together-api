@@ -10,6 +10,8 @@ import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramGigCandidateComposerService } from './composers/telegram-gig-candidate-composer.service';
+import { TelegramGigCandidateService } from './services/telegram-gig-candidate.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -19,7 +21,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import { PostEditKind } from './types/telegram-post-composer.service.types';
+import { PostEditKind } from './telegram-post-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
@@ -110,6 +112,7 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
 
 describe('TelegramService', () => {
   let service: TelegramService;
+  let telegramGigCandidateService: TelegramGigCandidateService;
   let testingModule: TestingModule;
   let mockPostTemplates: MockPostTemplates;
 
@@ -141,6 +144,8 @@ describe('TelegramService', () => {
         TelegramService,
         TelegramBotClient,
         TelegramPostComposerService,
+        TelegramGigCandidateComposerService,
+        TelegramGigCandidateService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -165,6 +170,9 @@ describe('TelegramService', () => {
     }).compile();
 
     service = testingModule.get<TelegramService>(TelegramService);
+    telegramGigCandidateService = testingModule.get(
+      TelegramGigCandidateService,
+    );
   });
 
   afterEach(() => {
@@ -668,7 +676,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        service.sendGigCandidateIntakePost(gigCandidate),
+        telegramGigCandidateService.sendIntakePost(gigCandidate),
       ).resolves.toEqual({
         messageId: 40,
         chatId: -100,
@@ -738,7 +746,10 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        service.sendGigCandidateModerationPost(gigCandidate, posterFile),
+        telegramGigCandidateService.sendModerationPost(
+          gigCandidate,
+          posterFile,
+        ),
       ).resolves.toEqual({
         messageId: 50,
         chatId: -200,
@@ -801,7 +812,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await service.sendGigCandidateModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost(gigCandidate);
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({ photo: 'intake-file-id' }),
@@ -855,7 +866,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await service.sendGigCandidateModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost(gigCandidate);
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -896,7 +907,7 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        service.sendGigCandidateModerationPost(gigCandidate),
+        telegramGigCandidateService.sendModerationPost(gigCandidate),
       ).rejects.toThrow('Telegram photo response has no fileId');
     });
   });
@@ -1012,7 +1023,7 @@ describe('TelegramService', () => {
         chat: { id: 42, type: 'private' },
       });
 
-      await service.sendGigCandidateFeedback({
+      await telegramGigCandidateService.sendFeedback({
         chatId: '42',
         kind: 'submitted',
         title: 'Band',
@@ -1066,7 +1077,10 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateRejectedGigCandidatePost({ gigCandidate, post });
+      await telegramGigCandidateService.updateRejectedPost({
+        gigCandidate,
+        post,
+      });
 
       expect(editMessageCaptionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1124,7 +1138,7 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateGigCandidateIntakePostAfterModeration({
+      await telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
         intakePost,
         moderationPost,
@@ -1188,7 +1202,7 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateGigCandidateIntakePostAfterModeration({
+      await telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
         intakePost,
         moderationPost,
@@ -1260,7 +1274,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        service.editGigCandidatePost({
+        telegramGigCandidateService.editPost({
           gigCandidate,
           post: moderationPost,
           isMediaUpdateRequired: true,

@@ -10,7 +10,9 @@ import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import type { TelegramPostSendResult } from '../telegram/telegram.service';
+import { TelegramGigCandidateService } from '../telegram/services/telegram-gig-candidate.service';
+import type { TelegramGigCandidatePostSendResult } from '../telegram/services/telegram-gig-candidate.service.types';
+import type { GigCandidateFeedbackMessageContent } from '../telegram/composers/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -23,8 +25,7 @@ import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
-import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
-import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {
   GigCandidateRepository,
@@ -163,7 +164,7 @@ interface ParsedCreateGigCandidateFields {
 interface StoreGigCandidateTelegramPostParams {
   gigCandidate: GigCandidate;
   postType: PostType.Intake | PostType.Moderation;
-  telegramPost: TelegramPostSendResult | undefined;
+  telegramPost: TelegramGigCandidatePostSendResult | undefined;
 }
 
 interface GigCandidateApprovalTransactionResult {
@@ -182,6 +183,7 @@ export class GigCandidateService {
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigPosterService: GigPosterService,
     private readonly telegramService: TelegramService,
+    private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
     private readonly calendarService: CalendarService,
     private readonly feedRevalidateService: FeedRevalidateService,
@@ -200,10 +202,10 @@ export class GigCandidateService {
       created.posterFile,
     );
 
-    let telegramIntakePost: TelegramPostSendResult | undefined;
+    let telegramIntakePost: TelegramGigCandidatePostSendResult | undefined;
     try {
       telegramIntakePost =
-        await this.telegramService.sendGigCandidateIntakePost(
+        await this.telegramGigCandidateService.sendIntakePost(
           saved,
           telegramPosterFile,
         );
@@ -885,12 +887,12 @@ export class GigCandidateService {
       return gigCandidate;
     }
 
-    let telegramModerationPost: TelegramPostSendResult | undefined;
+    let telegramModerationPost: TelegramGigCandidatePostSendResult | undefined;
     try {
       const telegramPosterFile =
         mapPreparedGigPosterToTelegramInputFile(posterFile);
       telegramModerationPost =
-        await this.telegramService.sendGigCandidateModerationPost(
+        await this.telegramGigCandidateService.sendModerationPost(
           gigCandidate,
           telegramPosterFile,
         );
@@ -990,7 +992,7 @@ export class GigCandidateService {
     }
 
     try {
-      await this.telegramService.updateGigCandidateIntakePostAfterModeration({
+      await this.telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
         intakePost,
         moderationPost,
@@ -1025,7 +1027,7 @@ export class GigCandidateService {
     }
 
     try {
-      await this.telegramService.updateRejectedGigCandidatePost({
+      await this.telegramGigCandidateService.updateRejectedPost({
         gigCandidate,
         post,
       });
@@ -1090,7 +1092,7 @@ export class GigCandidateService {
         return;
       }
 
-      await this.telegramService.sendGigCandidateFeedback({
+      await this.telegramGigCandidateService.sendFeedback({
         ...content,
         chatId: telegramIdentity.externalUserId,
       });
@@ -1168,7 +1170,7 @@ export class GigCandidateService {
       const isMediaUpdateRequired = posterFile !== undefined;
       const telegramPosterFile =
         mapPreparedGigPosterToTelegramInputFile(posterFile);
-      const edited = await this.telegramService.editGigCandidatePost({
+      const edited = await this.telegramGigCandidateService.editPost({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired,

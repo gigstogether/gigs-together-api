@@ -18,7 +18,10 @@ import { envBool } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
-import type { EditGigPostsParams } from '../telegram/telegram.service';
+import type {
+  EditGigPostsParams,
+  UpdateGigModerationPostPayload,
+} from '../telegram/telegram.service.types';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -33,7 +36,6 @@ import type {
   UpdateGigByPublicIdRecordParams,
 } from './repositories/gig.repository';
 import { FeedRevalidateService } from './feed-revalidate.service';
-import type { UpdateGigModerationPostPayload } from '../telegram/types/telegram.service.types';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import type {
