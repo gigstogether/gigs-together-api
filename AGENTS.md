@@ -23,6 +23,13 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Always create new files with `LF` line endings (not `CRLF`). Prefer editor or Git settings that default new files to `LF`.
 - Keep line endings as `LF` in tracked files. If you hit formatter errors caused by `CRLF`, convert the file to `LF` and reformat.
 
+## Naming
+
+- Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
+- The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables, constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
+- Choose a concrete domain action instead, such as `post`, `send` or another term that precisely describes the behavior.
+- Do not use existing legacy occurrences as naming precedent. When code containing such an identifier is changed meaningfully, rename it within the same task when that rename is safe and in scope; otherwise call out the remaining legacy name explicitly.
+
 ## Execution Rules
 
 - Do not run `build`, `dev`, or start watchers or servers unless the user explicitly asks.
