@@ -13,6 +13,7 @@ import {
   parseCallbackData,
 } from '../telegram/callback-action';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
@@ -28,6 +29,7 @@ enum Command {
 export class ReceiverService {
   constructor(
     private readonly telegramService: TelegramService,
+    private readonly telegramBotReplyService: TelegramBotReplyService,
     private readonly gigService: GigService,
     private readonly gigCandidateService: GigCandidateService,
     private readonly userService: UserService,
@@ -97,7 +99,7 @@ export class ReceiverService {
     const text = message.text || '';
 
     if (text.charAt(0) !== '/') {
-      await this.telegramService.sendIncomingMessageUnavailable(chat);
+      await this.telegramBotReplyService.sendIncomingMessageUnavailable(chat);
       return;
     }
 
@@ -108,11 +110,11 @@ export class ReceiverService {
   private async handleCommand(command: string, chat: TGChat) {
     switch (command) {
       case Command.Start: {
-        await this.telegramService.sendStartCommandResponse(chat);
+        await this.telegramBotReplyService.sendStartCommandResponse(chat);
         break;
       }
       default: {
-        await this.telegramService.sendUnknownCommandResponse(chat);
+        await this.telegramBotReplyService.sendUnknownCommandResponse(chat);
       }
     }
   }

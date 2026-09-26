@@ -3,6 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ReceiverService } from './receiver.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
@@ -23,9 +24,6 @@ describe('ReceiverService', () => {
 
   const mockTelegramService = {
     sendMessage: vi.fn(),
-    sendIncomingMessageUnavailable: vi.fn(),
-    sendStartCommandResponse: vi.fn(),
-    sendUnknownCommandResponse: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
     editGigPost: vi.fn(),
@@ -33,6 +31,12 @@ describe('ReceiverService', () => {
     pickTgPost: vi.fn(),
     sendToModeration: vi.fn(),
     updateGigModerationPost: vi.fn(),
+  };
+
+  const mockTelegramBotReplyService = {
+    sendIncomingMessageUnavailable: vi.fn(),
+    sendStartCommandResponse: vi.fn(),
+    sendUnknownCommandResponse: vi.fn(),
   };
 
   const mockGigService = {
@@ -68,6 +72,10 @@ describe('ReceiverService', () => {
         {
           provide: TelegramService,
           useValue: mockTelegramService,
+        },
+        {
+          provide: TelegramBotReplyService,
+          useValue: mockTelegramBotReplyService,
         },
         {
           provide: GigService,
@@ -126,14 +134,14 @@ describe('ReceiverService', () => {
         chat: { id: 12345, type: 'private' },
       };
 
-      mockTelegramService.sendIncomingMessageUnavailable.mockResolvedValue(
+      mockTelegramBotReplyService.sendIncomingMessageUnavailable.mockResolvedValue(
         undefined,
       );
 
       await service.handleMessage(message);
 
       expect(
-        mockTelegramService.sendIncomingMessageUnavailable,
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
     });
 
@@ -152,13 +160,15 @@ describe('ReceiverService', () => {
         },
       };
 
-      mockTelegramService.sendStartCommandResponse.mockResolvedValue(undefined);
+      mockTelegramBotReplyService.sendStartCommandResponse.mockResolvedValue(
+        undefined,
+      );
 
       await service.handleMessage(message);
 
-      expect(mockTelegramService.sendStartCommandResponse).toHaveBeenCalledWith(
-        { id: 12345, type: 'private' },
-      );
+      expect(
+        mockTelegramBotReplyService.sendStartCommandResponse,
+      ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
@@ -170,14 +180,14 @@ describe('ReceiverService', () => {
         chat: { id: 12345, type: 'private' },
       };
 
-      mockTelegramService.sendUnknownCommandResponse.mockResolvedValue(
+      mockTelegramBotReplyService.sendUnknownCommandResponse.mockResolvedValue(
         undefined,
       );
 
       await service.handleMessage(message);
 
       expect(
-        mockTelegramService.sendUnknownCommandResponse,
+        mockTelegramBotReplyService.sendUnknownCommandResponse,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
     });
 

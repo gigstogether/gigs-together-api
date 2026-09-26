@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
+import { TelegramBotReplyService } from './services/telegram-bot-reply.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
@@ -43,11 +44,16 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     TelegramTemplateService,
     TelegramPostComposerService,
     TelegramBotReplyComposerService,
+    TelegramBotReplyService,
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
     TelegramOidcAuthService,
   ],
-  exports: [TelegramService, TelegramInitDataAuthService],
+  exports: [
+    TelegramService,
+    TelegramBotReplyService,
+    TelegramInitDataAuthService,
+  ],
 })
 export class TelegramModule {}

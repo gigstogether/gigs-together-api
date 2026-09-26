@@ -20,7 +20,6 @@ import type {
   GigCandidate,
   GigCandidatePost,
 } from '../gig-candidate/types/gig-candidate.types';
-import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { getBiggestTgPhotoFileId } from './utils/photo';
 import { formatTelegramErrorMessage } from './telegram-error';
@@ -106,7 +105,6 @@ export class TelegramService {
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramPostComposerService: TelegramPostComposerService,
-    private readonly telegramBotReplyComposerService: TelegramBotReplyComposerService,
   ) {}
 
   private readonly logger = new Logger(TelegramService.name);
@@ -497,26 +495,6 @@ export class TelegramService {
       this.telegramPostComposerService.composeGigCandidateFeedbackMessage(
         payload,
       );
-    return this.telegramBotClient.sendMessage(composed);
-  }
-
-  sendIncomingMessageUnavailable(chat: TGChat): Promise<TGMessage> {
-    const composed =
-      this.telegramBotReplyComposerService.composeIncomingMessageUnavailable(
-        chat,
-      );
-    return this.telegramBotClient.sendMessage(composed);
-  }
-
-  sendStartCommandResponse(chat: TGChat): Promise<TGMessage> {
-    const composed =
-      this.telegramBotReplyComposerService.composeStartCommandResponse(chat);
-    return this.telegramBotClient.sendMessage(composed);
-  }
-
-  sendUnknownCommandResponse(chat: TGChat): Promise<TGMessage> {
-    const composed =
-      this.telegramBotReplyComposerService.composeUnknownCommandResponse(chat);
     return this.telegramBotClient.sendMessage(composed);
   }
 

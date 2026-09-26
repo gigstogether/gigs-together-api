@@ -19,7 +19,6 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
 import { PostEditKind } from './types/telegram-post-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 
@@ -53,19 +52,11 @@ function createMockPostTemplates(): MockPostTemplates {
     [TELEGRAM_TEMPLATE_KEYS.buttonPost]: '📢 Post',
     [TELEGRAM_TEMPLATE_KEYS.buttonShow]: '👁 Show',
     [TELEGRAM_TEMPLATE_KEYS.buttonSendToModeration]: '➡️ Send to moderation',
-    [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
-    [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/gigs_together',
   };
 
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithLink]:
       '<a href="{url}">{title}</a>\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
-    [TELEGRAM_TEMPLATE_KEYS.commandStart]:
-      'Hi! I’m the Gigs Together bot 👋\n\nI’ll send you updates about the gigs you suggest — when they’re received, sent to moderation, accepted, or declined.\n\nI can’t reply to messages. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
-    [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
-      'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
-    [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
-      'I can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="{contactAdminsUrl}">Gigs Together admins</a>.',
     [TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink]:
       '{title}\n\n🗓 {dates}\n📍 {venue}\n\n🎫 {ticketsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted]:
@@ -199,11 +190,6 @@ describe('TelegramService', () => {
   };
 
   beforeEach(async () => {
-    vi.stubEnv(
-      'SUGGEST_GIG_URL',
-      'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
-    );
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
     mockPostTemplates = createMockPostTemplates();
 
     testingModule = await Test.createTestingModule({
@@ -211,7 +197,6 @@ describe('TelegramService', () => {
         TelegramService,
         TelegramBotClient,
         TelegramPostComposerService,
-        TelegramBotReplyComposerService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -281,139 +266,6 @@ describe('TelegramService', () => {
         text,
       });
       expect(result).toEqual(mockMessage);
-    });
-  });
-
-  describe('sendIncomingMessageUnavailable', () => {
-    it('should send the composed translated response', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
-        message_id: 1,
-        date: 1,
-        chat: { id: 12345, type: 'private' },
-      });
-
-      await service.sendIncomingMessageUnavailable({
-        id: 12345,
-        type: 'private',
-      });
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: 'I can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-        parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: true,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Suggest a gig',
-                web_app: {
-                  url: 'https://gigs.example/suggest/launch',
-                },
-              },
-            ],
-          ],
-        },
-      });
-    });
-  });
-
-  describe('command responses', () => {
-    it('should send the composed start-command response', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
-        message_id: 1,
-        date: 1,
-        chat: { id: 12345, type: 'private' },
-      });
-
-      await service.sendStartCommandResponse({
-        id: 12345,
-        type: 'private',
-      });
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: 'Hi! I’m the Gigs Together bot 👋\n\nI’ll send you updates about the gigs you suggest — when they’re received, sent to moderation, accepted, or declined.\n\nI can’t reply to messages. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-        parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: true,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Suggest a gig',
-                web_app: {
-                  url: 'https://gigs.example/suggest/launch',
-                },
-              },
-            ],
-          ],
-        },
-      });
-    });
-
-    it('should send a Mini App direct link for a shared chat', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
-        message_id: 1,
-        date: 1,
-        chat: { id: -100123, type: 'supergroup' },
-      });
-
-      await service.sendStartCommandResponse({
-        id: -100123,
-        type: 'supergroup',
-      });
-
-      expect(sendMessageSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          chat_id: -100123,
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: 'Suggest a gig',
-                  url: 'https://t.me/GigsTogetherStgBot/suggest?startapp=suggest',
-                },
-              ],
-            ],
-          },
-        }),
-      );
-    });
-
-    it('should send the composed unknown-command response', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
-        message_id: 1,
-        date: 1,
-        chat: { id: 12345, type: 'private' },
-      });
-
-      await service.sendUnknownCommandResponse({
-        id: 12345,
-        type: 'private',
-      });
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chat_id: 12345,
-        text: 'I don’t recognize that command.\n\nI can’t reply to messages — I only send updates about the gigs you suggest. For any questions, contact the <a href="https://t.me/gigs_together">Gigs Together admins</a>.',
-        parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: true,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Suggest a gig',
-                web_app: {
-                  url: 'https://gigs.example/suggest/launch',
-                },
-              },
-            ],
-          ],
-        },
-      });
     });
   });
 
