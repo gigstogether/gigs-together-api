@@ -43,8 +43,8 @@ src/
   app.module.ts            root module and environment loading
   modules/
     gig/                   public gig API and gig lookup
-    receiver/              Telegram/receiver-facing endpoints
-    telegram/              Telegram integration
+    telegram-updates/      inbound Telegram webhook update handling
+    telegram/              Telegram Bot API client, outbound messaging, and message composition
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
     admin/                 admin dashboard, moderation, locale management
     calendar/              Google Calendar integration
@@ -126,15 +126,16 @@ The GigCandidate workflow requires one Telegram bot per environment with the fol
 2. Keep Same-Origin Restriction enabled for the Mini Apps. Main App and Menu Button are optional entry points; backend-generated edit links do not depend on them.
 3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
 4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
-5. Register `https://<api-host>/v1/receiver/webhook` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
-6. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
+5. Register `https://<api-host>/v1/telegram/updates` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
+6. Set `SUGGEST_GIG_URL=https://t.me/<bot_username>/suggest`. Shared-chat suggestion buttons use this named Mini App direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
+7. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
 
 The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
 
-| Action enum member                            | Wire value         | Identifier      | Resulting admin route                        |
-| --------------------------------------------- | ------------------ | --------------- | -------------------------------------------- |
-| `TelegramMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
-| `TelegramMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
+| Action enum member                         | Wire value         | Identifier      | Resulting admin route                        |
+| ------------------------------------------ | ------------------ | --------------- | -------------------------------------------- |
+| `AdminMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
+| `AdminMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
 
 The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Missing, malformed, untyped, and unknown actions show an explicit error notification before returning the administrator to `/admin`.
 
@@ -167,8 +168,8 @@ Current variables defined in `.env.example`:
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
 | `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
-| `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                            |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
+| `SUGGEST_GIG_URL`                               | For shared-chat bot responses                | Named suggest Mini App direct link used outside private bot chats.       |
 | `EDIT_GIG_URL`                                  | For edit flows                               | Named admin Mini App URL, without a `startapp` query parameter.          |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |

@@ -2,6 +2,10 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
+import { AuthorizationService } from '../auth/authorization.service';
+import { UserService } from '../user/user.service';
+import type { User } from '../user/types/user.types';
+import { Messenger } from '../../shared/types/messenger.enum';
 import {
   CallbackScope,
   GigCandidateCallbackAction,
@@ -9,9 +13,12 @@ import {
   parseCallbackData,
 } from '../telegram/callback-action';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
+import type { TGUser } from '../telegram/types/user.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -19,14 +26,17 @@ enum Command {
 }
 
 @Injectable()
-export class ReceiverService {
+export class TelegramUpdatesService {
   constructor(
     private readonly telegramService: TelegramService,
+    private readonly telegramBotReplyService: TelegramBotReplyService,
     private readonly gigService: GigService,
     private readonly gigCandidateService: GigCandidateService,
+    private readonly userService: UserService,
+    private readonly authorizationService: AuthorizationService,
   ) {}
 
-  private readonly logger = new Logger(ReceiverService.name);
+  private readonly logger = new Logger(TelegramUpdatesService.name);
 
   private formatCallbackQueryError(e: unknown): string {
     const tgDescription = this.readTelegramErrorDescription(e);
@@ -81,49 +91,30 @@ export class ReceiverService {
   }
 
   async handleMessage(message: TGMessage): Promise<void> {
-    const chatId = message?.chat?.id;
-    if (!chatId) {
+    const chat = message?.chat;
+    if (!chat?.id) {
       return;
     }
 
     const text = message.text || '';
 
     if (text.charAt(0) !== '/') {
-      await this.telegramService.sendMessage({
-        chat_id: chatId,
-        text: `At the moment, the bot can't receive messages. If you have an issue, feel free to contact the admins here: `,
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Contact "Gigs Together!"',
-                url: process.env.DIRECT_MESSAGES_URL,
-              },
-            ],
-          ],
-        },
-      });
+      await this.telegramBotReplyService.sendIncomingMessageUnavailable(chat);
       return;
     }
 
     const command = text.substring(1).toLowerCase();
-    await this.handleCommand(command, chatId);
+    await this.handleCommand(command, chat);
   }
 
-  private async handleCommand(command: string, chatId: number) {
+  private async handleCommand(command: string, chat: TGChat) {
     switch (command) {
       case Command.Start: {
-        await this.telegramService.sendMessage({
-          chat_id: chatId,
-          text: `Hi! I'm a Gigs Together bot. I am still in development...`,
-        });
+        await this.telegramBotReplyService.sendStartCommandResponse(chat);
         break;
       }
       default: {
-        await this.telegramService.sendMessage({
-          chat_id: chatId,
-          text: `Hey there, I don't know that command.`,
-        });
+        await this.telegramBotReplyService.sendUnknownCommandResponse(chat);
       }
     }
   }
@@ -232,11 +223,18 @@ export class ReceiverService {
     });
   }
 
-  async handleCallbackQuery(
-    callbackQuery: TGCallbackQuery,
-    adminUserId: string,
-  ): Promise<void> {
+  async handleCallbackQuery(callbackQuery: TGCallbackQuery): Promise<void> {
     try {
+      const adminUserId = await this.resolveAdminUserId(callbackQuery.from);
+      if (!adminUserId) {
+        await this.telegramService.answerCallbackQuery({
+          callback_query_id: callbackQuery.id,
+          text: 'Admin privileges required',
+          show_alert: true,
+        });
+        return;
+      }
+
       await this.processCallbackQueryOrThrow(callbackQuery, adminUserId);
     } catch (e) {
       if (!(e instanceof GigCandidateApprovalValidationError)) {
@@ -250,5 +248,27 @@ export class ReceiverService {
         show_alert: true,
       });
     }
+  }
+
+  private async resolveAdminUserId(
+    telegramUser: TGUser,
+  ): Promise<string | undefined> {
+    const user = await this.resolveUser(telegramUser);
+    const isAdmin = await this.authorizationService.isAdmin(user.id);
+    return isAdmin ? user.id : undefined;
+  }
+
+  private resolveUser(telegramUser: TGUser): Promise<User> {
+    return this.userService.findOrCreateMessengerUser({
+      messenger: Messenger.Telegram,
+      externalUserId: String(telegramUser.id),
+      username: telegramUser.username,
+      displayName: [telegramUser.first_name, telegramUser.last_name]
+        .filter(
+          (part): part is string => typeof part === 'string' && !!part.trim(),
+        )
+        .map((part) => part.trim())
+        .join(' '),
+    });
   }
 }

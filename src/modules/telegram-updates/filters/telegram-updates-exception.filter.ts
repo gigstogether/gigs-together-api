@@ -11,9 +11,9 @@ import { Request, Response } from 'express';
 
 @Catch()
 @Injectable()
-export class ReceiverExceptionFilter implements ExceptionFilter {
+export class TelegramUpdatesExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: ConsoleLogger) {
-    this.logger.setContext(ReceiverExceptionFilter.name);
+    this.logger.setContext(TelegramUpdatesExceptionFilter.name);
   }
 
   catch(exception: unknown, host: ArgumentsHost) {
@@ -54,12 +54,12 @@ export class ReceiverExceptionFilter implements ExceptionFilter {
       this.logger.error(
         `Internal Server Error: ${JSON.stringify(errorResponse)}`,
         exception instanceof Error ? exception.stack : undefined,
-        ReceiverExceptionFilter.name,
+        TelegramUpdatesExceptionFilter.name,
       );
     } else {
       this.logger.error(
         `Client Error: ${JSON.stringify(errorResponse)}`,
-        ReceiverExceptionFilter.name,
+        TelegramUpdatesExceptionFilter.name,
       );
     }
 

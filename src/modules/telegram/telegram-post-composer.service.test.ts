@@ -130,6 +130,7 @@ describe('TelegramPostComposer', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 

@@ -72,35 +72,33 @@ Main files:
 - `src/modules/gig/gig.service.ts`
 - `src/modules/gig/gig.schema.ts`
 
-#### `ReceiverModule`
+#### `TelegramUpdatesModule`
 
 Responsibilities:
 
-- owns receiver-facing and Telegram-admin-facing write flows
-- handles webhook updates
-- handles gig creation and gig editing
-- contains request parsing and receiver-specific request protection
+- receives authenticated Telegram webhook updates
+- routes bot messages and callback queries
+- coordinates Telegram-triggered Gig and GigCandidate actions
+- keeps inbound update orchestration separate from the foundational `TelegramModule`
 
 Dependencies:
 
 - `GigModule`
 - `TelegramModule`
-- `AdminModule`
 - `AuthModule`
-- `CalendarModule`
+- `GigCandidateModule`
+- `UserModule`
 
 Main files:
 
-- `src/modules/receiver/receiver.module.ts`
-- `src/modules/receiver/receiver.controller.ts`
-- `src/modules/receiver/receiver.service.ts`
+- `src/modules/telegram-updates/telegram-updates.module.ts`
+- `src/modules/telegram-updates/telegram-updates.controller.ts`
+- `src/modules/telegram-updates/telegram-updates.service.ts`
 
 Supporting pieces:
 
-- receiver guards
-- receiver pipes
-- receiver exception filters
-- multer-based file upload interceptor for posters
+- Telegram webhook authentication guard
+- Telegram update and webhook exception filters
 
 #### `LocaleModule`
 
@@ -246,21 +244,18 @@ Examples:
 - `/v1/locale`
 - `/v1/locale/translations`
 
-### Receiver and integration flow
+### Telegram update flow
 
 Typical path:
 
-1. request hits `ReceiverController`
-2. guards, pipes, file interceptors, and receiver-specific filters run first
-3. `ReceiverService` coordinates auth checks and domain actions
-4. downstream services persist data and may call Telegram, storage, calendar, or AI integrations
+1. request hits `TelegramUpdatesController`
+2. the webhook guard validates the Telegram secret without triggering retries
+3. `TelegramUpdatesService` routes messages and callback queries
+4. downstream services perform authorization and Gig or GigCandidate actions
 
-Examples:
+Endpoint:
 
-- `/v1/receiver/webhook`
-- `/v1/receiver/gig`
-- `/v1/gig/get` (admin: gig draft for edit form)
-- `/v1/receiver/gig/:publicId` (PATCH update)
+- `/v1/telegram/updates`
 
 ## Persistence Model
 
@@ -276,10 +271,10 @@ This keeps schema ownership aligned with the module that owns the use case.
 ## Cross-Cutting Concerns
 
 - validation: global Nest `ValidationPipe` in `AppModule`
-- error handling: global exception filter plus receiver-specific filters
+- error handling: global exception filter plus Telegram update-specific filters
 - configuration: `@nestjs/config` with env-based loading
 - API versioning: URI versioning, for example `/v1/gig`
-- uploads: multer memory storage in receiver flows, capped at 10 MB for poster images
+- uploads: multer memory storage in Gig and GigCandidate write flows, capped at 10 MB for poster images
 - scheduling: enabled globally through `ScheduleModule.forRoot()`
 
 ## Architectural Boundaries
@@ -287,7 +282,7 @@ This keeps schema ownership aligned with the module that owns the use case.
 The codebase is organized around a few practical boundaries:
 
 - public read API is mostly isolated in `GigModule`, `LocationModule`, and `LocaleModule`
-- Telegram- and moderation-oriented write flows are concentrated in `ReceiverModule`
+- inbound Telegram orchestration is isolated in `TelegramUpdatesModule`
 - external systems are abstracted behind dedicated services instead of being called directly from controllers
 - Mongo models are registered per module rather than globally
 

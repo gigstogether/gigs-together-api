@@ -6,7 +6,7 @@ import type {
   TGSendPhoto,
 } from './types/message.types';
 import { TGParseMode } from './types/message.types';
-import { TGChat } from './types/chat.types';
+import type { TGChat } from './types/chat.types';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';

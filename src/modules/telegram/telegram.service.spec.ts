@@ -224,6 +224,7 @@ describe('TelegramService', () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
     mockRemoteImageService.download.mockReset();
     vi.clearAllMocks();
