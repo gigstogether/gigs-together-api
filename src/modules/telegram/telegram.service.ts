@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type {
   InputFileData,
+  TGChatId,
   TGMessage,
   TGSendPhoto,
 } from './types/message.types';
@@ -495,6 +496,26 @@ export class TelegramService {
       this.telegramPostComposerService.composeGigCandidateFeedbackMessage(
         payload,
       );
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
+  sendIncomingMessageUnavailable(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeIncomingMessageUnavailable(
+        chatId,
+      );
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
+  sendStartCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeStartCommandResponse(chatId);
+    return this.telegramBotClient.sendMessage(composed);
+  }
+
+  sendUnknownCommandResponse(chatId: TGChatId): Promise<TGMessage> {
+    const composed =
+      this.telegramPostComposerService.composeUnknownCommandResponse(chatId);
     return this.telegramBotClient.sendMessage(composed);
   }
 

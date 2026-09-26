@@ -167,7 +167,6 @@ Current variables defined in `.env.example`:
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
 | `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
-| `DIRECT_MESSAGES_URL`                           | For Telegram UX                              | Link used in bot/admin flows.                                            |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
 | `EDIT_GIG_URL`                                  | For edit flows                               | Named admin Mini App URL, without a `startapp` query parameter.          |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |

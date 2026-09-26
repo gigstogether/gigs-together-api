@@ -1,25 +1,14 @@
 import type { ExecutionContext } from '@nestjs/common';
-import type { AuthorizationService } from '../../auth/authorization.service';
-import type { UserService } from '../../user/user.service';
 import { ReceiverWebhookGuard } from './receiver-webhook.guard';
 import type { ReceiverWebhookRequest } from './receiver-webhook.guard';
 
 describe('ReceiverWebhookGuard', () => {
-  const authorizationService = { isAdmin: vi.fn() };
-  const userService = { findOrCreateMessengerUser: vi.fn() };
-  const guard = new ReceiverWebhookGuard(
-    authorizationService as unknown as AuthorizationService,
-    userService as unknown as UserService,
-  );
+  const guard = new ReceiverWebhookGuard();
   const previousBotSecret = process.env.BOT_SECRET;
 
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.BOT_SECRET = 'test-secret';
-    userService.findOrCreateMessengerUser.mockResolvedValue({
-      id: '66a000000000000000000001',
-    });
-    authorizationService.isAdmin.mockResolvedValue(true);
   });
 
   afterAll(() => {
@@ -30,46 +19,22 @@ describe('ReceiverWebhookGuard', () => {
     }
   });
 
-  it('should authorize a Telegram webhook through the internal User id', async () => {
+  it('should authenticate a Telegram webhook with a valid secret', () => {
     const request = createRequest('test-secret');
 
-    await expect(guard.canActivate(createContext(request))).resolves.toBe(true);
-    expect(userService.findOrCreateMessengerUser).toHaveBeenCalledWith({
-      messenger: 'Telegram',
-      externalUserId: '42',
-      username: 'arina',
-      displayName: 'Arina Goodboy',
-    });
-    expect(authorizationService.isAdmin).toHaveBeenCalledWith(
-      '66a000000000000000000001',
-    );
+    expect(guard.canActivate(createContext(request))).toBe(true);
     expect(request.telegramWebhook).toEqual({
-      allowed: true,
-      userId: '66a000000000000000000001',
+      isAuthenticated: true,
     });
   });
 
-  it('should deny a valid webhook when the internal User is not an Admin', async () => {
-    authorizationService.isAdmin.mockResolvedValue(false);
-    const request = createRequest('test-secret');
-
-    await guard.canActivate(createContext(request));
-
-    expect(request.telegramWebhook).toEqual({
-      allowed: false,
-      reason: 'Admin privileges required',
-    });
-  });
-
-  it('should not resolve a User when the webhook secret is invalid', async () => {
+  it('should reject a Telegram webhook with an invalid secret', () => {
     const request = createRequest('wrong-secret');
 
-    await guard.canActivate(createContext(request));
+    guard.canActivate(createContext(request));
 
-    expect(userService.findOrCreateMessengerUser).not.toHaveBeenCalled();
-    expect(authorizationService.isAdmin).not.toHaveBeenCalled();
     expect(request.telegramWebhook).toEqual({
-      allowed: false,
+      isAuthenticated: false,
       reason: 'Invalid secret token',
     });
   });

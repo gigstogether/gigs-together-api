@@ -29,18 +29,13 @@ export class ReceiverController {
     @Req() req: ReceiverWebhookRequest,
     @Body() update: TGUpdate,
   ): Promise<void> {
-    // Telegram must always receive 200, but we still want to process updates only from admins.
-    // TelegramWebhookGuard marks request.telegramWebhook.allowed; when denied we just no-op.
-    // (No throwing here — avoid 4xx which triggers Telegram retries.)
-    if (req.telegramWebhook?.allowed !== true) {
+    // Telegram must always receive 200, including for rejected webhook requests.
+    if (req.telegramWebhook?.isAuthenticated !== true) {
       return Promise.resolve();
     }
 
     if (update.callback_query) {
-      return this.receiverService.handleCallbackQuery(
-        update.callback_query,
-        req.telegramWebhook.userId,
-      );
+      return this.receiverService.handleCallbackQuery(update.callback_query);
     }
     if (update.message) {
       return this.receiverService.handleMessage(update.message);
