@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, Version } from '@nestjs/common';
-import { GigService } from './gig.service';
+import { GigFeedService } from './gig-feed.service';
 import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
 import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-request';
@@ -8,17 +8,29 @@ import { V1GigAroundGetRequestQuery } from './types/requests/v1-gig-around-get-r
 import type { V1GigAroundGetResponseBody } from './types/requests/v1-gig-around-get-request';
 import { V1GigByPublicIdGetRequestParams } from './types/requests/v1-gig-by-public-id-get-request';
 import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
+import {
+  mapV1GigAroundQuery,
+  mapV1GigDatesQuery,
+  mapV1GigGetQuery,
+  mapVisibleGigDateByPublicIdResultToV1,
+  mapVisibleGigDatesResultToV1,
+  mapVisibleGigsAroundResultToV1,
+  mapVisibleGigsResultToV1,
+} from './gig-feed.mapper';
 
 @Controller('gigs')
 export class GigController {
-  constructor(private readonly gigService: GigService) {}
+  constructor(private readonly gigFeedService: GigFeedService) {}
 
   @Version('1')
   @Get()
-  getGigsV1(
+  async getGigsV1(
     @Query() query: V1GigGetRequestQuery,
   ): Promise<V1GetGigsResponseBody> {
-    return this.gigService.getVisibleGigsV1(query);
+    const result = await this.gigFeedService.getVisibleGigs(
+      mapV1GigGetQuery(query),
+    );
+    return mapVisibleGigsResultToV1(result);
   }
 
   /**
@@ -27,10 +39,13 @@ export class GigController {
    */
   @Version('1')
   @Get('dates')
-  getGigDatesV1(
+  async getGigDatesV1(
     @Query() query: V1GigDatesGetRequestQuery,
   ): Promise<V1GigDatesGetResponseBody> {
-    return this.gigService.getVisibleGigDatesV1(query);
+    const result = await this.gigFeedService.getVisibleGigDates(
+      mapV1GigDatesQuery(query),
+    );
+    return mapVisibleGigDatesResultToV1(result);
   }
 
   /**
@@ -38,10 +53,13 @@ export class GigController {
    */
   @Version('1')
   @Get('around')
-  getGigsAroundV1(
+  async getGigsAroundV1(
     @Query() query: V1GigAroundGetRequestQuery,
   ): Promise<V1GigAroundGetResponseBody> {
-    return this.gigService.getVisibleGigsAroundV1(query);
+    const result = await this.gigFeedService.getVisibleGigsAround(
+      mapV1GigAroundQuery(query),
+    );
+    return mapVisibleGigsAroundResultToV1(result);
   }
 
   /**
@@ -49,11 +67,12 @@ export class GigController {
    */
   @Version('1')
   @Get('date/:publicId')
-  getGigDateByPublicId(
+  async getGigDateByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<V1GigByPublicIdGetResponseBody> {
-    return this.gigService.getGigDateByPublicId({
+    const result = await this.gigFeedService.getVisibleGigDateByPublicId({
       publicId: params.publicId,
     });
+    return mapVisibleGigDateByPublicIdResultToV1(result);
   }
 }

@@ -9,6 +9,7 @@ import {
   TelegramBotClient,
   TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS,
 } from './telegram-bot.client';
+import { RemoteImageService } from '../remote-image/remote-image.service';
 
 describe('TelegramBotClient', () => {
   let client: TelegramBotClient;
@@ -16,6 +17,9 @@ describe('TelegramBotClient', () => {
   const mockHttpService = {
     post: vi.fn(),
     get: vi.fn(),
+  };
+  const remoteImageService = {
+    download: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -25,6 +29,10 @@ describe('TelegramBotClient', () => {
         {
           provide: HttpService,
           useValue: mockHttpService,
+        },
+        {
+          provide: RemoteImageService,
+          useValue: remoteImageService,
         },
       ],
     }).compile();
@@ -36,6 +44,7 @@ describe('TelegramBotClient', () => {
     vi.restoreAllMocks();
     mockHttpService.post.mockReset();
     mockHttpService.get.mockReset();
+    remoteImageService.download.mockReset();
   });
 
   describe('sendMessage', () => {
@@ -111,12 +120,10 @@ describe('TelegramBotClient', () => {
           })),
         )
         .mockReturnValueOnce(of({ data: { result: sentMessage } }));
-      mockHttpService.get.mockReturnValue(
-        of({
-          data: new TextEncoder().encode('<svg></svg>').buffer,
-          headers: { 'content-type': 'image/svg+xml' },
-        }),
-      );
+      remoteImageService.download.mockResolvedValue({
+        buffer: Buffer.from('<svg></svg>'),
+        contentType: 'image/svg+xml',
+      });
 
       const result = await client.sendPhoto(
         {
@@ -128,10 +135,7 @@ describe('TelegramBotClient', () => {
       );
 
       expect(result).toEqual(sentMessage);
-      expect(mockHttpService.get).toHaveBeenCalledWith(photoUrl, {
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-      });
+      expect(remoteImageService.download).toHaveBeenCalledWith(photoUrl);
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining(
           'event=telegram_photo_url_fallback action=retry_multipart',
@@ -145,6 +149,50 @@ describe('TelegramBotClient', () => {
       expect(loggerSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('signature=secret'),
       );
+    });
+
+    it('should keep the photo post unsent when the remote photo download fails', async () => {
+      const photoUrl =
+        'https://cdn.example/posters/example.jpg?signature=secret#preview';
+      const telegramError = {
+        response: {
+          data: {
+            error_code: 400,
+            description: 'Bad Request: failed to get HTTP URL content',
+          },
+        },
+      };
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      const sendMessageSpy = vi.spyOn(client, 'sendMessage');
+
+      mockHttpService.post.mockReturnValueOnce(throwError(() => telegramError));
+      remoteImageService.download.mockRejectedValue({
+        isAxiosError: true,
+        message: 'Request failed with status code 502',
+        response: { status: 502 },
+      });
+
+      await expect(
+        client.sendPhoto(
+          {
+            chat_id: 1,
+            photo: photoUrl,
+            caption: 'Example',
+          },
+          'gig-candidate-id',
+        ),
+      ).rejects.toBe(telegramError);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        'event=telegram_photo_url_fallback action=download_failed imageUrl=https://cdn.example/posters/example.jpg contextId=gig-candidate-id error=Request failed with status code 502; httpStatus=502',
+      );
+      expect(loggerSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining('signature=secret'),
+      );
+      expect(sendMessageSpy).not.toHaveBeenCalled();
+      expect(mockHttpService.post).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -200,6 +248,63 @@ describe('TelegramBotClient', () => {
           media: expect.any(Array),
         }),
       );
+    });
+  });
+
+  describe('editMessageMedia', () => {
+    it('should upload replacement photo bytes as multipart media', async () => {
+      const editedMessage: TGMessage = {
+        message_id: 42,
+        date: 1,
+        chat: { id: -100123, type: 'channel' },
+      };
+      const posterFile = {
+        buffer: Buffer.from('poster bytes'),
+        filename: 'poster.png',
+        contentType: 'image/png',
+      };
+      mockHttpService.post.mockReturnValue(
+        of({ data: { result: editedMessage } }),
+      );
+
+      await expect(
+        client.editMessageMedia(
+          {
+            chatId: -100123,
+            messageId: 42,
+            media: {
+              type: TGInputMediaType.Photo,
+              media: 'https://cdn.example/poster.png',
+              caption: 'Updated poster',
+            },
+          },
+          posterFile,
+        ),
+      ).resolves.toEqual(editedMessage);
+
+      const request = mockHttpService.post.mock.calls[0];
+      expect(request?.[0]).toBe('editMessageMedia');
+      const form = request?.[1];
+      const config = request?.[2];
+      expect(config).toEqual(
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'content-type': expect.stringContaining(
+              'multipart/form-data; boundary=',
+            ),
+          }),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        }),
+      );
+      const multipartBody = form.getBuffer().toString('utf8');
+      expect(multipartBody).toContain('name="chat_id"');
+      expect(multipartBody).toContain('name="message_id"');
+      expect(multipartBody).toContain('"media":"attach://poster"');
+      expect(multipartBody).toContain('name="poster"; filename="poster.png"');
+      expect(multipartBody).toContain('Content-Type: image/png');
+      expect(multipartBody).toContain('poster bytes');
+      expect(multipartBody).not.toContain('https://cdn.example/poster.png');
     });
   });
 

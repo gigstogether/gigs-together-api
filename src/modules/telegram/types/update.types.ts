@@ -33,13 +33,3 @@ interface TGChannelPost {
   chat: TGChat;
   text: string;
 }
-
-export interface TGInlineKeyboardMarkup {
-  inline_keyboard: TGInlineKeyboardButton[][];
-}
-
-interface TGInlineKeyboardButton {
-  text: string;
-  url?: string;
-  callback_data?: string;
-}

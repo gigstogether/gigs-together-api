@@ -15,6 +15,7 @@ import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
+import { RemoteImageModule } from '../remote-image/remote-image.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UserModule } from '../user/user.module';
     AuthModule,
     UserModule,
     TranslationModule,
+    RemoteImageModule,
   ],
   controllers: [TelegramAuthController],
   providers: [

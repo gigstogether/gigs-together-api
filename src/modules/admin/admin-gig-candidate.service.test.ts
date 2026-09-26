@@ -1,6 +1,5 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { Types } from 'mongoose';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
@@ -191,12 +190,12 @@ describe('AdminGigCandidateService', () => {
       gigCandidateServiceMock.findMany.mockResolvedValue(gigCandidates);
       gigServiceMock.getGigsByIds.mockResolvedValue([
         {
-          _id: new Types.ObjectId(firstGigId),
+          id: firstGigId,
           publicId: 'first-gig',
           posts: [],
         },
         {
-          _id: new Types.ObjectId(secondGigId),
+          id: secondGigId,
           publicId: 'second-gig',
           posts: [],
         },

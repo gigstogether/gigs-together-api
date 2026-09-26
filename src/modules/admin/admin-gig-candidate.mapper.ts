@@ -6,7 +6,7 @@ import type {
   CreateAdminGigCandidateParams,
   GigCandidateDraftLookupResult,
   UpdateAdminGigCandidateDraftParams,
-} from '../gig-candidate/types/gig-candidate.types';
+} from '../gig-candidate/gig-candidate.service';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type {

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
 import type {
   InputFile,
+  InputFileData,
   TGEditMessageCaption,
   TGEditMessageMedia,
   TGEditMessageReplyMarkup,
@@ -15,6 +16,9 @@ import type {
 } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
+import { formatErrorMessage } from '../../shared/utils/logging';
+import { RemoteImageService } from '../remote-image/remote-image.service';
+import type { DownloadedRemoteImage } from '../remote-image/remote-image.service';
 
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
@@ -25,12 +29,6 @@ interface TelegramBotErrorData {
   description: string;
 }
 
-interface DownloadedRemotePhoto {
-  buffer: Buffer;
-  filename: string;
-  contentType?: string;
-}
-
 /**
  * Low-level Telegram Bot HTTP adapter around `api.telegram.org`.
  *
@@ -38,8 +36,8 @@ interface DownloadedRemotePhoto {
  * `*Service`), but named **Client** to reflect its role: a thin outbound adapter to the
  * external Bot API rather than application/domain orchestration.
  *
- * Dependency injection supplies {@link HttpService} only; logging relies on Nest's
- * {@link Logger} constructed with this class name (no separate logger provider).
+ * Dependency injection supplies {@link HttpService} and {@link RemoteImageService}; logging
+ * relies on Nest's {@link Logger} constructed with this class name (no separate logger provider).
  *
  * Does not assert caption/message UTF-16 length when formatting may apply — Telegram counts
  * after entity parsing. Keeps unambiguous checks: {@link answerCallbackQuery} plain {@code text},
@@ -49,7 +47,10 @@ interface DownloadedRemotePhoto {
 export class TelegramBotClient {
   private readonly logger = new Logger(TelegramBotClient.name);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private readonly remoteImageService: RemoteImageService,
+  ) {}
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     const res$ = this.httpService.post('sendMessage', payload);
@@ -84,23 +85,28 @@ export class TelegramBotClient {
           this.isRemotePhotoUrlError(telegramErrorData) &&
           this.isHttpUrl(photo)
         ) {
-          const downloaded = await this.downloadRemoteFileAsInputFile(
-            photo,
-            gigId,
-          );
-          if (downloaded) {
+          let remoteImage: DownloadedRemoteImage;
+          try {
+            remoteImage = await this.remoteImageService.download(photo);
+          } catch (downloadE) {
+            // Remove query and hash so signed URLs and sensitive access parameters never reach logs.
             this.logger.warn(
-              `event=telegram_photo_url_fallback action=retry_multipart imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contentType=${downloaded.contentType ?? 'unknown'} contextId=${gigId || 'none'} telegramDescription=${telegramErrorData.description}`,
+              `event=telegram_photo_url_fallback action=download_failed imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contextId=${gigId || 'none'} error=${formatErrorMessage(downloadE)}`,
             );
-            return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
+            throw e;
           }
 
-          // Last resort: send a text-only message so posting does not silently fail.
-          const text =
-            payload.caption ??
-            (payload as unknown as { text?: string }).text ??
-            photo;
-          return this.sendMessage({ chat_id: payload.chat_id, text });
+          const downloaded: InputFileData = {
+            buffer: remoteImage.buffer,
+            filename: this.guessFilenameFromUrl(photo) ?? `poster${gigId}.jpg`,
+          };
+          if (remoteImage.contentType !== undefined) {
+            downloaded.contentType = remoteImage.contentType;
+          }
+          this.logger.warn(
+            `event=telegram_photo_url_fallback action=retry_multipart imageUrl=${this.getUrlWithoutQueryOrHash(photo)} contentType=${downloaded.contentType ?? 'unknown'} contextId=${gigId || 'none'} telegramDescription=${telegramErrorData.description}`,
+          );
+          return this.sendPhoto({ ...payload, photo: downloaded }, gigId);
         }
         throw e;
       }
@@ -117,16 +123,7 @@ export class TelegramBotClient {
 
     // TODO: jpg ?
     const filename = `poster${gigId}.jpg`;
-    if (Buffer.isBuffer(photo)) {
-      form.append('photo', photo, { filename });
-    } else if (typeof photo.buffer !== 'undefined') {
-      form.append('photo', photo.buffer, {
-        filename: photo.filename,
-        contentType: photo.contentType,
-      });
-    } else {
-      form.append('photo', photo, { filename });
-    }
+    this.appendInputFile(form, 'photo', photo, filename);
 
     const res$ = this.httpService.post('sendPhoto', form, {
       headers: form.getHeaders(),
@@ -136,6 +133,23 @@ export class TelegramBotClient {
 
     const res = await firstValueFrom(res$);
     return res.data.result;
+  }
+
+  private appendInputFile(
+    form: FormData,
+    fieldName: string,
+    file: InputFile,
+    defaultFilename: string,
+  ): void {
+    if (Buffer.isBuffer(file)) {
+      form.append(fieldName, file, { filename: defaultFilename });
+      return;
+    }
+
+    form.append(fieldName, file.buffer, {
+      filename: file.filename,
+      contentType: file.contentType,
+    });
   }
 
   async sendMediaGroup(payload: TGSendMediaGroup): Promise<TGMessage[]> {
@@ -213,44 +227,6 @@ export class TelegramBotClient {
   private getUrlWithoutQueryOrHash(url: string): string {
     const parsedUrl = new URL(url);
     return `${parsedUrl.origin}${parsedUrl.pathname}`;
-  }
-
-  private async downloadRemoteFileAsInputFile(
-    url: string,
-    gigId?: string,
-  ): Promise<DownloadedRemotePhoto | undefined> {
-    try {
-      const res$ = this.httpService.get<ArrayBuffer>(url, {
-        responseType: 'arraybuffer',
-        maxContentLength: Infinity,
-      });
-      const res = await firstValueFrom(res$);
-
-      const contentType = (res.headers?.['content-type'] ??
-        res.headers?.['Content-Type']) as string | undefined;
-
-      // If it's clearly not an image, don't try to upload it as a photo.
-      if (contentType && !contentType.toLowerCase().startsWith('image/')) {
-        this.logger.warn(
-          `downloadRemoteFileAsInputFile: non-image content-type (${contentType}) for ${url}`,
-        );
-        return;
-      }
-
-      const buffer = Buffer.from(res.data);
-      // TODO: ??
-      const filename =
-        this.guessFilenameFromUrl(url) ?? `poster${gigId ?? ''}.jpg`;
-
-      return { buffer, filename, contentType };
-    } catch (e) {
-      this.logger.warn(
-        `downloadRemoteFileAsInputFile error: ${JSON.stringify(
-          e?.response?.data ?? e,
-        )}`,
-      );
-      return;
-    }
   }
 
   private guessFilenameFromUrl(url: string): string | undefined {
@@ -344,8 +320,53 @@ export class TelegramBotClient {
     return res.data.result;
   }
 
-  async editMessageMedia(payload: TGEditMessageMedia): Promise<TGMessage> {
+  async editMessageMedia(
+    payload: TGEditMessageMedia,
+    posterFile?: InputFileData,
+  ): Promise<TGMessage> {
     const { chatId, messageId, media, replyMarkup } = payload;
+
+    if (posterFile !== undefined) {
+      if (media === undefined) {
+        throw new Error(
+          'editMessageMedia: media payload is required for multipart upload',
+        );
+      }
+
+      const mediaAttachName = 'poster';
+      const form = new FormData();
+      if (chatId !== undefined) {
+        form.append('chat_id', String(chatId));
+      }
+      if (messageId !== undefined) {
+        form.append('message_id', String(messageId));
+      }
+      form.append(
+        'media',
+        JSON.stringify({
+          ...media,
+          media: `attach://${mediaAttachName}`,
+        }),
+      );
+      if (replyMarkup !== undefined) {
+        form.append('reply_markup', JSON.stringify(replyMarkup));
+      }
+      this.appendInputFile(
+        form,
+        mediaAttachName,
+        posterFile,
+        posterFile.filename,
+      );
+
+      const res = await firstValueFrom(
+        this.httpService.post('editMessageMedia', form, {
+          headers: form.getHeaders(),
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+        }),
+      );
+      return res.data.result;
+    }
 
     const res = await firstValueFrom(
       this.httpService.post('editMessageMedia', {

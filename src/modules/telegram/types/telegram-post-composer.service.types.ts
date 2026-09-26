@@ -1,4 +1,5 @@
 import type { GigId, PlainGig } from '../../gig/types/gig.types';
+import type { GigPost } from '../../gig/types/gig.types';
 import type {
   GigCandidate,
   GigCandidatePost,
@@ -52,10 +53,18 @@ export type WeeklyDigestMainChannelSendPlan =
       readonly mediaItems: WeeklyDigestMediaItemContext[];
     };
 
-export type TelegramGigPostEditComposition =
+export type TelegramPostEditComposition =
   | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
+
+export interface ComposeGigPostEditParams {
+  gig: PlainGig;
+  post: GigPost;
+  isMediaUpdateRequired: boolean;
+  // Telegram accepts either a public URL or a bot-scoped file_id as replacement media.
+  mediaReference?: string;
+}
 
 export interface BuildCaptionPayload {
   date: string | number | Date;
@@ -103,17 +112,6 @@ export interface BuildGigModerationCaptionPayload {
   readonly adminGigUrl?: string;
 }
 
-export interface BuildModerationCaptionPayload {
-  body: string;
-  mainPostUrl?: string;
-  adminGigUrl?: string;
-}
-
-export interface BuildModerationLinksParams {
-  mainPostUrl?: string;
-  adminGigUrl?: string;
-}
-
 export interface BuildGigCandidateCaptionParams {
   gigCandidate: GigCandidate;
   channelPurpose: 'intake' | 'moderation';
@@ -151,9 +149,10 @@ export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
   moderationPost: GigCandidatePost;
 }
 
-export interface ComposeGigCandidateModerationPostEditParams {
+export interface ComposeGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
-  moderationPost: GigCandidatePost;
+  post: GigCandidatePost;
+  isMediaUpdateRequired: boolean;
 }
 
 export interface ComposedText {

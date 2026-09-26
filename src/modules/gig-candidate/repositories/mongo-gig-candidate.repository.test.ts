@@ -165,6 +165,7 @@ describe('MongoGigCandidateRepository', () => {
   describe('sendGigCandidateToModeration', () => {
     it('should conditionally transition only New status and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
+      const poster = { bucketPath: 'gigs/default.jpg' };
       findOneAndUpdateMock.mockReturnValue(
         updateQueryResult({
           _id: gigCandidateId,
@@ -173,7 +174,7 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: 'form' },
           },
-          gigDraft: {},
+          gigDraft: { poster },
           version: 1,
           status: GigCandidateStatus.Reviewing,
           posts: [],
@@ -185,6 +186,7 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.sendGigCandidateToModeration({
         gigCandidateId,
         expectedVersion: 0,
+        poster,
       });
 
       expect(result?.status).toBe(GigCandidateStatus.Reviewing);
@@ -195,7 +197,10 @@ describe('MongoGigCandidateRepository', () => {
           version: 0,
         },
         {
-          $set: { status: GigCandidateStatus.Reviewing },
+          $set: {
+            status: GigCandidateStatus.Reviewing,
+            'gigDraft.poster': poster,
+          },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },
@@ -391,6 +396,77 @@ describe('MongoGigCandidateRepository', () => {
         { $push: { posts: post }, $inc: { version: 1 } },
         { returnDocument: 'after', runValidators: true },
       );
+    });
+  });
+
+  describe('updateGigCandidateModerationPostFileId', () => {
+    it('should atomically update the matching post without changing version', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const post = {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        date: 1,
+        id: 50,
+        chatId: -200,
+        fileId: 'new-file-id',
+      } satisfies GigCandidatePost;
+      findOneAndUpdateMock.mockReturnValue(
+        updateQueryResult({
+          _id: gigCandidateId,
+          source: {
+            type: 'user',
+            userId: '507f1f77bcf86cd799439088',
+            origin: { type: 'form' },
+          },
+          gigDraft: {},
+          version: 4,
+          status: GigCandidateStatus.Reviewing,
+          posts: [post],
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      );
+
+      const result = await repository.updateGigCandidateModerationPostFileId({
+        gigCandidateId,
+        expectedVersion: 4,
+        messageId: 50,
+        chatId: -200,
+        fileId: 'new-file-id',
+      });
+
+      expect(result?.version).toBe(4);
+      expect(result?.posts[0]?.fileId).toBe('new-file-id');
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: expect.any(Types.ObjectId),
+          status: GigCandidateStatus.Reviewing,
+          version: 4,
+          posts: {
+            $elemMatch: {
+              to: Messenger.Telegram,
+              type: PostType.Moderation,
+              id: 50,
+              chatId: -200,
+            },
+          },
+        },
+        { $set: { 'posts.$.fileId': 'new-file-id' } },
+        { returnDocument: 'after', runValidators: true },
+      );
+    });
+
+    it('should reject an empty fileId without writing', async () => {
+      await expect(
+        repository.updateGigCandidateModerationPostFileId({
+          gigCandidateId: '507f1f77bcf86cd799439099',
+          expectedVersion: 4,
+          messageId: 50,
+          chatId: -200,
+          fileId: ' ',
+        }),
+      ).resolves.toBeNull();
+      expect(findOneAndUpdateMock).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,15 +1,10 @@
-import { Readable } from 'node:stream';
-
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { Types } from 'mongoose';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import type { GigPost } from '../gig/gig.schema';
 import { GigService } from '../gig/gig.service';
-import type { PlainGig } from '../gig/types/gig.types';
+import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
 import { UserService } from '../user/user.service';
@@ -18,7 +13,7 @@ import { AdminGigService } from './admin-gig.service';
 
 function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
-    _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    id: '507f1f77bcf86cd799439011',
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
@@ -30,7 +25,7 @@ function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
     version: 3,
     source: {
       type: 'user',
-      userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+      userId: '507f1f77bcf86cd799439012',
       origin: { type: 'admin' },
     },
     posts: [
@@ -56,18 +51,11 @@ describe('AdminGigService', () => {
     getGigByPublicId: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
     resolvePublicPostUrl: vi.fn(),
-    updateGigByPublicId: vi.fn(),
-    updateGigVisibilityByPublicId: vi.fn(),
-    updateGigTelegramPostFileId: vi.fn(),
   };
   const telegramServiceMock = {
     pickTgPost: vi.fn(),
     getPostUrl: vi.fn(),
-    editMainPost: vi.fn(),
-    editModerationPost: vi.fn(),
-    updateGigModerationPost: vi.fn(),
   };
-  const feedRevalidateServiceMock = { revalidateFeed: vi.fn() };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
 
   beforeEach(async () => {
@@ -117,440 +105,77 @@ describe('AdminGigService', () => {
         AdminGigService,
         { provide: GigService, useValue: gigServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
-        {
-          provide: FeedRevalidateService,
-          useValue: feedRevalidateServiceMock,
-        },
         { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
     service = module.get(AdminGigService);
   });
 
-  describe('getGigsList', () => {
-    it('should map Gig fields and source for the admin list', async () => {
-      const gig = buildPlainGig();
-      gigServiceMock.getGigs.mockResolvedValue([gig]);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
-        'https://t.me/channel/1',
-      );
+  it('should map Gig fields and source for the admin list', async () => {
+    const gig = buildPlainGig();
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
+      'https://cdn.example/poster.jpg',
+    );
+    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
-      await expect(service.getGigsList({ limit: 50 })).resolves.toEqual({
-        gigs: [
-          {
-            publicId: 'radiohead-barcelona-2026-06-12',
-            title: 'Radiohead',
-            isVisible: false,
-            version: 3,
-            source: {
-              type: 'user',
-              userId: '507f1f77bcf86cd799439012',
-              displayName: 'Test Admin',
-              isCurrentlyAdmin: true,
-              telegramUsername: 'test_admin',
-              origin: { type: 'admin' },
-            },
-            date: '2026-06-12',
-            endDate: undefined,
-            city: 'barcelona',
-            country: 'ES',
-            venue: 'Palau Sant Jordi',
-            posterUrl: 'https://cdn.example/poster.jpg',
-            ticketsUrl: 'https://example.com/tickets',
-            mainPostUrl: 'https://t.me/channel/1',
-            mainPostDate: undefined,
-            moderationPostUrl: 'https://t.me/c/123/42',
-            moderationPostDate: new Date('2026-05-30T14:22:00.000Z').getTime(),
-          },
-        ],
-      });
-      expect(gigServiceMock.getGigs).toHaveBeenCalledWith({
-        limit: 50,
-        sortBy: undefined,
-        sortOrder: undefined,
-      });
-      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledOnce();
-      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([
-        '507f1f77bcf86cd799439012',
-      ]);
-    });
+    const result = await service.getGigsList({ limit: 50 });
 
-    it('should map Main and moderation post dates', async () => {
-      const mainPostDate = new Date('2026-06-01T10:00:00.000Z').getTime();
-      const moderationPostDate = new Date('2026-05-30T14:22:00.000Z').getTime();
-      gigServiceMock.getGigs.mockResolvedValue([
-        buildPlainGig({
-          posts: [
-            {
-              to: Messenger.Telegram,
-              type: PostType.Moderation,
-              chatId: -100123,
-              id: 42,
-              date: moderationPostDate,
-            },
-            {
-              to: Messenger.Telegram,
-              type: PostType.Main,
-              chatId: -100456,
-              id: 99,
-              date: mainPostDate,
-            },
-          ],
-        }),
-      ]);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
-
-      const result = await service.getGigsList({ limit: 20 });
-
-      expect(result.gigs[0]).toEqual(
-        expect.objectContaining({
-          mainPostDate,
-          moderationPostDate,
-        }),
-      );
-    });
-
-    it('should omit an empty tickets URL', async () => {
-      gigServiceMock.getGigs.mockResolvedValue([
-        buildPlainGig({ ticketsUrl: '   ' }),
-      ]);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
-
-      const result = await service.getGigsList({ limit: 20 });
-
-      expect(result.gigs[0]?.ticketsUrl).toBeUndefined();
-    });
-  });
-
-  describe('getGigByPublicId', () => {
-    it('should map full Gig fields for admin edit and preview', async () => {
-      const gig = buildPlainGig();
-      gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
-        'https://t.me/channel/1',
-      );
-
-      const result = await service.getGigByPublicId(gig.publicId);
-
-      expect(result).toEqual(
-        expect.objectContaining({
-          publicId: gig.publicId,
-          source: {
-            type: 'user',
-            userId: '507f1f77bcf86cd799439012',
-            displayName: 'Test Admin',
-            isCurrentlyAdmin: true,
-            telegramUsername: 'test_admin',
-            origin: { type: 'admin' },
-          },
-        }),
-      );
-    });
-
-    it('should include displayName but not the admin marker for a non-admin user', async () => {
-      const gig = buildPlainGig();
-      gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
-      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-      gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
-      userServiceMock.findActiveUsersByIds.mockResolvedValue([
-        {
-          id: '507f1f77bcf86cd799439012',
-          status: 'active',
-          roles: [],
-          identities: [],
-          displayName: 'Former Admin',
-          createdAt: new Date('2026-05-01T10:00:00.000Z'),
-          updatedAt: new Date('2026-05-01T10:00:00.000Z'),
-        },
-      ]);
-
-      const result = await service.getGigByPublicId(gig.publicId);
-
-      expect(result.source).toEqual(
-        expect.objectContaining({
-          displayName: 'Former Admin',
-          isCurrentlyAdmin: false,
-        }),
-      );
-    });
-  });
-
-  describe('updateGigByPublicId', () => {
-    it('should preserve the database update when Telegram editing fails', async () => {
-      const gig = buildPlainGig({ version: 4 });
-      gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
-      telegramServiceMock.editModerationPost.mockRejectedValue(
-        new Error('Telegram unavailable'),
-      );
-
-      await expect(
-        service.updateGigByPublicId({
-          publicId: gig.publicId,
-          expectedVersion: 3,
-          gig: {
-            title: gig.title,
-            date: '2026-06-12',
-            city: gig.city,
-            country: gig.country,
-            venue: gig.venue,
-            ticketsUrl: gig.ticketsUrl,
-          },
-          posterFile: undefined,
-        }),
-      ).resolves.toEqual({ publicId: gig.publicId });
-      expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
-        country: 'ES',
-        city: 'barcelona',
-      });
-    });
-
-    it('should update both Main and Moderation posts after a Gig edit', async () => {
-      const mainPost: GigPost = {
-        to: Messenger.Telegram,
-        type: PostType.Main,
-        chatId: -100456,
-        id: 99,
-        date: 1_700_000_002_000,
-      };
-      const moderationPost: GigPost = {
-        to: Messenger.Telegram,
-        type: PostType.Moderation,
-        chatId: -100123,
-        id: 42,
-        date: 1_700_000_001_000,
-      };
-      const gig = buildPlainGig({
-        title: 'Updated title',
-        version: 4,
-        posts: [moderationPost, mainPost],
-      });
-      gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
-
-      await service.updateGigByPublicId({
+    expect(result.gigs[0]).toEqual(
+      expect.objectContaining({
         publicId: gig.publicId,
-        expectedVersion: 3,
-        gig: {
-          title: gig.title,
-          date: '2026-06-12',
-          city: gig.city,
-          country: gig.country,
-          venue: gig.venue,
-          ticketsUrl: gig.ticketsUrl,
-        },
-        posterFile: undefined,
-      });
-
-      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
-        updateMedia: false,
-      });
-      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
-        expectedVersion: gig.version,
-        isVisible: gig.isVisible,
-        title: 'Updated title',
-        publicId: gig.publicId,
-        moderationPost: { chatId: -100123, messageId: 42 },
-        mainPost: { chatId: -100456, messageId: 99 },
-      });
-    });
-
-    it('should store the new Main file_id after replacing the poster', async () => {
-      const mainPost: GigPost = {
-        to: Messenger.Telegram,
-        type: PostType.Main,
-        chatId: -100456,
-        id: 99,
-        fileId: 'old-file-id',
-        date: 1_700_000_002_000,
-      };
-      const gig = buildPlainGig({ version: 4, posts: [mainPost] });
-      const gigWithUpdatedFileId = buildPlainGig({
-        version: 5,
-        posts: [{ ...mainPost, fileId: 'new-file-id' }],
-      });
-      gigServiceMock.updateGigByPublicId.mockResolvedValue(gig);
-      gigServiceMock.updateGigTelegramPostFileId.mockResolvedValue(
-        gigWithUpdatedFileId,
-      );
-      telegramServiceMock.editMainPost.mockResolvedValue({
-        message_id: mainPost.id,
-        date: 1_700_000_003,
-        chat: { id: mainPost.chatId, type: 'channel' },
-        photo: [
-          {
-            file_id: 'small-file-id',
-            file_unique_id: 'small-unique-id',
-            width: 90,
-            height: 90,
-            file_size: 1_000,
-          },
-          {
-            file_id: 'new-file-id',
-            file_unique_id: 'new-unique-id',
-            width: 800,
-            height: 800,
-            file_size: 100_000,
-          },
-        ],
-      });
-      const posterBuffer = Buffer.from('new poster');
-      const posterFile: Express.Multer.File = {
-        fieldname: 'posterFile',
-        originalname: 'poster.jpg',
-        encoding: '7bit',
-        buffer: posterBuffer,
-        mimetype: 'image/jpeg',
-        size: posterBuffer.length,
-        stream: Readable.from(posterBuffer),
-        destination: '',
-        filename: '',
-        path: '',
-      };
-
-      await service.updateGigByPublicId({
-        publicId: gig.publicId,
-        expectedVersion: 3,
-        gig: {
-          title: gig.title,
-          date: '2026-06-12',
-          city: gig.city,
-          country: gig.country,
-          venue: gig.venue,
-          ticketsUrl: gig.ticketsUrl,
-        },
-        posterFile,
-      });
-
-      expect(telegramServiceMock.editMainPost).toHaveBeenCalledWith(gig, {
-        updateMedia: true,
-      });
-      expect(gigServiceMock.updateGigTelegramPostFileId).toHaveBeenCalledWith({
-        gigId: gig._id,
-        expectedVersion: 4,
-        type: PostType.Main,
-        fileId: 'new-file-id',
-      });
-    });
-  });
-
-  describe('updateGigVisibilityByPublicId', () => {
-    it('should update the Moderation post after hiding a Gig', async () => {
-      const gig = buildPlainGig({ version: 4, isVisible: false });
-      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
-
-      await expect(
-        service.updateGigVisibilityByPublicId({
-          publicId: 'radiohead-barcelona-2026-06-12',
-          expectedVersion: 3,
-          isVisible: false,
-        }),
-      ).resolves.toEqual({
-        publicId: 'radiohead-barcelona-2026-06-12',
-        version: 4,
-        isVisible: false,
-      });
-      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
-        expectedVersion: 4,
-        isVisible: false,
         title: gig.title,
-        publicId: gig.publicId,
-        moderationPost: { chatId: -100123, messageId: 42 },
-      });
-      expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
-        country: 'ES',
-        city: 'barcelona',
-      });
-    });
-
-    it('should update the Moderation post with the Main post after showing a Gig', async () => {
-      const mainPost: GigPost = {
-        to: Messenger.Telegram,
-        type: PostType.Main,
-        chatId: -100456,
-        id: 99,
-        date: 1_700_000_002_000,
-      };
-      const moderationPost: GigPost = {
-        to: Messenger.Telegram,
-        type: PostType.Moderation,
-        chatId: -100123,
-        id: 42,
-        date: 1_700_000_001_000,
-      };
-      const gig = buildPlainGig({
-        version: 5,
-        isVisible: true,
-        posts: [moderationPost, mainPost],
-      });
-      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
-
-      await service.updateGigVisibilityByPublicId({
-        publicId: gig.publicId,
-        expectedVersion: 4,
-        isVisible: true,
-      });
-
-      expect(telegramServiceMock.updateGigModerationPost).toHaveBeenCalledWith({
-        gigId: gig._id,
-        expectedVersion: 5,
-        isVisible: true,
-        title: gig.title,
-        publicId: gig.publicId,
-        moderationPost: { chatId: -100123, messageId: 42 },
-        mainPost: { chatId: -100456, messageId: 99 },
-      });
-    });
-
-    it('should skip the Telegram update when the Gig has no Moderation post', async () => {
-      const gig = buildPlainGig({
-        version: 4,
-        isVisible: false,
-        posts: [],
-      });
-      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
-
-      await service.updateGigVisibilityByPublicId({
-        publicId: gig.publicId,
-        expectedVersion: 3,
-        isVisible: false,
-      });
-
-      expect(
-        telegramServiceMock.updateGigModerationPost,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('should preserve the visibility update when the Telegram update fails', async () => {
-      const gig = buildPlainGig({ version: 4, isVisible: false });
-      gigServiceMock.updateGigVisibilityByPublicId.mockResolvedValue(gig);
-      telegramServiceMock.updateGigModerationPost.mockRejectedValueOnce(
-        new Error('Telegram unavailable'),
-      );
-
-      await expect(
-        service.updateGigVisibilityByPublicId({
-          publicId: gig.publicId,
-          expectedVersion: 3,
-          isVisible: false,
+        source: expect.objectContaining({
+          displayName: 'Test Admin',
+          isCurrentlyAdmin: true,
         }),
-      ).resolves.toEqual({
-        publicId: gig.publicId,
-        version: 4,
-        isVisible: false,
-      });
-      expect(feedRevalidateServiceMock.revalidateFeed).toHaveBeenCalledWith({
-        country: 'ES',
-        city: 'barcelona',
-      });
-    });
+        posterUrl: 'https://cdn.example/poster.jpg',
+      }),
+    );
+  });
+
+  it('should map Main and Moderation post metadata for admin detail', async () => {
+    const mainPost: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Main,
+      chatId: -100456,
+      id: 99,
+      date: 1_700_000_002_000,
+    };
+    const moderationPost: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Moderation,
+      chatId: -100123,
+      id: 42,
+      date: 1_700_000_001_000,
+    };
+    const gig = buildPlainGig({ posts: [moderationPost, mainPost] });
+    gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
+      'https://t.me/channel/99',
+    );
+
+    const result = await service.getGigByPublicId(gig.publicId);
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        mainPostUrl: 'https://t.me/channel/99',
+        mainPostDate: mainPost.date,
+        moderationPostUrl: 'https://t.me/c/123/42',
+        moderationPostDate: moderationPost.date,
+      }),
+    );
+  });
+
+  it('should omit an empty tickets URL from the admin list', async () => {
+    const gig = buildPlainGig({ ticketsUrl: '   ' });
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
+
+    const result = await service.getGigsList({ limit: 50 });
+
+    expect(result.gigs[0]?.ticketsUrl).toBeUndefined();
   });
 });

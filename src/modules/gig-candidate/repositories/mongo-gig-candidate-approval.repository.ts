@@ -9,13 +9,11 @@ import type {
   GigSourceUser,
 } from '../../gig/types/gig.types';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import type {
-  ApproveGigCandidateRecordParams,
-  GigCandidate as GigCandidateDomain,
-} from '../types/gig-candidate.types';
+import type { GigCandidate as GigCandidateDomain } from '../types/gig-candidate.types';
 import { GigCandidate } from '../gig-candidate.schema';
 import type { GigCandidateDocument } from '../gig-candidate.schema';
 import type {
+  ApproveGigCandidateRecordParams,
   CreateGigAfterApprovalParams,
   GigApprovalResult,
   GigCandidateApprovalRepository,
@@ -44,6 +42,7 @@ type GigStoredSource =
   | (Omit<GigSourceUser, 'userId'> & { userId: Types.ObjectId })
   | GigSourceProvider;
 
+// TODO: Extract this cross-aggregate transaction boundary as GigCandidateApprovalUnitOfWork.
 @Injectable()
 export class MongoGigCandidateApprovalRepository implements GigCandidateApprovalRepository {
   constructor(

@@ -2,16 +2,20 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model } from 'mongoose';
+import { Messenger } from '../../../shared/types/messenger.enum';
+import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
+import type { GigCandidate as GigCandidateDomain } from '../types/gig-candidate.types';
 import type {
   AppendGigCandidatePostIfAbsentParams,
   CreateGigCandidateParams,
-  GigCandidate as GigCandidateDomain,
   FindGigCandidatesParams,
+  GigCandidateRepository,
   RejectGigCandidateRecordParams,
-  SendGigCandidateToModerationParams,
+  SendGigCandidateToModerationWithPosterParams,
   UpdateGigCandidateDraftParams,
-} from '../types/gig-candidate.types';
+  UpdateGigCandidateModerationPostFileIdParams,
+} from './gig-candidate.repository';
 import {
   ADMIN_GIG_CANDIDATE_LIST_DEFAULT_SORT_ORDER,
   AdminGigCandidateListSortBy,
@@ -19,9 +23,13 @@ import {
 } from '../gig-candidate-list-sort';
 import { GigCandidate } from '../gig-candidate.schema';
 import type { GigCandidateDocument } from '../gig-candidate.schema';
-import type { GigCandidateRepository } from './gig-candidate.repository';
 import { GigCandidateRepositoryMapper } from './gig-candidate.repository.mapper';
 import type { GigCandidateLeanDocument } from './gig-candidate.repository.mapper';
+
+interface ConditionalGigCandidateUpdateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+}
 
 const GIG_CANDIDATE_LEAN_PROJECTION = {
   _id: 1,
@@ -109,7 +117,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
   }
 
   async sendGigCandidateToModeration(
-    params: SendGigCandidateToModerationParams,
+    params: SendGigCandidateToModerationWithPosterParams,
   ): Promise<GigCandidateDomain | null> {
     if (!this.isValidConditionalUpdate(params)) {
       return null;
@@ -123,7 +131,10 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
           version: params.expectedVersion,
         },
         {
-          $set: { status: GigCandidateStatus.Reviewing },
+          $set: {
+            status: GigCandidateStatus.Reviewing,
+            'gigDraft.poster': params.poster,
+          },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },
@@ -255,8 +266,51 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
       : null;
   }
 
+  async updateGigCandidateModerationPostFileId(
+    params: UpdateGigCandidateModerationPostFileIdParams,
+  ): Promise<GigCandidateDomain | null> {
+    if (
+      !Types.ObjectId.isValid(params.gigCandidateId) ||
+      !Number.isInteger(params.expectedVersion) ||
+      params.expectedVersion < 0 ||
+      params.fileId.trim() === ''
+    ) {
+      return null;
+    }
+
+    const updated = await this.gigCandidateModel
+      .findOneAndUpdate(
+        {
+          _id: new Types.ObjectId(params.gigCandidateId),
+          status: GigCandidateStatus.Reviewing,
+          version: params.expectedVersion,
+          posts: {
+            $elemMatch: {
+              to: Messenger.Telegram,
+              type: PostType.Moderation,
+              id: params.messageId,
+              chatId: params.chatId,
+            },
+          },
+        },
+        {
+          // fileId is Telegram transport metadata. Keeping the version stable preserves the
+          // expectedVersion already embedded in the edited moderation post controls.
+          $set: { 'posts.$.fileId': params.fileId },
+        },
+        { returnDocument: 'after', runValidators: true },
+      )
+      .select(GIG_CANDIDATE_LEAN_PROJECTION)
+      .lean<GigCandidateLeanDocument>()
+      .exec();
+
+    return updated
+      ? GigCandidateRepositoryMapper.toGigCandidate(updated)
+      : null;
+  }
+
   private isValidConditionalUpdate(
-    params: SendGigCandidateToModerationParams,
+    params: ConditionalGigCandidateUpdateParams,
   ): boolean {
     return (
       Types.ObjectId.isValid(params.gigCandidateId) &&

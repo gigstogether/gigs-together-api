@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Gig, GigPoster } from './gig.schema';
-import { firstValueFrom } from 'rxjs';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
 import { BucketService } from '../bucket/bucket.service';
-import { HttpService } from '@nestjs/axios';
-import type { GigPosterFile } from './types/gig-poster.types';
+import {
+  InvalidRemoteImageUrlError,
+  RemoteImageContentTypeError,
+  RemoteImageService,
+} from '../remote-image/remote-image.service';
+import type {
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from './types/gig-poster.types';
+import type { GigPoster } from './types/gig.types';
 
 interface UploadPosterPayload {
   url?: string;
@@ -18,6 +22,11 @@ interface UploadPosterPayload {
   };
 }
 
+export interface GigPosterUploadResult {
+  storedPoster: GigPoster;
+  posterFile: PreparedGigPosterFile;
+}
+
 const SVG_IMAGE_MIME_TYPE = 'image/svg+xml';
 const SVG_CONTENT_SNIFF_BYTES = 16 * 1024;
 const SVG_POSTER_ERROR_MESSAGE =
@@ -26,48 +35,70 @@ const SVG_POSTER_ERROR_MESSAGE =
 @Injectable()
 export class GigPosterService {
   constructor(
-    @InjectModel(Gig.name) private gigModel: Model<Gig>,
     private readonly bucketService: BucketService,
-    private readonly httpService: HttpService,
+    private readonly remoteImageService: RemoteImageService,
   ) {}
 
-  private async download(url: string): Promise<GigPosterFile> {
+  private async download(url: string): Promise<PreparedGigPosterFile> {
     try {
-      new URL(url);
-    } catch {
-      throw new BadRequestException('posterUrl must be a valid URL');
-    }
+      const remoteImage = await this.remoteImageService.download(url);
 
-    try {
-      const res = await firstValueFrom(
-        this.httpService.get<ArrayBuffer>(url, {
-          responseType: 'arraybuffer',
-          timeout: 15_000,
-        }),
-      );
-      const raw = res.headers['content-type'] ?? res.headers['Content-Type'];
-      const ct =
-        typeof raw === 'string'
-          ? raw
-          : Array.isArray(raw) && typeof raw[0] === 'string'
-            ? raw[0]
-            : undefined;
-
-      if (ct && !ct.toLowerCase().startsWith('image/')) {
+      const downloadedFile: PreparedGigPosterFile = {
+        buffer: remoteImage.buffer,
+        filename: this.buildPosterFilename(remoteImage.contentType),
+      };
+      if (remoteImage.contentType !== undefined) {
+        downloadedFile.mimetype = remoteImage.contentType;
+      }
+      return downloadedFile;
+    } catch (e) {
+      if (e instanceof InvalidRemoteImageUrlError) {
+        throw new BadRequestException('posterUrl must be a valid URL');
+      }
+      if (e instanceof RemoteImageContentTypeError) {
         throw new BadRequestException(
-          `posterUrl must point to an image (content-type: "${ct}")`,
+          `Failed to download poster: posterUrl must point to an image (content-type: "${e.contentType}")`,
         );
       }
-
-      return {
-        buffer: Buffer.from(res.data),
-        mimetype: ct,
-      };
-    } catch (e) {
       // Keep message user-friendly; don't leak internals.
-      const msg = String(e?.message ?? 'unknown error');
+      const msg = e instanceof Error ? e.message : 'unknown error';
       throw new BadRequestException(`Failed to download poster: ${msg}`);
     }
+  }
+
+  private getImageExtension(mimetype: string | undefined): string | undefined {
+    const normalizedMimeType = mimetype?.split(';', 1)[0].trim().toLowerCase();
+    switch (normalizedMimeType) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      case 'image/bmp':
+        return 'bmp';
+      case 'image/tiff':
+        return 'tiff';
+      case 'image/avif':
+        return 'avif';
+      case 'image/heic':
+        return 'heic';
+      case 'image/heif':
+        return 'heif';
+      default:
+        return undefined;
+    }
+  }
+
+  private buildPosterFilename(mimetype: string | undefined): string {
+    const extension = this.getImageExtension(mimetype);
+    if (extension === undefined) {
+      return 'poster';
+    }
+    return `poster.${extension}`;
   }
 
   private getBucketPrefix(): string {
@@ -134,27 +165,38 @@ export class GigPosterService {
     }
   }
 
-  async upload(payload: UploadPosterPayload): Promise<GigPoster | undefined> {
+  async upload(
+    payload: UploadPosterPayload,
+  ): Promise<GigPosterUploadResult | undefined> {
     const { url, file, context } = payload;
 
     if (file) {
-      const bucketPath = await this.uploadToBucket(
-        {
-          buffer: file.buffer,
-          mimetype: file.mimetype,
-        },
-        context,
-      );
+      const preparedFile: PreparedGigPosterFile = {
+        buffer: file.buffer,
+        filename: this.buildPosterFilename(file.mimetype),
+      };
+      if (file.mimetype !== undefined) {
+        preparedFile.mimetype = file.mimetype;
+      }
+      const bucketPath = await this.uploadToBucket(preparedFile, context);
 
-      return { bucketPath };
+      return {
+        storedPoster: { bucketPath },
+        posterFile: preparedFile,
+      };
     }
 
     if (!url) return;
 
     const downloaded = await this.download(url);
+    const bucketPath = await this.uploadToBucket(downloaded, context);
+
     return {
-      bucketPath: await this.uploadToBucket(downloaded, context),
-      externalUrl: url,
+      storedPoster: {
+        bucketPath,
+        externalUrl: url,
+      },
+      posterFile: downloaded,
     };
   }
 }

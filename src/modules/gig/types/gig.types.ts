@@ -1,12 +1,26 @@
-import type { Types } from 'mongoose';
-import type { GigPost, GigPoster, GigStoredSource } from '../gig.schema';
-import type { ProviderReference } from '../../gig-candidate/types/gig-candidate.types';
+import type { Messenger } from '../../../shared/types/messenger.enum';
+import type { PostType } from '../../../shared/types/post-type.enum';
+import type { ProviderReference } from '../../../shared/types/provider-reference.types';
 
-export type GigId = string | Types.ObjectId;
+export type GigId = string;
 
-/** Plain gig payload from MongoDB. */
+export interface GigPost {
+  to: Messenger;
+  type: PostType;
+  date: number;
+  id: number;
+  chatId: number;
+  fileId?: string;
+}
+
+export interface GigPoster {
+  bucketPath?: string;
+  externalUrl?: string;
+}
+
+/** Domain Gig representation used outside the persistence layer. */
 export interface PlainGig {
-  _id: Types.ObjectId;
+  id: GigId;
   publicId: string;
   title: string;
   date: number;
@@ -18,7 +32,7 @@ export interface PlainGig {
   poster?: GigPoster;
   isVisible: boolean;
   version: number;
-  source: GigStoredSource;
+  source: GigSource;
   posts: GigPost[];
   createdAt: Date;
   updatedAt: Date;

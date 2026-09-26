@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type {
-  TGEditMessageCaption,
+  TGInlineKeyboardMarkup,
   TGInputMedia,
   TGSendMessage,
   TGSendPhoto,
 } from './types/message.types';
 import { TGInputMediaType, TGParseMode } from './types/message.types';
-import { GigPost, GigPoster } from '../gig/gig.schema';
+import type { GigPost, GigPoster } from '../gig/types/gig.types';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
@@ -18,30 +18,30 @@ import {
 } from './callback-action';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
-import type { TGInlineKeyboardMarkup } from './types/update.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from './telegram-bot.client';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
-import {
+import type {
   BuildGigModerationReplyMarkupParams,
   BuildCaptionPayload,
   BuildGigCandidateCaptionParams,
   BuildGigPermalinkPayload,
-  BuildModerationCaptionPayload,
-  BuildModerationLinksParams,
   BuildGigModerationCaptionPayload,
   ComposedText,
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
-  ComposeGigCandidateModerationPostEditParams,
+  ComposeGigCandidatePostEditParams,
+  ComposeGigPostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
   ComposeWeeklyDigestParams,
   GetPostUrlPayload,
-  PostEditKind,
-  TelegramGigPostEditComposition,
-  WeeklyDigestMainChannelSendKind,
+  TelegramPostEditComposition,
   WeeklyDigestMainChannelSendPlan,
+} from './types/telegram-post-composer.service.types';
+import {
+  PostEditKind,
+  WeeklyDigestMainChannelSendKind,
 } from './types/telegram-post-composer.service.types';
 
 export const TELEGRAM_MEDIA_CAPTION_MAX_CHARS = 1024;
@@ -76,6 +76,12 @@ interface BuildGigCandidateModerationReplyMarkupParams {
   expectedVersion: number;
 }
 
+interface ComposeGigCandidateExistingPostEditParams {
+  post: GigCandidate['posts'][number];
+  text: string;
+  replyMarkup: TGInlineKeyboardMarkup;
+}
+
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
  * (captions, inline keyboards, permalink URLs, edit payloads).
@@ -95,29 +101,62 @@ export class TelegramPostComposerService {
     return cacheBustedUrl.toString();
   }
 
-  composeModerationPostEdit(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): TelegramGigPostEditComposition | undefined {
-    const post = this.pickTgPost(gig.posts, PostType.Moderation);
-    const chatId = post?.chatId;
-    const messageId = post?.id;
-    if (!chatId || !messageId) return undefined;
+  composeGigPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.to !== Messenger.Telegram) {
+      throw new BadRequestException('Cannot edit a non-Telegram Gig post');
+    }
+
+    switch (params.post.type) {
+      case PostType.Main:
+        return this.composeGigMainPostEdit(params);
+      case PostType.Moderation:
+        return this.composeGigModerationPostEdit(params);
+      case PostType.Intake:
+        throw new BadRequestException('Cannot edit an intake post for a Gig');
+    }
+  }
+
+  private composeGigModerationPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    const { gig, post, isMediaUpdateRequired } = params;
+    const chatId = post.chatId;
+    const messageId = post.id;
+    const mainPost = this.pickTgPost(gig.posts, PostType.Main);
+    let mainPostUrl: string | undefined;
+    if (mainPost !== undefined) {
+      mainPostUrl = this.getPostUrl({
+        chatId: mainPost.chatId,
+        messageId: mainPost.id,
+      });
+    }
 
     const replyMarkup = this.buildGigModerationReplyMarkup({
-      gigId: gig._id,
+      gigId: gig.id,
       expectedVersion: gig.version,
       isVisible: gig.isVisible,
+      mainPostUrl,
       editGigUrl: this.buildEditGigUrl(gig.publicId),
     });
-    const fullCaption = this.buildModerationCaption({
-      body: this.buildGigBodyCaption(gig),
+    const gigUrl = this.buildGigPermalink({
+      baseUrl: this.getAppBaseUrl(),
+      publicId: gig.publicId,
+    });
+    const fullCaption = this.buildGigModerationCaption({
+      title: gig.title,
+      gigUrl,
+      mainPostUrl,
       adminGigUrl: this.buildAdminGigUrl(gig.publicId),
     });
 
-    if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getTelegramPosterUrl(gig.poster);
-      if (posterUrl) {
+    if (isMediaUpdateRequired && post.fileId) {
+      let mediaReference = params.mediaReference;
+      if (mediaReference === undefined) {
+        mediaReference = this.getTelegramPosterUrl(gig.poster);
+      }
+      if (mediaReference) {
         return {
           kind: PostEditKind.Media,
           payload: {
@@ -125,7 +164,7 @@ export class TelegramPostComposerService {
             messageId,
             media: {
               type: TGInputMediaType.Photo,
-              media: posterUrl,
+              media: mediaReference,
               caption: fullCaption,
               parse_mode: TGParseMode.HTML,
             },
@@ -135,7 +174,7 @@ export class TelegramPostComposerService {
       }
     }
 
-    if (post?.fileId) {
+    if (post.fileId) {
       return {
         kind: PostEditKind.Caption,
         payload: {
@@ -162,20 +201,21 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeMainPostEdit(
-    gig: PlainGig,
-    opts?: { updateMedia?: boolean },
-  ): TelegramGigPostEditComposition | undefined {
-    const post = this.pickTgPost(gig.posts, PostType.Main);
-    const chatId = post?.chatId;
-    const messageId = post?.id;
-    if (!chatId || !messageId) return undefined;
+  private composeGigMainPostEdit(
+    params: ComposeGigPostEditParams,
+  ): TelegramPostEditComposition {
+    const { gig, post, isMediaUpdateRequired } = params;
+    const chatId = post.chatId;
+    const messageId = post.id;
 
     const caption = this.buildMainPostCaption(gig);
 
-    if (opts?.updateMedia && post?.fileId) {
-      const posterUrl = this.getTelegramPosterUrl(gig.poster);
-      if (posterUrl) {
+    if (isMediaUpdateRequired && post.fileId) {
+      let mediaReference = params.mediaReference;
+      if (mediaReference === undefined) {
+        mediaReference = this.getTelegramPosterUrl(gig.poster);
+      }
+      if (mediaReference) {
         return {
           kind: PostEditKind.Media,
           payload: {
@@ -183,7 +223,7 @@ export class TelegramPostComposerService {
             messageId,
             media: {
               type: TGInputMediaType.Photo,
-              media: posterUrl,
+              media: mediaReference,
               caption,
               parse_mode: TGParseMode.HTML,
             },
@@ -192,7 +232,7 @@ export class TelegramPostComposerService {
       }
     }
 
-    if (post?.fileId) {
+    if (post.fileId) {
       return {
         kind: PostEditKind.Caption,
         payload: {
@@ -405,26 +445,26 @@ export class TelegramPostComposerService {
     const caption = this.composeWeeklyDigestCaption(gigs);
 
     const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
-    const posterItems = firstChunk.flatMap((gig) => {
-      const posterReference = this.getPosterReferenceForDigestAlbum(gig);
-      if (posterReference === undefined || posterReference === '') {
+    const digestMediaItems = firstChunk.flatMap((gig) => {
+      const mediaReference = this.getDigestMediaReference(gig);
+      if (mediaReference === undefined || mediaReference === '') {
         return [];
       }
-      return [{ posterReference, publicId: gig.publicId }];
+      return [{ mediaReference, publicId: gig.publicId }];
     });
 
-    if (posterItems.length >= 2) {
-      const media: TGInputMedia[] = posterItems.map((item, index) =>
+    if (digestMediaItems.length >= 2) {
+      const media: TGInputMedia[] = digestMediaItems.map((item, index) =>
         index === 0
           ? {
               type: TGInputMediaType.Photo,
-              media: item.posterReference,
+              media: item.mediaReference,
               caption,
               parse_mode: TGParseMode.HTML,
             }
           : {
               type: TGInputMediaType.Photo,
-              media: item.posterReference,
+              media: item.mediaReference,
             },
       );
 
@@ -434,19 +474,19 @@ export class TelegramPostComposerService {
           chat_id: chatId,
           media,
         },
-        mediaItems: posterItems.map((item, index) => ({
+        mediaItems: digestMediaItems.map((item, index) => ({
           position: index + 1,
           publicId: item.publicId,
         })),
       };
     }
 
-    if (posterItems.length === 1) {
+    if (digestMediaItems.length === 1) {
       return {
         kind: WeeklyDigestMainChannelSendKind.SendPhoto,
         payload: {
           chat_id: chatId,
-          photo: posterItems[0].posterReference,
+          photo: digestMediaItems[0].mediaReference,
           caption,
           parse_mode: TGParseMode.HTML,
         },
@@ -463,7 +503,7 @@ export class TelegramPostComposerService {
     };
   }
 
-  getPosterReferenceForDigestAlbum(gig: PlainGig): string | undefined {
+  getDigestMediaReference(gig: PlainGig): string | undefined {
     const moderationPost = this.pickTgPost(gig.posts, PostType.Moderation);
     return moderationPost?.fileId ?? this.getTelegramPosterUrl(gig.poster);
   }
@@ -518,18 +558,35 @@ export class TelegramPostComposerService {
     };
   }
 
-  composeGigCandidateIntakePost(gigCandidate: GigCandidate): TGSendPhoto {
+  composeGigCandidateIntakePost(
+    gigCandidate: GigCandidate,
+  ): TGSendMessage | TGSendPhoto {
     const chatId = this.requireChannelId(
       process.env.INTAKE_CHANNEL_ID,
       'INTAKE_CHANNEL_ID',
       'intake',
     );
 
+    const replyMarkup = this.buildGigCandidateIntakeReplyMarkup(gigCandidate);
+    const poster = this.getTelegramPosterUrl(gigCandidate.gigDraft.poster);
+    if (poster === undefined || poster === '') {
+      return {
+        chat_id: chatId,
+        text: this.buildGigCandidateCaption({
+          gigCandidate,
+          channelPurpose: 'intake',
+        }),
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
+        reply_markup: replyMarkup,
+      };
+    }
+
     return this.composeGigCandidateChannelPost({
       gigCandidate,
       chatId,
       channelPurpose: 'intake',
-      replyMarkup: this.buildGigCandidateIntakeReplyMarkup(gigCandidate),
+      replyMarkup,
     });
   }
 
@@ -605,53 +662,96 @@ export class TelegramPostComposerService {
 
   composeRejectedGigCandidatePostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
-  ): TGEditMessageCaption {
+  ): TelegramPostEditComposition {
     const channelPurpose =
       params.post.type === PostType.Intake ? 'intake' : 'moderation';
 
-    return {
-      chatId: params.post.chatId,
-      messageId: params.post.id,
-      caption: this.buildGigCandidateCaption({
+    return this.composeGigCandidateExistingPostEdit({
+      post: params.post,
+      text: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
         channelPurpose,
       }),
-      parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
-    };
+    });
   }
 
   composeGigCandidateIntakePostAfterModerationEdit(
     params: ComposeGigCandidateIntakePostAfterModerationEditParams,
-  ): TGEditMessageCaption {
-    return {
-      chatId: params.intakePost.chatId,
-      messageId: params.intakePost.id,
-      caption: this.buildGigCandidateCaption({
+  ): TelegramPostEditComposition {
+    return this.composeGigCandidateExistingPostEdit({
+      post: params.intakePost,
+      text: this.buildGigCandidateCaption({
         gigCandidate: params.gigCandidate,
         channelPurpose: 'intake',
         moderationPost: params.moderationPost,
       }),
-      parseMode: TGParseMode.HTML,
       replyMarkup: { inline_keyboard: [] },
-    };
+    });
   }
 
-  composeGigCandidateModerationPostEdit(
-    params: ComposeGigCandidateModerationPostEditParams,
-  ): TGEditMessageCaption {
+  composeGigCandidatePostEdit(
+    params: ComposeGigCandidatePostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.to !== Messenger.Telegram) {
+      throw new BadRequestException(
+        'Cannot edit a non-Telegram GigCandidate post',
+      );
+    }
+    if (params.post.type !== PostType.Moderation) {
+      throw new BadRequestException(
+        `Cannot edit a ${params.post.type} post for a GigCandidate`,
+      );
+    }
+    return this.composeGigCandidateModerationPostEdit(params);
+  }
+
+  private composeGigCandidateModerationPostEdit(
+    params: ComposeGigCandidatePostEditParams,
+  ): TelegramPostEditComposition {
+    const caption = this.buildGigCandidateCaption({
+      gigCandidate: params.gigCandidate,
+      channelPurpose: 'moderation',
+    });
+    const replyMarkup = this.buildGigCandidateModerationReplyMarkup({
+      gigCandidate: params.gigCandidate,
+      expectedVersion: params.gigCandidate.version,
+    });
+
+    if (params.isMediaUpdateRequired) {
+      const posterUrl = this.getTelegramPosterUrl(
+        params.gigCandidate.gigDraft.poster,
+      );
+      if (posterUrl === undefined || posterUrl === '') {
+        throw new BadRequestException(
+          'Cannot update GigCandidate moderation post media: gigCandidate has no poster URL.',
+        );
+      }
+      return {
+        kind: PostEditKind.Media,
+        payload: {
+          chatId: params.post.chatId,
+          messageId: params.post.id,
+          media: {
+            type: TGInputMediaType.Photo,
+            media: posterUrl,
+            caption,
+            parse_mode: TGParseMode.HTML,
+          },
+          replyMarkup,
+        },
+      };
+    }
+
     return {
-      chatId: params.moderationPost.chatId,
-      messageId: params.moderationPost.id,
-      caption: this.buildGigCandidateCaption({
-        gigCandidate: params.gigCandidate,
-        channelPurpose: 'moderation',
-      }),
-      parseMode: TGParseMode.HTML,
-      replyMarkup: this.buildGigCandidateModerationReplyMarkup({
-        gigCandidate: params.gigCandidate,
-        expectedVersion: params.gigCandidate.version,
-      }),
+      kind: PostEditKind.Caption,
+      payload: {
+        chatId: params.post.chatId,
+        messageId: params.post.id,
+        caption,
+        parseMode: TGParseMode.HTML,
+        replyMarkup,
+      },
     };
   }
 
@@ -676,6 +776,35 @@ export class TelegramPostComposerService {
       }),
       parse_mode: TGParseMode.HTML,
       reply_markup: params.replyMarkup,
+    };
+  }
+
+  private composeGigCandidateExistingPostEdit(
+    params: ComposeGigCandidateExistingPostEditParams,
+  ): TelegramPostEditComposition {
+    if (params.post.fileId === undefined) {
+      return {
+        kind: PostEditKind.Text,
+        payload: {
+          chatId: params.post.chatId,
+          messageId: params.post.id,
+          text: params.text,
+          parseMode: TGParseMode.HTML,
+          disableWebPagePreview: true,
+          replyMarkup: params.replyMarkup,
+        },
+      };
+    }
+
+    return {
+      kind: PostEditKind.Caption,
+      payload: {
+        chatId: params.post.chatId,
+        messageId: params.post.id,
+        caption: params.text,
+        parseMode: TGParseMode.HTML,
+        replyMarkup: params.replyMarkup,
+      },
     };
   }
 
@@ -999,46 +1128,6 @@ export class TelegramPostComposerService {
       : undefined;
   }
 
-  private buildModerationCaption(
-    payload: BuildModerationCaptionPayload,
-  ): string {
-    const statusLine = this.buildModerationLinks({
-      mainPostUrl: payload.mainPostUrl,
-      adminGigUrl: payload.adminGigUrl,
-    });
-
-    if (statusLine === '') {
-      return payload.body;
-    }
-
-    return this.postTemplates.render(TELEGRAM_TEMPLATE_KEYS.moderationGig, {
-      statusLine,
-      body: payload.body,
-    });
-  }
-
-  private buildModerationLinks(params: BuildModerationLinksParams): string {
-    const statusLinks = [
-      params.mainPostUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkSeePost,
-            { url: params.mainPostUrl },
-          )
-        : undefined,
-      params.adminGigUrl
-        ? this.postTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.moderationLinkOpenAdmin,
-            { url: params.adminGigUrl },
-          )
-        : undefined,
-    ].filter(Boolean);
-
-    if (statusLinks.length === 0) {
-      return '';
-    }
-    return statusLinks.join(' | ');
-  }
-
   private buildTelegramMiniAppUrl(
     action: TelegramMiniAppStartAction,
     resourceId: string,
@@ -1047,16 +1136,6 @@ export class TelegramPostComposerService {
     return miniAppBaseUrl
       ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${TELEGRAM_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
       : undefined;
-  }
-
-  private buildGigBodyCaption(gig: PlainGig): string {
-    return this.buildCaption({
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
-    });
   }
 
   private getAppBaseUrl(): string {

@@ -1,9 +1,6 @@
 export const TELEGRAM_TEMPLATE_KEYS = {
   mainGigWithLink: 'mainGig.withLink',
   mainGigWithoutLink: 'mainGig.withoutLink',
-  moderationGig: 'moderationGig',
-  moderationLinkSeePost: 'moderation.link.seePost',
-  moderationLinkOpenAdmin: 'moderation.link.openAdmin',
   gigTitleWithLink: 'gigTitle.withLink',
   gigTitleWithoutLink: 'gigTitle.withoutLink',
   weeklyDigestEmpty: 'weeklyDigest.empty',

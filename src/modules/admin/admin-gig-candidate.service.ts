@@ -156,6 +156,6 @@ export class AdminGigCandidateService {
       ),
     ];
     const gigs = await this.gigService.getGigsByIds(gigIds);
-    return new Map(gigs.map((gig) => [gig._id.toString(), gig]));
+    return new Map(gigs.map((gig) => [gig.id, gig]));
   }
 }

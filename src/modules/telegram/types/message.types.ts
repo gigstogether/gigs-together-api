@@ -1,6 +1,5 @@
 import type { TGChat } from './chat.types';
 import type { TGUser } from './user.types';
-import type { TGInlineKeyboardMarkup } from './update.types';
 
 export type TGChatId = string | number;
 
@@ -25,14 +24,23 @@ export interface TGSendMessage {
   text: string;
   parse_mode?: TGParseMode;
   disable_web_page_preview?: boolean;
-
-  [key: string]: unknown;
+  reply_markup?: TGInlineKeyboardMarkup;
 }
 
 export interface TGInaccessibleMessage {
   chat: TGChat;
   message_id: number;
   date: 0; // Always 0. The field can be used to differentiate regular and inaccessible messages.
+}
+
+export interface TGInlineKeyboardMarkup {
+  inline_keyboard: TGInlineKeyboardButton[][];
+}
+
+interface TGInlineKeyboardButton {
+  text: string;
+  url?: string;
+  callback_data?: string;
 }
 
 export interface TGEditMessageReplyMarkup {
@@ -91,10 +99,13 @@ export interface TGEditMessageMedia {
   replyMarkup?: TGInlineKeyboardMarkup;
 }
 
-export type InputFile =
-  | Buffer
-  // | Readable
-  | { buffer: Buffer; filename: string; contentType?: string };
+export interface InputFileData {
+  buffer: Buffer;
+  filename: string;
+  contentType?: string;
+}
+
+export type InputFile = Buffer | InputFileData;
 
 export interface TGSendPhoto {
   chat_id: TGChatId;

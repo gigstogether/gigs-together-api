@@ -29,7 +29,7 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
 
   const date = msToYmd(gig.date);
   if (!date) {
-    throw new Error(`Gig ${String(gig._id)} is missing a valid event date`);
+    throw new Error(`Gig ${gig.id} is missing a valid event date`);
   }
 
   const ticketsUrl = (gig.ticketsUrl ?? '').trim();

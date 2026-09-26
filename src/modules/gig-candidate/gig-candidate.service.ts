@@ -2,28 +2,34 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { isAxiosError } from 'axios';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import { getBiggestTgPhotoFileId } from '../telegram/utils/photo';
-import type { TGMessage } from '../telegram/types/message.types';
+import type { TelegramPostSendResult } from '../telegram/telegram.service';
+import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
+import type { GigData } from '../gig/types/gig.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
-import { isRecord } from '../../shared/utils/is-record';
+import { formatErrorMessage } from '../../shared/utils/logging';
+import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/types/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/types/telegram-post-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
-import type { GigCandidateRepository } from './repositories/gig-candidate.repository';
+import type {
+  GigCandidateRepository,
+  SendGigCandidateToModerationWithPosterParams,
+} from './repositories/gig-candidate.repository';
 import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import type {
   GigApprovalResult,
@@ -32,21 +38,17 @@ import type {
 } from './repositories/gig-candidate-approval.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
+import type { GigCandidate } from './types/gig-candidate.types';
 import type {
-  GigCandidate,
-  ApproveGigCandidateParams,
-  CreateAdminGigCandidateParams,
-  FindGigCandidatesParams,
-  GigCandidateDraftLookupResult,
-  LookupGigCandidateDraftParams,
-  RejectGigCandidateParams,
-  SendGigCandidateToModerationParams,
-  UpdateAdminGigCandidateDraftParams,
-  UpdateGigCandidateDraftParams,
-} from './types/gig-candidate.types';
-import type { GigPosterFile } from '../gig/types/gig-poster.types';
+  GigPosterFile,
+  PreparedGigPosterFile,
+} from '../gig/types/gig-poster.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
+import type {
+  AdminGigCandidateListSortBy,
+  AdminGigCandidateListSortOrder,
+} from './gig-candidate-list-sort';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -57,6 +59,68 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+
+export interface FindGigCandidatesParams {
+  status: GigCandidateStatus;
+  limit: number;
+  sortBy?: AdminGigCandidateListSortBy;
+  sortOrder?: AdminGigCandidateListSortOrder;
+}
+
+export interface CreateAdminGigCandidateParams {
+  userId: string;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface UpdateAdminGigCandidateDraftParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
+  posterUrl?: string;
+  posterFile?: GigPosterFile;
+}
+
+export interface LookupGigCandidateDraftParams {
+  title: string;
+  location: string;
+}
+
+export interface GigCandidateDraftLookupResult {
+  title: string;
+  date: string;
+  endDate?: string;
+  city: string;
+  country: string;
+  venue: string;
+  ticketsUrl: string;
+  posterUrl?: string;
+}
+
+export interface SendGigCandidateToModerationParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+}
+
+export interface RejectGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  rejectedByUserId: string;
+}
+
+export interface ApproveGigCandidateParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  approvedByUserId: string;
+}
+
+export interface UpdateGigCandidateDraftApplicationParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  gigDraft: Partial<GigData>;
+  posterFile?: PreparedGigPosterFile;
+}
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -75,6 +139,16 @@ interface PrepareGigCandidateDraftPosterParams {
   shouldUseDefaultPoster: boolean;
 }
 
+interface PreparedGigCandidateDraftPoster {
+  gigDraft: Partial<GigCandidate['gigDraft']>;
+  posterFile?: PreparedGigPosterFile;
+}
+
+interface CreatedGigCandidate {
+  gigCandidate: GigCandidate;
+  posterFile?: PreparedGigPosterFile;
+}
+
 interface ParsedCreateGigCandidateFields {
   title: string;
   date: string;
@@ -89,7 +163,7 @@ interface ParsedCreateGigCandidateFields {
 interface StoreGigCandidateTelegramPostParams {
   gigCandidate: GigCandidate;
   postType: PostType.Intake | PostType.Moderation;
-  telegramMessage: TGMessage | undefined;
+  telegramPost: TelegramPostSendResult | undefined;
 }
 
 interface GigCandidateApprovalTransactionResult {
@@ -120,12 +194,19 @@ export class GigCandidateService {
   async handleSubmit(
     params: HandleGigCandidateSubmitParams,
   ): Promise<V1CreateGigCandidateResponseBody> {
-    const saved = await this.createGigCandidate(params);
+    const created = await this.createGigCandidate(params);
+    const saved = created.gigCandidate;
+    const telegramPosterFile = mapPreparedGigPosterToTelegramInputFile(
+      created.posterFile,
+    );
 
-    let telegramIntakePost: TGMessage | undefined;
+    let telegramIntakePost: TelegramPostSendResult | undefined;
     try {
       telegramIntakePost =
-        await this.telegramService.sendGigCandidateIntakePost(saved);
+        await this.telegramService.sendGigCandidateIntakePost(
+          saved,
+          telegramPosterFile,
+        );
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
     }
@@ -133,7 +214,7 @@ export class GigCandidateService {
     await this.storeGigCandidateTelegramPostBestEffort({
       gigCandidate: saved,
       postType: PostType.Intake,
-      telegramMessage: telegramIntakePost,
+      telegramPost: telegramIntakePost,
     });
     await this.sendGigCandidateSubmittedFeedbackBestEffort(saved);
 
@@ -160,7 +241,7 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const gigDraft = await this.prepareGigCandidateDraftPoster({
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
       gigCandidateId,
       gigDraft: params.gigDraft,
       posterUrl: params.posterUrl,
@@ -176,11 +257,14 @@ export class GigCandidateService {
         userId: params.userId,
         origin: { type: 'admin' },
       },
-      gigDraft,
+      gigDraft: preparedPoster.gigDraft,
     });
 
     const withModerationPost =
-      await this.ensureGigCandidateModerationPostBestEffort(saved);
+      await this.ensureGigCandidateModerationPostBestEffort(
+        saved,
+        preparedPoster.posterFile,
+      );
     await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
       withModerationPost,
     );
@@ -210,7 +294,7 @@ export class GigCandidateService {
       command,
     );
 
-    const gigDraft = await this.prepareGigCandidateDraftPoster({
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
       gigCandidateId: currentGigCandidate.id,
       gigDraft: params.gigDraft,
       posterUrl: params.posterUrl,
@@ -222,7 +306,8 @@ export class GigCandidateService {
     return this.updateGigCandidateDraft({
       gigCandidateId: params.gigCandidateId,
       expectedVersion: params.expectedVersion,
-      gigDraft,
+      gigDraft: preparedPoster.gigDraft,
+      posterFile: preparedPoster.posterFile,
     });
   }
 
@@ -256,6 +341,7 @@ export class GigCandidateService {
     });
     let reviewingGigCandidate = currentGigCandidate;
     let didTransition = false;
+    let moderationPosterFile: PreparedGigPosterFile | undefined;
 
     if (!policy.isIdempotent) {
       this.assertExpectedVersionMatches(
@@ -264,11 +350,32 @@ export class GigCandidateService {
         command,
       );
 
+      const preparedPoster = await this.prepareGigCandidateDraftPoster({
+        gigCandidateId: currentGigCandidate.id,
+        gigDraft: currentGigCandidate.gigDraft,
+        existingPoster: currentGigCandidate.gigDraft.poster,
+        shouldUseDefaultPoster: true,
+      });
+      const moderationPoster = preparedPoster.gigDraft.poster;
+      if (moderationPoster === undefined) {
+        throw new InternalServerErrorException(
+          `Cannot send GigCandidate ${currentGigCandidate.id} to moderation without a poster.`,
+        );
+      }
+      const repositoryParams: SendGigCandidateToModerationWithPosterParams = {
+        gigCandidateId: params.gigCandidateId,
+        expectedVersion: params.expectedVersion,
+        poster: moderationPoster,
+      };
+
       const updated =
-        await this.gigCandidateRepository.sendGigCandidateToModeration(params);
+        await this.gigCandidateRepository.sendGigCandidateToModeration(
+          repositoryParams,
+        );
       if (updated) {
         reviewingGigCandidate = updated;
         didTransition = true;
+        moderationPosterFile = preparedPoster.posterFile;
       } else {
         const latest = await this.getByIdOrThrow(params.gigCandidateId);
         const latestPolicy = getGigCandidateTransitionPolicy({
@@ -290,6 +397,7 @@ export class GigCandidateService {
     const withModerationPost =
       await this.ensureGigCandidateModerationPostBestEffort(
         reviewingGigCandidate,
+        moderationPosterFile,
       );
     await this.updateGigCandidateIntakePostAfterModerationBestEffort(
       withModerationPost,
@@ -373,8 +481,9 @@ export class GigCandidateService {
   }
 
   async updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftParams,
+    params: UpdateGigCandidateDraftApplicationParams,
   ): Promise<GigCandidate> {
+    const { posterFile, ...repositoryParams } = params;
     const command = GigCandidateCommand.UpdateDraft;
     this.assertExpectedVersionIsValid(
       params.gigCandidateId,
@@ -395,10 +504,14 @@ export class GigCandidateService {
     );
 
     const updated =
-      await this.gigCandidateRepository.updateGigCandidateDraft(params);
+      await this.gigCandidateRepository.updateGigCandidateDraft(
+        repositoryParams,
+      );
     if (updated) {
-      await this.updateGigCandidateModerationPostBestEffort(updated);
-      return updated;
+      return this.updateGigCandidateModerationPostBestEffort(
+        updated,
+        posterFile,
+      );
     }
 
     const latest = await this.getByIdOrThrow(params.gigCandidateId);
@@ -416,7 +529,7 @@ export class GigCandidateService {
 
   private async createGigCandidate(
     params: HandleGigCandidateSubmitParams,
-  ): Promise<GigCandidate> {
+  ): Promise<CreatedGigCandidate> {
     const { body, user, posterFile } = params;
     const gig = this.parseAndValidateCreateBody(body.gig);
 
@@ -427,26 +540,31 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const posterPublicId = `gc-${id}`;
+    const gigDraft: Partial<GigCandidate['gigDraft']> = {
+      title: gig.title,
+      date: dateMs,
+      city: gig.city,
+      country: gig.country,
+    };
+    if (endDateMs !== undefined) {
+      gigDraft.endDate = endDateMs;
+    }
+    if (gig.venue !== undefined) {
+      gigDraft.venue = gig.venue;
+    }
+    if (gig.ticketsUrl !== undefined) {
+      gigDraft.ticketsUrl = gig.ticketsUrl;
+    }
 
-    const explicitPosterUrl = (gig.posterUrl ?? '').trim() || undefined;
-    const defaultPosterUrl =
-      (process.env.DEFAULT_GIG_POSTER_URL ?? '').trim() || undefined;
-    const posterUrl =
-      explicitPosterUrl ?? (posterFile ? undefined : defaultPosterUrl);
-
-    const poster = await this.gigPosterService.upload({
-      url: posterUrl,
-      file: posterFile,
-      context: {
-        date: gig.date,
-        city: gig.city,
-        country: gig.country,
-        publicId: posterPublicId,
-      },
+    const preparedPoster = await this.prepareGigCandidateDraftPoster({
+      gigCandidateId: id,
+      gigDraft,
+      posterUrl: gig.posterUrl,
+      posterFile,
+      shouldUseDefaultPoster: false,
     });
 
-    return this.gigCandidateRepository.createGigCandidate({
+    const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
       status: GigCandidateStatus.New,
       source: {
@@ -454,17 +572,14 @@ export class GigCandidateService {
         userId: user.userId,
         origin: { type: 'form' },
       },
-      gigDraft: {
-        title: gig.title,
-        date: dateMs,
-        ...(endDateMs !== undefined ? { endDate: endDateMs } : {}),
-        city: gig.city,
-        country: gig.country,
-        ...(gig.venue !== undefined ? { venue: gig.venue } : {}),
-        ...(gig.ticketsUrl !== undefined ? { ticketsUrl: gig.ticketsUrl } : {}),
-        ...(poster !== undefined ? { poster } : {}),
-      },
+      gigDraft: preparedPoster.gigDraft,
     });
+
+    const result: CreatedGigCandidate = { gigCandidate };
+    if (preparedPoster.posterFile !== undefined) {
+      result.posterFile = preparedPoster.posterFile;
+    }
+    return result;
   }
 
   private async approveGigCandidateInTransaction(
@@ -611,11 +726,8 @@ export class GigCandidateService {
         },
       });
     } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'updateGigModerationPost',
-        gigCandidate.id,
-        gig.id,
-        e,
+      this.logger.warn(
+        `updateGigModerationPost failed after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}: ${formatTelegramErrorMessage(e)}`,
       );
     }
   }
@@ -627,7 +739,7 @@ export class GigCandidateService {
     e: unknown,
   ): void {
     this.logger.warn(
-      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${this.formatErrorMessage(e)}`,
+      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${formatErrorMessage(e)}`,
     );
   }
 
@@ -717,47 +829,71 @@ export class GigCandidateService {
 
   private async prepareGigCandidateDraftPoster(
     params: PrepareGigCandidateDraftPosterParams,
-  ): Promise<Partial<GigCandidate['gigDraft']>> {
+  ): Promise<PreparedGigCandidateDraftPoster> {
     const gigDraft = { ...params.gigDraft };
     delete gigDraft.poster;
 
     const explicitPosterUrl = params.posterUrl?.trim() || undefined;
-    const defaultPosterUrl = params.shouldUseDefaultPoster
-      ? process.env.DEFAULT_GIG_POSTER_URL?.trim() || undefined
-      : undefined;
-    const posterUrl =
-      explicitPosterUrl ?? (params.posterFile ? undefined : defaultPosterUrl);
-    const poster =
-      params.posterFile || posterUrl
-        ? await this.gigPosterService.upload({
-            url: posterUrl,
-            file: params.posterFile,
-            context: {
-              date: gigDraft.date ?? new Date(),
-              city: gigDraft.city ?? 'unknown',
-              country: gigDraft.country ?? 'unknown',
-              publicId: `gc-${params.gigCandidateId}`,
-            },
-          })
-        : params.existingPoster;
+    let posterUrl = explicitPosterUrl;
+    if (
+      posterUrl === undefined &&
+      params.posterFile === undefined &&
+      params.existingPoster === undefined &&
+      params.shouldUseDefaultPoster
+    ) {
+      posterUrl = process.env.DEFAULT_GIG_POSTER_URL?.trim() || undefined;
+    }
+    let poster = params.existingPoster;
+    let preparedPosterFile: PreparedGigPosterFile | undefined;
+    if (params.posterFile !== undefined || posterUrl !== undefined) {
+      const posterUploadResult = await this.gigPosterService.upload({
+        url: posterUrl,
+        file: params.posterFile,
+        context: {
+          date: gigDraft.date ?? new Date(),
+          city: gigDraft.city ?? 'unknown',
+          country: gigDraft.country ?? 'unknown',
+          publicId: `gc-${params.gigCandidateId}`,
+        },
+      });
+      poster = posterUploadResult?.storedPoster;
+      preparedPosterFile = posterUploadResult?.posterFile;
+    }
 
-    return {
-      ...gigDraft,
-      ...(poster !== undefined ? { poster } : {}),
-    };
+    if (poster !== undefined) {
+      gigDraft.poster = poster;
+    }
+
+    if (params.shouldUseDefaultPoster && gigDraft.poster === undefined) {
+      throw new InternalServerErrorException(
+        `Cannot prepare GigCandidate ${params.gigCandidateId} for moderation without a poster.`,
+      );
+    }
+
+    const result: PreparedGigCandidateDraftPoster = { gigDraft };
+    if (preparedPosterFile !== undefined) {
+      result.posterFile = preparedPosterFile;
+    }
+    return result;
   }
 
   private async ensureGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
+    posterFile?: PreparedGigPosterFile,
   ): Promise<GigCandidate> {
     if (this.findTelegramPost(gigCandidate, PostType.Moderation)) {
       return gigCandidate;
     }
 
-    let telegramModerationPost: TGMessage | undefined;
+    let telegramModerationPost: TelegramPostSendResult | undefined;
     try {
+      const telegramPosterFile =
+        mapPreparedGigPosterToTelegramInputFile(posterFile);
       telegramModerationPost =
-        await this.telegramService.sendGigCandidateModerationPost(gigCandidate);
+        await this.telegramService.sendGigCandidateModerationPost(
+          gigCandidate,
+          telegramPosterFile,
+        );
     } catch (e) {
       this.logTelegramFailure(
         'sendGigCandidateModerationPost',
@@ -770,7 +906,7 @@ export class GigCandidateService {
     const stored = await this.storeGigCandidateTelegramPostBestEffort({
       gigCandidate,
       postType: PostType.Moderation,
-      telegramMessage: telegramModerationPost,
+      telegramPost: telegramModerationPost,
     });
     return stored ?? gigCandidate;
   }
@@ -778,43 +914,47 @@ export class GigCandidateService {
   private async storeGigCandidateTelegramPostBestEffort(
     params: StoreGigCandidateTelegramPostParams,
   ): Promise<GigCandidate | null> {
-    const { gigCandidate, postType, telegramMessage } = params;
-    if (!telegramMessage) {
+    const { gigCandidate, postType, telegramPost } = params;
+    if (!telegramPost) {
       this.logger.warn(
         `Telegram ${postType} send returned no message for gigCandidateId=${gigCandidate.id}`,
       );
       return null;
     }
 
-    const chatId = telegramMessage.sender_chat?.id ?? telegramMessage.chat?.id;
-    const messageId = telegramMessage.message_id;
-    if (chatId === undefined || messageId === undefined) {
-      this.logger.error(
-        `Telegram ${postType} message reference is incomplete for gigCandidateId=${gigCandidate.id}`,
-      );
-      return null;
-    }
-    const biggestTelegramPhotoFileId = getBiggestTgPhotoFileId(
-      telegramMessage.photo,
-    );
-
     try {
+      const postDate = telegramPost.sentAtSeconds * 1_000; // Telegram date is Unix seconds; post date is Unix ms
+      let post: GigCandidate['posts'][number];
+      if (telegramPost.fileId !== undefined) {
+        post = {
+          id: telegramPost.messageId,
+          chatId: telegramPost.chatId,
+          fileId: telegramPost.fileId,
+          to: Messenger.Telegram,
+          type: postType,
+          date: postDate,
+        };
+      } else {
+        if (postType !== PostType.Intake) {
+          this.logger.error(
+            `Telegram ${postType} post has no fileId for gigCandidateId=${gigCandidate.id}`,
+          );
+          return null;
+        }
+        post = {
+          id: telegramPost.messageId,
+          chatId: telegramPost.chatId,
+          to: Messenger.Telegram,
+          type: PostType.Intake,
+          date: postDate,
+        };
+      }
+
       const updated =
         await this.gigCandidateRepository.appendGigCandidatePostIfAbsent({
           gigCandidateId: gigCandidate.id,
           expectedVersion: gigCandidate.version,
-          post: {
-            id: messageId,
-            chatId,
-            ...(biggestTelegramPhotoFileId !== undefined
-              ? {
-                  fileId: biggestTelegramPhotoFileId,
-                }
-              : {}),
-            to: Messenger.Telegram,
-            type: postType,
-            date: telegramMessage.date * 1_000, // Telegram date is Unix seconds; post date is Unix ms
-          },
+          post,
         });
       if (updated) {
         return updated;
@@ -831,7 +971,7 @@ export class GigCandidateService {
       return latest;
     } catch (e) {
       this.logger.error(
-        `Persisting Telegram ${postType} reference failed for gigCandidateId=${gigCandidate.id}: ${this.formatErrorMessage(e)}`,
+        `Persisting Telegram ${postType} reference failed for gigCandidateId=${gigCandidate.id}: ${formatTelegramErrorMessage(e)}`,
       );
       return null;
     }
@@ -1014,27 +1154,63 @@ export class GigCandidateService {
 
   private async updateGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
-  ): Promise<void> {
+    posterFile?: PreparedGigPosterFile,
+  ): Promise<GigCandidate> {
     const moderationPost = this.findTelegramPost(
       gigCandidate,
       PostType.Moderation,
     );
     if (!moderationPost) {
-      return;
+      return gigCandidate;
     }
 
     try {
-      await this.telegramService.updateGigCandidateModerationPost({
+      const isMediaUpdateRequired = posterFile !== undefined;
+      const telegramPosterFile =
+        mapPreparedGigPosterToTelegramInputFile(posterFile);
+      const edited = await this.telegramService.editGigCandidatePost({
         gigCandidate,
-        moderationPost,
+        post: moderationPost,
+        isMediaUpdateRequired,
+        posterFile: telegramPosterFile,
       });
-    } catch (e) {
-      this.logTelegramFailure(
-        'updateGigCandidateModerationPost',
-        gigCandidate.id,
-        e,
+      if (!isMediaUpdateRequired) {
+        return gigCandidate;
+      }
+      if (edited.kind !== PostEditKind.Media) {
+        this.logger.warn(
+          `Telegram moderation media was not updated for gigCandidateId=${gigCandidate.id}`,
+        );
+        return gigCandidate;
+      }
+      if (edited.fileId === undefined) {
+        this.logger.error(
+          `Telegram moderation media update returned no photo fileId for gigCandidateId=${gigCandidate.id}`,
+        );
+        return gigCandidate;
+      }
+
+      const updated =
+        await this.gigCandidateRepository.updateGigCandidateModerationPostFileId(
+          {
+            gigCandidateId: gigCandidate.id,
+            expectedVersion: gigCandidate.version,
+            messageId: moderationPost.id,
+            chatId: moderationPost.chatId,
+            fileId: edited.fileId,
+          },
+        );
+      if (updated) {
+        return updated;
+      }
+
+      this.logger.error(
+        `Telegram moderation fileId was not stored for gigCandidateId=${gigCandidate.id} expectedVersion=${gigCandidate.version}`,
       );
+    } catch (e) {
+      this.logTelegramFailure('editGigCandidatePost', gigCandidate.id, e);
     }
+    return gigCandidate;
   }
 
   private findTelegramPost(
@@ -1067,29 +1243,8 @@ export class GigCandidateService {
     e: unknown,
   ): void {
     this.logger.warn(
-      `${operation} failed for gigCandidateId=${gigCandidateId}: ${this.formatErrorMessage(e)}`,
+      `${operation} failed for gigCandidateId=${gigCandidateId}: ${formatTelegramErrorMessage(e)}`,
     );
-  }
-
-  private formatErrorMessage(e: unknown): string {
-    if (!isAxiosError(e)) {
-      return e instanceof Error ? e.message : 'unknown error';
-    }
-
-    const parts = [e.message];
-    if (e.response?.status !== undefined) {
-      parts.push(`httpStatus=${e.response.status}`);
-    }
-    const responseData = e.response?.data;
-    if (isRecord(responseData)) {
-      if (typeof responseData.error_code === 'number') {
-        parts.push(`telegramErrorCode=${responseData.error_code}`);
-      }
-      if (typeof responseData.description === 'string') {
-        parts.push(`telegramDescription=${responseData.description}`);
-      }
-    }
-    return parts.join('; ');
   }
 
   private assertExpectedVersionIsValid(

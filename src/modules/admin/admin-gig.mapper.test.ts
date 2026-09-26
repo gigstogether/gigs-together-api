@@ -1,13 +1,11 @@
-import { Types } from 'mongoose';
-
 import type { PlainGig } from '../gig/types/gig.types';
 import { mapGigToFormData } from './admin-gig.mapper';
 
 describe('mapGigToFormData', () => {
   it('should map required source for the admin response', () => {
-    const userId = new Types.ObjectId();
+    const userId = '507f1f77bcf86cd799439012';
     const gig: PlainGig = {
-      _id: new Types.ObjectId(),
+      id: '507f1f77bcf86cd799439011',
       publicId: 'test-gig-2026-09-17',
       title: 'Test',
       date: Date.UTC(2026, 8, 17),
@@ -36,7 +34,7 @@ describe('mapGigToFormData', () => {
       publicId: gig.publicId,
       source: {
         type: 'user',
-        userId: String(userId),
+        userId,
         displayName: 'Test Admin',
         isCurrentlyAdmin: true,
         telegramUsername: 'test_admin',
