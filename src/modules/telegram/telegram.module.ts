@@ -4,9 +4,11 @@ import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
 import { TelegramDigestComposerService } from './composers/telegram-digest-composer.service';
 import { TelegramGigCandidateComposerService } from './composers/telegram-gig-candidate-composer.service';
+import { TelegramGigComposerService } from './composers/telegram-gig-composer.service';
 import { TelegramBotReplyService } from './services/telegram-bot-reply.service';
 import { TelegramDigestService } from './services/telegram-digest.service';
 import { TelegramGigCandidateService } from './services/telegram-gig-candidate.service';
+import { TelegramGigService } from './services/telegram-gig.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
@@ -50,9 +52,11 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     TelegramBotReplyComposerService,
     TelegramDigestComposerService,
     TelegramGigCandidateComposerService,
+    TelegramGigComposerService,
     TelegramBotReplyService,
     TelegramDigestService,
     TelegramGigCandidateService,
+    TelegramGigService,
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
@@ -63,6 +67,7 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     TelegramBotReplyService,
     TelegramDigestService,
     TelegramGigCandidateService,
+    TelegramGigService,
     TelegramInitDataAuthService,
   ],
 })

@@ -12,6 +12,8 @@ import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramGigCandidateComposerService } from './composers/telegram-gig-candidate-composer.service';
 import { TelegramGigCandidateService } from './services/telegram-gig-candidate.service';
+import { TelegramGigComposerService } from './composers/telegram-gig-composer.service';
+import { TelegramGigService } from './services/telegram-gig.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -113,6 +115,7 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
 describe('TelegramService', () => {
   let service: TelegramService;
   let telegramGigCandidateService: TelegramGigCandidateService;
+  let telegramGigService: TelegramGigService;
   let testingModule: TestingModule;
   let mockPostTemplates: MockPostTemplates;
 
@@ -146,6 +149,8 @@ describe('TelegramService', () => {
         TelegramPostComposerService,
         TelegramGigCandidateComposerService,
         TelegramGigCandidateService,
+        TelegramGigComposerService,
+        TelegramGigService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -173,6 +178,7 @@ describe('TelegramService', () => {
     telegramGigCandidateService = testingModule.get(
       TelegramGigCandidateService,
     );
+    telegramGigService = testingModule.get(TelegramGigService);
   });
 
   afterEach(() => {
@@ -243,7 +249,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(mainPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: mainPost,
           isMediaUpdateRequired: false,
@@ -276,7 +282,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(mainPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: mainPost,
           isMediaUpdateRequired: false,
@@ -309,7 +315,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(moderationPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: moderationPost,
           isMediaUpdateRequired: false,
@@ -332,7 +338,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(intakePost);
 
       expect(() =>
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: intakePost,
           isMediaUpdateRequired: false,
@@ -407,7 +413,7 @@ describe('TelegramService', () => {
         .mockResolvedValueOnce(mainMessage);
 
       await expect(
-        service.editGigPostsBestEffort({
+        telegramGigService.editPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
           posterFile,
@@ -539,7 +545,7 @@ describe('TelegramService', () => {
         });
 
       await expect(
-        service.editGigPostsBestEffort({
+        telegramGigService.editPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
           posterFile,
@@ -613,7 +619,7 @@ describe('TelegramService', () => {
         fileId: 'existing-file-id',
       });
 
-      await expect(service.sendMainPost(gig)).resolves.toEqual({
+      await expect(telegramGigService.sendMainPost(gig)).resolves.toEqual({
         messageId: 99,
         chatId: -100456,
         sentAtSeconds: 1_700_000_003,
@@ -638,7 +644,7 @@ describe('TelegramService', () => {
         fileId: 'existing-file-id',
       });
 
-      await expect(service.sendMainPost(gig)).rejects.toThrow(
+      await expect(telegramGigService.sendMainPost(gig)).rejects.toThrow(
         'Telegram sent post reference is incomplete',
       );
     });
@@ -926,7 +932,7 @@ describe('TelegramService', () => {
           chat: { id: -100123, type: 'channel' },
         });
 
-      await service.updateGigModerationPost({
+      await telegramGigService.updateModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 7,
         isVisible: true,
@@ -985,7 +991,7 @@ describe('TelegramService', () => {
           chat: { id: -100123, type: 'channel' },
         });
 
-      await service.updateGigModerationPost({
+      await telegramGigService.updateModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 8,
         isVisible: true,

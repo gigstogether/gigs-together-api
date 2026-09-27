@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../calendar/calendar.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GigService } from './gig.service';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
@@ -62,7 +62,7 @@ describe('GigFeedService', () => {
     gigToCalendarPayload: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
-  const telegramService = { pickTgPost: vi.fn() };
+  const telegramGigService = { pickPost: vi.fn() };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
 
   beforeEach(async () => {
@@ -85,7 +85,7 @@ describe('GigFeedService', () => {
     gigService.resolvePublicPostUrl.mockResolvedValue(undefined);
     gigService.gigToCalendarPayload.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    telegramService.pickTgPost.mockReturnValue(undefined);
+    telegramGigService.pickPost.mockReturnValue(undefined);
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
@@ -95,7 +95,7 @@ describe('GigFeedService', () => {
         GigFeedService,
         { provide: GIG_REPOSITORY, useValue: gigRepository },
         { provide: GigService, useValue: gigService },
-        { provide: TelegramService, useValue: telegramService },
+        { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
       ],
     }).compile();

@@ -7,6 +7,7 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramPostComposerService } from './telegram-post-composer.service';
 import { TelegramGigCandidateComposerService } from './composers/telegram-gig-candidate-composer.service';
+import { TelegramGigComposerService } from './composers/telegram-gig-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -91,6 +92,7 @@ function createMockPostTemplates(): MockPostTemplates {
 describe('TelegramPostComposerService', () => {
   let composer: TelegramPostComposerService;
   let gigCandidateComposer: TelegramGigCandidateComposerService;
+  let gigComposer: TelegramGigComposerService;
   let mockPostTemplates: MockPostTemplates;
 
   const mockBucket = {
@@ -105,6 +107,7 @@ describe('TelegramPostComposerService', () => {
       providers: [
         TelegramPostComposerService,
         TelegramGigCandidateComposerService,
+        TelegramGigComposerService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -115,6 +118,7 @@ describe('TelegramPostComposerService', () => {
 
     composer = moduleRef.get(TelegramPostComposerService);
     gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
+    gigComposer = moduleRef.get(TelegramGigComposerService);
   });
 
   afterEach(() => {
@@ -132,13 +136,13 @@ describe('TelegramPostComposerService', () => {
         date: 1_700_000_000_000,
       };
 
-      const result = composer.pickTgPost([post], PostType.Main);
+      const result = gigComposer.pickPost([post], PostType.Main);
 
       expect(result).toBe(post);
     });
 
     it('should return undefined when posts array is missing matching Telegram post', () => {
-      expect(composer.pickTgPost(undefined, PostType.Main)).toBeUndefined();
+      expect(gigComposer.pickPost(undefined, PostType.Main)).toBeUndefined();
     });
   });
 
@@ -165,7 +169,7 @@ describe('TelegramPostComposerService', () => {
   describe('buildGigModerationReplyMarkup', () => {
     it('should return Post callback and edit URL when the Main post does not exist', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
@@ -200,7 +204,7 @@ describe('TelegramPostComposerService', () => {
 
     it('should remove Post button after the Main post is created', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
@@ -227,7 +231,7 @@ describe('TelegramPostComposerService', () => {
 
     it('should replace Hide with Show when the Gig is hidden', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 8,
           isVisible: false,
@@ -256,7 +260,7 @@ describe('TelegramPostComposerService', () => {
   describe('buildGigModerationCaption', () => {
     it('should include the Gig permalink', () => {
       expect(
-        composer.buildGigModerationCaption({
+        gigComposer.buildModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
         }),
@@ -265,7 +269,7 @@ describe('TelegramPostComposerService', () => {
 
     it('should include Telegram post link when the Main post exists', () => {
       expect(
-        composer.buildGigModerationCaption({
+        gigComposer.buildModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
           mainPostUrl: 'https://t.me/gigs/42',
@@ -296,7 +300,7 @@ describe('TelegramPostComposerService', () => {
     it('should build admin Gig Mini App URL from publicId', () => {
       process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
 
-      expect(composer.buildAdminGigUrl('gig-1')).toBe(
+      expect(gigComposer.buildAdminUrl('gig-1')).toBe(
         'https://t.me/GigsTogetherStgBot/admin?startapp=openGig-gig-1',
       );
     });
@@ -361,7 +365,9 @@ describe('TelegramPostComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+      expect(() => gigComposer.composeMainPost(gig)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
@@ -374,7 +380,9 @@ describe('TelegramPostComposerService', () => {
         posts: [],
       } as unknown as PlainGig;
 
-      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+      expect(() => gigComposer.composeMainPost(gig)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should use moderation Telegram file_id as photo when present', () => {
@@ -396,7 +404,7 @@ describe('TelegramPostComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      const payload = composer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost(gig);
 
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
@@ -419,8 +427,8 @@ describe('TelegramPostComposerService', () => {
         poster: { bucketPath: 'gigs/show' },
       } as unknown as PlainGig;
 
-      const firstPayload = composer.composeMainPost(gig);
-      const secondPayload = composer.composeMainPost(gig);
+      const firstPayload = gigComposer.composeMainPost(gig);
+      const secondPayload = gigComposer.composeMainPost(gig);
 
       expect(firstPayload.photo).toBe(
         `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
@@ -443,7 +451,7 @@ describe('TelegramPostComposerService', () => {
         poster: { externalUrl },
       } as unknown as PlainGig;
 
-      const payload = composer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost(gig);
 
       expect(payload.photo).toBe(externalUrl);
     });
@@ -473,7 +481,7 @@ describe('TelegramPostComposerService', () => {
       } as unknown as PlainGig;
       mockBucket.getPublicFileUrl.mockClear();
 
-      const composition = composer.composeGigPostEdit({
+      const composition = gigComposer.composePostEdit({
         gig,
         post: mainPost,
         isMediaUpdateRequired: true,
@@ -512,7 +520,7 @@ describe('TelegramPostComposerService', () => {
       } as unknown as PlainGig;
       mockBucket.getPublicFileUrl.mockClear();
 
-      const composition = composer.composeGigPostEdit({
+      const composition = gigComposer.composePostEdit({
         gig,
         post: mainPost,
         isMediaUpdateRequired: true,

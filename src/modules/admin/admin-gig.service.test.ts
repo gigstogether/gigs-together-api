@@ -6,6 +6,7 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import type { GetPostUrlPayload } from '../telegram/telegram-post-composer.service.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
@@ -105,6 +106,10 @@ describe('AdminGigService', () => {
         AdminGigService,
         { provide: GigService, useValue: gigServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
+        {
+          provide: TelegramGigService,
+          useValue: { pickPost: telegramServiceMock.pickTgPost },
+        },
         { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();

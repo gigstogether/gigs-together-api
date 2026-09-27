@@ -1,4 +1,3 @@
-import type { GigId, GigPost, PlainGig } from '../gig/types/gig.types';
 import type { TGChat } from './types/chat.types';
 import type {
   TGChatId,
@@ -18,14 +17,6 @@ export type TelegramPostEditComposition =
   | { kind: PostEditKind.Media; payload: TGEditMessageMedia }
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
-
-export interface ComposeGigPostEditParams {
-  gig: PlainGig;
-  post: GigPost;
-  isMediaUpdateRequired: boolean;
-  // Telegram accepts either a public URL or a bot-scoped file_id as replacement media.
-  mediaReference?: string;
-}
 
 export interface BuildCaptionPayload {
   date: string | number | Date;
@@ -57,18 +48,3 @@ interface GetPostUrlPayloadByChatUsernameParams extends GetPostUrlPayloadBasePar
 
 export type GetPostUrlPayload =
   GetPostUrlPayloadByChatIdParams | GetPostUrlPayloadByChatUsernameParams;
-
-export interface BuildGigModerationReplyMarkupParams {
-  gigId?: GigId;
-  expectedVersion: number;
-  isVisible: boolean;
-  mainPostUrl?: string;
-  editGigUrl?: string;
-}
-
-export interface BuildGigModerationCaptionPayload {
-  title: string;
-  gigUrl?: string;
-  mainPostUrl?: string;
-  adminGigUrl?: string;
-}

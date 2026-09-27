@@ -6,6 +6,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { GigPosterService } from './gig.poster.service';
@@ -69,7 +70,6 @@ describe('GigService', () => {
     findVisibleDates: vi.fn(),
   };
   const uploadPoster = vi.fn();
-  const pickTgPost = vi.fn();
   const sendMainPost = vi.fn();
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
@@ -92,7 +92,6 @@ describe('GigService', () => {
     });
     gigRepository.findVisibleDates.mockResolvedValue([]);
     uploadPoster.mockResolvedValue(undefined);
-    pickTgPost.mockReturnValue(undefined);
     editGigPostsBestEffort.mockResolvedValue({});
 
     const module: TestingModule = await Test.createTestingModule({
@@ -103,10 +102,16 @@ describe('GigService', () => {
         {
           provide: TelegramService,
           useValue: {
-            pickTgPost,
+            getChatUsername: vi.fn(),
+            getPostUrl: vi.fn(),
+          },
+        },
+        {
+          provide: TelegramGigService,
+          useValue: {
             sendMainPost,
-            editGigPostsBestEffort,
-            updateGigModerationPost,
+            editPostsBestEffort: editGigPostsBestEffort,
+            updateModerationPost: updateGigModerationPost,
           },
         },
         { provide: BucketService, useValue: { getPublicFileUrl: vi.fn() } },

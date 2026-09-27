@@ -18,10 +18,11 @@ import { envBool } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import type {
   EditGigPostsParams,
   UpdateGigModerationPostPayload,
-} from '../telegram/telegram.service.types';
+} from '../telegram/services/telegram-gig.service.types';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -158,6 +159,7 @@ export class GigService {
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
     private readonly telegramService: TelegramService,
+    private readonly telegramGigService: TelegramGigService,
     private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
 
@@ -340,7 +342,7 @@ export class GigService {
       );
     }
     const telegramEditResult =
-      await this.telegramService.editGigPostsBestEffort(telegramEditParams);
+      await this.telegramGigService.editPostsBestEffort(telegramEditParams);
 
     if (isMediaUpdateRequired) {
       const moderationFileId = telegramEditResult.moderation?.result.fileId;
@@ -525,7 +527,7 @@ export class GigService {
       this.resolveTelegramPostRef(gig.posts, PostType.Moderation);
     // Telegram accepts the message before MongoDB stores its reference. A crash or
     // concurrent request can leave an external duplicate; reconciliation is out of scope.
-    const telegramMainPost = await this.telegramService.sendMainPost(gig);
+    const telegramMainPost = await this.telegramGigService.sendMainPost(gig);
     if (!telegramMainPost) {
       throw new BadRequestException(
         `sendMainPost returned no Telegram message for gig ${gigId}`,
@@ -552,7 +554,7 @@ export class GigService {
     }
 
     try {
-      await this.telegramService.updateGigModerationPost({
+      await this.telegramGigService.updateModerationPost({
         gigId,
         expectedVersion: updatedGig.version,
         isVisible: updatedGig.isVisible,
@@ -719,7 +721,7 @@ export class GigService {
     }
 
     try {
-      await this.telegramService.updateGigModerationPost(payload);
+      await this.telegramGigService.updateModerationPost(payload);
     } catch (e: unknown) {
       this.logger.warn(
         `Telegram moderation post update failed for publicId=${gig.publicId}: ${formatTelegramErrorMessage(e)}`,

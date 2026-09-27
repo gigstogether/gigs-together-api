@@ -9,7 +9,7 @@ import {
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/services/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/services/telegram-gig-candidate.service.types';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/composers/telegram-gig-candidate-composer.service.types';
@@ -182,7 +182,7 @@ export class GigCandidateService {
     @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigPosterService: GigPosterService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramGigService: TelegramGigService,
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
     private readonly calendarService: CalendarService,
@@ -716,7 +716,7 @@ export class GigCandidateService {
       return;
     }
     try {
-      await this.telegramService.updateGigModerationPost({
+      await this.telegramGigService.updateModerationPost({
         gigId: gig.id,
         expectedVersion: gig.version,
         isVisible: gig.isVisible,

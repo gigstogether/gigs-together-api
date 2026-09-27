@@ -12,6 +12,7 @@ import type {
   WeeklyDigestSendPlan,
 } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
+import { TelegramGigComposerService } from './telegram-gig-composer.service';
 
 export const TELEGRAM_DIGEST_CAPTION_MAX_CHARS = 1024;
 
@@ -28,6 +29,7 @@ export class TelegramDigestComposerService {
   constructor(
     private readonly telegramTemplates: TelegramTemplateService,
     private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramGigComposer: TelegramGigComposerService,
   ) {}
 
   composeWeeklyDigest(params: ComposeWeeklyDigestParams): WeeklyDigestSendPlan {
@@ -209,7 +211,7 @@ export class TelegramDigestComposerService {
   }
 
   private getDigestMediaReference(gig: PlainGig): string | undefined {
-    const moderationPost = this.telegramPostComposer.pickTgPost(
+    const moderationPost = this.telegramGigComposer.pickPost(
       gig.posts,
       PostType.Moderation,
     );

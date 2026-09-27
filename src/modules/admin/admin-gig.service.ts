@@ -10,6 +10,7 @@ import type {
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/services/telegram-gig.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
@@ -19,6 +20,7 @@ export class AdminGigService {
   constructor(
     private readonly gigService: GigService,
     private readonly telegramService: TelegramService,
+    private readonly telegramGigService: TelegramGigService,
     private readonly userService: UserService,
   ) {}
 
@@ -61,13 +63,13 @@ export class AdminGigService {
         : undefined;
     const userSourceProfile = getUserSourceProfile(user);
 
-    const mainPost = this.telegramService.pickTgPost(gig.posts, PostType.Main);
+    const mainPost = this.telegramGigService.pickPost(gig.posts, PostType.Main);
     const mainPostUrl = await this.gigService.resolvePublicPostUrl({
       chatId: mainPost?.chatId,
       postId: mainPost?.id,
     });
 
-    const moderationPost = this.telegramService.pickTgPost(
+    const moderationPost = this.telegramGigService.pickPost(
       gig.posts,
       PostType.Moderation,
     );

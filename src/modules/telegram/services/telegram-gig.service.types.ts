@@ -1,21 +1,25 @@
-import type { GigId, GigPost, PlainGig } from '../gig/types/gig.types';
-import type { InputFileData, TGChatId, TGMessage } from './types/message.types';
-import type { PostEditKind } from './telegram-post-composer.service.types';
+import type { GigId, GigPost, PlainGig } from '../../gig/types/gig.types';
+import type {
+  InputFileData,
+  TGChatId,
+  TGMessage,
+} from '../types/message.types';
+import type { PostEditKind } from '../telegram-post-composer.service.types';
 
-export interface TelegramPostEditResult {
+export interface TelegramGigPostEditResult {
   kind: PostEditKind;
   message: TGMessage;
   fileId?: string;
 }
 
-export interface TelegramPostSendResult {
+export interface TelegramGigPostSendResult {
   messageId: number;
   chatId: number;
   sentAtSeconds: number;
   fileId?: string;
 }
 
-export interface TelegramPhotoPostSendResult extends TelegramPostSendResult {
+export interface TelegramGigPhotoPostSendResult extends TelegramGigPostSendResult {
   fileId: string;
 }
 
@@ -35,7 +39,7 @@ export interface EditGigPostsParams {
 
 export interface EditedGigPost {
   post: GigPost;
-  result: TelegramPostEditResult;
+  result: TelegramGigPostEditResult;
 }
 
 export interface EditGigPostsResult {
