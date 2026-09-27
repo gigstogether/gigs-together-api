@@ -40,7 +40,7 @@ export class TelegramGigService {
   readonly pickPost: TelegramGigComposerService['pickPost'] =
     this.telegramGigComposer.pickPost.bind(this.telegramGigComposer);
 
-  async resolvePublicPostUrl(
+  async resolveMainPostUrl(
     post: GigPost | undefined,
   ): Promise<string | undefined> {
     if (post === undefined) {

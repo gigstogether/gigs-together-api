@@ -63,7 +63,7 @@ describe('GigFeedService', () => {
   };
   const telegramGigService = {
     pickPost: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
+    resolveMainPostUrl: vi.fn(),
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
 
@@ -87,7 +87,7 @@ describe('GigFeedService', () => {
     gigService.gigToCalendarPayload.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
     telegramGigService.pickPost.mockReturnValue(undefined);
-    telegramGigService.resolvePublicPostUrl.mockResolvedValue(undefined);
+    telegramGigService.resolveMainPostUrl.mockResolvedValue(undefined);
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );

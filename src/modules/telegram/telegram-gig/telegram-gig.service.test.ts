@@ -106,7 +106,7 @@ describe('TelegramGigService', () => {
     };
     telegramService.getChatUsername.mockResolvedValue('gigs_together_bcn');
 
-    await expect(service.resolvePublicPostUrl(post)).resolves.toBe(
+    await expect(service.resolveMainPostUrl(post)).resolves.toBe(
       'https://t.me/gigs_together_bcn/60',
     );
     expect(telegramService.getChatUsername).toHaveBeenCalledWith(post.chatId);
@@ -122,7 +122,7 @@ describe('TelegramGigService', () => {
     };
     telegramService.getChatUsername.mockResolvedValue(undefined);
 
-    await expect(service.resolvePublicPostUrl(post)).resolves.toBeUndefined();
+    await expect(service.resolveMainPostUrl(post)).resolves.toBeUndefined();
   });
 
   it('should send a main post and return its Telegram reference', async () => {

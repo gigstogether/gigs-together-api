@@ -65,7 +65,7 @@ export class AdminGigService {
 
     const mainPost = this.telegramGigService.pickPost(gig.posts, PostType.Main);
     const mainPostUrl =
-      await this.telegramGigService.resolvePublicPostUrl(mainPost);
+      await this.telegramGigService.resolveMainPostUrl(mainPost);
 
     const moderationPost = this.telegramGigService.pickPost(
       gig.posts,

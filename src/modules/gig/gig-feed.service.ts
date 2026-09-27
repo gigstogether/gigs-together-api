@@ -105,7 +105,7 @@ export class GigFeedService {
     const mapped: GigFeedItem[] = [];
     for (const gig of gigs) {
       const post = this.telegramGigService.pickPost(gig.posts, PostType.Main);
-      const postUrl = await this.telegramGigService.resolvePublicPostUrl(post);
+      const postUrl = await this.telegramGigService.resolveMainPostUrl(post);
       const calendarPayload = this.gigService.gigToCalendarPayload(gig);
       const calendarUrl =
         this.calendarService.getCreateCalendarEventUrl(calendarPayload);

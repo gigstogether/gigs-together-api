@@ -57,7 +57,7 @@ describe('AdminGigService', () => {
   };
   const telegramGigServiceMock = {
     pickPost: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
+    resolveMainPostUrl: vi.fn(),
   };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
 
@@ -87,7 +87,7 @@ describe('AdminGigService', () => {
           (post) => post.to === Messenger.Telegram && post.type === type,
         ),
     );
-    telegramGigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
     telegramServiceMock.getPostUrl.mockImplementation(
       (payload: GetPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
@@ -156,7 +156,7 @@ describe('AdminGigService', () => {
     const gig = buildPlainGig({ posts: [moderationPost, mainPost] });
     gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    telegramGigServiceMock.resolvePublicPostUrl.mockResolvedValue(
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(
       'https://t.me/channel/99',
     );
 
@@ -170,7 +170,7 @@ describe('AdminGigService', () => {
         moderationPostDate: moderationPost.date,
       }),
     );
-    expect(telegramGigServiceMock.resolvePublicPostUrl).toHaveBeenCalledWith(
+    expect(telegramGigServiceMock.resolveMainPostUrl).toHaveBeenCalledWith(
       mainPost,
     );
   });
