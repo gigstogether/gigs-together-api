@@ -5,7 +5,6 @@ import { logError } from '../../shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramComposerService } from './telegram-composer.service';
 import type { TGChat } from './types/chat.types';
 
 @Injectable()
@@ -17,7 +16,6 @@ export class TelegramService {
   constructor(
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
-    private readonly telegramComposer: TelegramComposerService,
     private readonly bucketService: BucketService,
   ) {}
 
@@ -29,9 +27,6 @@ export class TelegramService {
 
   readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
     this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
-
-  readonly buildPostUrl: TelegramComposerService['buildPostUrl'] =
-    this.telegramComposer.buildPostUrl.bind(this.telegramComposer);
 
   resolvePosterUrl(posterInfo?: GigPoster): string | undefined {
     if (!posterInfo) return;

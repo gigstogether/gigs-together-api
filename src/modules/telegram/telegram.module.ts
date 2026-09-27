@@ -64,6 +64,7 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
   ],
   exports: [
     TelegramService,
+    TelegramComposerService,
     TelegramBotReplyService,
     TelegramDigestService,
     TelegramGigCandidateService,

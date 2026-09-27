@@ -5,7 +5,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type { BuildPostUrlPayload } from '../telegram/telegram-composer.service.types';
 import { UserService } from '../user/user.service';
@@ -52,7 +52,7 @@ describe('AdminGigService', () => {
     getGigByPublicId: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
-  const telegramServiceMock = {
+  const telegramComposerMock = {
     buildPostUrl: vi.fn(),
   };
   const telegramGigServiceMock = {
@@ -88,7 +88,7 @@ describe('AdminGigService', () => {
         ),
     );
     telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
-    telegramServiceMock.buildPostUrl.mockImplementation(
+    telegramComposerMock.buildPostUrl.mockImplementation(
       (payload: BuildPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
           return `https://t.me/${payload.chatUsername}/${payload.messageId}`;
@@ -108,7 +108,7 @@ describe('AdminGigService', () => {
       providers: [
         AdminGigService,
         { provide: GigService, useValue: gigServiceMock },
-        { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: TelegramGigService, useValue: telegramGigServiceMock },
         { provide: UserService, useValue: userServiceMock },
       ],
