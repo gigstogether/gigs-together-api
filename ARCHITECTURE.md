@@ -230,7 +230,7 @@ Main files:
 
 Typical path:
 
-1. request hits a controller such as `GigController`, `localeController`, or `LocationController`
+1. request hits a controller such as `GigController`, `LocaleController`, or `CountriesController`
 2. DTO/query validation runs through the global validation pipe
 3. the controller delegates to a domain service
 4. the service reads from MongoDB and returns a response DTO
@@ -240,9 +240,9 @@ Examples:
 - `/v1/gig`
 - `/v1/gig/dates`
 - `/v1/gig/around`
-- `/v1/location/countries`
-- `/v1/locale`
-- `/v1/locale/translations`
+- `/v1/countries`
+- `/v1/locales`
+- `/v1/translations`
 
 ### Telegram update flow
 

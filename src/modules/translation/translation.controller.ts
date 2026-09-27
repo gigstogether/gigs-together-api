@@ -2,12 +2,12 @@ import { Controller, Get, Headers, Query, Version } from '@nestjs/common';
 import { TranslationService } from './translation.service';
 import type { V1TranslationGetTranslationsResponseBody } from './types/requests/v1-translation-get-translations-request';
 
-@Controller('locale')
+@Controller('translations')
 export class TranslationController {
   constructor(private readonly translationService: TranslationService) {}
 
   @Version('1')
-  @Get('translations')
+  @Get()
   getTranslationsV1(
     @Query('namespaces')
     namespacesQuery: string | readonly string[] | undefined,

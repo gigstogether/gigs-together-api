@@ -543,7 +543,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/location/countries`, `/v1/locale`, and `/v1/locale/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/countries`, `/v1/locales`, and `/v1/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
@@ -557,7 +557,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 
 ### Locale and translations modules
 
-Locale metadata and translation strings are split into two Nest modules. Both expose routes under the `/v1/locale` prefix, but they own different collections and responsibilities.
+Locale metadata and translation strings are split into two Nest modules with independent resource routes and collections.
 
 | Module              | Path                       | MongoDB model | Responsibility                                                     |
 | ------------------- | -------------------------- | ------------- | ------------------------------------------------------------------ |
@@ -566,8 +566,8 @@ Locale metadata and translation strings are split into two Nest modules. Both ex
 
 Public endpoints:
 
-- `GET /v1/locale` — active locales sorted for clients (from `LocaleModule`)
-- `GET /v1/locale/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional `?namespaces=` filter (from `TranslationModule`)
+- `GET /v1/locales` — active locales sorted for clients (from `LocaleModule`)
+- `GET /v1/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional `?namespaces=` filter (from `TranslationModule`)
 
 Admin locale management lives in `AdminModule`, which imports `LocaleModule` and reuses `LocaleService`:
 
