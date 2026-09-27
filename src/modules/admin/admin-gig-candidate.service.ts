@@ -6,7 +6,7 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
@@ -21,7 +21,7 @@ export class AdminGigCandidateService {
   constructor(
     private readonly gigCandidateService: GigCandidateService,
     private readonly gigService: GigService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramComposer: TelegramComposerService,
     private readonly userService: UserService,
   ) {}
 
@@ -83,13 +83,13 @@ export class AdminGigCandidateService {
     const moderationPost =
       gigCandidateModerationPost ?? linkedGigModerationPost;
     const intakePostUrl = intakePost
-      ? this.telegramService.getPostUrl({
+      ? this.telegramComposer.buildPostUrl({
           chatId: intakePost.chatId,
           messageId: intakePost.id,
         })
       : undefined;
     const moderationPostUrl = moderationPost
-      ? this.telegramService.getPostUrl({
+      ? this.telegramComposer.buildPostUrl({
           chatId: moderationPost.chatId,
           messageId: moderationPost.id,
         })

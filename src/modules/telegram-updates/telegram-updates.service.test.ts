@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramUpdatesService } from './telegram-updates.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
+import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
@@ -12,7 +12,7 @@ import {
   encodeCallbackData,
   GigCandidateCallbackAction,
   GigCallbackAction,
-} from '../telegram/callback-action';
+} from '../telegram/utils/telegram-callback-action';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';

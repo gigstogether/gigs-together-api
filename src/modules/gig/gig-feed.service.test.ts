@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../calendar/calendar.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GigService } from './gig.service';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
@@ -58,11 +58,13 @@ describe('GigFeedService', () => {
   };
   const gigService = {
     normalizeAndValidatePublicId: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
     gigToCalendarPayload: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
-  const telegramService = { pickTgPost: vi.fn() };
+  const telegramGigService = {
+    pickPost: vi.fn(),
+    resolveMainPostUrl: vi.fn(),
+  };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
 
   beforeEach(async () => {
@@ -82,10 +84,10 @@ describe('GigFeedService', () => {
     gigService.normalizeAndValidatePublicId.mockImplementation(
       (publicId: string) => publicId,
     );
-    gigService.resolvePublicPostUrl.mockResolvedValue(undefined);
     gigService.gigToCalendarPayload.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    telegramService.pickTgPost.mockReturnValue(undefined);
+    telegramGigService.pickPost.mockReturnValue(undefined);
+    telegramGigService.resolveMainPostUrl.mockResolvedValue(undefined);
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
@@ -95,7 +97,7 @@ describe('GigFeedService', () => {
         GigFeedService,
         { provide: GIG_REPOSITORY, useValue: gigRepository },
         { provide: GigService, useValue: gigService },
-        { provide: TelegramService, useValue: telegramService },
+        { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
       ],
     }).compile();

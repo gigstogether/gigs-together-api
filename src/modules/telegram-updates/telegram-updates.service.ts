@@ -11,10 +11,10 @@ import {
   GigCandidateCallbackAction,
   GigCallbackAction,
   parseCallbackData,
-} from '../telegram/callback-action';
+} from '../telegram/utils/telegram-callback-action';
 import { TelegramService } from '../telegram/telegram.service';
-import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
-import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
+import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';

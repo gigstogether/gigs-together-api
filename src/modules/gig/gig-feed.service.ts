@@ -15,7 +15,7 @@ import type {
   GigRepository,
 } from './repositories/gig.repository';
 import { GigService } from './gig.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { PostType } from '../../shared/types/post-type.enum';
 
@@ -96,7 +96,7 @@ export class GigFeedService {
     @Inject(GIG_REPOSITORY)
     private readonly gigRepository: GigRepository,
     private readonly gigService: GigService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramGigService: TelegramGigService,
     private readonly calendarService: CalendarService,
   ) {}
 
@@ -104,11 +104,8 @@ export class GigFeedService {
   private async mapGigs(gigs: PlainGig[]): Promise<GigFeedItem[]> {
     const mapped: GigFeedItem[] = [];
     for (const gig of gigs) {
-      const post = this.telegramService.pickTgPost(gig.posts, PostType.Main);
-      const postUrl = await this.gigService.resolvePublicPostUrl({
-        postId: post?.id,
-        chatId: post?.chatId,
-      });
+      const post = this.telegramGigService.pickPost(gig.posts, PostType.Main);
+      const postUrl = await this.telegramGigService.resolveMainPostUrl(post);
       const calendarPayload = this.gigService.gigToCalendarPayload(gig);
       const calendarUrl =
         this.calendarService.getCreateCalendarEventUrl(calendarPayload);

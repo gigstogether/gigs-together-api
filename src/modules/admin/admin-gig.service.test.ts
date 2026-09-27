@@ -5,8 +5,9 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
-import { TelegramService } from '../telegram/telegram.service';
-import type { GetPostUrlPayload } from '../telegram/types/telegram-post-composer.service.types';
+import { TelegramComposerService } from '../telegram/telegram-composer.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
+import type { BuildPostUrlPayload } from '../telegram/telegram-composer.service.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';
@@ -50,11 +51,13 @@ describe('AdminGigService', () => {
     getGigs: vi.fn(),
     getGigByPublicId: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
   };
-  const telegramServiceMock = {
-    pickTgPost: vi.fn(),
-    getPostUrl: vi.fn(),
+  const telegramComposerMock = {
+    buildPostUrl: vi.fn(),
+  };
+  const telegramGigServiceMock = {
+    pickPost: vi.fn(),
+    resolveMainPostUrl: vi.fn(),
   };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
 
@@ -78,14 +81,15 @@ describe('AdminGigService', () => {
         updatedAt: new Date('2026-05-01T10:00:00.000Z'),
       },
     ]);
-    telegramServiceMock.pickTgPost.mockImplementation(
+    telegramGigServiceMock.pickPost.mockImplementation(
       (posts: GigPost[] | undefined, type: PostType): GigPost | undefined =>
         posts?.find(
           (post) => post.to === Messenger.Telegram && post.type === type,
         ),
     );
-    telegramServiceMock.getPostUrl.mockImplementation(
-      (payload: GetPostUrlPayload): string | undefined => {
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
+    telegramComposerMock.buildPostUrl.mockImplementation(
+      (payload: BuildPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
           return `https://t.me/${payload.chatUsername}/${payload.messageId}`;
         }
@@ -104,7 +108,8 @@ describe('AdminGigService', () => {
       providers: [
         AdminGigService,
         { provide: GigService, useValue: gigServiceMock },
-        { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: TelegramComposerService, useValue: telegramComposerMock },
+        { provide: TelegramGigService, useValue: telegramGigServiceMock },
         { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
@@ -117,7 +122,6 @@ describe('AdminGigService', () => {
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
       'https://cdn.example/poster.jpg',
     );
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
     const result = await service.getGigsList({ limit: 50 });
 
@@ -152,7 +156,7 @@ describe('AdminGigService', () => {
     const gig = buildPlainGig({ posts: [moderationPost, mainPost] });
     gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(
       'https://t.me/channel/99',
     );
 
@@ -166,13 +170,15 @@ describe('AdminGigService', () => {
         moderationPostDate: moderationPost.date,
       }),
     );
+    expect(telegramGigServiceMock.resolveMainPostUrl).toHaveBeenCalledWith(
+      mainPost,
+    );
   });
 
   it('should omit an empty tickets URL from the admin list', async () => {
     const gig = buildPlainGig({ ticketsUrl: '   ' });
     gigServiceMock.getGigs.mockResolvedValue([gig]);
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
     const result = await service.getGigsList({ limit: 50 });
 

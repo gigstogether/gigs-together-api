@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
-import { isRecord } from '../../shared/utils/is-record';
-import { formatErrorMessage } from '../../shared/utils/logging';
+import { isRecord } from '../../../shared/utils/is-record';
+import { formatErrorMessage } from '../../../shared/utils/logging';
 
 export function formatTelegramErrorMessage(e: unknown): string {
   if (!isAxiosError(e)) {

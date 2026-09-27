@@ -9,7 +9,8 @@ import type {
 } from './types/requests/v1-admin-gigs-list-response';
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramComposerService } from '../telegram/telegram-composer.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
@@ -18,7 +19,8 @@ import { getUserSourceProfile } from './admin-user-source-profile';
 export class AdminGigService {
   constructor(
     private readonly gigService: GigService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramComposer: TelegramComposerService,
+    private readonly telegramGigService: TelegramGigService,
     private readonly userService: UserService,
   ) {}
 
@@ -61,18 +63,16 @@ export class AdminGigService {
         : undefined;
     const userSourceProfile = getUserSourceProfile(user);
 
-    const mainPost = this.telegramService.pickTgPost(gig.posts, PostType.Main);
-    const mainPostUrl = await this.gigService.resolvePublicPostUrl({
-      chatId: mainPost?.chatId,
-      postId: mainPost?.id,
-    });
+    const mainPost = this.telegramGigService.pickPost(gig.posts, PostType.Main);
+    const mainPostUrl =
+      await this.telegramGigService.resolveMainPostUrl(mainPost);
 
-    const moderationPost = this.telegramService.pickTgPost(
+    const moderationPost = this.telegramGigService.pickPost(
       gig.posts,
       PostType.Moderation,
     );
     const moderationPostUrl = moderationPost?.id
-      ? this.telegramService.getPostUrl({
+      ? this.telegramComposer.buildPostUrl({
           messageId: moderationPost.id,
           chatId: moderationPost?.chatId,
         })

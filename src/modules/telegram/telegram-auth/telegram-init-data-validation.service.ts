@@ -3,8 +3,8 @@ import * as crypto from 'crypto';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 export interface TelegramInitDataParseResult {
-  readonly parsedData: Record<string, string>;
-  readonly dataCheckString: string;
+  parsedData: Record<string, string>;
+  dataCheckString: string;
 }
 
 @Injectable()

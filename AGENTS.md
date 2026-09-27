@@ -10,6 +10,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 - Prefer explicit, strict typing. Keep types narrow and avoid widening to `string | number | ...` when the domain is known.
 - Comments must be in English using the Latin alphabet only. Do not write comments in Cyrillic.
+- Do not remove existing comments during refactoring unless they are factually outdated or the documented behavior is intentionally removed. When moving code, move its relevant comments with it. If a comment becomes inaccurate, update it instead of silently deleting it.
 - Do not remove `TODO` comments (for example `// TODO: ...`) unless you are explicitly completing that TODO as part of the current task. Leave unrelated TODOs untouched.
 - Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and specifically matches the task at hand; a generic TODO may refer to different work.
 - For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with human-readable equivalents (at least days or hours, and minutes when useful).
@@ -22,6 +23,13 @@ Apply these rules to the whole repository unless a more specific instruction exi
   record enough context to diagnose the failure without logging secrets or sensitive payloads.
 - Always create new files with `LF` line endings (not `CRLF`). Prefer editor or Git settings that default new files to `LF`.
 - Keep line endings as `LF` in tracked files. If you hit formatter errors caused by `CRLF`, convert the file to `LF` and reformat.
+
+## Naming
+
+- Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
+- The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables, constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
+- Choose a concrete domain action instead, such as `post`, `send` or another term that precisely describes the behavior.
+- Do not use existing legacy occurrences as naming precedent. When code containing such an identifier is changed meaningfully, rename it within the same task when that rename is safe and in scope; otherwise call out the remaining legacy name explicitly.
 
 ## Execution Rules
 

@@ -9,7 +9,11 @@ import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
+import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
+import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
+import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
+import { TelegramGigService } from './telegram-gig/telegram-gig.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -19,7 +23,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import { PostEditKind } from './types/telegram-post-composer.service.types';
+import { PostEditKind } from './telegram-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
@@ -39,12 +43,6 @@ function renderPlainTemplate(
 
 function createMockPostTemplates(): MockPostTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty]:
-      'There are no gigs scheduled for this week.',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader]:
-      "Here's what is happening this week:",
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonHide]: '🙈 Hide',
@@ -77,12 +75,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">See main post</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
-      '<a href="{url}">{ticketsLabel}</a>',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
-      '{titleLine}\n{dates}\n{venue} • {ticketsLine}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain]:
-      '{title}\n{dates}\n{venue} • {ticketsLabel}',
   };
 
   return {
@@ -95,50 +87,6 @@ function createMockPostTemplates(): MockPostTemplates {
       return renderPlainTemplate(template, params);
     }),
   };
-}
-
-function createDigestUpstreamError(
-  description = 'Bad Request: failed to send message #2 with the error message "WEBPAGE_CURL_FAILED"',
-): unknown {
-  return {
-    isAxiosError: true,
-    code: 'ERR_BAD_REQUEST',
-    message: 'Request failed with status code 400',
-    config: {
-      method: 'post',
-      url: 'sendMediaGroup',
-      baseURL: 'https://api.telegram.org/bot-secret-token',
-    },
-    response: {
-      status: 400,
-      data: {
-        ok: false,
-        error_code: 400,
-        description,
-      },
-    },
-  };
-}
-
-function createDigestGigsWithRemotePosters(): PlainGig[] {
-  return [
-    {
-      id: 'a',
-      publicId: 'alpha-2026-01-01',
-      title: 'Alpha',
-      date: 10,
-      posts: [],
-      poster: { bucketPath: 'gigs/a.jpg' },
-    },
-    {
-      id: 'b',
-      publicId: 'beta-2026-01-02',
-      title: 'Beta',
-      date: 20,
-      posts: [],
-      poster: { bucketPath: 'gigs/b.jpg' },
-    },
-  ] as unknown as PlainGig[];
 }
 
 function createGigForTelegramEdit(post: GigPost): PlainGig {
@@ -166,6 +114,8 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
 
 describe('TelegramService', () => {
   let service: TelegramService;
+  let telegramGigCandidateService: TelegramGigCandidateService;
+  let telegramGigService: TelegramGigService;
   let testingModule: TestingModule;
   let mockPostTemplates: MockPostTemplates;
 
@@ -196,7 +146,11 @@ describe('TelegramService', () => {
       providers: [
         TelegramService,
         TelegramBotClient,
-        TelegramPostComposerService,
+        TelegramComposerService,
+        TelegramGigCandidateComposerService,
+        TelegramGigCandidateService,
+        TelegramGigComposerService,
+        TelegramGigService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
@@ -221,6 +175,10 @@ describe('TelegramService', () => {
     }).compile();
 
     service = testingModule.get<TelegramService>(TelegramService);
+    telegramGigCandidateService = testingModule.get(
+      TelegramGigCandidateService,
+    );
+    telegramGigService = testingModule.get(TelegramGigService);
   });
 
   afterEach(() => {
@@ -238,6 +196,26 @@ describe('TelegramService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('resolvePosterUrl', () => {
+    it('should add a fresh Telegram cache key to a bucket poster URL', () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1_790_013_012_000);
+      mockBucketService.getPublicFileUrl.mockReturnValueOnce(
+        'https://cdn.example/poster.jpg',
+      );
+
+      expect(service.resolvePosterUrl({ bucketPath: 'gigs/poster.jpg' })).toBe(
+        'https://cdn.example/poster.jpg?tgcb=1790013012000',
+      );
+    });
+
+    it('should preserve an external poster URL', () => {
+      const externalUrl =
+        'https://images.example/poster.jpg?signature=preserve-me';
+
+      expect(service.resolvePosterUrl({ externalUrl })).toBe(externalUrl);
+    });
   });
 
   describe('sendMessage', () => {
@@ -269,269 +247,6 @@ describe('TelegramService', () => {
     });
   });
 
-  describe('sendWeeklyDigestPost', () => {
-    beforeEach(() => {
-      process.env.MAIN_CHANNEL_ID = '-1001';
-    });
-
-    it('should send English empty-week notice when there are no gigs', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
-        message_id: 1,
-        date: 1,
-        chat: { id: -1001, type: 'channel' },
-      });
-
-      await expect(service.sendWeeklyDigestPost([])).resolves.toEqual({
-        postUrl: 'https://t.me/c/1/1',
-      });
-
-      expect(sendMessageSpy).toHaveBeenCalledWith({
-        chat_id: '-1001',
-        text: mockPostTemplates.getText(
-          TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
-        ),
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-      });
-    });
-
-    it('should send sendMediaGroup when two posters resolve from bucket URLs', async () => {
-      mockBucketService.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-
-      mockHttpService.post.mockImplementation((method: string) => {
-        if (method === 'sendMediaGroup') {
-          return of({
-            data: {
-              result: [
-                {
-                  message_id: 1,
-                  date: 1,
-                  chat: { id: -1001, type: 'channel' },
-                },
-              ],
-            },
-          });
-        }
-        return of({
-          data: {
-            result: {
-              message_id: 2,
-              date: 1,
-              chat: { id: -1001, type: 'channel' },
-            },
-          },
-        });
-      });
-
-      const gigs = [
-        {
-          id: 'a',
-          title: 'Alpha',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-        {
-          id: 'b',
-          title: 'Beta',
-          date: 20,
-          posts: [],
-          poster: { bucketPath: 'gigs/b.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
-        postUrl: 'https://t.me/c/1/1',
-      });
-
-      expect(mockHttpService.post).toHaveBeenCalledWith(
-        'sendMediaGroup',
-        expect.objectContaining({
-          chat_id: '-1001',
-          media: [
-            expect.objectContaining({
-              type: TGInputMediaType.Photo,
-              media: expect.stringMatching(
-                /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
-              ),
-              caption: expect.stringMatching(/Alpha/s),
-            }),
-            expect.objectContaining({
-              type: TGInputMediaType.Photo,
-              media: expect.stringMatching(
-                /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
-              ),
-            }),
-          ],
-        }),
-      );
-    });
-
-    it('should send sendPhoto when exactly one poster resolves', async () => {
-      mockBucketService.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/only.jpg',
-      );
-
-      mockHttpService.post.mockImplementation((method: string) => {
-        if (method === 'sendPhoto') {
-          return of({
-            data: {
-              result: {
-                message_id: 3,
-                date: 1,
-                chat: { id: -1001, type: 'channel' },
-              },
-            },
-          });
-        }
-        return of({
-          data: {
-            result: {
-              message_id: 1,
-              date: 1,
-              chat: { id: -1001, type: 'channel' },
-            },
-          },
-        });
-      });
-
-      const gigs = [
-        {
-          id: 'a',
-          title: 'Only',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      await expect(service.sendWeeklyDigestPost(gigs)).resolves.toEqual({
-        postUrl: 'https://t.me/c/1/3',
-      });
-
-      expect(mockHttpService.post).toHaveBeenCalledWith(
-        'sendPhoto',
-        expect.objectContaining({
-          chat_id: '-1001',
-          photo: expect.stringMatching(
-            /^https:\/\/cdn\.example\/only\.jpg\?tgcb=\d+$/,
-          ),
-          caption: expect.stringMatching(/Only/s),
-        }),
-      );
-    });
-
-    it('should return undefined and not call Telegram when MAIN_CHANNEL_ID is unset', async () => {
-      delete process.env.MAIN_CHANNEL_ID;
-
-      const bot = testingModule.get(TelegramBotClient);
-      const sendMessageSpy = vi.spyOn(bot, 'sendMessage');
-
-      await expect(service.sendWeeklyDigestPost([])).resolves.toBeUndefined();
-
-      expect(sendMessageSpy).not.toHaveBeenCalled();
-    });
-
-    it('should replace an upstream Axios error before it reaches the scheduler', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
-        createDigestUpstreamError(),
-      );
-      vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
-      mockBucketService.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-
-      const result = service.sendWeeklyDigestPost(
-        createDigestGigsWithRemotePosters(),
-      );
-
-      await expect(result).rejects.toThrow(
-        'Weekly digest send to main channel failed',
-      );
-    });
-
-    it('should omit the Telegram token from the digest failure log', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const loggerErrorSpy = vi
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation(() => undefined);
-      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
-        createDigestUpstreamError(),
-      );
-      mockBucketService.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-
-      await expect(
-        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
-      ).rejects.toThrow('Weekly digest send to main channel failed');
-
-      expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
-        'secret-token',
-      );
-    });
-
-    it('should log the failed digest poster without URL query data', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const loggerErrorSpy = vi
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation(() => undefined);
-      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
-        createDigestUpstreamError(),
-      );
-      mockBucketService.getPublicFileUrl
-        .mockReturnValueOnce(
-          'https://cdn.example/posters/alpha.jpg?signature=alpha-secret',
-        )
-        .mockReturnValueOnce(
-          'https://cdn.example/posters/beta.jpg?signature=beta-secret',
-        );
-
-      await expect(
-        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
-      ).rejects.toThrow('Weekly digest send to main channel failed');
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          meta: {
-            telegramError: 'WEBPAGE_CURL_FAILED',
-            position: 2,
-            publicId: 'beta-2026-01-02',
-            posterUrl: 'https://cdn.example/posters/beta.jpg',
-          },
-        }),
-      );
-      expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
-        'beta-secret',
-      );
-    });
-
-    it('should not map a digest poster when the Telegram description format differs', async () => {
-      const bot = testingModule.get(TelegramBotClient);
-      const loggerErrorSpy = vi
-        .spyOn(Logger.prototype, 'error')
-        .mockImplementation(() => undefined);
-      vi.spyOn(bot, 'sendMediaGroup').mockRejectedValue(
-        createDigestUpstreamError('Bad Request: WEBPAGE_CURL_FAILED'),
-      );
-      mockBucketService.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/poster.jpg',
-      );
-
-      await expect(
-        service.sendWeeklyDigestPost(createDigestGigsWithRemotePosters()),
-      ).rejects.toThrow('Weekly digest send to main channel failed');
-
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.not.objectContaining({ meta: expect.anything() }),
-      );
-    });
-  });
-
   describe('editGigPost', () => {
     it('should return a caption edit result for a photo post', async () => {
       const bot = testingModule.get(TelegramBotClient);
@@ -554,7 +269,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(mainPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: mainPost,
           isMediaUpdateRequired: false,
@@ -587,7 +302,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(mainPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: mainPost,
           isMediaUpdateRequired: false,
@@ -620,7 +335,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(moderationPost);
 
       await expect(
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: moderationPost,
           isMediaUpdateRequired: false,
@@ -643,7 +358,7 @@ describe('TelegramService', () => {
       const gig = createGigForTelegramEdit(intakePost);
 
       expect(() =>
-        service.editGigPost({
+        telegramGigService.editPost({
           gig,
           post: intakePost,
           isMediaUpdateRequired: false,
@@ -718,7 +433,7 @@ describe('TelegramService', () => {
         .mockResolvedValueOnce(mainMessage);
 
       await expect(
-        service.editGigPostsBestEffort({
+        telegramGigService.editPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
           posterFile,
@@ -850,7 +565,7 @@ describe('TelegramService', () => {
         });
 
       await expect(
-        service.editGigPostsBestEffort({
+        telegramGigService.editPostsBestEffort({
           gig,
           isMediaUpdateRequired: true,
           posterFile,
@@ -924,7 +639,7 @@ describe('TelegramService', () => {
         fileId: 'existing-file-id',
       });
 
-      await expect(service.sendMainPost(gig)).resolves.toEqual({
+      await expect(telegramGigService.sendMainPost(gig)).resolves.toEqual({
         messageId: 99,
         chatId: -100456,
         sentAtSeconds: 1_700_000_003,
@@ -949,7 +664,7 @@ describe('TelegramService', () => {
         fileId: 'existing-file-id',
       });
 
-      await expect(service.sendMainPost(gig)).rejects.toThrow(
+      await expect(telegramGigService.sendMainPost(gig)).rejects.toThrow(
         'Telegram sent post reference is incomplete',
       );
     });
@@ -987,7 +702,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        service.sendGigCandidateIntakePost(gigCandidate),
+        telegramGigCandidateService.sendIntakePost(gigCandidate),
       ).resolves.toEqual({
         messageId: 40,
         chatId: -100,
@@ -1057,7 +772,10 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        service.sendGigCandidateModerationPost(gigCandidate, posterFile),
+        telegramGigCandidateService.sendModerationPost(
+          gigCandidate,
+          posterFile,
+        ),
       ).resolves.toEqual({
         messageId: 50,
         chatId: -200,
@@ -1120,7 +838,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await service.sendGigCandidateModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost(gigCandidate);
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({ photo: 'intake-file-id' }),
@@ -1174,7 +892,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await service.sendGigCandidateModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost(gigCandidate);
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1215,7 +933,7 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        service.sendGigCandidateModerationPost(gigCandidate),
+        telegramGigCandidateService.sendModerationPost(gigCandidate),
       ).rejects.toThrow('Telegram photo response has no fileId');
     });
   });
@@ -1234,7 +952,7 @@ describe('TelegramService', () => {
           chat: { id: -100123, type: 'channel' },
         });
 
-      await service.updateGigModerationPost({
+      await telegramGigService.updateModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 7,
         isVisible: true,
@@ -1293,7 +1011,7 @@ describe('TelegramService', () => {
           chat: { id: -100123, type: 'channel' },
         });
 
-      await service.updateGigModerationPost({
+      await telegramGigService.updateModerationPost({
         gigId: '507f1f77bcf86cd799439011',
         expectedVersion: 8,
         isVisible: true,
@@ -1331,7 +1049,7 @@ describe('TelegramService', () => {
         chat: { id: 42, type: 'private' },
       });
 
-      await service.sendGigCandidateFeedback({
+      await telegramGigCandidateService.sendFeedback({
         chatId: '42',
         kind: 'submitted',
         title: 'Band',
@@ -1385,7 +1103,10 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateRejectedGigCandidatePost({ gigCandidate, post });
+      await telegramGigCandidateService.updateRejectedPost({
+        gigCandidate,
+        post,
+      });
 
       expect(editMessageCaptionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1443,7 +1164,7 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateGigCandidateIntakePostAfterModeration({
+      await telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
         intakePost,
         moderationPost,
@@ -1507,7 +1228,7 @@ describe('TelegramService', () => {
         updatedAt: new Date(),
       };
 
-      await service.updateGigCandidateIntakePostAfterModeration({
+      await telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
         intakePost,
         moderationPost,
@@ -1579,7 +1300,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        service.editGigCandidatePost({
+        telegramGigCandidateService.editPost({
           gigCandidate,
           post: moderationPost,
           isMediaUpdateRequired: true,

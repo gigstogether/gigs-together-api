@@ -11,7 +11,7 @@ import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import { PostType } from '../../shared/types/post-type.enum';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
@@ -56,8 +56,8 @@ describe('AdminGigCandidateService', () => {
     getGigsByIds: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
-  const telegramServiceMock = {
-    getPostUrl: vi.fn(),
+  const telegramComposerMock = {
+    buildPostUrl: vi.fn(),
   };
   const userServiceMock = {
     findActiveUsersByIds: vi.fn(),
@@ -90,7 +90,7 @@ describe('AdminGigCandidateService', () => {
         AdminGigCandidateService,
         { provide: GigCandidateService, useValue: gigCandidateServiceMock },
         { provide: GigService, useValue: gigServiceMock },
-        { provide: TelegramService, useValue: telegramServiceMock },
+        { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
@@ -249,7 +249,7 @@ describe('AdminGigCandidateService', () => {
           },
         ],
       });
-      telegramServiceMock.getPostUrl
+      telegramComposerMock.buildPostUrl
         .mockReturnValueOnce('https://t.me/c/123/77')
         .mockReturnValueOnce('https://t.me/c/124/78');
 

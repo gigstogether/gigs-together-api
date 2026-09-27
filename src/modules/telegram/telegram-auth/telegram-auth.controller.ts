@@ -8,7 +8,7 @@ import {
   Version,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { AuthenticationService } from '../auth/authentication.service';
+import { AuthenticationService } from '../../auth/authentication.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
 import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
 import { TelegramOidcAuthService } from './telegram-oidc-auth.service';

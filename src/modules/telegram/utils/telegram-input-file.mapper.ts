@@ -1,5 +1,5 @@
-import type { PreparedGigPosterFile } from '../gig/types/gig-poster.types';
-import type { InputFileData } from './types/message.types';
+import type { PreparedGigPosterFile } from '../../gig/types/gig-poster.types';
+import type { InputFileData } from '../types/message.types';
 
 export function mapPreparedGigPosterToTelegramInputFile(
   posterFile: PreparedGigPosterFile | undefined,

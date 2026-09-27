@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
-import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
+import { TelegramInitDataValidationService } from './telegram-auth/telegram-init-data-validation.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramBotReplyComposerService } from './composers/telegram-bot-reply-composer.service';
-import { TelegramBotReplyService } from './services/telegram-bot-reply.service';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramBotReplyComposerService } from './telegram-bot-reply/telegram-bot-reply-composer.service';
+import { TelegramBotReplyService } from './telegram-bot-reply/telegram-bot-reply.service';
+import { TelegramDigestComposerService } from './telegram-digest/telegram-digest-composer.service';
+import { TelegramDigestService } from './telegram-digest/telegram-digest.service';
+import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
+import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
+import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
+import { TelegramGigService } from './telegram-gig/telegram-gig.service';
+import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
@@ -12,10 +18,10 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TranslationModule } from '../translation/translation.module';
-import { TelegramAuthController } from './telegram-auth.controller';
-import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
-import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
-import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
+import { TelegramAuthController } from './telegram-auth/telegram-auth.controller';
+import { TelegramInitDataAuthService } from './telegram-auth/telegram-init-data-auth.service';
+import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-exchange.service';
+import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
 
@@ -42,9 +48,15 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     TelegramInitDataValidationService,
     TelegramBotClient,
     TelegramTemplateService,
-    TelegramPostComposerService,
+    TelegramComposerService,
     TelegramBotReplyComposerService,
+    TelegramDigestComposerService,
+    TelegramGigCandidateComposerService,
+    TelegramGigComposerService,
     TelegramBotReplyService,
+    TelegramDigestService,
+    TelegramGigCandidateService,
+    TelegramGigService,
     TelegramService,
     TelegramInitDataAuthService,
     TelegramAccessExchangeService,
@@ -52,7 +64,11 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
   ],
   exports: [
     TelegramService,
+    TelegramComposerService,
     TelegramBotReplyService,
+    TelegramDigestService,
+    TelegramGigCandidateService,
+    TelegramGigService,
     TelegramInitDataAuthService,
   ],
 })

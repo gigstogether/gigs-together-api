@@ -1,12 +1,15 @@
 import { BadRequestException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
-import { TELEGRAM_MEDIA_CAPTION_MAX_CHARS } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
+import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
+import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
@@ -17,14 +20,12 @@ import {
   encodeCallbackData,
   GigCandidateCallbackAction,
   GigCallbackAction,
-} from './callback-action';
-import type { BuildGigPermalinkPayload } from './types/telegram-post-composer.service.types';
-import {
-  PostEditKind,
-  WeeklyDigestMainChannelSendKind,
-} from './types/telegram-post-composer.service.types';
+} from './utils/telegram-callback-action';
+import type { BuildGigPermalinkPayload } from './telegram-composer.service.types';
+import { PostEditKind } from './telegram-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { TelegramService } from './telegram.service';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 
@@ -45,12 +46,6 @@ function renderPlainTemplate(
 
 function createMockPostTemplates(): MockPostTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty]:
-      'There are no gigs scheduled for this week.',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader]:
-      "Here's what is happening this week:",
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestFooter]: 'See you at the gigs!',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel]: 'Tickets',
     [TELEGRAM_TEMPLATE_KEYS.buttonApprove]: '✅ Approve',
     [TELEGRAM_TEMPLATE_KEYS.buttonEdit]: '✏️ Edit',
     [TELEGRAM_TEMPLATE_KEYS.buttonHide]: '🙈 Hide',
@@ -83,12 +78,6 @@ function createMockPostTemplates(): MockPostTemplates {
       '<a href="{url}">See main post</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithLink]: '<a href="{url}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigTitleWithoutLink]: '{title}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLink]:
-      '<a href="{url}">{ticketsLabel}</a>',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLineHtml]:
-      '{titleLine}\n{dates}\n{venue} • {ticketsLine}',
-    [TELEGRAM_TEMPLATE_KEYS.weeklyDigestGigLinePlain]:
-      '{title}\n{dates}\n{venue} • {ticketsLabel}',
   };
 
   return {
@@ -103,12 +92,26 @@ function createMockPostTemplates(): MockPostTemplates {
   };
 }
 
-describe('TelegramPostComposer', () => {
-  let composer: TelegramPostComposerService;
+describe('TelegramComposerService', () => {
+  let composer: TelegramComposerService;
+  let gigCandidateComposer: TelegramGigCandidateComposerService;
+  let gigComposer: TelegramGigComposerService;
   let mockPostTemplates: MockPostTemplates;
 
   const mockBucket = {
     getPublicFileUrl: vi.fn(),
+  };
+
+  const mockTelegramBotClient = {
+    sendMessage: vi.fn(),
+    sendPhoto: vi.fn(),
+    answerCallbackQuery: vi.fn(),
+    getChat: vi.fn(),
+  };
+
+  const mockChatLookupCache = {
+    get: vi.fn(),
+    set: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -117,16 +120,23 @@ describe('TelegramPostComposer', () => {
 
     const moduleRef = await Test.createTestingModule({
       providers: [
-        TelegramPostComposerService,
+        TelegramComposerService,
+        TelegramGigCandidateComposerService,
+        TelegramGigComposerService,
+        TelegramService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
         },
         { provide: BucketService, useValue: mockBucket },
+        { provide: TelegramBotClient, useValue: mockTelegramBotClient },
+        { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
       ],
     }).compile();
 
-    composer = moduleRef.get(TelegramPostComposerService);
+    composer = moduleRef.get(TelegramComposerService);
+    gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
+    gigComposer = moduleRef.get(TelegramGigComposerService);
   });
 
   afterEach(() => {
@@ -144,19 +154,19 @@ describe('TelegramPostComposer', () => {
         date: 1_700_000_000_000,
       };
 
-      const result = composer.pickTgPost([post], PostType.Main);
+      const result = gigComposer.pickPost([post], PostType.Main);
 
       expect(result).toBe(post);
     });
 
     it('should return undefined when posts array is missing matching Telegram post', () => {
-      expect(composer.pickTgPost(undefined, PostType.Main)).toBeUndefined();
+      expect(gigComposer.pickPost(undefined, PostType.Main)).toBeUndefined();
     });
   });
 
-  describe('getPostUrl', () => {
+  describe('buildPostUrl', () => {
     it('should build public t.me URL when chatUsername is set', () => {
-      const url = composer.getPostUrl({
+      const url = composer.buildPostUrl({
         chatUsername: 'mychannel',
         messageId: 42,
       });
@@ -165,7 +175,7 @@ describe('TelegramPostComposer', () => {
     });
 
     it('should build private supergroup URL when only numeric chatId is set', () => {
-      const url = composer.getPostUrl({
+      const url = composer.buildPostUrl({
         chatId: '-1001234567890',
         messageId: 5,
       });
@@ -177,7 +187,7 @@ describe('TelegramPostComposer', () => {
   describe('buildGigModerationReplyMarkup', () => {
     it('should return Post callback and edit URL when the Main post does not exist', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
@@ -212,7 +222,7 @@ describe('TelegramPostComposer', () => {
 
     it('should remove Post button after the Main post is created', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 7,
           isVisible: true,
@@ -239,7 +249,7 @@ describe('TelegramPostComposer', () => {
 
     it('should replace Hide with Show when the Gig is hidden', () => {
       expect(
-        composer.buildGigModerationReplyMarkup({
+        gigComposer.buildModerationReplyMarkup({
           gigId: 'gig-a',
           expectedVersion: 8,
           isVisible: false,
@@ -268,7 +278,7 @@ describe('TelegramPostComposer', () => {
   describe('buildGigModerationCaption', () => {
     it('should include the Gig permalink', () => {
       expect(
-        composer.buildGigModerationCaption({
+        gigComposer.buildModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
         }),
@@ -277,7 +287,7 @@ describe('TelegramPostComposer', () => {
 
     it('should include Telegram post link when the Main post exists', () => {
       expect(
-        composer.buildGigModerationCaption({
+        gigComposer.buildModerationCaption({
           title: 'Concert',
           gigUrl: 'https://app.example/gigs/concert',
           mainPostUrl: 'https://t.me/gigs/42',
@@ -308,7 +318,7 @@ describe('TelegramPostComposer', () => {
     it('should build admin Gig Mini App URL from publicId', () => {
       process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
 
-      expect(composer.buildAdminGigUrl('gig-1')).toBe(
+      expect(gigComposer.buildAdminUrl('gig-1')).toBe(
         'https://t.me/GigsTogetherStgBot/admin?startapp=openGig-gig-1',
       );
     });
@@ -373,7 +383,9 @@ describe('TelegramPostComposer', () => {
         ],
       } as unknown as PlainGig;
 
-      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+      expect(() => gigComposer.composeMainPost(gig)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
@@ -386,7 +398,9 @@ describe('TelegramPostComposer', () => {
         posts: [],
       } as unknown as PlainGig;
 
-      expect(() => composer.composeMainPost(gig)).toThrow(BadRequestException);
+      expect(() => gigComposer.composeMainPost(gig)).toThrow(
+        BadRequestException,
+      );
     });
 
     it('should use moderation Telegram file_id as photo when present', () => {
@@ -408,7 +422,7 @@ describe('TelegramPostComposer', () => {
         ],
       } as unknown as PlainGig;
 
-      const payload = composer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost(gig);
 
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
@@ -431,8 +445,8 @@ describe('TelegramPostComposer', () => {
         poster: { bucketPath: 'gigs/show' },
       } as unknown as PlainGig;
 
-      const firstPayload = composer.composeMainPost(gig);
-      const secondPayload = composer.composeMainPost(gig);
+      const firstPayload = gigComposer.composeMainPost(gig);
+      const secondPayload = gigComposer.composeMainPost(gig);
 
       expect(firstPayload.photo).toBe(
         `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
@@ -455,7 +469,7 @@ describe('TelegramPostComposer', () => {
         poster: { externalUrl },
       } as unknown as PlainGig;
 
-      const payload = composer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost(gig);
 
       expect(payload.photo).toBe(externalUrl);
     });
@@ -485,7 +499,7 @@ describe('TelegramPostComposer', () => {
       } as unknown as PlainGig;
       mockBucket.getPublicFileUrl.mockClear();
 
-      const composition = composer.composeGigPostEdit({
+      const composition = gigComposer.composePostEdit({
         gig,
         post: mainPost,
         isMediaUpdateRequired: true,
@@ -524,7 +538,7 @@ describe('TelegramPostComposer', () => {
       } as unknown as PlainGig;
       mockBucket.getPublicFileUrl.mockClear();
 
-      const composition = composer.composeGigPostEdit({
+      const composition = gigComposer.composePostEdit({
         gig,
         post: mainPost,
         isMediaUpdateRequired: true,
@@ -542,149 +556,7 @@ describe('TelegramPostComposer', () => {
     });
   });
 
-  describe('composeWeeklyDigest', () => {
-    it('should return empty-week sendMessage when gigs list is empty', () => {
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1001',
-        gigs: [],
-      });
-
-      expect(plan).toEqual({
-        kind: WeeklyDigestMainChannelSendKind.SendMessage,
-        payload: {
-          chat_id: '-1001',
-          text: mockPostTemplates.getText(
-            TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
-          ),
-          parse_mode: TGParseMode.HTML,
-          disable_web_page_preview: true,
-        },
-      });
-    });
-
-    it('should return sendMediaGroup with caption on first item when at least two posters resolve', () => {
-      mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/p.jpg');
-
-      const gigs = [
-        {
-          id: 'a',
-          publicId: 'alpha-2026-01-01',
-          title: 'Alpha',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-        {
-          id: 'b',
-          publicId: 'beta-2026-01-02',
-          title: 'Beta',
-          date: 20,
-          posts: [],
-          poster: { bucketPath: 'gigs/b.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1002',
-        gigs,
-      });
-
-      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMediaGroup);
-      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMediaGroup) return;
-
-      expect(plan.payload.chat_id).toBe('-1002');
-      expect(plan.payload.media).toHaveLength(2);
-      expect(plan.payload.media[0]).toMatchObject({
-        type: TGInputMediaType.Photo,
-        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-        caption: expect.stringMatching(/Alpha/s),
-      });
-      expect(plan.payload.media[1]).toEqual({
-        type: TGInputMediaType.Photo,
-        media: `https://cdn.example/p.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-      });
-      expect(plan.mediaItems).toEqual([
-        { position: 1, publicId: 'alpha-2026-01-01' },
-        { position: 2, publicId: 'beta-2026-01-02' },
-      ]);
-    });
-
-    it('should return sendPhoto with digest fallback id when exactly one poster resolves', () => {
-      mockBucket.getPublicFileUrl.mockReturnValue(
-        'https://cdn.example/only.jpg',
-      );
-
-      const gigs = [
-        {
-          id: 'a',
-          title: 'Only',
-          date: 10,
-          posts: [],
-          poster: { bucketPath: 'gigs/a.jpg' },
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1003',
-        gigs,
-      });
-
-      expect(plan).toEqual({
-        kind: WeeklyDigestMainChannelSendKind.SendPhoto,
-        payload: {
-          chat_id: '-1003',
-          photo: `https://cdn.example/only.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
-          caption: expect.stringMatching(/Only/s),
-          parse_mode: TGParseMode.HTML,
-        },
-      });
-    });
-
-    it('should return caption as plain sendMessage when no posters resolve', () => {
-      const gigs = [
-        {
-          id: 'a',
-          title: 'TextOnly',
-          date: 86_400_000,
-          posts: [],
-        },
-      ] as unknown as PlainGig[];
-
-      const plan = composer.composeWeeklyDigest({
-        chatId: '-1004',
-        gigs,
-      });
-
-      expect(plan.kind).toBe(WeeklyDigestMainChannelSendKind.SendMessage);
-      if (plan.kind !== WeeklyDigestMainChannelSendKind.SendMessage) return;
-
-      expect(plan.payload.chat_id).toBe('-1004');
-      expect(plan.payload.text).toContain('TextOnly');
-    });
-  });
-
-  describe('composeWeeklyDigestCaption', () => {
-    it('should append ellipsis when plain digest exceeds Telegram caption limit', () => {
-      const longTitle = 'X'.repeat(1100);
-      const gigs = [
-        {
-          id: '1',
-          title: longTitle,
-          date: 86_400_000,
-          venue: 'Hall',
-          ticketsUrl: 'https://tickets.example/e',
-          posts: [],
-        },
-      ] as unknown as PlainGig[];
-
-      const text = composer.composeWeeklyDigestCaption(gigs);
-
-      expect(text.endsWith('\n…')).toBe(true);
-      expect(text.length).toBeLessThanOrEqual(TELEGRAM_MEDIA_CAPTION_MAX_CHARS);
-    });
-  });
-
-  describe('GigCandidate post composition', () => {
+  describe('TelegramGigCandidateComposerService', () => {
     beforeEach(() => {
       process.env.INTAKE_CHANNEL_ID = '-3001';
       process.env.MODERATION_CHANNEL_ID = '-3002';
@@ -702,7 +574,7 @@ describe('TelegramPostComposer', () => {
     it('should compose Intake with Send to moderation and Reject actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
-      const payload = composer.composeGigCandidateIntakePost({
+      const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -765,7 +637,7 @@ describe('TelegramPostComposer', () => {
     });
 
     it('should compose a text Intake post when GigCandidate has no poster', () => {
-      const payload = composer.composeGigCandidateIntakePost({
+      const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -800,7 +672,7 @@ describe('TelegramPostComposer', () => {
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
-      const payload = composer.composeGigCandidateModerationPost({
+      const payload = gigCandidateComposer.composeModerationPost({
         id: '507f1f77bcf86cd799439099',
         source: {
           type: 'user',
@@ -888,7 +760,7 @@ describe('TelegramPostComposer', () => {
         chatId: -200,
       };
 
-      const composition = composer.composeGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composePostEdit({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired: false,
@@ -942,7 +814,7 @@ describe('TelegramPostComposer', () => {
         fileId: 'old-file-id',
       };
 
-      const composition = composer.composeGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composePostEdit({
         gigCandidate,
         post: moderationPost,
         isMediaUpdateRequired: true,
@@ -971,7 +843,7 @@ describe('TelegramPostComposer', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       expect(() =>
-        composer.composeGigCandidateIntakePost({
+        gigCandidateComposer.composeIntakePost({
           id: '507f1f77bcf86cd799439099',
           source: {
             type: 'user',
@@ -996,7 +868,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose submitted feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'submitted',
           title: 'Band & Friends',
@@ -1011,7 +883,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose rejected feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
           title: 'Band & Friends',
@@ -1026,7 +898,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose accepted-for-moderation feedback with the Gig title', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedForModeration',
           title: 'Band & Friends',
@@ -1041,7 +913,7 @@ describe('TelegramPostComposer', () => {
 
     it('should compose accepted feedback with a titled link and disabled preview', () => {
       expect(
-        composer.composeGigCandidateFeedbackMessage({
+        gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
@@ -1078,7 +950,7 @@ describe('TelegramPostComposer', () => {
         updatedAt: new Date(),
       };
 
-      const composition = composer.composeRejectedGigCandidatePostEdit({
+      const composition = gigCandidateComposer.composeRejectedPostEdit({
         gigCandidate,
         post: {
           to: Messenger.Telegram,
@@ -1130,7 +1002,7 @@ describe('TelegramPostComposer', () => {
       };
 
       const composition =
-        composer.composeGigCandidateIntakePostAfterModerationEdit({
+        gigCandidateComposer.composeIntakePostAfterModerationEdit({
           gigCandidate,
           intakePost: {
             to: Messenger.Telegram,
@@ -1192,7 +1064,7 @@ describe('TelegramPostComposer', () => {
       };
 
       const composition =
-        composer.composeGigCandidateIntakePostAfterModerationEdit({
+        gigCandidateComposer.composeIntakePostAfterModerationEdit({
           gigCandidate,
           intakePost: {
             to: Messenger.Telegram,

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TelegramBotReplyComposerService } from '../composers/telegram-bot-reply-composer.service';
+import { TelegramBotReplyComposerService } from './telegram-bot-reply-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
