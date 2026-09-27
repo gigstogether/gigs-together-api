@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
-import type { PlainGig } from '../../gig/types/gig.types';
+import type { GigPost, PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
@@ -11,6 +11,7 @@ import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramGigService } from './telegram-gig.service';
+import { TelegramService } from '../telegram.service';
 
 function createGig(): PlainGig {
   return {
@@ -54,6 +55,10 @@ describe('TelegramGigService', () => {
     ),
   };
 
+  const telegramService = {
+    getChatUsername: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.stubEnv('MAIN_CHANNEL_ID', '-100200');
     vi.stubEnv('APP_BASE_URL', 'https://app.example');
@@ -76,6 +81,10 @@ describe('TelegramGigService', () => {
           provide: BucketService,
           useValue: { getPublicFileUrl: vi.fn() },
         },
+        {
+          provide: TelegramService,
+          useValue: telegramService,
+        },
       ],
     }).compile();
 
@@ -85,6 +94,35 @@ describe('TelegramGigService', () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
+  });
+
+  it('should resolve a public URL for a Telegram Gig post', async () => {
+    const post: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Main,
+      id: 60,
+      chatId: -100200,
+      date: Date.UTC(2026, 5, 2),
+    };
+    telegramService.getChatUsername.mockResolvedValue('gigs_together_bcn');
+
+    await expect(service.resolvePublicPostUrl(post)).resolves.toBe(
+      'https://t.me/gigs_together_bcn/60',
+    );
+    expect(telegramService.getChatUsername).toHaveBeenCalledWith(post.chatId);
+  });
+
+  it('should return undefined when the Telegram chat has no public username', async () => {
+    const post: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Main,
+      id: 60,
+      chatId: -100200,
+      date: Date.UTC(2026, 5, 2),
+    };
+    telegramService.getChatUsername.mockResolvedValue(undefined);
+
+    await expect(service.resolvePublicPostUrl(post)).resolves.toBeUndefined();
   });
 
   it('should send a main post and return its Telegram reference', async () => {

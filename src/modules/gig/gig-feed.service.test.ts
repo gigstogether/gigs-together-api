@@ -58,11 +58,13 @@ describe('GigFeedService', () => {
   };
   const gigService = {
     normalizeAndValidatePublicId: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
     gigToCalendarPayload: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
-  const telegramGigService = { pickPost: vi.fn() };
+  const telegramGigService = {
+    pickPost: vi.fn(),
+    resolvePublicPostUrl: vi.fn(),
+  };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
 
   beforeEach(async () => {
@@ -82,10 +84,10 @@ describe('GigFeedService', () => {
     gigService.normalizeAndValidatePublicId.mockImplementation(
       (publicId: string) => publicId,
     );
-    gigService.resolvePublicPostUrl.mockResolvedValue(undefined);
     gigService.gigToCalendarPayload.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
     telegramGigService.pickPost.mockReturnValue(undefined);
+    telegramGigService.resolvePublicPostUrl.mockResolvedValue(undefined);
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );

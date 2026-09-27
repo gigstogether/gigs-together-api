@@ -5,7 +5,6 @@ import { Test } from '@nestjs/testing';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { TelegramService } from '../telegram/telegram.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { FeedRevalidateService } from './feed-revalidate.service';
@@ -99,13 +98,6 @@ describe('GigService', () => {
         GigService,
         { provide: GIG_REPOSITORY, useValue: gigRepository },
         { provide: GigPosterService, useValue: { upload: uploadPoster } },
-        {
-          provide: TelegramService,
-          useValue: {
-            getChatUsername: vi.fn(),
-            getPostUrl: vi.fn(),
-          },
-        },
         {
           provide: TelegramGigService,
           useValue: {

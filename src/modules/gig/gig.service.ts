@@ -17,7 +17,6 @@ import type {
 import { envBool } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
-import { TelegramService } from '../telegram/telegram.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
   EditGigPostsParams,
@@ -43,11 +42,6 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
-
-interface ResolvePublicPostUrl {
-  postId?: number;
-  chatId?: number;
-}
 
 export interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -158,7 +152,6 @@ export class GigService {
     private readonly gigRepository: GigRepository,
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
-    private readonly telegramService: TelegramService,
     private readonly telegramGigService: TelegramGigService,
     private readonly feedRevalidateService: FeedRevalidateService,
   ) {}
@@ -734,27 +727,6 @@ export class GigService {
       country: gig.country,
       city: gig.city,
     });
-  }
-
-  async resolvePublicPostUrl(
-    payload: ResolvePublicPostUrl,
-  ): Promise<string | undefined> {
-    const { postId, chatId } = payload;
-
-    if (!chatId) {
-      return;
-    }
-
-    const chatUsername = chatId
-      ? await this.telegramService.getChatUsername(chatId)
-      : undefined;
-
-    return chatUsername && postId
-      ? this.telegramService.getPostUrl({
-          chatUsername,
-          messageId: postId,
-        })
-      : undefined;
   }
 
   gigToCalendarPayload(gig: GigCalendarSource): CalendarishEvent {

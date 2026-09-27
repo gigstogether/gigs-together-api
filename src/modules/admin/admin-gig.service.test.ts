@@ -51,11 +51,13 @@ describe('AdminGigService', () => {
     getGigs: vi.fn(),
     getGigByPublicId: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
-    resolvePublicPostUrl: vi.fn(),
   };
   const telegramServiceMock = {
-    pickTgPost: vi.fn(),
     getPostUrl: vi.fn(),
+  };
+  const telegramGigServiceMock = {
+    pickPost: vi.fn(),
+    resolvePublicPostUrl: vi.fn(),
   };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
 
@@ -79,12 +81,13 @@ describe('AdminGigService', () => {
         updatedAt: new Date('2026-05-01T10:00:00.000Z'),
       },
     ]);
-    telegramServiceMock.pickTgPost.mockImplementation(
+    telegramGigServiceMock.pickPost.mockImplementation(
       (posts: GigPost[] | undefined, type: PostType): GigPost | undefined =>
         posts?.find(
           (post) => post.to === Messenger.Telegram && post.type === type,
         ),
     );
+    telegramGigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
     telegramServiceMock.getPostUrl.mockImplementation(
       (payload: GetPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
@@ -106,10 +109,7 @@ describe('AdminGigService', () => {
         AdminGigService,
         { provide: GigService, useValue: gigServiceMock },
         { provide: TelegramService, useValue: telegramServiceMock },
-        {
-          provide: TelegramGigService,
-          useValue: { pickPost: telegramServiceMock.pickTgPost },
-        },
+        { provide: TelegramGigService, useValue: telegramGigServiceMock },
         { provide: UserService, useValue: userServiceMock },
       ],
     }).compile();
@@ -122,7 +122,6 @@ describe('AdminGigService', () => {
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
       'https://cdn.example/poster.jpg',
     );
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
     const result = await service.getGigsList({ limit: 50 });
 
@@ -157,7 +156,7 @@ describe('AdminGigService', () => {
     const gig = buildPlainGig({ posts: [moderationPost, mainPost] });
     gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(
+    telegramGigServiceMock.resolvePublicPostUrl.mockResolvedValue(
       'https://t.me/channel/99',
     );
 
@@ -171,13 +170,15 @@ describe('AdminGigService', () => {
         moderationPostDate: moderationPost.date,
       }),
     );
+    expect(telegramGigServiceMock.resolvePublicPostUrl).toHaveBeenCalledWith(
+      mainPost,
+    );
   });
 
   it('should omit an empty tickets URL from the admin list', async () => {
     const gig = buildPlainGig({ ticketsUrl: '   ' });
     gigServiceMock.getGigs.mockResolvedValue([gig]);
     gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
-    gigServiceMock.resolvePublicPostUrl.mockResolvedValue(undefined);
 
     const result = await service.getGigsList({ limit: 50 });
 

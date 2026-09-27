@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PostType } from '../../../shared/types/post-type.enum';
-import type { PlainGig } from '../../gig/types/gig.types';
+import type { GigPost, PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { formatTelegramErrorMessage } from '../utils/telegram-error';
@@ -14,6 +14,7 @@ import type {
 } from '../types/message.types';
 import { TGParseMode } from '../types/message.types';
 import { getBiggestTgPhotoFileId } from '../utils/telegram-photo';
+import { TelegramService } from '../telegram.service';
 import type {
   EditGigPostParams,
   EditGigPostsParams,
@@ -33,10 +34,31 @@ export class TelegramGigService {
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramGigComposer: TelegramGigComposerService,
     private readonly telegramComposer: TelegramComposerService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   readonly pickPost: TelegramGigComposerService['pickPost'] =
     this.telegramGigComposer.pickPost.bind(this.telegramGigComposer);
+
+  async resolvePublicPostUrl(
+    post: GigPost | undefined,
+  ): Promise<string | undefined> {
+    if (post === undefined) {
+      return undefined;
+    }
+
+    const chatUsername = await this.telegramService.getChatUsername(
+      post.chatId,
+    );
+    if (chatUsername === undefined) {
+      return undefined;
+    }
+
+    return this.telegramComposer.getPostUrl({
+      chatUsername,
+      messageId: post.id,
+    });
+  }
 
   /**
    * Edits an existing Main or Moderation Gig post in Telegram.
