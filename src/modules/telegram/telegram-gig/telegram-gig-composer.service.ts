@@ -9,10 +9,10 @@ import {
 } from '../callback-action';
 import {
   AdminMiniAppStartAction,
-  TelegramPostComposerService,
-} from '../telegram-post-composer.service';
-import type { TelegramPostEditComposition } from '../telegram-post-composer.service.types';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+  TelegramComposerService,
+} from '../telegram-composer.service';
+import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
+import { PostEditKind } from '../telegram-composer.service.types';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import type {
@@ -35,7 +35,7 @@ import type {
 @Injectable()
 export class TelegramGigComposerService {
   constructor(
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
     private readonly telegramTemplates: TelegramTemplateService,
   ) {}
 
@@ -68,7 +68,7 @@ export class TelegramGigComposerService {
     const moderationPost = this.pickPost(gig.posts, PostType.Moderation);
     const poster =
       moderationPost?.fileId ??
-      this.telegramPostComposer.getTelegramPosterUrl(gig.poster);
+      this.telegramComposer.getTelegramPosterUrl(gig.poster);
 
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
@@ -97,7 +97,7 @@ export class TelegramGigComposerService {
 
   buildEditUrl(publicId?: string): string | undefined {
     return publicId
-      ? this.telegramPostComposer.buildAdminMiniAppUrl(
+      ? this.telegramComposer.buildAdminMiniAppUrl(
           AdminMiniAppStartAction.EditGig,
           publicId,
         )
@@ -196,7 +196,7 @@ export class TelegramGigComposerService {
 
   buildAdminUrl(publicId?: string): string | undefined {
     return publicId
-      ? this.telegramPostComposer.buildAdminMiniAppUrl(
+      ? this.telegramComposer.buildAdminMiniAppUrl(
           AdminMiniAppStartAction.OpenGig,
           publicId,
         )
@@ -213,7 +213,7 @@ export class TelegramGigComposerService {
     const mainPostUrl =
       mainPost === undefined
         ? undefined
-        : this.telegramPostComposer.getPostUrl({
+        : this.telegramComposer.getPostUrl({
             chatId: mainPost.chatId,
             messageId: mainPost.id,
           });
@@ -225,7 +225,7 @@ export class TelegramGigComposerService {
       mainPostUrl,
       editGigUrl: this.buildEditUrl(gig.publicId),
     });
-    const gigUrl = this.telegramPostComposer.buildGigPermalink({
+    const gigUrl = this.telegramComposer.buildGigPermalink({
       baseUrl: this.getAppBaseUrl(),
       publicId: gig.publicId,
     });
@@ -239,7 +239,7 @@ export class TelegramGigComposerService {
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
         params.mediaReference ??
-        this.telegramPostComposer.getTelegramPosterUrl(gig.poster);
+        this.telegramComposer.getTelegramPosterUrl(gig.poster);
       if (mediaReference) {
         return {
           kind: PostEditKind.Media,
@@ -294,7 +294,7 @@ export class TelegramGigComposerService {
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
         params.mediaReference ??
-        this.telegramPostComposer.getTelegramPosterUrl(gig.poster);
+        this.telegramComposer.getTelegramPosterUrl(gig.poster);
       if (mediaReference) {
         return {
           kind: PostEditKind.Media,
@@ -338,12 +338,12 @@ export class TelegramGigComposerService {
   }
 
   private buildMainPostCaption(gig: PlainGig): string {
-    const url = this.telegramPostComposer.buildGigPermalink({
+    const url = this.telegramComposer.buildGigPermalink({
       baseUrl: this.getAppBaseUrl(),
       publicId: gig.publicId,
     });
 
-    return this.telegramPostComposer.buildCaption({
+    return this.telegramComposer.buildCaption({
       url,
       title: gig.title,
       ticketsUrl: gig.ticketsUrl,

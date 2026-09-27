@@ -5,8 +5,8 @@ import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+import { TelegramComposerService } from '../telegram-composer.service';
+import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
@@ -63,7 +63,7 @@ describe('TelegramGigService', () => {
       providers: [
         TelegramGigService,
         TelegramGigComposerService,
-        TelegramPostComposerService,
+        TelegramComposerService,
         {
           provide: TelegramBotClient,
           useValue: telegramBotClient,

@@ -7,7 +7,7 @@ import type {
   BuildCaptionPayload,
   BuildGigPermalinkPayload,
   GetPostUrlPayload,
-} from './telegram-post-composer.service.types';
+} from './telegram-composer.service.types';
 
 export enum AdminMiniAppStartAction {
   EditGig = 'editGig',
@@ -27,10 +27,10 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 const ADMIN_MINI_APP_START_ACTION_SEPARATOR = '-';
 
 @Injectable()
-export class TelegramPostComposerService {
+export class TelegramComposerService {
   constructor(
     private readonly bucketService: BucketService,
-    private readonly postTemplates: TelegramTemplateService,
+    private readonly telegramTemplates: TelegramTemplateService,
   ) {}
 
   buildCaption(payload: BuildCaptionPayload): string {
@@ -50,7 +50,7 @@ export class TelegramPostComposerService {
       ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
       : TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink;
 
-    return this.postTemplates.render(templateKey, {
+    return this.telegramTemplates.render(templateKey, {
       url: payload.url,
       title: payload.title,
       dates,

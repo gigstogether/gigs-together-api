@@ -24,7 +24,7 @@ import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
 import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
-import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/telegram-composer.service.types';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;

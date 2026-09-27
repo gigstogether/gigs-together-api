@@ -7,7 +7,7 @@ import type {
   TGMessage,
   TGSendPhoto,
 } from '../types/message.types';
-import type { PostEditKind } from '../telegram-post-composer.service.types';
+import type { PostEditKind } from '../telegram-composer.service.types';
 
 export interface TelegramGigCandidatePostEditResult {
   kind: PostEditKind;

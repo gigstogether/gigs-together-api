@@ -12,11 +12,11 @@ import type {
 } from '../../gig-candidate/types/gig-candidate.types';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
+import { TelegramComposerService } from '../telegram-composer.service';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram-composer.service.types';
 import { TelegramGigCandidateService } from './telegram-gig-candidate.service';
 
 function createGigCandidate(): GigCandidate {
@@ -102,7 +102,7 @@ describe('TelegramGigCandidateService', () => {
       providers: [
         TelegramGigCandidateService,
         TelegramGigCandidateComposerService,
-        TelegramPostComposerService,
+        TelegramComposerService,
         {
           provide: TelegramBotClient,
           useValue: telegramBotClientMock,

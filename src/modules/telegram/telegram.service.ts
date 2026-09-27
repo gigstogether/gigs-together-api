@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
 import type { TGChat } from './types/chat.types';
 
 @Injectable()
@@ -15,7 +15,7 @@ export class TelegramService {
   constructor(
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
   ) {}
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =
@@ -27,8 +27,8 @@ export class TelegramService {
   readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
     this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
 
-  readonly getPostUrl: TelegramPostComposerService['getPostUrl'] =
-    this.telegramPostComposer.getPostUrl.bind(this.telegramPostComposer);
+  readonly getPostUrl: TelegramComposerService['getPostUrl'] =
+    this.telegramComposer.getPostUrl.bind(this.telegramComposer);
 
   async getChatUsername(chatId: TGChat['id']): Promise<TGChat['username']> {
     const chatKey = `chat:${chatId}`;

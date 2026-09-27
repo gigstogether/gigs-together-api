@@ -5,7 +5,7 @@ import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
@@ -19,8 +19,8 @@ import {
   GigCandidateCallbackAction,
   GigCallbackAction,
 } from './callback-action';
-import type { BuildGigPermalinkPayload } from './telegram-post-composer.service.types';
-import { PostEditKind } from './telegram-post-composer.service.types';
+import type { BuildGigPermalinkPayload } from './telegram-composer.service.types';
+import { PostEditKind } from './telegram-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 
@@ -89,8 +89,8 @@ function createMockPostTemplates(): MockPostTemplates {
   };
 }
 
-describe('TelegramPostComposerService', () => {
-  let composer: TelegramPostComposerService;
+describe('TelegramComposerService', () => {
+  let composer: TelegramComposerService;
   let gigCandidateComposer: TelegramGigCandidateComposerService;
   let gigComposer: TelegramGigComposerService;
   let mockPostTemplates: MockPostTemplates;
@@ -105,7 +105,7 @@ describe('TelegramPostComposerService', () => {
 
     const moduleRef = await Test.createTestingModule({
       providers: [
-        TelegramPostComposerService,
+        TelegramComposerService,
         TelegramGigCandidateComposerService,
         TelegramGigComposerService,
         {
@@ -116,7 +116,7 @@ describe('TelegramPostComposerService', () => {
       ],
     }).compile();
 
-    composer = moduleRef.get(TelegramPostComposerService);
+    composer = moduleRef.get(TelegramComposerService);
     gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
     gigComposer = moduleRef.get(TelegramGigComposerService);
   });

@@ -25,7 +25,7 @@ import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
-import { PostEditKind } from '../telegram/telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {
   GigCandidateRepository,

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from '../telegram-bot.client';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
+import { TelegramComposerService } from '../telegram-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import type { TGInputMedia } from '../types/message.types';
@@ -28,7 +28,7 @@ interface ComposedDigestText {
 export class TelegramDigestComposerService {
   constructor(
     private readonly telegramTemplates: TelegramTemplateService,
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
     private readonly telegramGigComposer: TelegramGigComposerService,
   ) {}
 
@@ -156,7 +156,7 @@ export class TelegramDigestComposerService {
         ? formatter.format(new Date(gig.endDate))
         : undefined;
       const datesLabel = `${dateLabel}${endDateLabel ? ` — ${endDateLabel}` : ''}`;
-      const url = this.telegramPostComposer.buildGigPermalink({
+      const url = this.telegramComposer.buildGigPermalink({
         baseUrl: appBaseUrl,
         publicId: gig.publicId,
       });
@@ -217,7 +217,7 @@ export class TelegramDigestComposerService {
     );
     return (
       moderationPost?.fileId ??
-      this.telegramPostComposer.getTelegramPosterUrl(gig.poster)
+      this.telegramComposer.getTelegramPosterUrl(gig.poster)
     );
   }
 }

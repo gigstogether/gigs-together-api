@@ -4,7 +4,7 @@ import type {
   TGChatId,
   TGMessage,
 } from '../types/message.types';
-import type { PostEditKind } from '../telegram-post-composer.service.types';
+import type { PostEditKind } from '../telegram-composer.service.types';
 
 export interface TelegramGigPostEditResult {
   kind: PostEditKind;

@@ -7,7 +7,7 @@ import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
-import type { GetPostUrlPayload } from '../telegram/telegram-post-composer.service.types';
+import type { GetPostUrlPayload } from '../telegram/telegram-composer.service.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';

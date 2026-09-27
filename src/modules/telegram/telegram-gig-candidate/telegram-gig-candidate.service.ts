@@ -9,8 +9,8 @@ import type {
 } from './telegram-gig-candidate-composer.service.types';
 import { TelegramBotClient } from '../telegram-bot.client';
 import type { InputFileData, TGMessage } from '../types/message.types';
-import { PostEditKind } from '../telegram-post-composer.service.types';
-import type { TelegramPostEditComposition } from '../telegram-post-composer.service.types';
+import { PostEditKind } from '../telegram-composer.service.types';
+import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import type {
   EditGigCandidatePostParams,
   SendGigCandidatePhotoParams,

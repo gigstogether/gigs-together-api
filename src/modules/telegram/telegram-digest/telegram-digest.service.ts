@@ -7,7 +7,7 @@ import { TelegramDigestComposerService } from './telegram-digest-composer.servic
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramBotClient } from '../telegram-bot.client';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
+import { TelegramComposerService } from '../telegram-composer.service';
 
 export interface WeeklyDigestPostResult {
   postUrl: string;
@@ -23,7 +23,7 @@ export class TelegramDigestService {
   constructor(
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramDigestComposer: TelegramDigestComposerService,
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
   ) {}
 
   async sendWeeklyDigestPost(
@@ -91,7 +91,7 @@ export class TelegramDigestService {
       return;
     }
 
-    const postUrl = this.telegramPostComposer.getPostUrl({
+    const postUrl = this.telegramComposer.getPostUrl({
       chatId,
       messageId,
     });

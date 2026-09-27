@@ -10,8 +10,8 @@ import {
 } from '../callback-action';
 import {
   AdminMiniAppStartAction,
-  TelegramPostComposerService,
-} from '../telegram-post-composer.service';
+  TelegramComposerService,
+} from '../telegram-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import type {
@@ -20,8 +20,8 @@ import type {
   TGSendPhoto,
 } from '../types/message.types';
 import { TGInputMediaType, TGParseMode } from '../types/message.types';
-import type { TelegramPostEditComposition } from '../telegram-post-composer.service.types';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
+import { PostEditKind } from '../telegram-composer.service.types';
 import type {
   BuildGigCandidateCaptionParams,
   BuildGigCandidateModerationReplyMarkupParams,
@@ -36,7 +36,7 @@ import type {
 @Injectable()
 export class TelegramGigCandidateComposerService {
   constructor(
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
     private readonly telegramTemplates: TelegramTemplateService,
   ) {}
 
@@ -48,7 +48,7 @@ export class TelegramGigCandidateComposerService {
     );
 
     const replyMarkup = this.buildIntakeReplyMarkup(gigCandidate);
-    const poster = this.telegramPostComposer.getTelegramPosterUrl(
+    const poster = this.telegramComposer.getTelegramPosterUrl(
       gigCandidate.gigDraft.poster,
     );
     if (poster === undefined || poster === '') {
@@ -114,7 +114,7 @@ export class TelegramGigCandidateComposerService {
         );
         break;
       case 'acceptedWithPublicLink': {
-        const gigUrl = this.telegramPostComposer.buildGigPermalink({
+        const gigUrl = this.telegramComposer.buildGigPermalink({
           baseUrl: this.getAppBaseUrl(),
           publicId: params.publicId,
         });
@@ -201,7 +201,7 @@ export class TelegramGigCandidateComposerService {
     });
 
     if (params.isMediaUpdateRequired) {
-      const posterUrl = this.telegramPostComposer.getTelegramPosterUrl(
+      const posterUrl = this.telegramComposer.getTelegramPosterUrl(
         params.gigCandidate.gigDraft.poster,
       );
       if (posterUrl === undefined || posterUrl === '') {
@@ -240,7 +240,7 @@ export class TelegramGigCandidateComposerService {
   private composeChannelPost(
     params: ComposeGigCandidateChannelPostParams,
   ): TGSendPhoto {
-    const poster = this.telegramPostComposer.getTelegramPosterUrl(
+    const poster = this.telegramComposer.getTelegramPosterUrl(
       params.gigCandidate.gigDraft.poster,
     );
     if (poster === undefined || poster === '') {
@@ -311,7 +311,7 @@ export class TelegramGigCandidateComposerService {
       params.channelPurpose === 'intake' &&
       params.moderationPost !== undefined
     ) {
-      const moderationPostUrl = this.telegramPostComposer.getPostUrl({
+      const moderationPostUrl = this.telegramComposer.getPostUrl({
         chatId: params.moderationPost.chatId,
         messageId: params.moderationPost.id,
       });
@@ -339,7 +339,7 @@ export class TelegramGigCandidateComposerService {
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
     }
-    const body = this.telegramPostComposer.buildCaption({
+    const body = this.telegramComposer.buildCaption({
       title: this.buildTitleLine(
         gigCandidate.status,
         gigDraft.title,
@@ -466,7 +466,7 @@ export class TelegramGigCandidateComposerService {
   }
 
   private buildEditGigCandidateUrl(gigCandidateId: string): string | undefined {
-    return this.telegramPostComposer.buildAdminMiniAppUrl(
+    return this.telegramComposer.buildAdminMiniAppUrl(
       AdminMiniAppStartAction.EditGigCandidate,
       gigCandidateId,
     );
@@ -475,7 +475,7 @@ export class TelegramGigCandidateComposerService {
   private buildAdminGigCandidateUrl(
     gigCandidateId: string,
   ): string | undefined {
-    return this.telegramPostComposer.buildAdminMiniAppUrl(
+    return this.telegramComposer.buildAdminMiniAppUrl(
       AdminMiniAppStartAction.OpenGigCandidate,
       gigCandidateId,
     );

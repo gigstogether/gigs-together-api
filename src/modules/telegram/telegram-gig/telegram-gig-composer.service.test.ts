@@ -4,8 +4,8 @@ import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { CallbackScope, GigCallbackAction } from '../callback-action';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+import { TelegramComposerService } from '../telegram-composer.service';
+import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
@@ -54,7 +54,7 @@ describe('TelegramGigComposerService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramGigComposerService,
-        TelegramPostComposerService,
+        TelegramComposerService,
         {
           provide: TelegramTemplateService,
           useValue: telegramTemplates,

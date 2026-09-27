@@ -9,7 +9,7 @@ import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
 import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
@@ -23,7 +23,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
-import { PostEditKind } from './telegram-post-composer.service.types';
+import { PostEditKind } from './telegram-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
@@ -146,7 +146,7 @@ describe('TelegramService', () => {
       providers: [
         TelegramService,
         TelegramBotClient,
-        TelegramPostComposerService,
+        TelegramComposerService,
         TelegramGigCandidateComposerService,
         TelegramGigCandidateService,
         TelegramGigComposerService,

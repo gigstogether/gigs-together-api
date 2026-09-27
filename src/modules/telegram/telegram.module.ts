@@ -9,7 +9,7 @@ import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/te
 import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
 import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
 import { TelegramGigService } from './telegram-gig/telegram-gig.service';
-import { TelegramPostComposerService } from './telegram-post-composer.service';
+import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
 import { HttpModule } from '@nestjs/axios';
@@ -48,7 +48,7 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     TelegramInitDataValidationService,
     TelegramBotClient,
     TelegramTemplateService,
-    TelegramPostComposerService,
+    TelegramComposerService,
     TelegramBotReplyComposerService,
     TelegramDigestComposerService,
     TelegramGigCandidateComposerService,

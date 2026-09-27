@@ -4,7 +4,7 @@ import { TelegramDigestComposerService } from './telegram-digest-composer.servic
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramBotClient } from '../telegram-bot.client';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
+import { TelegramComposerService } from '../telegram-composer.service';
 import { TGInputMediaType } from '../types/message.types';
 import { TelegramDigestService } from './telegram-digest.service';
 
@@ -40,7 +40,7 @@ describe('TelegramDigestService', () => {
   const telegramDigestComposer = {
     composeWeeklyDigest: vi.fn(),
   };
-  const telegramPostComposer = {
+  const telegramComposer = {
     getPostUrl: vi.fn(),
   };
 
@@ -54,15 +54,15 @@ describe('TelegramDigestService', () => {
           useValue: telegramDigestComposer,
         },
         {
-          provide: TelegramPostComposerService,
-          useValue: telegramPostComposer,
+          provide: TelegramComposerService,
+          useValue: telegramComposer,
         },
       ],
     }).compile();
 
     service = moduleRef.get(TelegramDigestService);
     process.env.MAIN_CHANNEL_ID = '-1001';
-    telegramPostComposer.getPostUrl.mockReturnValue('https://t.me/c/1/42');
+    telegramComposer.getPostUrl.mockReturnValue('https://t.me/c/1/42');
   });
 
   afterEach(() => {

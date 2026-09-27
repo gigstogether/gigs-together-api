@@ -3,7 +3,7 @@ import type { PlainGig } from '../../gig/types/gig.types';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
+import { TelegramComposerService } from '../telegram-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
@@ -79,7 +79,7 @@ describe('TelegramDigestComposerService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramDigestComposerService,
-        TelegramPostComposerService,
+        TelegramComposerService,
         TelegramGigComposerService,
         {
           provide: TelegramTemplateService,

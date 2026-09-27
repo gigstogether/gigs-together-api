@@ -4,9 +4,9 @@ import type { PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { formatTelegramErrorMessage } from '../telegram-error';
-import { TelegramPostComposerService } from '../telegram-post-composer.service';
-import type { TelegramPostEditComposition } from '../telegram-post-composer.service.types';
-import { PostEditKind } from '../telegram-post-composer.service.types';
+import { TelegramComposerService } from '../telegram-composer.service';
+import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
+import { PostEditKind } from '../telegram-composer.service.types';
 import type {
   InputFileData,
   TGMessage,
@@ -32,7 +32,7 @@ export class TelegramGigService {
   constructor(
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramGigComposer: TelegramGigComposerService,
-    private readonly telegramPostComposer: TelegramPostComposerService,
+    private readonly telegramComposer: TelegramComposerService,
   ) {}
 
   readonly pickPost: TelegramGigComposerService['pickPost'] =
@@ -144,13 +144,13 @@ export class TelegramGigService {
     } = payload;
 
     const editGigUrl = this.telegramGigComposer.buildEditUrl(publicId);
-    const gigUrl = this.telegramPostComposer.buildGigPermalink({
+    const gigUrl = this.telegramComposer.buildGigPermalink({
       baseUrl: (process.env.APP_BASE_URL ?? '').trim(),
       publicId,
     });
     const adminGigUrl = this.telegramGigComposer.buildAdminUrl(publicId);
     const mainPostUrl = mainPost
-      ? this.telegramPostComposer.getPostUrl({
+      ? this.telegramComposer.getPostUrl({
           messageId: mainPost.messageId,
           chatId: mainPost.chatId,
         })
