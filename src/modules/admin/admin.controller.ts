@@ -33,7 +33,10 @@ import { LocaleService } from '../locale/locale.service';
 import type { SupportedLocale } from '../locale/types/locale.types';
 import { TranslationService } from '../translation/translation.service';
 import type { StoredTranslationRecord } from '../translation/types/translation-record.types';
-import { V1AdminTranslationSetActiveBodyDto } from './types/requests/v1-admin-translation-set-active-body';
+import {
+  V1AdminTranslationSetActiveBodyDto,
+  V1AdminTranslationSetActiveParamsDto,
+} from './types/requests/v1-admin-translation-set-active-body';
 import { V1AdminTranslationUpsertBodyDto } from './types/requests/v1-admin-translation-upsert-body';
 import { V1AdminTranslationsGetQueryDto } from './types/requests/v1-admin-translations-get-query';
 import type { V1AdminTranslationNamespacesListResponseBody } from './types/requests/v1-admin-translation-namespaces-list-response';
@@ -239,11 +242,11 @@ export class AdminController {
   @Patch('translations/:id/active')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   patchTranslationActive(
-    @Param('id') id: string,
+    @Param() params: V1AdminTranslationSetActiveParamsDto,
     @Body() body: V1AdminTranslationSetActiveBodyDto,
   ): Promise<StoredTranslationRecord> {
     return this.translationService.setActiveById({
-      id,
+      id: params.id,
       isActive: body.isActive,
     });
   }

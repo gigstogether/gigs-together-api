@@ -401,9 +401,10 @@ describe('AdminController', () => {
   describe('patchTranslationActive', () => {
     it('should toggle translation active flag via translation service', async () => {
       await expect(
-        controller.patchTranslationActive('64f1a2b3c4d5e6f7a8b9c0d1', {
-          isActive: false,
-        }),
+        controller.patchTranslationActive(
+          { id: '64f1a2b3c4d5e6f7a8b9c0d1' },
+          { isActive: false },
+        ),
       ).resolves.toEqual({
         id: '64f1a2b3c4d5e6f7a8b9c0d1',
         namespace: 'about',
