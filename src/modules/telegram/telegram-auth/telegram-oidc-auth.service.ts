@@ -1,8 +1,8 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import type { TGUser } from './types/user.types';
-import { isRecord } from '../../shared/utils/is-record';
+import type { TGUser } from '../types/user.types';
+import { isRecord } from '../../../shared/utils/is-record';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
 const TELEGRAM_OIDC_ISSUER = 'https://oauth.telegram.org';

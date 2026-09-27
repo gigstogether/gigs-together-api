@@ -1,8 +1,8 @@
-import { Messenger } from '../../shared/types/messenger.enum';
-import type { AuthenticationService } from '../auth/authentication.service';
-import type { UserService } from '../user/user.service';
+import { Messenger } from '../../../shared/types/messenger.enum';
+import type { AuthenticationService } from '../../auth/authentication.service';
+import type { UserService } from '../../user/user.service';
 import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
-import type { AuthorizationService } from '../auth/authorization.service';
+import type { AuthorizationService } from '../../auth/authorization.service';
 
 describe('TelegramAccessExchangeService', () => {
   const authenticationService = {

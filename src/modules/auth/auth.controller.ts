@@ -17,7 +17,7 @@ import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { authClientProfileFromAccessTokenIdentity } from './mappers/auth-client-profile-from-identity';
 import type { AuthClientProfileResponseBody } from './types/auth-client-profile.types';
 import type { User } from './types/user.types';
-import { tgUserToTelegramAccessIdentity } from '../telegram/mappers/access-token-user.mapper';
+import { tgUserToTelegramAccessIdentity } from '../telegram/telegram-auth/access-token-user.mapper';
 import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
 

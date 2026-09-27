@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
+import { TelegramInitDataValidationService } from './telegram-auth/telegram-init-data-validation.service';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramBotReplyComposerService } from './telegram-bot-reply/telegram-bot-reply-composer.service';
 import { TelegramBotReplyService } from './telegram-bot-reply/telegram-bot-reply.service';
@@ -18,10 +18,10 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { TranslationModule } from '../translation/translation.module';
-import { TelegramAuthController } from './telegram-auth.controller';
-import { TelegramInitDataAuthService } from './telegram-init-data-auth.service';
-import { TelegramAccessExchangeService } from './telegram-access-exchange.service';
-import { TelegramOidcAuthService } from './telegram-oidc-auth.service';
+import { TelegramAuthController } from './telegram-auth/telegram-auth.controller';
+import { TelegramInitDataAuthService } from './telegram-auth/telegram-init-data-auth.service';
+import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-exchange.service';
+import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
 

@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { AuthenticationService } from '../auth/authentication.service';
-import { tgUserToTelegramAccessIdentity } from './mappers/access-token-user.mapper';
-import type { TGUser } from './types/user.types';
+import { AuthenticationService } from '../../auth/authentication.service';
+import { tgUserToTelegramAccessIdentity } from './access-token-user.mapper';
+import type { TGUser } from '../types/user.types';
 import type { V1TelegramAccessTokenExchangeResult } from './types/requests/v1-telegram-exchange-response';
-import { authClientProfileFromAccessTokenIdentity } from '../auth/mappers/auth-client-profile-from-identity';
-import { UserService } from '../user/user.service';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { authClientProfileFromAccessTokenIdentity } from '../../auth/mappers/auth-client-profile-from-identity';
+import { UserService } from '../../user/user.service';
+import { Messenger } from '../../../shared/types/messenger.enum';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
-import { AuthorizationService } from '../auth/authorization.service';
+import { AuthorizationService } from '../../auth/authorization.service';
 
 /**
  * Builds the access + refresh token exchange for Telegram Web App and Login Widget flows.
