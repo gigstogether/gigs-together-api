@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
-import { TelegramGigComposerService } from '../composers/telegram-gig-composer.service';
+import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { formatTelegramErrorMessage } from '../telegram-error';
 import { TelegramPostComposerService } from '../telegram-post-composer.service';

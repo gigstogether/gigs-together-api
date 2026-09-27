@@ -18,11 +18,11 @@ import { envBool } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
 import { GigPosterService } from './gig.poster.service';
 import { TelegramService } from '../telegram/telegram.service';
-import { TelegramGigService } from '../telegram/services/telegram-gig.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
   EditGigPostsParams,
   UpdateGigModerationPostPayload,
-} from '../telegram/services/telegram-gig.service.types';
+} from '../telegram/telegram-gig/telegram-gig.service.types';
 import { BucketService } from '../bucket/bucket.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';

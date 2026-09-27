@@ -3,7 +3,7 @@ import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
-import { TelegramGigComposerService } from '../composers/telegram-gig-composer.service';
+import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramPostComposerService } from '../telegram-post-composer.service';
 import { PostEditKind } from '../telegram-post-composer.service.types';

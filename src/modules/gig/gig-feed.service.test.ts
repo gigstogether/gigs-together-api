@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../calendar/calendar.service';
-import { TelegramGigService } from '../telegram/services/telegram-gig.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GigService } from './gig.service';
 import { GIG_REPOSITORY } from './repositories/gig.repository';

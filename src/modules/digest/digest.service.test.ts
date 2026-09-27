@@ -8,7 +8,7 @@ import type {
 } from './digest.service';
 import { DigestPostState } from './digest-post-state.schema';
 import { GigFeedService } from '../gig/gig-feed.service';
-import { TelegramDigestService } from '../telegram/services/telegram-digest.service';
+import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
 
 describe('getPreviousDigestCronFireDate', () => {
   it('should return the prior weekly instant for default Monday-noon digest cron', () => {

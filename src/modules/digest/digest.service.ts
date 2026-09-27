@@ -4,7 +4,7 @@ import { CronTime } from 'cron';
 import type { Model } from 'mongoose';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigFeedService } from '../gig/gig-feed.service';
-import { TelegramDigestService } from '../telegram/services/telegram-digest.service';
+import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 import { DigestPostState } from './digest-post-state.schema';
 import type { DigestPostStateDocument } from './digest-post-state.schema';

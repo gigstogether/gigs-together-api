@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { TelegramDigestComposerService } from '../composers/telegram-digest-composer.service';
-import type { WeeklyDigestSendPlan } from '../composers/telegram-digest-composer.types';
-import { WeeklyDigestSendKind } from '../composers/telegram-digest-composer.types';
+import { TelegramDigestComposerService } from './telegram-digest-composer.service';
+import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
+import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramPostComposerService } from '../telegram-post-composer.service';
 import { TGInputMediaType } from '../types/message.types';

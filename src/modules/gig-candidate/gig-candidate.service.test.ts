@@ -4,8 +4,8 @@ import { Test } from '@nestjs/testing';
 
 import { GigPosterService } from '../gig/gig.poster.service';
 import { PostType } from '../../shared/types/post-type.enum';
-import { TelegramGigCandidateService } from '../telegram/services/telegram-gig-candidate.service';
-import { TelegramGigService } from '../telegram/services/telegram-gig.service';
+import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';

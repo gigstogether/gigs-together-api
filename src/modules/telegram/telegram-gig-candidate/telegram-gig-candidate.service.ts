@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
-import { TelegramGigCandidateComposerService } from '../composers/telegram-gig-candidate-composer.service';
+import { TelegramGigCandidateComposerService } from './telegram-gig-candidate-composer.service';
 import type {
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
-} from '../composers/telegram-gig-candidate-composer.service.types';
+} from './telegram-gig-candidate-composer.service.types';
 import { TelegramBotClient } from '../telegram-bot.client';
 import type { InputFileData, TGMessage } from '../types/message.types';
 import { PostEditKind } from '../telegram-post-composer.service.types';

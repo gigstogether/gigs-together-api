@@ -3,9 +3,9 @@ import { isAxiosError } from 'axios';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { isRecord } from '../../../shared/utils/is-record';
 import { logError } from '../../../shared/utils/logging';
-import { TelegramDigestComposerService } from '../composers/telegram-digest-composer.service';
-import type { WeeklyDigestSendPlan } from '../composers/telegram-digest-composer.types';
-import { WeeklyDigestSendKind } from '../composers/telegram-digest-composer.types';
+import { TelegramDigestComposerService } from './telegram-digest-composer.service';
+import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
+import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramPostComposerService } from '../telegram-post-composer.service';
 

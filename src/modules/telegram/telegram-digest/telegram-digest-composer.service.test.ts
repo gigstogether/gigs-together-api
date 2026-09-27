@@ -14,7 +14,7 @@ import {
   TelegramDigestComposerService,
 } from './telegram-digest-composer.service';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramGigComposerService } from './telegram-gig-composer.service';
+import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 

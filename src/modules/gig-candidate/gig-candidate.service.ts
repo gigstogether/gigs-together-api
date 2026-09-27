@@ -9,10 +9,10 @@ import {
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { TelegramGigService } from '../telegram/services/telegram-gig.service';
-import { TelegramGigCandidateService } from '../telegram/services/telegram-gig-candidate.service';
-import type { TelegramGigCandidatePostSendResult } from '../telegram/services/telegram-gig-candidate.service.types';
-import type { GigCandidateFeedbackMessageContent } from '../telegram/composers/telegram-gig-candidate-composer.service.types';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
+import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
+import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
+import type { GigCandidateFeedbackMessageContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';

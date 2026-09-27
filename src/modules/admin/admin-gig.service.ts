@@ -10,7 +10,7 @@ import type {
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramService } from '../telegram/telegram.service';
-import { TelegramGigService } from '../telegram/services/telegram-gig.service';
+import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';

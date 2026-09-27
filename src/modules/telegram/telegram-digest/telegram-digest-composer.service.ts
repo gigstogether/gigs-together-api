@@ -12,7 +12,7 @@ import type {
   WeeklyDigestSendPlan,
 } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramGigComposerService } from './telegram-gig-composer.service';
+import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
 
 export const TELEGRAM_DIGEST_CAPTION_MAX_CHARS = 1024;
 

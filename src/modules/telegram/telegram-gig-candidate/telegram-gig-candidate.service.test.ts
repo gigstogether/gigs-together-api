@@ -10,7 +10,7 @@ import type {
   GigCandidatePost,
   GigCandidateTextPost,
 } from '../../gig-candidate/types/gig-candidate.types';
-import { TelegramGigCandidateComposerService } from '../composers/telegram-gig-candidate-composer.service';
+import { TelegramGigCandidateComposerService } from './telegram-gig-candidate-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramPostComposerService } from '../telegram-post-composer.service';
 import type { TelegramTemplateKey } from '../telegram-template-keys';

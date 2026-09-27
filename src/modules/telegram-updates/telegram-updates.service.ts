@@ -13,7 +13,7 @@ import {
   parseCallbackData,
 } from '../telegram/callback-action';
 import { TelegramService } from '../telegram/telegram.service';
-import { TelegramBotReplyService } from '../telegram/services/telegram-bot-reply.service';
+import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { formatTelegramErrorMessage } from '../telegram/telegram-error';
 import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
