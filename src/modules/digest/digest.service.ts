@@ -1,13 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CronTime } from 'cron';
-import type { Model } from 'mongoose';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigFeedService } from '../gig/gig-feed.service';
 import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
-import { DigestPostState } from './digest-post-state.schema';
-import type { DigestPostStateDocument } from './digest-post-state.schema';
+import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
+import type { DigestPostStateRepository } from './repositories/digest-post-state.repository';
 
 /** Monday 12:00 local (minute 0, hour 12, weekday Monday). */
 export const DIGEST_POST_CRON_EXPRESSION = '0 12 * * 1';
@@ -47,8 +45,8 @@ export class DigestService {
   constructor(
     private readonly gigFeedService: GigFeedService,
     private readonly telegramDigestService: TelegramDigestService,
-    @InjectModel(DigestPostState.name)
-    private readonly digestPostStateModel: Model<DigestPostStateDocument>,
+    @Inject(DIGEST_POST_STATE_REPOSITORY)
+    private readonly digestPostStateRepository: DigestPostStateRepository,
   ) {}
 
   /**
@@ -62,7 +60,10 @@ export class DigestService {
 
     const digestPostUrl = postResult?.postUrl;
     if (digestPostUrl) {
-      await this.recordSuccessfulPost(digestPostUrl);
+      await this.digestPostStateRepository.saveSuccessfulPost({
+        postedAt: new Date(),
+        postUrl: digestPostUrl,
+      });
       this.logger.log(`Weekly digest posted successfully: ${digestPostUrl}`);
     }
   }
@@ -75,7 +76,8 @@ export class DigestService {
       now,
     });
 
-    const postedAt = await this.getLatestPostDate();
+    const digestPostState = await this.digestPostStateRepository.findCurrent();
+    const postedAt = digestPostState?.postedAt;
 
     if (
       postedAt !== undefined &&
@@ -100,25 +102,5 @@ export class DigestService {
       fromMs,
       toMs,
     });
-  }
-
-  private async getLatestPostDate(): Promise<Date | undefined> {
-    const doc = await this.digestPostStateModel.findOne().lean().exec();
-    return doc?.postedAt ?? undefined;
-  }
-
-  private async recordSuccessfulPost(postUrl: string): Promise<void> {
-    await this.digestPostStateModel
-      .findOneAndUpdate(
-        {},
-        {
-          $set: {
-            postedAt: new Date(),
-            postUrl,
-          },
-        },
-        { upsert: true },
-      )
-      .exec();
   }
 }

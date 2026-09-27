@@ -8,6 +8,8 @@ import {
   DigestPostStateSchema,
 } from './digest-post-state.schema';
 import { DigestService } from './digest.service';
+import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
+import { MongoDigestPostStateRepository } from './repositories/mongo-digest-post-state.repository';
 
 /**
  * Digest notifications; scheduled Telegram posting on a fixed timezone (Europe/Madrid).
@@ -23,7 +25,14 @@ import { DigestService } from './digest.service';
     GigModule,
     TelegramModule,
   ],
-  providers: [DigestService, DigestCronService],
+  providers: [
+    DigestService,
+    DigestCronService,
+    {
+      provide: DIGEST_POST_STATE_REPOSITORY,
+      useClass: MongoDigestPostStateRepository,
+    },
+  ],
   exports: [DigestService],
 })
 export class DigestModule {}
