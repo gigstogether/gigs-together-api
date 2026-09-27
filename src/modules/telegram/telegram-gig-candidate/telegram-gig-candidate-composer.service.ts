@@ -14,6 +14,7 @@ import {
 } from '../telegram-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type {
   TGInlineKeyboardMarkup,
   TGSendMessage,
@@ -38,6 +39,7 @@ export class TelegramGigCandidateComposerService {
   constructor(
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramTemplates: TelegramTemplateService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   composeIntakePost(gigCandidate: GigCandidate): TGSendMessage | TGSendPhoto {
@@ -48,7 +50,7 @@ export class TelegramGigCandidateComposerService {
     );
 
     const replyMarkup = this.buildIntakeReplyMarkup(gigCandidate);
-    const poster = this.telegramComposer.getTelegramPosterUrl(
+    const poster = this.telegramService.resolvePosterUrl(
       gigCandidate.gigDraft.poster,
     );
     if (poster === undefined || poster === '') {
@@ -201,7 +203,7 @@ export class TelegramGigCandidateComposerService {
     });
 
     if (params.isMediaUpdateRequired) {
-      const posterUrl = this.telegramComposer.getTelegramPosterUrl(
+      const posterUrl = this.telegramService.resolvePosterUrl(
         params.gigCandidate.gigDraft.poster,
       );
       if (posterUrl === undefined || posterUrl === '') {
@@ -240,7 +242,7 @@ export class TelegramGigCandidateComposerService {
   private composeChannelPost(
     params: ComposeGigCandidateChannelPostParams,
   ): TGSendPhoto {
-    const poster = this.telegramComposer.getTelegramPosterUrl(
+    const poster = this.telegramService.resolvePosterUrl(
       params.gigCandidate.gigDraft.poster,
     );
     if (poster === undefined || poster === '') {
@@ -311,7 +313,7 @@ export class TelegramGigCandidateComposerService {
       params.channelPurpose === 'intake' &&
       params.moderationPost !== undefined
     ) {
-      const moderationPostUrl = this.telegramComposer.getPostUrl({
+      const moderationPostUrl = this.telegramComposer.buildPostUrl({
         chatId: params.moderationPost.chatId,
         messageId: params.moderationPost.id,
       });

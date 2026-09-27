@@ -7,7 +7,7 @@ import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { TelegramService } from '../telegram/telegram.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
-import type { GetPostUrlPayload } from '../telegram/telegram-composer.service.types';
+import type { BuildPostUrlPayload } from '../telegram/telegram-composer.service.types';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';
@@ -53,7 +53,7 @@ describe('AdminGigService', () => {
     resolveGigPosterPublicUrl: vi.fn(),
   };
   const telegramServiceMock = {
-    getPostUrl: vi.fn(),
+    buildPostUrl: vi.fn(),
   };
   const telegramGigServiceMock = {
     pickPost: vi.fn(),
@@ -88,8 +88,8 @@ describe('AdminGigService', () => {
         ),
     );
     telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
-    telegramServiceMock.getPostUrl.mockImplementation(
-      (payload: GetPostUrlPayload): string | undefined => {
+    telegramServiceMock.buildPostUrl.mockImplementation(
+      (payload: BuildPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
           return `https://t.me/${payload.chatUsername}/${payload.messageId}`;
         }

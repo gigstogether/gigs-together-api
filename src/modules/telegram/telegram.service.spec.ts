@@ -198,6 +198,26 @@ describe('TelegramService', () => {
     expect(service).toBeDefined();
   });
 
+  describe('resolvePosterUrl', () => {
+    it('should add a fresh Telegram cache key to a bucket poster URL', () => {
+      vi.spyOn(Date, 'now').mockReturnValue(1_790_013_012_000);
+      mockBucketService.getPublicFileUrl.mockReturnValueOnce(
+        'https://cdn.example/poster.jpg',
+      );
+
+      expect(service.resolvePosterUrl({ bucketPath: 'gigs/poster.jpg' })).toBe(
+        'https://cdn.example/poster.jpg?tgcb=1790013012000',
+      );
+    });
+
+    it('should preserve an external poster URL', () => {
+      const externalUrl =
+        'https://images.example/poster.jpg?signature=preserve-me';
+
+      expect(service.resolvePosterUrl({ externalUrl })).toBe(externalUrl);
+    });
+  });
+
   describe('sendMessage', () => {
     it('should send the correct HTTP request', async () => {
       const chat_id = 12345;

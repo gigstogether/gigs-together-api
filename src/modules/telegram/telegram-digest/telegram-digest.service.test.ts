@@ -41,7 +41,7 @@ describe('TelegramDigestService', () => {
     composeWeeklyDigest: vi.fn(),
   };
   const telegramComposer = {
-    getPostUrl: vi.fn(),
+    buildPostUrl: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -62,7 +62,7 @@ describe('TelegramDigestService', () => {
 
     service = moduleRef.get(TelegramDigestService);
     process.env.MAIN_CHANNEL_ID = '-1001';
-    telegramComposer.getPostUrl.mockReturnValue('https://t.me/c/1/42');
+    telegramComposer.buildPostUrl.mockReturnValue('https://t.me/c/1/42');
   });
 
   afterEach(() => {

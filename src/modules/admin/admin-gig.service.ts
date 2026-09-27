@@ -72,7 +72,7 @@ export class AdminGigService {
       PostType.Moderation,
     );
     const moderationPostUrl = moderationPost?.id
-      ? this.telegramService.getPostUrl({
+      ? this.telegramService.buildPostUrl({
           messageId: moderationPost.id,
           chatId: moderationPost?.chatId,
         })

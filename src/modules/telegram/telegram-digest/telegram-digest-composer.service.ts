@@ -13,6 +13,7 @@ import type {
 } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
+import { TelegramService } from '../telegram.service';
 
 export const TELEGRAM_DIGEST_CAPTION_MAX_CHARS = 1024;
 
@@ -30,6 +31,7 @@ export class TelegramDigestComposerService {
     private readonly telegramTemplates: TelegramTemplateService,
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramGigComposer: TelegramGigComposerService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   composeWeeklyDigest(params: ComposeWeeklyDigestParams): WeeklyDigestSendPlan {
@@ -217,7 +219,7 @@ export class TelegramDigestComposerService {
     );
     return (
       moderationPost?.fileId ??
-      this.telegramComposer.getTelegramPosterUrl(gig.poster)
+      this.telegramService.resolvePosterUrl(gig.poster)
     );
   }
 }

@@ -57,7 +57,7 @@ describe('AdminGigCandidateService', () => {
     resolveGigPosterPublicUrl: vi.fn(),
   };
   const telegramServiceMock = {
-    getPostUrl: vi.fn(),
+    buildPostUrl: vi.fn(),
   };
   const userServiceMock = {
     findActiveUsersByIds: vi.fn(),
@@ -249,7 +249,7 @@ describe('AdminGigCandidateService', () => {
           },
         ],
       });
-      telegramServiceMock.getPostUrl
+      telegramServiceMock.buildPostUrl
         .mockReturnValueOnce('https://t.me/c/123/77')
         .mockReturnValueOnce('https://t.me/c/124/78');
 

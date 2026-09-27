@@ -83,13 +83,13 @@ export class AdminGigCandidateService {
     const moderationPost =
       gigCandidateModerationPost ?? linkedGigModerationPost;
     const intakePostUrl = intakePost
-      ? this.telegramService.getPostUrl({
+      ? this.telegramService.buildPostUrl({
           chatId: intakePost.chatId,
           messageId: intakePost.id,
         })
       : undefined;
     const moderationPostUrl = moderationPost
-      ? this.telegramService.getPostUrl({
+      ? this.telegramService.buildPostUrl({
           chatId: moderationPost.chatId,
           messageId: moderationPost.id,
         })

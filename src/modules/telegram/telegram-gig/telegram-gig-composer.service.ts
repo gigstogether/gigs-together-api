@@ -15,6 +15,7 @@ import type { TelegramPostEditComposition } from '../telegram-composer.service.t
 import { PostEditKind } from '../telegram-composer.service.types';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type {
   TGInlineKeyboardMarkup,
   TGSendPhoto,
@@ -37,6 +38,7 @@ export class TelegramGigComposerService {
   constructor(
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramTemplates: TelegramTemplateService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   composePostEdit(
@@ -68,7 +70,7 @@ export class TelegramGigComposerService {
     const moderationPost = this.pickPost(gig.posts, PostType.Moderation);
     const poster =
       moderationPost?.fileId ??
-      this.telegramComposer.getTelegramPosterUrl(gig.poster);
+      this.telegramService.resolvePosterUrl(gig.poster);
 
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
@@ -213,7 +215,7 @@ export class TelegramGigComposerService {
     const mainPostUrl =
       mainPost === undefined
         ? undefined
-        : this.telegramComposer.getPostUrl({
+        : this.telegramComposer.buildPostUrl({
             chatId: mainPost.chatId,
             messageId: mainPost.id,
           });
@@ -239,7 +241,7 @@ export class TelegramGigComposerService {
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
         params.mediaReference ??
-        this.telegramComposer.getTelegramPosterUrl(gig.poster);
+        this.telegramService.resolvePosterUrl(gig.poster);
       if (mediaReference) {
         return {
           kind: PostEditKind.Media,
@@ -294,7 +296,7 @@ export class TelegramGigComposerService {
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
         params.mediaReference ??
-        this.telegramComposer.getTelegramPosterUrl(gig.poster);
+        this.telegramService.resolvePosterUrl(gig.poster);
       if (mediaReference) {
         return {
           kind: PostEditKind.Media,

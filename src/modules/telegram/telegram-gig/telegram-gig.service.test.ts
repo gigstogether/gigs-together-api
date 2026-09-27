@@ -1,5 +1,4 @@
 import { Test } from '@nestjs/testing';
-import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { GigPost, PlainGig } from '../../gig/types/gig.types';
@@ -57,6 +56,9 @@ describe('TelegramGigService', () => {
 
   const telegramService = {
     getChatUsername: vi.fn(),
+    resolvePosterUrl: vi.fn(
+      (poster: PlainGig['poster']) => poster?.externalUrl,
+    ),
   };
 
   beforeEach(async () => {
@@ -76,10 +78,6 @@ describe('TelegramGigService', () => {
         {
           provide: TelegramTemplateService,
           useValue: telegramTemplates,
-        },
-        {
-          provide: BucketService,
-          useValue: { getPublicFileUrl: vi.fn() },
         },
         {
           provide: TelegramService,

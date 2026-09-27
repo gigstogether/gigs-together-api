@@ -32,19 +32,19 @@ export interface BuildGigPermalinkPayload {
   publicId: string;
 }
 
-interface GetPostUrlPayloadBaseParams {
+interface BuildPostUrlPayloadBaseParams {
   messageId: TGMessage['message_id'];
 }
 
-interface GetPostUrlPayloadByChatIdParams extends GetPostUrlPayloadBaseParams {
+interface BuildPostUrlPayloadByChatIdParams extends BuildPostUrlPayloadBaseParams {
   chatId: TGChatId;
   chatUsername?: TGChat['username'];
 }
 
-interface GetPostUrlPayloadByChatUsernameParams extends GetPostUrlPayloadBaseParams {
+interface BuildPostUrlPayloadByChatUsernameParams extends BuildPostUrlPayloadBaseParams {
   chatId?: TGChatId;
   chatUsername: TGChat['username'];
 }
 
-export type GetPostUrlPayload =
-  GetPostUrlPayloadByChatIdParams | GetPostUrlPayloadByChatUsernameParams;
+export type BuildPostUrlPayload =
+  BuildPostUrlPayloadByChatIdParams | BuildPostUrlPayloadByChatUsernameParams;

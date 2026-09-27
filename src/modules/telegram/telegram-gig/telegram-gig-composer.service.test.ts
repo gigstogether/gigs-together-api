@@ -1,5 +1,4 @@
 import { Test } from '@nestjs/testing';
-import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
@@ -13,6 +12,7 @@ import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
+import { TelegramService } from '../telegram.service';
 
 function createGig(): PlainGig {
   return {
@@ -49,6 +49,12 @@ describe('TelegramGigComposerService', () => {
     ),
   };
 
+  const telegramService = {
+    resolvePosterUrl: vi.fn(
+      (poster: PlainGig['poster']) => poster?.externalUrl,
+    ),
+  };
+
   beforeEach(async () => {
     vi.stubEnv('MAIN_CHANNEL_ID', '-100200');
     vi.stubEnv('APP_BASE_URL', 'https://app.example');
@@ -62,10 +68,7 @@ describe('TelegramGigComposerService', () => {
           provide: TelegramTemplateService,
           useValue: telegramTemplates,
         },
-        {
-          provide: BucketService,
-          useValue: { getPublicFileUrl: vi.fn() },
-        },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 

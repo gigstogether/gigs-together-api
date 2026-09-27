@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
@@ -15,6 +16,8 @@ import {
 } from './telegram-digest-composer.service';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
+import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramService } from '../telegram.service';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 
@@ -72,6 +75,18 @@ describe('TelegramDigestComposerService', () => {
     getPublicFileUrl: vi.fn(),
   };
 
+  const telegramBotClient = {
+    sendMessage: vi.fn(),
+    sendPhoto: vi.fn(),
+    answerCallbackQuery: vi.fn(),
+    getChat: vi.fn(),
+  };
+
+  const chatLookupCache = {
+    get: vi.fn(),
+    set: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     telegramTemplates = createMockTelegramTemplates();
@@ -81,11 +96,14 @@ describe('TelegramDigestComposerService', () => {
         TelegramDigestComposerService,
         TelegramComposerService,
         TelegramGigComposerService,
+        TelegramService,
         {
           provide: TelegramTemplateService,
           useValue: telegramTemplates,
         },
         { provide: BucketService, useValue: bucketService },
+        { provide: TelegramBotClient, useValue: telegramBotClient },
+        { provide: CACHE_MANAGER, useValue: chatLookupCache },
       ],
     }).compile();
 

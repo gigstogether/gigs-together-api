@@ -91,7 +91,7 @@ export class TelegramDigestService {
       return;
     }
 
-    const postUrl = this.telegramComposer.getPostUrl({
+    const postUrl = this.telegramComposer.buildPostUrl({
       chatId,
       messageId,
     });

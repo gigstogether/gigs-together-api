@@ -1,6 +1,5 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
@@ -18,6 +17,7 @@ import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { PostEditKind } from '../telegram-composer.service.types';
 import { TelegramGigCandidateService } from './telegram-gig-candidate.service';
+import { TelegramService } from '../telegram.service';
 
 function createGigCandidate(): GigCandidate {
   return {
@@ -92,6 +92,12 @@ describe('TelegramGigCandidateService', () => {
     ),
   };
 
+  const telegramServiceMock = {
+    resolvePosterUrl: vi.fn(
+      (poster: GigCandidate['gigDraft']['poster']) => poster?.externalUrl,
+    ),
+  };
+
   beforeEach(async () => {
     vi.stubEnv('INTAKE_CHANNEL_ID', '-100');
     vi.stubEnv('MODERATION_CHANNEL_ID', '-200');
@@ -111,10 +117,7 @@ describe('TelegramGigCandidateService', () => {
           provide: TelegramTemplateService,
           useValue: telegramTemplatesMock,
         },
-        {
-          provide: BucketService,
-          useValue: { getPublicFileUrl: vi.fn() },
-        },
+        { provide: TelegramService, useValue: telegramServiceMock },
       ],
     }).compile();
 

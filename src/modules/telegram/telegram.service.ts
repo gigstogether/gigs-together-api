@@ -2,6 +2,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
+import { BucketService } from '../bucket/bucket.service';
+import type { GigPoster } from '../gig/types/gig.types';
 import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramComposerService } from './telegram-composer.service';
 import type { TGChat } from './types/chat.types';
@@ -16,6 +18,7 @@ export class TelegramService {
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramComposer: TelegramComposerService,
+    private readonly bucketService: BucketService,
   ) {}
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =
@@ -27,8 +30,25 @@ export class TelegramService {
   readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
     this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
 
-  readonly getPostUrl: TelegramComposerService['getPostUrl'] =
-    this.telegramComposer.getPostUrl.bind(this.telegramComposer);
+  readonly buildPostUrl: TelegramComposerService['buildPostUrl'] =
+    this.telegramComposer.buildPostUrl.bind(this.telegramComposer);
+
+  resolvePosterUrl(posterInfo?: GigPoster): string | undefined {
+    if (!posterInfo) return;
+
+    const { bucketPath, externalUrl } = posterInfo;
+    if (bucketPath) {
+      const bucketUrl = this.bucketService.getPublicFileUrl(bucketPath);
+      if (bucketUrl) {
+        // R2 poster URLs stay stable when their bytes are replaced. Telegram caches both fetched
+        // media and failed fetches by URL, and editMessageMedia may return "message is not modified"
+        // when the media string is unchanged. A fresh query value forces Telegram to fetch again.
+        return this.addTelegramCacheBustToUrl(bucketUrl);
+      }
+    }
+    // Arbitrary external URLs stay unchanged.
+    return externalUrl;
+  }
 
   async getChatUsername(chatId: TGChat['id']): Promise<TGChat['username']> {
     const chatKey = `chat:${chatId}`;
@@ -58,5 +78,11 @@ export class TelegramService {
       );
       return undefined;
     }
+  }
+
+  private addTelegramCacheBustToUrl(url: string): string {
+    const cacheBustedUrl = new URL(url);
+    cacheBustedUrl.searchParams.set('tgcb', String(Date.now()));
+    return cacheBustedUrl.toString();
   }
 }

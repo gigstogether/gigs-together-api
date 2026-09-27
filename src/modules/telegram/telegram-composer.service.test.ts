@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
@@ -6,6 +7,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramComposerService } from './telegram-composer.service';
+import { TelegramBotClient } from './telegram-bot.client';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
@@ -23,6 +25,7 @@ import type { BuildGigPermalinkPayload } from './telegram-composer.service.types
 import { PostEditKind } from './telegram-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { TelegramService } from './telegram.service';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 
@@ -99,6 +102,18 @@ describe('TelegramComposerService', () => {
     getPublicFileUrl: vi.fn(),
   };
 
+  const mockTelegramBotClient = {
+    sendMessage: vi.fn(),
+    sendPhoto: vi.fn(),
+    answerCallbackQuery: vi.fn(),
+    getChat: vi.fn(),
+  };
+
+  const mockChatLookupCache = {
+    get: vi.fn(),
+    set: vi.fn(),
+  };
+
   beforeEach(async () => {
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
@@ -108,11 +123,14 @@ describe('TelegramComposerService', () => {
         TelegramComposerService,
         TelegramGigCandidateComposerService,
         TelegramGigComposerService,
+        TelegramService,
         {
           provide: TelegramTemplateService,
           useValue: mockPostTemplates,
         },
         { provide: BucketService, useValue: mockBucket },
+        { provide: TelegramBotClient, useValue: mockTelegramBotClient },
+        { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
       ],
     }).compile();
 
@@ -146,9 +164,9 @@ describe('TelegramComposerService', () => {
     });
   });
 
-  describe('getPostUrl', () => {
+  describe('buildPostUrl', () => {
     it('should build public t.me URL when chatUsername is set', () => {
-      const url = composer.getPostUrl({
+      const url = composer.buildPostUrl({
         chatUsername: 'mychannel',
         messageId: 42,
       });
@@ -157,7 +175,7 @@ describe('TelegramComposerService', () => {
     });
 
     it('should build private supergroup URL when only numeric chatId is set', () => {
-      const url = composer.getPostUrl({
+      const url = composer.buildPostUrl({
         chatId: '-1001234567890',
         messageId: 5,
       });

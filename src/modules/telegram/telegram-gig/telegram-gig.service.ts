@@ -54,7 +54,7 @@ export class TelegramGigService {
       return undefined;
     }
 
-    return this.telegramComposer.getPostUrl({
+    return this.telegramComposer.buildPostUrl({
       chatUsername,
       messageId: post.id,
     });
@@ -172,7 +172,7 @@ export class TelegramGigService {
     });
     const adminGigUrl = this.telegramGigComposer.buildAdminUrl(publicId);
     const mainPostUrl = mainPost
-      ? this.telegramComposer.getPostUrl({
+      ? this.telegramComposer.buildPostUrl({
           messageId: mainPost.messageId,
           chatId: mainPost.chatId,
         })
