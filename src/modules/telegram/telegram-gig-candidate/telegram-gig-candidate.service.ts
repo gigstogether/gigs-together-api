@@ -19,7 +19,7 @@ import type {
   TelegramGigCandidatePostSendResult,
   UpdateRejectedGigCandidatePostPayload,
 } from './telegram-gig-candidate.service.types';
-import { getBiggestTgPhotoFileId } from '../utils/photo';
+import { getBiggestTgPhotoFileId } from '../utils/telegram-photo';
 
 @Injectable()
 export class TelegramGigCandidateService {

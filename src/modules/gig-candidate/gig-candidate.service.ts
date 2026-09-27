@@ -13,7 +13,7 @@ import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.servic
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
 import type { GigCandidateFeedbackMessageContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
-import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
+import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { FeedRevalidateService } from '../gig/feed-revalidate.service';
@@ -24,7 +24,7 @@ import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
-import { formatTelegramErrorMessage } from '../telegram/telegram-error';
+import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {

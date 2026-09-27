@@ -18,7 +18,7 @@ import {
   encodeCallbackData,
   GigCandidateCallbackAction,
   GigCallbackAction,
-} from './callback-action';
+} from './utils/telegram-callback-action';
 import type { BuildGigPermalinkPayload } from './telegram-composer.service.types';
 import { PostEditKind } from './telegram-composer.service.types';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';

@@ -3,7 +3,7 @@ import {
   GigCallbackAction,
   encodeCallbackData,
   parseCallbackData,
-} from './callback-action';
+} from './telegram-callback-action';
 
 describe('Gig callback data', () => {
   it('should round-trip the required expectedVersion', () => {

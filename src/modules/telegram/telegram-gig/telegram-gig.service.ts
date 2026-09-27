@@ -3,7 +3,7 @@ import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot.client';
-import { formatTelegramErrorMessage } from '../telegram-error';
+import { formatTelegramErrorMessage } from '../utils/telegram-error';
 import { TelegramComposerService } from '../telegram-composer.service';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import { PostEditKind } from '../telegram-composer.service.types';
@@ -13,7 +13,7 @@ import type {
   TGSendPhoto,
 } from '../types/message.types';
 import { TGParseMode } from '../types/message.types';
-import { getBiggestTgPhotoFileId } from '../utils/photo';
+import { getBiggestTgPhotoFileId } from '../utils/telegram-photo';
 import type {
   EditGigPostParams,
   EditGigPostsParams,

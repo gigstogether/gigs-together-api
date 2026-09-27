@@ -37,8 +37,8 @@ import type {
   UpdateGigByPublicIdRecordParams,
 } from './repositories/gig.repository';
 import { FeedRevalidateService } from './feed-revalidate.service';
-import { formatTelegramErrorMessage } from '../telegram/telegram-error';
-import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/telegram-input-file.mapper';
+import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
+import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,

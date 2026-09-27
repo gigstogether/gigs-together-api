@@ -1,5 +1,5 @@
 import type { TGPhotoSize } from '../types/message.types';
-import { getBiggestTgPhotoFileId } from './photo';
+import { getBiggestTgPhotoFileId } from './telegram-photo';
 
 describe('getBiggestTgPhotoFileId', () => {
   it('returns undefined for undefined input', () => {

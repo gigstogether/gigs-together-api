@@ -12,7 +12,7 @@ import {
   encodeCallbackData,
   GigCandidateCallbackAction,
   GigCallbackAction,
-} from '../telegram/callback-action';
+} from '../telegram/utils/telegram-callback-action';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';

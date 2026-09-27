@@ -6,7 +6,7 @@ import {
   CallbackScope,
   encodeCallbackData,
   GigCallbackAction,
-} from '../callback-action';
+} from '../utils/telegram-callback-action';
 import {
   AdminMiniAppStartAction,
   TelegramComposerService,
