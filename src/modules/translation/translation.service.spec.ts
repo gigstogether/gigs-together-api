@@ -429,6 +429,10 @@ describe('TranslationService', () => {
       expect(revalidateAfterWriteMock).toHaveBeenCalledWith({
         namespace: 'about',
       });
+      expect(setActiveByIdMock).toHaveBeenCalledWith({
+        id: '64f1a2b3c4d5e6f7a8b9c0d1',
+        isActive: false,
+      });
     });
 
     it('should throw NotFoundException when translation id is missing', async () => {
@@ -443,20 +447,6 @@ describe('TranslationService', () => {
         return (
           error instanceof NotFoundException &&
           error.message === 'Translation "64f1a2b3c4d5e6f7a8b9c0d1" not found'
-        );
-      });
-    });
-
-    it('should reject invalid translation id format', async () => {
-      await expect(
-        service.setActiveById({
-          id: 'not-an-object-id',
-          isActive: false,
-        }),
-      ).rejects.toSatisfy((error: unknown) => {
-        return (
-          error instanceof BadRequestException &&
-          error.message === 'id has invalid format'
         );
       });
     });

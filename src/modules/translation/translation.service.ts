@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Types } from 'mongoose';
 import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
 import { TranslationRevalidateService } from './translation-revalidate.service';
@@ -177,15 +176,13 @@ export class TranslationService {
   async setActiveById(
     params: SetTranslationRecordActiveParams,
   ): Promise<StoredTranslationRecord> {
-    const id = TranslationService.parseRecordIdParam(params.id);
-
     const updated = await this.translationRepository.setActiveById({
-      id,
+      id: params.id,
       isActive: params.isActive,
     });
 
     if (!updated) {
-      throw new NotFoundException(`Translation "${id}" not found`);
+      throw new NotFoundException(`Translation "${params.id}" not found`);
     }
 
     await this.translationRevalidateService.revalidateAfterWrite({
@@ -248,15 +245,6 @@ export class TranslationService {
     }
 
     return kindRaw;
-  }
-
-  private static parseRecordIdParam(idRaw: string): string {
-    const id = idRaw.trim();
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException('id has invalid format');
-    }
-
-    return id;
   }
 
   private static toV1TranslationValues(
