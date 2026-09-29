@@ -1,3 +1,5 @@
+import { PATH_METADATA } from '@nestjs/common/constants';
+
 import { GigController } from './gig.controller';
 import type { GigFeedService } from './gig-feed.service';
 
@@ -89,5 +91,11 @@ describe('GigController', () => {
     await expect(
       controller.getGigDateByPublicId({ publicId: 'radiohead-2026-06-12' }),
     ).resolves.toEqual({ date: '123' });
+  });
+
+  it('should expose the anchor date below the Gig resource path', () => {
+    expect(
+      Reflect.getMetadata(PATH_METADATA, controller.getGigDateByPublicId),
+    ).toBe(':publicId/date');
   });
 });
