@@ -21,6 +21,7 @@ export class V1AdminGigsGetQueryDto {
   @IsIn(ADMIN_GIG_LIST_SORT_ORDER_VALUES)
   sortOrder?: AdminGigListSortOrder;
 
+  // TODO: Add cursor pagination so clients can request records beyond the first page.
   @IsOptional()
   @Type(() => Number)
   @IsInt()
