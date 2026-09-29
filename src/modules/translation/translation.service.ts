@@ -20,8 +20,11 @@ import type {
   V1TranslationValue,
 } from './types/requests/v1-translation-get-translations-request';
 import type { LocaleKeyRegistry } from './types/translation-cache.types';
-import type { TranslationRecordPlainFormat } from './types/translation-record.types';
-import type { StoredTranslationRecord } from './types/translation-record.types';
+import type {
+  StoredTranslationRecord,
+  TranslationRecordPlainFormat,
+  UpsertTranslationRecordResult,
+} from './types/translation-record.types';
 import type {
   TranslationFormat,
   TranslationKind,
@@ -32,7 +35,7 @@ interface SetTranslationRecordActiveParams {
   readonly isActive: boolean;
 }
 
-interface UpsertTranslationRecordInput {
+export interface UpsertTranslationRecordInput {
   readonly namespace: string;
   readonly locale: string;
   readonly key: string;
@@ -155,8 +158,8 @@ export class TranslationService {
 
   async upsertRecord(
     params: UpsertTranslationRecordInput,
-  ): Promise<StoredTranslationRecord> {
-    const record = await this.translationRepository.upsertRecord({
+  ): Promise<UpsertTranslationRecordResult> {
+    const upsertParams = {
       namespace: TranslationService.parseNamespaceParam(params.namespace),
       locale: LocaleService.parseLocaleIsoParam(params.locale),
       key: TranslationService.parseKeyParam(params.key),
@@ -164,13 +167,14 @@ export class TranslationService {
       format: TranslationService.parseRecordFormatParam(params.format),
       kind: TranslationService.parseRecordKindParam(params.kind),
       isActive: params.isActive,
-    });
+    };
+    const result = await this.translationRepository.upsertRecord(upsertParams);
 
     await this.translationRevalidateService.revalidateAfterWrite({
-      namespace: record.namespace,
+      namespace: upsertParams.namespace,
     });
 
-    return record;
+    return result;
   }
 
   async setActiveById(

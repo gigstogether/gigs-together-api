@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -32,12 +33,16 @@ import {
 import { LocaleService } from '../locale/locale.service';
 import type { SupportedLocale } from '../locale/types/locale.types';
 import { TranslationService } from '../translation/translation.service';
+import type { UpsertTranslationRecordInput } from '../translation/translation.service';
 import type { StoredTranslationRecord } from '../translation/types/translation-record.types';
 import {
   V1AdminTranslationSetActiveBodyDto,
   V1AdminTranslationSetActiveParamsDto,
 } from './types/requests/v1-admin-translation-set-active-body';
-import { V1AdminTranslationUpsertBodyDto } from './types/requests/v1-admin-translation-upsert-body';
+import {
+  V1AdminTranslationPutBodyDto,
+  V1AdminTranslationPutParamsDto,
+} from './types/requests/v1-admin-translation-put-request';
 import { V1AdminTranslationsGetQueryDto } from './types/requests/v1-admin-translations-get-query';
 import type { V1AdminTranslationNamespacesListResponseBody } from './types/requests/v1-admin-translation-namespaces-list-response';
 import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
@@ -69,6 +74,29 @@ const PosterFileInterceptor = FileInterceptor('posterFile', {
     callback(null, true);
   },
 });
+
+interface MapV1AdminTranslationPutRequestParams {
+  path: V1AdminTranslationPutParamsDto;
+  body: V1AdminTranslationPutBodyDto;
+}
+
+interface TranslationPutHttpResponse {
+  status(statusCode: HttpStatus): void;
+}
+
+function mapV1AdminTranslationPutRequest(
+  params: MapV1AdminTranslationPutRequestParams,
+): UpsertTranslationRecordInput {
+  return {
+    namespace: params.path.namespace,
+    locale: params.path.locale,
+    key: params.path.key,
+    value: params.body.value,
+    format: params.body.format,
+    kind: params.body.kind,
+    isActive: params.body.isActive,
+  };
+}
 
 /** Admin UI API: dashboard, moderation, locales, translations, cache revalidation, and manual digest posting. */
 @Controller('admin')
@@ -230,12 +258,20 @@ export class AdminController {
   }
 
   @Version('1')
-  @Put('translations')
+  @Put('translations/:namespace/:locale/:key')
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  upsertTranslation(
-    @Body() body: V1AdminTranslationUpsertBodyDto,
-  ): Promise<StoredTranslationRecord> {
-    return this.translationService.upsertRecord(body);
+  async putTranslation(
+    @Param() path: V1AdminTranslationPutParamsDto,
+    @Body() body: V1AdminTranslationPutBodyDto,
+    @Res({ passthrough: true }) response: TranslationPutHttpResponse,
+  ): Promise<void> {
+    const result = await this.translationService.upsertRecord(
+      mapV1AdminTranslationPutRequest({ path, body }),
+    );
+
+    response.status(
+      result.isCreated ? HttpStatus.CREATED : HttpStatus.NO_CONTENT,
+    );
   }
 
   @Version('1')

@@ -20,7 +20,7 @@ const TRANSLATION_RECORD_KIND_VALUES = [
   'template',
 ] as const satisfies readonly TranslationKind[];
 
-export class V1AdminTranslationUpsertBodyDto {
+export class V1AdminTranslationPutParamsDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
@@ -39,7 +39,9 @@ export class V1AdminTranslationUpsertBodyDto {
   @MinLength(1)
   @IsTranslationKey()
   key!: string;
+}
 
+export class V1AdminTranslationPutBodyDto {
   @IsString()
   @MinLength(1)
   value!: string;

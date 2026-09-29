@@ -1,6 +1,7 @@
 import type {
   TranslationRecordPlainFormat,
   StoredTranslationRecord,
+  UpsertTranslationRecordResult,
 } from '../types/translation-record.types';
 import type {
   TranslationRecord,
@@ -56,7 +57,7 @@ export interface TranslationRepository {
 
   upsertRecord(
     params: UpsertTranslationRecordParams,
-  ): Promise<StoredTranslationRecord>;
+  ): Promise<UpsertTranslationRecordResult>;
 
   setActiveById(
     params: SetTranslationActiveByIdParams,

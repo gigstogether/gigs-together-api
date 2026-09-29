@@ -322,14 +322,7 @@ describe('TranslationService', () => {
   describe('upsertRecord', () => {
     it('should upsert translation when payload is valid', async () => {
       upsertRecordMock.mockResolvedValue({
-        id: '64f1a2b3c4d5e6f7a8b9c0d1',
-        namespace: 'about',
-        locale: 'en',
-        key: 'title',
-        value: 'About us',
-        format: 'plain',
-        kind: 'text',
-        isActive: true,
+        isCreated: true,
       });
 
       await expect(
@@ -343,14 +336,7 @@ describe('TranslationService', () => {
           isActive: true,
         }),
       ).resolves.toEqual({
-        id: '64f1a2b3c4d5e6f7a8b9c0d1',
-        namespace: 'about',
-        locale: 'en',
-        key: 'title',
-        value: 'About us',
-        format: 'plain',
-        kind: 'text',
-        isActive: true,
+        isCreated: true,
       });
 
       expect(revalidateAfterWriteMock).toHaveBeenCalledWith({

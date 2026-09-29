@@ -9,11 +9,13 @@ describe('MongoTranslationRepository', () => {
 
   const translationFindMock = vi.fn();
   const translationDistinctMock = vi.fn();
+  const translationUpdateOneMock = vi.fn();
   const translationFindOneAndUpdateMock = vi.fn();
 
   beforeEach(async () => {
     translationFindMock.mockReset();
     translationDistinctMock.mockReset();
+    translationUpdateOneMock.mockReset();
     translationFindOneAndUpdateMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -24,6 +26,7 @@ describe('MongoTranslationRepository', () => {
           useValue: {
             find: translationFindMock,
             distinct: translationDistinctMock,
+            updateOne: translationUpdateOneMock,
             findOneAndUpdate: translationFindOneAndUpdateMock,
           },
         },
@@ -251,21 +254,14 @@ describe('MongoTranslationRepository', () => {
   });
 
   describe('upsertRecord', () => {
-    it('should upsert translation by namespace locale and key', async () => {
-      translationFindOneAndUpdateMock.mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          lean: vi.fn().mockReturnValue({
-            exec: vi.fn().mockResolvedValue({
-              _id: '64f1a2b3c4d5e6f7a8b9c0d1',
-              locale: 'en',
-              namespace: 'about',
-              key: 'title',
-              value: 'About us',
-              format: 'plain',
-              kind: 'text',
-              isActive: true,
-            }),
-          }),
+    it('should report when an upsert creates a translation', async () => {
+      translationUpdateOneMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({
+          acknowledged: true,
+          matchedCount: 0,
+          modifiedCount: 0,
+          upsertedCount: 1,
+          upsertedId: '64f1a2b3c4d5e6f7a8b9c0d1',
         }),
       });
 
@@ -280,17 +276,10 @@ describe('MongoTranslationRepository', () => {
           isActive: true,
         }),
       ).resolves.toEqual({
-        id: '64f1a2b3c4d5e6f7a8b9c0d1',
-        locale: 'en',
-        namespace: 'about',
-        key: 'title',
-        value: 'About us',
-        format: 'plain',
-        kind: 'text',
-        isActive: true,
+        isCreated: true,
       });
 
-      expect(translationFindOneAndUpdateMock).toHaveBeenCalledWith(
+      expect(translationUpdateOneMock).toHaveBeenCalledWith(
         { namespace: 'about', locale: 'en', key: 'title' },
         {
           $set: {
@@ -303,7 +292,99 @@ describe('MongoTranslationRepository', () => {
             isActive: true,
           },
         },
-        { upsert: true, returnDocument: 'after' },
+        { upsert: true },
+      );
+    });
+
+    it('should report when an upsert updates an existing translation', async () => {
+      translationUpdateOneMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({
+          acknowledged: true,
+          matchedCount: 1,
+          modifiedCount: 1,
+          upsertedCount: 0,
+          upsertedId: null,
+        }),
+      });
+
+      const result = await repository.upsertRecord({
+        namespace: 'about',
+        locale: 'en',
+        key: 'title',
+        value: 'About us',
+        format: 'plain',
+        kind: 'text',
+        isActive: true,
+      });
+
+      expect(result.isCreated).toBe(false);
+    });
+
+    it('should report a matched unchanged translation as existing', async () => {
+      translationUpdateOneMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({
+          acknowledged: true,
+          matchedCount: 1,
+          modifiedCount: 0,
+          upsertedCount: 0,
+          upsertedId: null,
+        }),
+      });
+
+      await expect(
+        repository.upsertRecord({
+          namespace: 'about',
+          locale: 'en',
+          key: 'title',
+          value: 'About us',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        }),
+      ).resolves.toEqual({ isCreated: false });
+    });
+
+    it('should reject an unacknowledged upsert', async () => {
+      translationUpdateOneMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({ acknowledged: false }),
+      });
+
+      await expect(
+        repository.upsertRecord({
+          namespace: 'about',
+          locale: 'en',
+          key: 'title',
+          value: 'About us',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        }),
+      ).rejects.toThrow('Translation upsert was not acknowledged.');
+    });
+
+    it('should reject an acknowledged upsert without a matched or created document', async () => {
+      translationUpdateOneMock.mockReturnValue({
+        exec: vi.fn().mockResolvedValue({
+          acknowledged: true,
+          matchedCount: 0,
+          modifiedCount: 0,
+          upsertedCount: 0,
+          upsertedId: null,
+        }),
+      });
+
+      await expect(
+        repository.upsertRecord({
+          namespace: 'about',
+          locale: 'en',
+          key: 'title',
+          value: 'About us',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        }),
+      ).rejects.toThrow(
+        'Translation upsert did not create or match a document.',
       );
     });
   });

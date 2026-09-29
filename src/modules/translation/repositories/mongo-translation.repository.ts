@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import type { TranslationRecord } from '../types/translation.types';
-import type { StoredTranslationRecord } from '../types/translation-record.types';
+import type {
+  StoredTranslationRecord,
+  UpsertTranslationRecordResult,
+} from '../types/translation-record.types';
 import { Translation, TranslationDocument } from '../translation.schema';
 import { TranslationRepositoryMapper } from './translation.repository.mapper';
 import type {
@@ -122,9 +125,9 @@ export class MongoTranslationRepository implements TranslationRepository {
 
   async upsertRecord(
     params: UpsertTranslationRecordParams,
-  ): Promise<StoredTranslationRecord> {
-    const updated = await this.translationModel
-      .findOneAndUpdate(
+  ): Promise<UpsertTranslationRecordResult> {
+    const result = await this.translationModel
+      .updateOne(
         {
           namespace: params.namespace,
           locale: params.locale,
@@ -141,17 +144,23 @@ export class MongoTranslationRepository implements TranslationRepository {
             isActive: params.isActive,
           },
         },
-        { upsert: true, returnDocument: 'after' },
+        { upsert: true },
       )
-      .select(STORED_TRANSLATION_RECORD_PROJECTION)
-      .lean<StoredTranslationRecordLeanDocument>()
       .exec();
 
-    if (!updated) {
-      throw new Error('Translation upsert did not return a document.');
+    if (!result.acknowledged) {
+      throw new Error('Translation upsert was not acknowledged.');
     }
 
-    return TranslationRepositoryMapper.toStoredTranslationRecord(updated);
+    if (result.upsertedCount === 1) {
+      return { isCreated: true };
+    }
+
+    if (result.matchedCount === 1) {
+      return { isCreated: false };
+    }
+
+    throw new Error('Translation upsert did not create or match a document.');
   }
 
   async setActiveById(
