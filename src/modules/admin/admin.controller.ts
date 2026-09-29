@@ -195,7 +195,7 @@ export class AdminController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
   revalidateFeed(): Promise<void> {
-    return this.feedRevalidateService.revalidateFeed({});
+    return this.feedRevalidateService.revalidateFeedOrThrow({});
   }
 
   @Version('1')

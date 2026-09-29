@@ -1,4 +1,8 @@
-import { HttpStatus, RequestMethod } from '@nestjs/common';
+import {
+  HttpStatus,
+  RequestMethod,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 
 import { AdminController } from './admin.controller';
@@ -98,8 +102,8 @@ describe('AdminController', () => {
   } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
 
   const feedRevalidateService = {
-    revalidateFeed: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<FeedRevalidateService, 'revalidateFeed'>;
+    revalidateFeedOrThrow: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<FeedRevalidateService, 'revalidateFeedOrThrow'>;
 
   const digestService = {
     createPost: vi.fn().mockResolvedValue(undefined),
@@ -230,10 +234,21 @@ describe('AdminController', () => {
   });
 
   describe('revalidateFeed', () => {
-    it('should revalidate all feed paths via feed revalidate service', async () => {
+    it('should strictly revalidate all feed paths via feed revalidate service', async () => {
       await expect(controller.revalidateFeed()).resolves.toBeUndefined();
 
-      expect(feedRevalidateService.revalidateFeed).toHaveBeenCalledWith({});
+      expect(feedRevalidateService.revalidateFeedOrThrow).toHaveBeenCalledWith(
+        {},
+      );
+    });
+
+    it('should propagate manual feed revalidation failure', async () => {
+      const e = new ServiceUnavailableException(
+        'Feed revalidation service is unavailable',
+      );
+      feedRevalidateService.revalidateFeedOrThrow.mockRejectedValueOnce(e);
+
+      await expect(controller.revalidateFeed()).rejects.toBe(e);
     });
   });
 
