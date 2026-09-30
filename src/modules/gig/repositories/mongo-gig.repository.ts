@@ -331,6 +331,7 @@ export class MongoGigRepository implements GigRepository {
         { $group: { _id: '$date' } },
         { $sort: { _id: 1 } },
       ])
+      .collation(GIG_COLLATION)
       .allowDiskUse(true);
     return rows.map((row) => row._id);
   }
