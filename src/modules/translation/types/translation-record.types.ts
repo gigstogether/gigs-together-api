@@ -12,3 +12,7 @@ export interface StoredTranslationRecord {
   readonly locale: string;
   readonly isActive: boolean;
 }
+
+export interface UpsertTranslationRecordResult {
+  isCreated: boolean;
+}

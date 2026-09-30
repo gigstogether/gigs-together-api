@@ -1,3 +1,7 @@
+import {
+  BadGatewayException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -105,14 +109,35 @@ describe('FeedRevalidateService', () => {
   });
 
   describe('revalidateFeedOrThrow', () => {
-    it('should expose request failure to an approval caller', async () => {
+    it('should reject when revalidation env is not configured', async () => {
+      await expect(service.revalidateFeedOrThrow({})).rejects.toBeInstanceOf(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('should expose request failure to the caller', async () => {
       vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
       fetchMock.mockRejectedValue(new Error('Network unavailable'));
 
       await expect(
         service.revalidateFeedOrThrow({ country: 'ES', city: 'barcelona' }),
-      ).rejects.toThrow('Network unavailable');
+      ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+
+    it('should reject when the frontend rejects revalidation', async () => {
+      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+        text: () => Promise.resolve('Cache unavailable'),
+      });
+
+      await expect(
+        service.revalidateFeedOrThrow({ country: 'ES', city: 'barcelona' }),
+      ).rejects.toBeInstanceOf(BadGatewayException);
     });
   });
 });

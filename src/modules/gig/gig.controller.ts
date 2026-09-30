@@ -66,7 +66,7 @@ export class GigController {
    * Public: anchor calendar date for hash / deep links (`{ date }` only).
    */
   @Version('1')
-  @Get('date/:publicId')
+  @Get(':publicId/date')
   async getGigDateByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
   ): Promise<V1GigByPublicIdGetResponseBody> {

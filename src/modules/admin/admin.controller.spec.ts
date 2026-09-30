@@ -1,3 +1,10 @@
+import {
+  HttpStatus,
+  RequestMethod,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
@@ -73,14 +80,7 @@ describe('AdminController', () => {
       },
     ]),
     upsertRecord: vi.fn().mockResolvedValue({
-      id: '64f1a2b3c4d5e6f7a8b9c0d1',
-      namespace: 'about',
-      locale: 'en',
-      key: 'title',
-      value: 'About us',
-      format: 'plain',
-      kind: 'text',
-      isActive: true,
+      isCreated: false,
     }),
     setActiveById: vi.fn().mockResolvedValue({
       id: '64f1a2b3c4d5e6f7a8b9c0d1',
@@ -102,8 +102,8 @@ describe('AdminController', () => {
   } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
 
   const feedRevalidateService = {
-    revalidateFeed: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<FeedRevalidateService, 'revalidateFeed'>;
+    revalidateFeedOrThrow: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<FeedRevalidateService, 'revalidateFeedOrThrow'>;
 
   const digestService = {
     createPost: vi.fn().mockResolvedValue(undefined),
@@ -234,10 +234,21 @@ describe('AdminController', () => {
   });
 
   describe('revalidateFeed', () => {
-    it('should revalidate all feed paths via feed revalidate service', async () => {
+    it('should strictly revalidate all feed paths via feed revalidate service', async () => {
       await expect(controller.revalidateFeed()).resolves.toBeUndefined();
 
-      expect(feedRevalidateService.revalidateFeed).toHaveBeenCalledWith({});
+      expect(feedRevalidateService.revalidateFeedOrThrow).toHaveBeenCalledWith(
+        {},
+      );
+    });
+
+    it('should propagate manual feed revalidation failure', async () => {
+      const e = new ServiceUnavailableException(
+        'Feed revalidation service is unavailable',
+      );
+      feedRevalidateService.revalidateFeedOrThrow.mockRejectedValueOnce(e);
+
+      await expect(controller.revalidateFeed()).rejects.toBe(e);
     });
   });
 
@@ -363,28 +374,33 @@ describe('AdminController', () => {
     });
   });
 
-  describe('upsertTranslation', () => {
-    it('should upsert translation via translation service', async () => {
+  describe('putTranslation', () => {
+    it('should expose the translation natural identity in the resource URI', () => {
+      const route = AdminController.prototype.putTranslation;
+
+      expect(Reflect.getMetadata(PATH_METADATA, route)).toBe(
+        'translations/:namespace/:locale/:key',
+      );
+      expect(Reflect.getMetadata(METHOD_METADATA, route)).toBe(
+        RequestMethod.PUT,
+      );
+    });
+
+    it('should return 204 without a body when replacing an existing translation', async () => {
+      const response = { status: vi.fn() };
+
       await expect(
-        controller.upsertTranslation({
-          namespace: 'about',
-          locale: 'en',
-          key: 'title',
-          value: 'About us',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        }),
-      ).resolves.toEqual({
-        id: '64f1a2b3c4d5e6f7a8b9c0d1',
-        namespace: 'about',
-        locale: 'en',
-        key: 'title',
-        value: 'About us',
-        format: 'plain',
-        kind: 'text',
-        isActive: true,
-      });
+        controller.putTranslation(
+          { namespace: 'about', locale: 'en', key: 'title' },
+          {
+            value: 'About us',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+          response,
+        ),
+      ).resolves.toBeUndefined();
 
       expect(translationService.upsertRecord).toHaveBeenCalledWith({
         namespace: 'about',
@@ -395,6 +411,29 @@ describe('AdminController', () => {
         kind: 'text',
         isActive: true,
       });
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.NO_CONTENT);
+    });
+
+    it('should return 201 when creating a translation', async () => {
+      const response = { status: vi.fn() };
+      vi.mocked(translationService.upsertRecord).mockResolvedValueOnce({
+        isCreated: true,
+      });
+
+      await expect(
+        controller.putTranslation(
+          { namespace: 'about', locale: 'en', key: 'title' },
+          {
+            value: 'About us',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+          response,
+        ),
+      ).resolves.toBeUndefined();
+
+      expect(response.status).toHaveBeenCalledWith(HttpStatus.CREATED);
     });
   });
 

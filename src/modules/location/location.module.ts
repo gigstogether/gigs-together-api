@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { LocationController } from './location.controller';
+import { CountriesController } from './countries.controller';
 import { LocationService } from './location.service';
 import { Country, CountrySchema } from './location.schema';
 import { LOCATION_REPOSITORY } from './repositories/location.repository';
@@ -10,7 +10,7 @@ import { MongoLocationRepository } from './repositories/mongo-location.repositor
   imports: [
     MongooseModule.forFeature([{ name: Country.name, schema: CountrySchema }]),
   ],
-  controllers: [LocationController],
+  controllers: [CountriesController],
   providers: [
     LocationService,
     {

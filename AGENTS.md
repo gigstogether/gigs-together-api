@@ -37,7 +37,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - If command execution is needed to validate a change, ask first instead of running it proactively.
 - After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.
 - If necessary for the task, it's allowed to run relevant tests without asking the user.
-- Do not run lint or `tsc` after documentation-only changes (for example `*.md`).
+- Do not run lint or `tsc` after documentation-only or comment-only changes (for example `*.md`).
 
 ## Secrets Access Policy
 

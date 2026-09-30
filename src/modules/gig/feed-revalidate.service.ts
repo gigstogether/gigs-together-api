@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 interface BuildFeedPathParams {
   readonly country: string;
@@ -30,16 +35,21 @@ export class FeedRevalidateService {
     }
   }
 
-  revalidateFeedOrThrow(params: RevalidateFeedParams): Promise<void> {
+  async revalidateFeedOrThrow(params: RevalidateFeedParams): Promise<void> {
     const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
     const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
     if (!baseUrl || !secret) {
-      return Promise.resolve();
+      throw new ServiceUnavailableException(
+        'Feed revalidation service is not configured',
+      );
     }
 
     if (!/^https?:\/\//i.test(baseUrl)) {
-      throw new Error(
+      this.logger.warn(
         `APP_BASE_URL must be an absolute http(s) URL for revalidation (got "${baseUrl}")`,
+      );
+      throw new ServiceUnavailableException(
+        'Feed revalidation service is not configured correctly',
       );
     }
 
@@ -52,7 +62,7 @@ export class FeedRevalidateService {
       });
     }
 
-    return this.postFeedRevalidateRequest({ url, secret, path });
+    await this.postFeedRevalidateRequest({ url, secret, path });
   }
 
   buildFeedPath(params: BuildFeedPathParams): string {
@@ -69,14 +79,22 @@ export class FeedRevalidateService {
   ): Promise<void> {
     const { url, secret, path } = params;
 
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-revalidate-secret': secret,
-      },
-      body: JSON.stringify(path ? { paths: [path] } : {}),
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-revalidate-secret': secret,
+        },
+        body: JSON.stringify(path ? { paths: [path] } : {}),
+      });
+    } catch (e) {
+      this.logger.warn(
+        `Feed revalidation service request failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      throw new BadGatewayException('Feed revalidation service is unavailable');
+    }
 
     if (!res.ok) {
       let text = '';
@@ -87,8 +105,11 @@ export class FeedRevalidateService {
           `Reading failed feed revalidation response failed: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
-      throw new Error(
+      this.logger.warn(
         `Feed revalidate failed: ${res.status} ${res.statusText}${text ? ` - ${text}` : ''}`,
+      );
+      throw new BadGatewayException(
+        'Feed revalidation service rejected the request',
       );
     }
   }
