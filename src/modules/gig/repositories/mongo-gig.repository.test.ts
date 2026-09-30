@@ -449,7 +449,8 @@ describe('MongoGigRepository', () => {
       const allowDiskUse = vi
         .fn()
         .mockResolvedValue([{ _id: 10 }, { _id: 20 }]);
-      aggregate.mockReturnValue({ allowDiskUse });
+      const collation = vi.fn().mockReturnValue({ allowDiskUse });
+      aggregate.mockReturnValue({ collation });
 
       await expect(
         repository.findVisibleDates({
@@ -472,6 +473,7 @@ describe('MongoGigRepository', () => {
         { $group: { _id: '$date' } },
         { $sort: { _id: 1 } },
       ]);
+      expect(collation).toHaveBeenCalledWith({ locale: 'en', strength: 2 });
       expect(allowDiskUse).toHaveBeenCalledWith(true);
     });
   });

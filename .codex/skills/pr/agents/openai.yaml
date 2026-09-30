@@ -1,0 +1,4 @@
+interface:
+  display_name: 'PR'
+  short_description: 'Create Gigs frontend and backend pull requests'
+  default_prompt: 'Use $pr to create the required pull request or linked pull requests.'
