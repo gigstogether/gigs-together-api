@@ -132,6 +132,11 @@ describe('TelegramUpdatesService', () => {
         date: Date.now(),
         text: 'Hello!',
         chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
       };
 
       mockTelegramBotReplyService.sendIncomingMessageUnavailable.mockResolvedValue(
@@ -143,6 +148,99 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockTelegramBotReplyService.sendIncomingMessageUnavailable,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
+    });
+
+    it('should respond to a photo sent by a user', async () => {
+      const message: TGMessage = {
+        message_id: 123,
+        date: Date.now(),
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        photo: [
+          {
+            file_id: 'photo-file-id',
+            file_unique_id: 'photo-file-unique-id',
+            width: 320,
+            height: 240,
+          },
+        ],
+      };
+
+      mockTelegramBotReplyService.sendIncomingMessageUnavailable.mockResolvedValue(
+        undefined,
+      );
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
+      ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
+    });
+
+    it('should ignore a write access service message', async () => {
+      const message: TGMessage = {
+        message_id: 123,
+        date: Date.now(),
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        write_access_allowed: {
+          web_app_name: 'Gigs Together',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a connected website service message', async () => {
+      const message: TGMessage = {
+        message_id: 123,
+        date: Date.now(),
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+        connected_website: 'dev.gigstogether.com',
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a message sent by a bot', async () => {
+      const message: TGMessage = {
+        message_id: 123,
+        date: Date.now(),
+        text: 'Hello!',
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: true,
+          first_name: 'Another bot',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
+      ).not.toHaveBeenCalled();
     });
 
     it('should handle the /start command without creating a User', async () => {
@@ -178,6 +276,11 @@ describe('TelegramUpdatesService', () => {
         date: Date.now(),
         text: '/unknown',
         chat: { id: 12345, type: 'private' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
       };
 
       mockTelegramBotReplyService.sendUnknownCommandResponse.mockResolvedValue(
