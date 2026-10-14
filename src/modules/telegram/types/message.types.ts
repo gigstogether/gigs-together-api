@@ -17,6 +17,14 @@ export interface TGMessage {
   reply_to_message?: TGMessage;
   sender_chat?: TGChat;
   photo?: TGPhotoSize[];
+  connected_website?: string;
+  write_access_allowed?: TGWriteAccessAllowed;
+}
+
+export interface TGWriteAccessAllowed {
+  from_request?: boolean;
+  web_app_name?: string;
+  from_attachment_menu?: boolean;
 }
 
 export interface TGSendMessage {

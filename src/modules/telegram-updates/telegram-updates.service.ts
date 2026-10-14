@@ -25,6 +25,29 @@ enum Command {
   Start = 'start',
 }
 
+const EXPLICIT_USER_MESSAGE_CONTENT_KEYS: string[] = [
+  'text',
+  'rich_message',
+  'animation',
+  'audio',
+  'document',
+  'live_photo',
+  'paid_media',
+  'photo',
+  'sticker',
+  'story',
+  'video',
+  'video_note',
+  'voice',
+  'checklist',
+  'contact',
+  'dice',
+  'game',
+  'poll',
+  'venue',
+  'location',
+];
+
 @Injectable()
 export class TelegramUpdatesService {
   constructor(
@@ -92,11 +115,11 @@ export class TelegramUpdatesService {
 
   async handleMessage(message: TGMessage): Promise<void> {
     const chat = message?.chat;
-    if (!chat?.id) {
+    if (!chat?.id || !this.isExplicitUserMessage(message)) {
       return;
     }
 
-    const text = message.text || '';
+    const text = message.text ?? '';
 
     if (text.charAt(0) !== '/') {
       await this.telegramBotReplyService.sendIncomingMessageUnavailable(chat);
@@ -105,6 +128,15 @@ export class TelegramUpdatesService {
 
     const command = text.substring(1).toLowerCase();
     await this.handleCommand(command, chat);
+  }
+
+  private isExplicitUserMessage(message: TGMessage): boolean {
+    const isUser = message.from?.is_bot === false;
+    const hasExplicitContent = EXPLICIT_USER_MESSAGE_CONTENT_KEYS.some((key) =>
+      Object.prototype.hasOwnProperty.call(message, key),
+    );
+
+    return isUser && hasExplicitContent;
   }
 
   private async handleCommand(command: string, chat: TGChat) {
