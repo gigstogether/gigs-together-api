@@ -1,6 +1,8 @@
 import { Types } from 'mongoose';
 
+import { Messenger } from '../../shared/types/messenger.enum';
 import { GigSchema } from './gig.schema';
+import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 
 describe('GigSchema', () => {
   it('should limit titles to 300 characters', () => {
@@ -36,10 +38,25 @@ describe('GigSchema', () => {
     expect(
       validate({
         type: 'user',
-        userId: new Types.ObjectId(),
-        origin: { type: 'messenger' },
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
       }),
     ).toBe(true);
+    expect(
+      validate({
+        type: 'user',
+        origin: { type: GigSourceUserOriginType.Admin },
+      }),
+    ).toBe(false);
+    expect(
+      validate({
+        type: 'user',
+        userId: new Types.ObjectId(),
+        origin: { type: GigSourceUserOriginType.Messenger },
+      }),
+    ).toBe(false);
     expect(
       validate({
         type: 'provider',
@@ -66,7 +83,7 @@ describe('GigSchema', () => {
       validate({
         type: 'user',
         userId: new Types.ObjectId(),
-        origin: { type: 'admin' },
+        origin: { type: GigSourceUserOriginType.Admin },
         provider: null,
       }),
     ).toBe(false);

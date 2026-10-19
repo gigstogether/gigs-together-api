@@ -6,6 +6,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { of } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
 import { TelegramBotClient } from './telegram-bot.client';
@@ -102,9 +104,9 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
     isVisible: false,
     version: 4,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [post],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),
@@ -684,9 +686,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -731,9 +733,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Band',
@@ -798,9 +800,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -853,9 +855,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -909,9 +911,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -1084,9 +1086,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -1147,9 +1149,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -1210,9 +1212,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -1281,9 +1283,9 @@ describe('TelegramService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Updated Band',

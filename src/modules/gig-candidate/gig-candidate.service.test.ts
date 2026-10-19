@@ -3,6 +3,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { GigPosterService } from '../gig/gig.poster.service';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
@@ -173,6 +175,92 @@ describe('GigCandidateService', () => {
     vi.unstubAllEnvs();
   });
 
+  describe('createMessengerGigCandidate', () => {
+    it('should create an anonymous messenger candidate with an empty draft', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+
+      const result = await service.createMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(gigCandidate);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: gigCandidate.id,
+        status: GigCandidateStatus.New,
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {},
+      });
+    });
+
+    it.each([
+      {
+        name: 'zero chat id',
+        chatId: 0,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+        expectedMessage: 'chatId must be a non-zero safe integer',
+      },
+      {
+        name: 'non-positive message id',
+        chatId: -100123,
+        messageId: 0,
+        originalText: 'Radiohead in Barcelona',
+        expectedMessage: 'messageId must be a positive safe integer',
+      },
+      {
+        name: 'blank original text',
+        chatId: -100123,
+        messageId: 42,
+        originalText: '   ',
+        expectedMessage: 'originalText is required',
+      },
+    ])(
+      'should reject $name',
+      ({ chatId, messageId, originalText, expectedMessage }) => {
+        const createGigCandidate = () =>
+          service.createMessengerGigCandidate({
+            messenger: Messenger.Telegram,
+            chatId,
+            messageId,
+            originalText,
+          });
+
+        expect(createGigCandidate).toThrowError(BadRequestException);
+        expect(createGigCandidate).toThrowError(expectedMessage);
+        expect(
+          gigCandidateRepositoryMock.createGigCandidate,
+        ).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   describe('handleSubmit', () => {
     it('should throw BadRequestException when title is missing', async () => {
       await expect(
@@ -328,9 +416,9 @@ describe('GigCandidateService', () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000099',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'B',
@@ -380,9 +468,9 @@ describe('GigCandidateService', () => {
           gigCandidateId: created.id,
           status: GigCandidateStatus.New,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '66a000000000000000000000099',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: expect.objectContaining({
             title: 'B',
@@ -407,9 +495,9 @@ describe('GigCandidateService', () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -515,9 +603,9 @@ describe('GigCandidateService', () => {
     ])('should keep submission successful when $reason', async ({ user }) => {
       const created = buildGigCandidate({
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -562,9 +650,9 @@ describe('GigCandidateService', () => {
         .mockImplementation(() => undefined);
       const created = buildGigCandidate({
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -627,9 +715,9 @@ describe('GigCandidateService', () => {
         id: gigCandidateId,
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId,
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Band',
@@ -662,9 +750,9 @@ describe('GigCandidateService', () => {
         gigCandidateId,
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId,
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: created.gigDraft,
       });
@@ -688,9 +776,9 @@ describe('GigCandidateService', () => {
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -748,9 +836,9 @@ describe('GigCandidateService', () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: { poster: { bucketPath: 'gigs/default.jpg' } },
       });
@@ -792,9 +880,9 @@ describe('GigCandidateService', () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
       });
       const stored = buildGigCandidate({
@@ -1290,14 +1378,13 @@ describe('GigCandidateService', () => {
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
-          userId: '507f1f77bcf86cd799439088',
+          type: GigSourceType.User,
           origin: {
-            type: 'messenger',
+            type: GigSourceUserOriginType.Messenger,
             messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
           },
           originalText: 'Private intake text',
-          attachments: [{ bucketPath: 'private/source.png' }],
         },
         gigDraft: {
           title: 'Radiohead',
@@ -1356,9 +1443,11 @@ describe('GigCandidateService', () => {
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
-          type: 'user',
-          userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'messenger' },
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+          },
         },
         moderationPost,
       });
@@ -1387,14 +1476,9 @@ describe('GigCandidateService', () => {
         publicId: gig.publicId,
         moderationPost: { chatId: -200, messageId: 50 },
       });
-      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        {
-          kind: 'acceptedWithPublicLink',
-          publicId: gig.publicId,
-          title: gig.title,
-          chatId: '42',
-        },
-      );
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
     });
 
     it('should stop before writing when multiple Moderation posts are present', async () => {
@@ -1519,7 +1603,7 @@ describe('GigCandidateService', () => {
 
     it('should skip submitter feedback for a provider-origin GigCandidate', async () => {
       const source: GigCandidate['source'] = {
-        type: 'provider',
+        type: GigSourceType.Provider,
         provider: {
           name: 'exampleProvider',
           externalEventId: 'event-1',
@@ -1994,9 +2078,9 @@ function buildGigCandidate(
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439088',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {},
     version: 0,
@@ -2021,9 +2105,11 @@ function buildGigApprovalResult(
     venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     source: {
-      type: 'user',
-      userId: '507f1f77bcf86cd799439088',
-      origin: { type: 'messenger' },
+      type: GigSourceType.User,
+      origin: {
+        type: GigSourceUserOriginType.Messenger,
+        messenger: Messenger.Telegram,
+      },
     },
     version: 0,
     isVisible: true,

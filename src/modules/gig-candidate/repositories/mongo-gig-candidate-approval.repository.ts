@@ -3,11 +3,7 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
 import type { ClientSession, Model, UpdateQuery } from 'mongoose';
 import { Gig } from '../../gig/gig.schema';
-import type {
-  GigSource,
-  GigSourceProvider,
-  GigSourceUser,
-} from '../../gig/types/gig.types';
+import { GigRepositoryMapper } from '../../gig/repositories/gig.repository.mapper';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type { GigCandidate as GigCandidateDomain } from '../types/gig-candidate.types';
 import { GigCandidate } from '../gig-candidate.schema';
@@ -37,10 +33,6 @@ interface GigApprovalResultLeanDocument {
   version: number;
   isVisible: boolean;
 }
-
-type GigStoredSource =
-  | (Omit<GigSourceUser, 'userId'> & { userId: Types.ObjectId })
-  | GigSourceProvider;
 
 // TODO: Extract this cross-aggregate transaction boundary as GigCandidateApprovalUnitOfWork.
 @Injectable()
@@ -191,7 +183,7 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
     if (!Types.ObjectId.isValid(params.gigId)) {
       throw new Error(`Invalid Gig id: ${params.gigId}`);
     }
-    const source = this.mapGigSourceToStorage(params.source);
+    const source = GigRepositoryMapper.toStoredSource(params.source);
     const created = await this.gigModel.create(
       [
         {
@@ -227,6 +219,7 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
     );
   }
 
+  // TODO: extract mappers to mapper
   private mapGigApprovalResult(
     gig: GigApprovalResultLeanDocument,
   ): GigApprovalResult {
@@ -241,71 +234,9 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
       venue: gig.venue,
       ticketsUrl: gig.ticketsUrl,
       ...(gig.poster !== undefined ? { poster: { ...gig.poster } } : {}),
-      source: this.mapGigSourceFromStorage(gig.source),
+      source: GigRepositoryMapper.fromStoredSource(gig.source),
       version: gig.version,
       isVisible: gig.isVisible,
     };
-  }
-
-  private mapGigSourceToStorage(source: GigSource): GigStoredSource {
-    return source.type === 'user'
-      ? { ...source, userId: new Types.ObjectId(source.userId) }
-      : {
-          type: 'provider',
-          provider: { ...source.provider },
-        };
-  }
-
-  private mapGigSourceFromStorage(source: unknown): GigSource {
-    if (!this.isRecord(source) || typeof source.type !== 'string') {
-      throw new Error('Gig source is missing or invalid.');
-    }
-    if (source.type === 'user') {
-      if (
-        !(source.userId instanceof Types.ObjectId) ||
-        !this.isRecord(source.origin) ||
-        (source.origin.type !== 'form' &&
-          source.origin.type !== 'admin' &&
-          source.origin.type !== 'messenger')
-      ) {
-        throw new Error('Gig user source is invalid.');
-      }
-      return {
-        type: 'user',
-        userId: source.userId.toString(),
-        origin: { type: source.origin.type },
-      };
-    }
-    if (source.type === 'provider' && this.isRecord(source.provider)) {
-      const provider = source.provider;
-      if (
-        typeof provider.name === 'string' &&
-        provider.name.length > 0 &&
-        typeof provider.externalEventId === 'string' &&
-        typeof provider.sourceUrl === 'string' &&
-        provider.fetchedAt instanceof Date
-      ) {
-        return {
-          type: 'provider',
-          provider: {
-            name: provider.name,
-            externalEventId: provider.externalEventId,
-            sourceUrl: provider.sourceUrl,
-            fetchedAt: new Date(provider.fetchedAt),
-            ...(typeof provider.externalVersionId === 'string'
-              ? { externalVersionId: provider.externalVersionId }
-              : {}),
-            ...(provider.providerUpdatedAt instanceof Date
-              ? { providerUpdatedAt: new Date(provider.providerUpdatedAt) }
-              : {}),
-          },
-        };
-      }
-    }
-    throw new Error('Gig provider source is invalid.');
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }

@@ -20,6 +20,8 @@ import { FeedRevalidateService } from '../gig/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { envBool } from '../../shared/utils/env';
@@ -56,10 +58,11 @@ import {
   getGigCandidateTransitionPolicy,
 } from './gig-candidate-state-machine';
 import {
-  projectGigCandidateSource,
+  mapGigCandidateSourceToGigSource,
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -73,6 +76,13 @@ export interface CreateAdminGigCandidateParams {
   gigDraft: Partial<GigData>;
   posterUrl?: string;
   posterFile?: GigPosterFile;
+}
+
+interface CreateMessengerGigCandidateParams {
+  messenger: Messenger;
+  chatId: number;
+  messageId: number;
+  originalText: string;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -239,6 +249,43 @@ export class GigCandidateService {
     return this.gigCandidateRepository.findMany(params);
   }
 
+  createMessengerGigCandidate(
+    params: CreateMessengerGigCandidateParams,
+  ): Promise<GigCandidate> {
+    if (params.messenger !== Messenger.Telegram) {
+      throw new BadRequestException('messenger is invalid');
+    }
+    if (!Number.isSafeInteger(params.chatId) || params.chatId === 0) {
+      throw new BadRequestException('chatId must be a non-zero safe integer');
+    }
+    if (!Number.isSafeInteger(params.messageId) || params.messageId <= 0) {
+      throw new BadRequestException(
+        'messageId must be a positive safe integer',
+      );
+    }
+    if (params.originalText.trim() === '') {
+      throw new BadRequestException('originalText is required');
+    }
+
+    return this.gigCandidateRepository.createGigCandidate({
+      gigCandidateId: this.gigCandidateRepository.createId(),
+      status: GigCandidateStatus.New,
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: params.messenger,
+          message: {
+            chatId: params.chatId,
+            messageId: params.messageId,
+          },
+        },
+        originalText: params.originalText,
+      },
+      gigDraft: {},
+    });
+  }
+
   async createAdminGigCandidate(
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
@@ -255,9 +302,9 @@ export class GigCandidateService {
       gigCandidateId,
       status: GigCandidateStatus.Reviewing,
       source: {
-        type: 'user',
+        type: GigSourceType.User,
         userId: params.userId,
-        origin: { type: 'admin' },
+        origin: { type: GigSourceUserOriginType.Admin },
       },
       gigDraft: preparedPoster.gigDraft,
     });
@@ -570,9 +617,9 @@ export class GigCandidateService {
       gigCandidateId: id,
       status: GigCandidateStatus.New,
       source: {
-        type: 'user',
+        type: GigSourceType.User,
         userId: user.userId,
-        origin: { type: 'form' },
+        origin: { type: GigSourceUserOriginType.Form },
       },
       gigDraft: preparedPoster.gigDraft,
     });
@@ -625,7 +672,7 @@ export class GigCandidateService {
       gigData.date,
       transaction,
     );
-    const source = projectGigCandidateSource(gigCandidate.source);
+    const source = mapGigCandidateSourceToGigSource(gigCandidate.source);
     const moderationPost =
       this.getGigCandidateModerationPostForApproval(gigCandidate);
     const approvedAt = new Date();
@@ -1044,7 +1091,10 @@ export class GigCandidateService {
     gigCandidate: GigCandidate,
     content: GigCandidateFeedbackMessageContent,
   ): Promise<void> {
-    if (gigCandidate.source.type !== 'user') {
+    if (gigCandidate.source.type === GigSourceType.Provider) {
+      return;
+    }
+    if (isGigCandidateSourceMessengerUser(gigCandidate.source)) {
       return;
     }
 
@@ -1053,7 +1103,7 @@ export class GigCandidateService {
       false,
     );
     if (
-      gigCandidate.source.origin.type === 'admin' &&
+      gigCandidate.source.origin.type === GigSourceUserOriginType.Admin &&
       !shouldSendFeedbackToAdmins
     ) {
       return;

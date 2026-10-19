@@ -5,6 +5,8 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { GigService } from '../gig/gig.service';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type { BuildPostUrlPayload } from '../telegram/telegram-composer.service.types';
@@ -25,9 +27,9 @@ function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
     isVisible: false,
     version: 3,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [
       {
@@ -136,6 +138,32 @@ describe('AdminGigService', () => {
         posterUrl: 'https://cdn.example/poster.jpg',
       }),
     );
+  });
+
+  it('should preserve messenger provenance without loading a user', async () => {
+    const gig = buildPlainGig({
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      },
+    });
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+
+    const result = await service.getGigsList({ limit: 50 });
+
+    expect(result.gigs[0]?.source).toEqual({
+      type: 'user',
+      origin: {
+        type: 'messenger',
+        messenger: Messenger.Telegram,
+      },
+      isCurrentlyAdmin: false,
+    });
+    expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
   });
 
   it('should map Main and Moderation post metadata for admin detail', async () => {

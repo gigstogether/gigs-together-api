@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import type {
   GigCandidate,
   GigCandidatePhotoPost,
@@ -23,9 +25,9 @@ function createGigCandidate(): GigCandidate {
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '66a000000000000000000000042',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
       title: 'Band',

@@ -2,6 +2,8 @@ import { Test } from '@nestjs/testing';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import {
   CallbackScope,
   GigCallbackAction,
@@ -28,9 +30,9 @@ function createGig(): PlainGig {
     isVisible: false,
     version: 4,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),

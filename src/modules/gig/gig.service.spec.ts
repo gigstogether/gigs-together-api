@@ -9,6 +9,8 @@ import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.servic
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { FeedRevalidateService } from './feed-revalidate.service';
 import { GigPosterService } from './gig.poster.service';
+import { GigSourceType } from './types/gig-source-type.enum';
+import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 import { GigService } from './gig.service';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import type { GigRepository } from './repositories/gig.repository';
@@ -35,9 +37,9 @@ function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
     isVisible: true,
     version: 3,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),

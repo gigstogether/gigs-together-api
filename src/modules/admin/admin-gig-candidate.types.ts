@@ -16,11 +16,14 @@ export interface GetAdminGigCandidatesParams {
   sortOrder?: AdminGigCandidateListSortOrder;
 }
 
-export interface GigCandidateSourceUserWithProfile extends GigCandidateSourceUser {
+interface GigCandidateSourceUserProfile {
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
 }
+
+type GigCandidateSourceUserWithProfile = GigCandidateSourceUser &
+  GigCandidateSourceUserProfile;
 
 export type GigCandidateSourceForAdminView =
   GigCandidateSourceUserWithProfile | GigCandidateSourceProvider;

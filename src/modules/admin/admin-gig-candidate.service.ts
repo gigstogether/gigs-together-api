@@ -5,6 +5,7 @@ import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
@@ -123,15 +124,18 @@ export class AdminGigCandidateService {
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
   ): GigCandidateSourceForAdminView {
-    if (gigCandidate.source.type === 'provider') {
+    if (gigCandidate.source.type === GigSourceType.Provider) {
       return gigCandidate.source;
     }
 
+    const sourceUser =
+      gigCandidate.source.userId !== undefined
+        ? activeSourceUsersById.get(gigCandidate.source.userId)
+        : undefined;
+
     return {
       ...gigCandidate.source,
-      ...getUserSourceProfile(
-        activeSourceUsersById.get(gigCandidate.source.userId),
-      ),
+      ...getUserSourceProfile(sourceUser),
     };
   }
 
@@ -139,8 +143,12 @@ export class AdminGigCandidateService {
     gigCandidates: readonly GigCandidate[],
   ): Promise<ReadonlyMap<string, User>> {
     const userIds = gigCandidates.flatMap((gigCandidate) =>
-      gigCandidate.source.type === 'user' ? [gigCandidate.source.userId] : [],
+      gigCandidate.source.type === GigSourceType.User &&
+      gigCandidate.source.userId !== undefined
+        ? [gigCandidate.source.userId]
+        : [],
     );
+
     const users = await this.userService.findActiveUsersByIds(userIds);
     return new Map(users.map((user) => [user.id, user]));
   }

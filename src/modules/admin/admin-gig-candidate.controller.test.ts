@@ -9,6 +9,8 @@ import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard'
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { AdminGigCandidateController } from './admin-gig-candidate.controller';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
@@ -20,9 +22,9 @@ function buildGigCandidate(
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '66a000000000000000000000042',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     gigDraft: { title: 'Band' },
     version: 0,
@@ -41,7 +43,7 @@ function buildDetails(
   return {
     id: gigCandidate.id,
     source:
-      gigCandidate.source.type === 'user'
+      gigCandidate.source.type === GigSourceType.User
         ? { ...gigCandidate.source, isCurrentlyAdmin: true }
         : gigCandidate.source,
     gigDraft: gigCandidate.gigDraft,
@@ -73,9 +75,9 @@ describe('AdminGigCandidateController', () => {
     venue: 'Venue',
     ticketsUrl: 'https://tickets.example/gig',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: user.userId,
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     version: 0,
     isVisible: true,

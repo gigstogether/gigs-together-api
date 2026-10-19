@@ -9,6 +9,8 @@ import {
 } from '../gig-candidate/gig-candidate-list-sort';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { GigService } from '../gig/gig.service';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
@@ -22,9 +24,9 @@ function buildGigCandidate(
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '66a000000000000000000000042',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
       title: 'Band',
@@ -134,7 +136,7 @@ describe('AdminGigCandidateService', () => {
       });
       expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledOnce();
       expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([
-        record.source.type === 'user' ? record.source.userId : undefined,
+        '66a000000000000000000000042',
       ]);
     });
 
@@ -165,6 +167,33 @@ describe('AdminGigCandidateService', () => {
           isCurrentlyAdmin: false,
         }),
       );
+    });
+
+    it('should preserve an anonymous messenger source without loading a user', async () => {
+      const record = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+
+      const [result] = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+      });
+
+      expect(result?.source).toEqual({
+        ...record.source,
+        isCurrentlyAdmin: false,
+      });
+      expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
     });
 
     it('should resolve linked Gigs with one deduplicated bulk lookup', async () => {

@@ -3,6 +3,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
@@ -577,9 +579,9 @@ describe('TelegramComposerService', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -640,9 +642,9 @@ describe('TelegramComposerService', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -675,9 +677,9 @@ describe('TelegramComposerService', () => {
       const payload = gigCandidateComposer.composeModerationPost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -735,9 +737,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Updated Band',
@@ -788,9 +790,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Updated Band',
@@ -846,9 +848,9 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeIntakePost({
           id: '507f1f77bcf86cd799439099',
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '66a000000000000000000000042',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {
             title: 'Suggested Band',
@@ -931,9 +933,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -984,9 +986,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -1045,9 +1047,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',

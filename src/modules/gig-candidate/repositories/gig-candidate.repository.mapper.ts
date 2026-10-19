@@ -1,23 +1,53 @@
+import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
+import { isRecord } from '../../../shared/utils/is-record';
 import type { GigData } from '../../gig/types/gig.types';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import type { GigCandidateStoredSource } from '../gig-candidate.schema';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate-source.guards';
 import type {
   GigCandidate,
   GigCandidatePost,
   GigCandidateSource,
+  GigCandidateSourceIdentifiedUser,
+  GigCandidateSourceMessengerUser,
   GigCandidateSourceProvider,
-  GigCandidateSourceUser,
-  GigCandidateSourceUserOrigin,
 } from '../types/gig-candidate.types';
 
 type MongoId = { toString(): string } | string;
-type GigCandidateLeanUserSource = Omit<GigCandidateSourceUser, 'userId'> & {
-  userId: MongoId;
-};
+type GigCandidateLeanIdentifiedUserSource = Omit<
+  GigCandidateSourceIdentifiedUser,
+  'userId'
+> & { userId: MongoId };
+type GigCandidateLeanMessengerUserSource = Omit<
+  GigCandidateSourceMessengerUser,
+  'userId'
+> & { userId?: MongoId };
 type GigCandidateLeanSource =
-  GigCandidateLeanUserSource | GigCandidateSourceProvider;
+  | GigCandidateLeanIdentifiedUserSource
+  | GigCandidateLeanMessengerUserSource
+  | GigCandidateSourceProvider;
 
-const GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS = new Set(['type', 'messenger']);
+const GIG_CANDIDATE_MESSENGER_SOURCE_KEYS = new Set([
+  'type',
+  'userId',
+  'origin',
+  'originalText',
+]);
+const GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS = new Set([
+  'type',
+  'messenger',
+  'message',
+]);
+const GIG_CANDIDATE_MESSENGER_MESSAGE_KEYS = new Set(['chatId', 'messageId']);
+const GIG_CANDIDATE_IDENTIFIED_USER_SOURCE_KEYS = new Set([
+  'type',
+  'userId',
+  'origin',
+]);
+const GIG_CANDIDATE_PROVIDER_SOURCE_KEYS = new Set(['type', 'provider']);
 
 export interface GigCandidateLeanDocument {
   _id: MongoId;
@@ -47,6 +77,45 @@ interface GigCandidateStateFields {
 }
 
 export class GigCandidateRepositoryMapper {
+  static toStoredSource(source: GigCandidateSource): GigCandidateStoredSource {
+    switch (source.type) {
+      case GigSourceType.User: {
+        if (isGigCandidateSourceMessengerUser(source)) {
+          const storedSource: GigCandidateStoredSource = {
+            type: GigSourceType.User,
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: source.origin.messenger,
+              message: { ...source.origin.message },
+            },
+            originalText: source.originalText,
+          };
+          if (source.userId !== undefined) {
+            storedSource.userId = this.toObjectId(source.userId);
+          }
+          return storedSource;
+        }
+        if (!Types.ObjectId.isValid(source.userId)) {
+          throw new Error(
+            `Invalid GigCandidate source user id: ${source.userId}`,
+          );
+        }
+        return {
+          type: GigSourceType.User,
+          userId: new Types.ObjectId(source.userId),
+          origin: { ...source.origin },
+        };
+      }
+      case GigSourceType.Provider:
+        return {
+          type: GigSourceType.Provider,
+          provider: { ...source.provider },
+        };
+      default:
+        throw new Error('Unsupported GigCandidate source type.');
+    }
+  }
+
   static toGigCandidate(doc: GigCandidateLeanDocument): GigCandidate {
     const id = this.toId(doc._id, 'id');
     const gigId = this.toOptionalId(doc.gigId, 'gigId');
@@ -96,36 +165,50 @@ export class GigCandidateRepositoryMapper {
     }
 
     switch (source.type) {
-      case 'user': {
-        if ('provider' in source) {
+      case GigSourceType.User: {
+        if (!isRecord(source.origin)) {
+          throw new Error(`GigCandidate ${id} user source is inconsistent.`);
+        }
+
+        if (this.isLeanMessengerUserSource(source)) {
+          return this.toMessengerUserSource(source, id);
+        }
+
+        if (
+          source.origin.type !== GigSourceUserOriginType.Form &&
+          source.origin.type !== GigSourceUserOriginType.Admin
+        ) {
+          throw new Error(`GigCandidate ${id} source origin type is invalid.`);
+        }
+
+        if (source.userId === undefined) {
+          throw new Error(`GigCandidate ${id} source user id is invalid.`);
+        }
+        if (
+          Object.keys(source).some(
+            (key) => !GIG_CANDIDATE_IDENTIFIED_USER_SOURCE_KEYS.has(key),
+          )
+        ) {
           throw new Error(`GigCandidate ${id} user source is inconsistent.`);
         }
         return {
-          ...source,
+          type: GigSourceType.User,
           userId: this.toId(source.userId, 'source.userId'),
-          origin: this.toUserOrigin(source.origin, id),
-          ...(source.attachments !== undefined
-            ? {
-                attachments: source.attachments.map((attachment) => ({
-                  ...attachment,
-                })),
-              }
-            : {}),
+          origin: { type: source.origin.type },
         };
       }
-      case 'provider':
+      case GigSourceType.Provider:
         if (
-          'userId' in source ||
-          'origin' in source ||
-          'originalText' in source ||
-          'attachments' in source
+          Object.keys(source).some(
+            (key) => !GIG_CANDIDATE_PROVIDER_SOURCE_KEYS.has(key),
+          )
         ) {
           throw new Error(
             `GigCandidate ${id} provider source is inconsistent.`,
           );
         }
         return {
-          type: 'provider',
+          type: GigSourceType.Provider,
           provider: { ...source.provider },
         };
       default:
@@ -133,38 +216,97 @@ export class GigCandidateRepositoryMapper {
     }
   }
 
-  private static toUserOrigin(
-    origin: GigCandidateSourceUserOrigin,
+  private static toMessengerUserSource(
+    source: GigCandidateLeanMessengerUserSource,
     id: string,
-  ): GigCandidateSourceUserOrigin {
-    if (!this.isRecord(origin)) {
-      throw new Error(`GigCandidate ${id} source origin must be an object.`);
+  ): GigCandidateSourceMessengerUser {
+    this.assertStoredMessengerUserSourceIsValid(source, id);
+
+    const origin = source.origin;
+    const message = origin.message;
+
+    const messengerSource: GigCandidateSourceMessengerUser = {
+      type: GigSourceType.User,
+      origin: {
+        type: GigSourceUserOriginType.Messenger,
+        messenger: Messenger.Telegram,
+        message: {
+          chatId: message.chatId,
+          messageId: message.messageId,
+        },
+      },
+      originalText: source.originalText,
+    };
+    if (source.userId !== undefined) {
+      messengerSource.userId = this.toId(source.userId, 'source.userId');
+    }
+    return messengerSource;
+  }
+
+  private static assertStoredMessengerUserSourceIsValid(
+    source: GigCandidateLeanMessengerUserSource,
+    id: string,
+  ): void {
+    const origin = source.origin;
+    if (
+      Object.keys(source).some(
+        (key) => !GIG_CANDIDATE_MESSENGER_SOURCE_KEYS.has(key),
+      )
+    ) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+    }
+    if (
+      Object.keys(origin).some(
+        (key) => !GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS.has(key),
+      )
+    ) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+    }
+    if (origin.messenger !== Messenger.Telegram) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+    }
+    if (!isRecord(origin.message)) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
     }
 
-    switch (origin.type) {
-      case 'form':
-      case 'admin':
-        return { type: origin.type };
-      case 'messenger':
-        if (!Object.values(Messenger).includes(origin.messenger)) {
-          throw new Error(`GigCandidate ${id} source messenger is invalid.`);
-        }
-        if (
-          Object.keys(origin).some(
-            (key) => !GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS.has(key),
-          )
-        ) {
-          throw new Error(
-            `GigCandidate ${id} source messenger origin is inconsistent.`,
-          );
-        }
-        return {
-          type: 'messenger',
-          messenger: origin.messenger,
-        };
-      default:
-        throw new Error(`GigCandidate ${id} source origin type is invalid.`);
+    const message = origin.message;
+    if (
+      Object.keys(origin.message).some(
+        (key) => !GIG_CANDIDATE_MESSENGER_MESSAGE_KEYS.has(key),
+      )
+    ) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
     }
+    if (
+      !Number.isSafeInteger(message.chatId) ||
+      message.chatId === 0 ||
+      !Number.isSafeInteger(message.messageId) ||
+      message.messageId <= 0
+    ) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+    }
+    if (
+      typeof source.originalText !== 'string' ||
+      source.originalText.trim() === ''
+    ) {
+      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+    }
+  }
+
+  private static isLeanMessengerUserSource(
+    source: GigCandidateLeanSource,
+  ): source is GigCandidateLeanMessengerUserSource {
+    return (
+      source.type === GigSourceType.User &&
+      source.origin.type === GigSourceUserOriginType.Messenger
+    );
+  }
+
+  private static toObjectId(value: string): Types.ObjectId {
+    if (!Types.ObjectId.isValid(value)) {
+      throw new Error(`Invalid GigCandidate source user id: ${value}`);
+    }
+    return new Types.ObjectId(value);
   }
 
   private static assertStateInvariants(params: GigCandidateStateFields): void {
@@ -251,9 +393,5 @@ export class GigCandidateRepositoryMapper {
     field: string,
   ): string | undefined {
     return value === undefined ? undefined : this.toId(value, field);
-  }
-
-  private static isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 }
