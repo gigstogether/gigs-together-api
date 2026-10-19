@@ -66,7 +66,7 @@ export function mapV1AdminGigCandidateResponse(
 ): V1AdminGigCandidateResponseBody {
   const { gigDraft } = gigCandidate;
 
-  return {
+  const response: V1AdminGigCandidateResponseBody = {
     id: gigCandidate.id,
     source: mapV1AdminGigCandidateSourceResponse(gigCandidate.source),
     gigDraft: {
@@ -93,6 +93,13 @@ export function mapV1AdminGigCandidateResponse(
     createdAt: gigCandidate.createdAt.toISOString(),
     updatedAt: gigCandidate.updatedAt.toISOString(),
   };
+  if (gigCandidate.originalMessage !== undefined) {
+    response.originalMessage = {
+      text: gigCandidate.originalMessage.text,
+      url: gigCandidate.originalMessage.url,
+    };
+  }
+  return response;
 }
 
 export function mapV1AdminCreateGigCandidateRequest(
@@ -183,7 +190,6 @@ function mapV1AdminGigCandidateSourceResponse(
           type: GigSourceUserOriginType.Messenger,
           messenger: source.origin.messenger,
         },
-        originalText: source.originalText,
       };
       if (source.userId !== undefined) {
         response.userId = source.userId;

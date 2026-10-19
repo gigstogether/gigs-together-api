@@ -6,6 +6,7 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate/gig-candidate-source.guards';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
@@ -13,6 +14,7 @@ import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
+  AdminGigCandidateOriginalMessage,
   GigCandidateSourceForAdminView,
   GetAdminGigCandidatesParams,
 } from './admin-gig-candidate.types';
@@ -96,8 +98,9 @@ export class AdminGigCandidateService {
         })
       : undefined;
     const source = this.resolveSource(gigCandidate, activeSourceUsersById);
+    const originalMessage = this.resolveOriginalMessage(gigCandidate);
 
-    return {
+    const details: AdminGigCandidateDetails = {
       id: gigCandidate.id,
       source,
       gigDraft: gigCandidate.gigDraft,
@@ -118,6 +121,29 @@ export class AdminGigCandidateService {
       createdAt: gigCandidate.createdAt,
       updatedAt: gigCandidate.updatedAt,
     };
+    if (originalMessage !== undefined) {
+      details.originalMessage = originalMessage;
+    }
+    return details;
+  }
+
+  private resolveOriginalMessage(
+    gigCandidate: GigCandidate,
+  ): AdminGigCandidateOriginalMessage | undefined {
+    if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+      return;
+    }
+
+    const url = this.telegramComposer.buildPostUrl({
+      chatId: gigCandidate.source.origin.message.chatId,
+      messageId: gigCandidate.source.origin.message.messageId,
+    });
+    if (url === undefined) {
+      throw new Error(
+        `Cannot build original message URL for GigCandidate ${gigCandidate.id}.`,
+      );
+    }
+    return { text: gigCandidate.source.originalText, url };
   }
 
   private resolveSource(

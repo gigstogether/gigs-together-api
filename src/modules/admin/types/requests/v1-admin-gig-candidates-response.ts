@@ -35,7 +35,6 @@ export interface V1AdminGigCandidateIdentifiedUserSourceResponseBody extends V1A
 export interface V1AdminGigCandidateMessengerUserSourceResponseBody extends V1AdminGigCandidateUserSourceResponseBodyBase {
   userId?: string;
   origin: V1AdminGigCandidateUserMessengerOriginResponseBody;
-  originalText: string;
 }
 
 type V1AdminGigCandidateUserSourceResponseBody =
@@ -71,12 +70,18 @@ interface V1AdminGigCandidateGigDraftResponseBody {
   posterUrl?: string;
 }
 
+export interface V1AdminGigCandidateOriginalMessageResponseBody {
+  text: string;
+  url: string;
+}
+
 export interface V1AdminGigCandidateResponseBody {
   id: string;
   source: V1AdminGigCandidateSourceResponseBody;
   gigDraft: V1AdminGigCandidateGigDraftResponseBody;
   status: GigCandidateStatus;
   version: number;
+  originalMessage?: V1AdminGigCandidateOriginalMessageResponseBody;
   intakePostUrl?: string;
   intakePostDate?: number;
   moderationPostUrl?: string;

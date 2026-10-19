@@ -67,6 +67,7 @@ describe('AdminGigCandidateService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    telegramComposerMock.buildPostUrl.mockReset();
     gigServiceMock.getGigsByIds.mockResolvedValue([]);
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
@@ -108,14 +109,14 @@ describe('AdminGigCandidateService', () => {
         'https://cdn.example/poster.jpg',
       );
 
-      await expect(
-        service.getList({
-          status: GigCandidateStatus.New,
-          limit: 20,
-          sortBy: AdminGigCandidateListSortBy.EventDate,
-          sortOrder: AdminGigCandidateListSortOrder.Asc,
-        }),
-      ).resolves.toEqual([
+      const result = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+        sortBy: AdminGigCandidateListSortBy.EventDate,
+        sortOrder: AdminGigCandidateListSortOrder.Asc,
+      });
+
+      expect(result).toEqual([
         expect.objectContaining({
           id: record.id,
           source: expect.objectContaining({
@@ -128,6 +129,7 @@ describe('AdminGigCandidateService', () => {
           createdAt: record.createdAt,
         }),
       ]);
+      expect(result[0]).not.toHaveProperty('originalMessage');
       expect(gigCandidateServiceMock.findMany).toHaveBeenCalledWith({
         status: GigCandidateStatus.New,
         limit: 20,
@@ -183,6 +185,9 @@ describe('AdminGigCandidateService', () => {
       });
       gigCandidateServiceMock.findMany.mockResolvedValue([record]);
       gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      telegramComposerMock.buildPostUrl.mockReturnValue(
+        'https://t.me/c/123/42',
+      );
 
       const [result] = await service.getList({
         status: GigCandidateStatus.New,
@@ -193,7 +198,37 @@ describe('AdminGigCandidateService', () => {
         ...record.source,
         isCurrentlyAdmin: false,
       });
+      expect(result?.originalMessage).toEqual({
+        text: 'Radiohead in Barcelona',
+        url: 'https://t.me/c/123/42',
+      });
+      expect(telegramComposerMock.buildPostUrl).toHaveBeenCalledWith({
+        chatId: -100123,
+        messageId: 42,
+      });
       expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
+    });
+
+    it('should reject a messenger candidate when its source URL cannot be built', async () => {
+      const record = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      telegramComposerMock.buildPostUrl.mockReturnValue(undefined);
+
+      await expect(
+        service.getList({ status: GigCandidateStatus.New, limit: 20 }),
+      ).rejects.toThrowError(
+        `Cannot build original message URL for GigCandidate ${record.id}.`,
+      );
     });
 
     it('should resolve linked Gigs with one deduplicated bulk lookup', async () => {

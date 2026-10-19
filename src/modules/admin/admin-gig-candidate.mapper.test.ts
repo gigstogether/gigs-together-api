@@ -106,7 +106,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
     });
   });
 
-  it('should serialize messenger source without message identifiers', () => {
+  it('should serialize an original message separately from messenger source', () => {
     const response = mapV1AdminGigCandidateResponse({
       ...buildGigCandidateDetails(),
       source: {
@@ -119,6 +119,10 @@ describe('mapV1AdminGigCandidateResponse', () => {
         originalText: 'Radiohead in Barcelona',
         isCurrentlyAdmin: false,
       },
+      originalMessage: {
+        text: 'Radiohead in Barcelona',
+        url: 'https://t.me/c/123/42',
+      },
     });
 
     expect(response.source).toEqual({
@@ -128,8 +132,17 @@ describe('mapV1AdminGigCandidateResponse', () => {
         type: 'messenger',
         messenger: Messenger.Telegram,
       },
-      originalText: 'Radiohead in Barcelona',
     });
+    expect(response.originalMessage).toEqual({
+      text: 'Radiohead in Barcelona',
+      url: 'https://t.me/c/123/42',
+    });
+  });
+
+  it('should omit originalMessage when a candidate has no source message', () => {
+    const response = mapV1AdminGigCandidateResponse(buildGigCandidateDetails());
+
+    expect(response).not.toHaveProperty('originalMessage');
   });
 });
 

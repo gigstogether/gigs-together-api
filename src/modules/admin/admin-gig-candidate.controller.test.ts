@@ -162,6 +162,29 @@ describe('AdminGigCandidateController', () => {
     expect(adminGigCandidateService.getById).toHaveBeenCalledWith(details.id);
   });
 
+  it('should return the optional original message block', async () => {
+    const detailsWithOriginalMessage = buildDetails({
+      originalMessage: {
+        text: 'Radiohead in Barcelona',
+        url: 'https://t.me/c/123/42',
+      },
+    });
+    adminGigCandidateService.getById.mockResolvedValueOnce(
+      detailsWithOriginalMessage,
+    );
+
+    await expect(
+      controller.getGigCandidateById(detailsWithOriginalMessage.id),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        originalMessage: {
+          text: 'Radiohead in Barcelona',
+          url: 'https://t.me/c/123/42',
+        },
+      }),
+    );
+  });
+
   it('should create and resolve an admin GigCandidate', async () => {
     await controller.createGigCandidate(undefined, user, {
       gigDraft: { title: ' Band ', date: '2026-09-20' },

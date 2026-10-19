@@ -28,6 +28,11 @@ type GigCandidateSourceUserWithProfile = GigCandidateSourceUser &
 export type GigCandidateSourceForAdminView =
   GigCandidateSourceUserWithProfile | GigCandidateSourceProvider;
 
+export interface AdminGigCandidateOriginalMessage {
+  text: string;
+  url: string;
+}
+
 export interface AdminGigCandidateDetails {
   id: string;
   source: GigCandidateSourceForAdminView;
@@ -35,6 +40,7 @@ export interface AdminGigCandidateDetails {
   version: number;
   posterUrl?: string;
   status: GigCandidateStatus;
+  originalMessage?: AdminGigCandidateOriginalMessage;
   intakePostUrl?: string;
   intakePostDate?: number;
   moderationPostUrl?: string;
