@@ -616,7 +616,7 @@ describe('TelegramService', () => {
               /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
             ),
             caption:
-              '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>\n\n<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a> | <a href="https://t.me/c/456/99">See main post</a>',
+              '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>\n\n<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a> | <a href="https://t.me/c/456/99">See main post</a>\n.',
           }),
           replyMarkup: {
             inline_keyboard: [

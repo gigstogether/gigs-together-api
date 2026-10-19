@@ -193,7 +193,7 @@ export class TelegramGigComposerService {
 
     return actionLinks.length === 0
       ? titleLabel
-      : `${titleLabel}\n\n${actionLinks.join(' | ')}`;
+      : `${titleLabel}\n\n${actionLinks.join(' | ')}\n.`;
   }
 
   buildAdminUrl(publicId?: string): string | undefined {

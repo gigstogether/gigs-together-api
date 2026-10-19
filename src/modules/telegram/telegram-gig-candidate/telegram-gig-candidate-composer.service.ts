@@ -36,6 +36,8 @@ import type {
 } from './telegram-gig-candidate-composer.service.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 
+const DIVIDER = '\n\n................................\n';
+
 @Injectable()
 export class TelegramGigCandidateComposerService {
   constructor(
@@ -306,10 +308,8 @@ export class TelegramGigCandidateComposerService {
         { url: adminGigCandidateUrl },
       ),
     ];
-    if (
-      params.channelPurpose === 'intake' &&
-      params.moderationPost !== undefined
-    ) {
+    const isIntake = params.channelPurpose === 'intake';
+    if (isIntake && params.moderationPost !== undefined) {
       const moderationPostUrl = this.telegramComposer.buildPostUrl({
         chatId: params.moderationPost.chatId,
         messageId: params.moderationPost.id,
@@ -327,28 +327,31 @@ export class TelegramGigCandidateComposerService {
       );
     }
 
-    return `${body}\n${links.join(' | ')}`;
+    const isNew = params.gigCandidate.status === GigCandidateStatus.New;
+    const shouldAddTrailingSpace = !isIntake || isNew;
+    return `${body}\n${links.join(' | ')}${shouldAddTrailingSpace ? '\n.' : ''}`;
   }
 
   private buildBodyCaption(params: BuildGigCandidateCaptionParams): string {
     const { gigCandidate } = params;
     const { gigDraft, source } = gigCandidate;
+
     const isMessengerSource = isGigCandidateSourceMessengerUser(source);
     const sourceOriginTypeLabel =
       source.type === GigSourceType.User
         ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
         : '';
-    const sourceLabel = `\n\n──────────\nSource: ${source.type}${sourceOriginTypeLabel}`;
-    if (
-      isMessengerSource &&
-      (params.channelPurpose === 'intake' ||
-        gigDraft.title === undefined ||
-        gigDraft.date === undefined)
-    ) {
-      const originalText = this.escapeTelegramHtmlText(source.originalText);
-      return `<b>Original message</b>\n${originalText}${sourceLabel}`;
+    const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
+    const originalMessage = isMessengerSource
+      ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
+      : undefined;
+    if (params.channelPurpose === 'intake' && originalMessage !== undefined) {
+      return `${originalMessage}${sourceLabel}`;
     }
     if (gigDraft.title === undefined || gigDraft.date === undefined) {
+      if (originalMessage !== undefined) {
+        return `${originalMessage}${sourceLabel}`;
+      }
       throw new BadRequestException(
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
       );
@@ -364,7 +367,9 @@ export class TelegramGigCandidateComposerService {
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });
-    return `${body}${sourceLabel}`;
+    const originalMessageSection =
+      originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
+    return `${body}${originalMessageSection}${sourceLabel}`;
   }
 
   private buildTitleLine(

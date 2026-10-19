@@ -307,7 +307,7 @@ describe('TelegramComposerService', () => {
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '<a href="https://app.example/gigs/concert">Concert</a>\n\n<a href="https://app.example/admin/gigs/concert">Open gig in admin</a> | <a href="https://t.me/gigs/42">See main post</a>',
+        '<a href="https://app.example/gigs/concert">Concert</a>\n\n<a href="https://app.example/admin/gigs/concert">Open gig in admin</a> | <a href="https://t.me/gigs/42">See main post</a>\n.',
       );
     });
   });
@@ -611,7 +611,9 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
       expect(payload.caption).not.toContain('ES / Barcelona');
-      expect(payload.caption).toContain('\n\n──────────\nSource: user');
+      expect(payload.caption).toContain(
+        '\n\n................................\nSource: user (form)',
+      );
       expect(payload.caption).toContain(
         '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
@@ -697,7 +699,7 @@ describe('TelegramComposerService', () => {
       expect(payload).toMatchObject({
         chat_id: '-3001',
         text: expect.stringContaining(
-          '<b>Original message</b>\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
+          'Original message:\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
         ),
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: true,
@@ -705,7 +707,7 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
-    it('should compose structured moderation content after a Telegram suggestion is edited', () => {
+    it('should keep the original message in structured moderation content', () => {
       mockBucket.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/default.jpg',
       );
@@ -735,8 +737,9 @@ describe('TelegramComposerService', () => {
       });
 
       expect(payload.caption).toContain('🟡 Radiohead');
-      expect(payload.caption).toContain('Source: user (Telegram)');
-      expect(payload.caption).not.toContain('Unstructured suggestion');
+      expect(payload.caption).toContain(
+        '\n\n................................\nOriginal message:\nUnstructured suggestion\n\n................................\nSource: user (Telegram)',
+      );
     });
 
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
@@ -770,7 +773,9 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).toContain('🟡 Suggested Band');
       expect(payload.caption).not.toContain('Reviewing');
       expect(payload.caption).not.toContain('ES / Barcelona');
-      expect(payload.caption).toContain('\n\n──────────\nSource: user');
+      expect(payload.caption).toContain(
+        '\n\n................................\nSource: user (admin)',
+      );
       expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.caption).toContain(
         '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
@@ -806,8 +811,12 @@ describe('TelegramComposerService', () => {
         id: '507f1f77bcf86cd799439099',
         source: {
           type: GigSourceType.User,
-          userId: '66a000000000000000000000042',
-          origin: { type: GigSourceUserOriginType.Admin },
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Original updated-band suggestion',
         },
         gigDraft: {
           title: 'Updated Band',
@@ -839,6 +848,9 @@ describe('TelegramComposerService', () => {
       expect(composition.kind).toBe(PostEditKind.Caption);
       if (composition.kind !== PostEditKind.Caption) return;
       expect(composition.payload.caption).toContain('🟡 Updated Band');
+      expect(composition.payload.caption).toContain(
+        'Original message:\nOriginal updated-band suggestion',
+      );
       expect(composition.payload.replyMarkup?.inline_keyboard[0]?.[0]).toEqual(
         expect.objectContaining({
           callback_data: encodeCallbackData({
