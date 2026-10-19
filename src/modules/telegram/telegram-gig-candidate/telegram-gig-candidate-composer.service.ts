@@ -3,6 +3,7 @@ import { PostType } from '../../../shared/types/post-type.enum';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
+import { isGigCandidateSourceMessengerUser } from '../../gig-candidate/gig-candidate-source.guards';
 import {
   CallbackScope,
   encodeCallbackData,
@@ -33,6 +34,7 @@ import type {
   ComposeGigCandidatePostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
 } from './telegram-gig-candidate-composer.service.types';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 
 @Injectable()
 export class TelegramGigCandidateComposerService {
@@ -336,6 +338,21 @@ export class TelegramGigCandidateComposerService {
   private buildBodyCaption(params: BuildGigCandidateCaptionParams): string {
     const { gigCandidate } = params;
     const { gigDraft, source } = gigCandidate;
+    const isMessengerSource = isGigCandidateSourceMessengerUser(source);
+    const sourceOriginTypeLabel =
+      source.type === GigSourceType.User
+        ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
+        : '';
+    const sourceLabel = `\n\n──────────\nSource: ${source.type}${sourceOriginTypeLabel}`;
+    if (
+      isMessengerSource &&
+      (params.channelPurpose === 'intake' ||
+        gigDraft.title === undefined ||
+        gigDraft.date === undefined)
+    ) {
+      const originalText = this.escapeTelegramHtmlText(source.originalText);
+      return `<b>Original message</b>\n${originalText}${sourceLabel}`;
+    }
     if (gigDraft.title === undefined || gigDraft.date === undefined) {
       throw new BadRequestException(
         'Cannot compose GigCandidate post: gigDraft title and date are required.',
@@ -352,7 +369,7 @@ export class TelegramGigCandidateComposerService {
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });
-    return `${body}\n\n──────────\nSource: ${source.type}`;
+    return `${body}${sourceLabel}`;
   }
 
   private buildTitleLine(

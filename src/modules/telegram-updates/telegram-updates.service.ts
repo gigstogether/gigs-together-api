@@ -22,7 +22,26 @@ import type { TGUser } from '../telegram/types/user.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
+  Suggest = 'suggest',
   Start = 'start',
+}
+
+const GIG_SUGGESTION_RECEIVED_REACTION = '👍';
+
+interface ParsedCommand {
+  name: string;
+  argument: string;
+}
+
+interface HandleCommandParams extends ParsedCommand {
+  chat: TGChat;
+  messageId: number;
+}
+
+interface HandleSuggestCommandParams {
+  argument: string;
+  chat: TGChat;
+  messageId: number;
 }
 
 const EXPLICIT_USER_MESSAGE_CONTENT_KEYS: string[] = [
@@ -122,12 +141,24 @@ export class TelegramUpdatesService {
     const text = message.text ?? '';
 
     if (text.charAt(0) !== '/') {
+      if (this.isGroupChat(chat)) {
+        return;
+      }
       await this.telegramBotReplyService.sendIncomingMessageUnavailable(chat);
       return;
     }
 
-    const command = text.substring(1).toLowerCase();
-    await this.handleCommand(command, chat);
+    const command = this.parseCommand(text);
+    if (command === undefined) {
+      await this.telegramBotReplyService.sendUnknownCommandResponse(chat);
+      return;
+    }
+
+    await this.handleCommand({
+      ...command,
+      chat,
+      messageId: message.message_id,
+    });
   }
 
   private isExplicitUserMessage(message: TGMessage): boolean {
@@ -139,8 +170,32 @@ export class TelegramUpdatesService {
     return isUser && hasExplicitContent;
   }
 
-  private async handleCommand(command: string, chat: TGChat) {
-    switch (command) {
+  private parseCommand(text: string): ParsedCommand | undefined {
+    const match = /^\/([a-z0-9_]+)(?:@[a-z0-9_]+)?(?:\s+([\s\S]*))?$/i.exec(
+      text,
+    );
+    if (match === null) {
+      return;
+    }
+
+    const name = match[1];
+    if (name === undefined) {
+      return;
+    }
+
+    return {
+      name: name.toLowerCase(),
+      argument: (match[2] ?? '').trim(),
+    };
+  }
+
+  private async handleCommand(params: HandleCommandParams): Promise<void> {
+    const { name, argument, chat, messageId } = params;
+    switch (name) {
+      case Command.Suggest: {
+        await this.handleSuggestCommand({ argument, chat, messageId });
+        break;
+      }
       case Command.Start: {
         await this.telegramBotReplyService.sendStartCommandResponse(chat);
         break;
@@ -149,6 +204,61 @@ export class TelegramUpdatesService {
         await this.telegramBotReplyService.sendUnknownCommandResponse(chat);
       }
     }
+  }
+
+  private async handleSuggestCommand(
+    params: HandleSuggestCommandParams,
+  ): Promise<void> {
+    const { argument, chat, messageId } = params;
+    if (!this.isGigSuggestionsChat(chat) || argument === '') {
+      return;
+    }
+
+    await this.gigCandidateService.submitMessengerGigCandidate({
+      messenger: Messenger.Telegram,
+      chatId: chat.id,
+      messageId,
+      originalText: argument,
+    });
+    await this.setGigSuggestionReceivedReactionBestEffort(chat.id, messageId);
+  }
+
+  private async setGigSuggestionReceivedReactionBestEffort(
+    chatId: number,
+    messageId: number,
+  ): Promise<void> {
+    try {
+      await this.telegramService.setMessageReaction({
+        chat_id: chatId,
+        message_id: messageId,
+        reaction: [{ type: 'emoji', emoji: GIG_SUGGESTION_RECEIVED_REACTION }],
+      });
+    } catch (e) {
+      this.logger.warn(
+        `Setting Telegram suggestion acknowledgement reaction failed for chatId=${chatId} messageId=${messageId}: ${formatTelegramErrorMessage(e)}`,
+      );
+    }
+  }
+
+  private isGigSuggestionsChat(chat: TGChat): boolean {
+    if (!this.isGroupChat(chat)) {
+      return false;
+    }
+
+    const configuredChatId = (process.env.MAIN_CHAT_ID ?? '').trim();
+    if (configuredChatId === '') {
+      return false;
+    }
+
+    const chatId = Number(configuredChatId);
+    if (!Number.isSafeInteger(chatId) || chatId === 0) {
+      throw new Error('MAIN_CHAT_ID must be a non-zero safe integer.');
+    }
+    return chat.id === chatId;
+  }
+
+  private isGroupChat(chat: TGChat): boolean {
+    return chat.type === 'group' || chat.type === 'supergroup';
   }
 
   // TODO: move to telegram module and use dependency injection?

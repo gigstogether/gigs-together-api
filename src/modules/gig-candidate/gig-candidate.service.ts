@@ -286,6 +286,27 @@ export class GigCandidateService {
     });
   }
 
+  async submitMessengerGigCandidate(
+    params: CreateMessengerGigCandidateParams,
+  ): Promise<GigCandidate> {
+    const saved = await this.createMessengerGigCandidate(params);
+
+    let telegramIntakePost: TelegramGigCandidatePostSendResult | undefined;
+    try {
+      telegramIntakePost =
+        await this.telegramGigCandidateService.sendIntakePost(saved);
+    } catch (e) {
+      this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
+    }
+
+    const withIntakePost = await this.storeGigCandidateTelegramPostBestEffort({
+      gigCandidate: saved,
+      postType: PostType.Intake,
+      telegramPost: telegramIntakePost,
+    });
+    return withIntakePost ?? saved;
+  }
+
   async createAdminGigCandidate(
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {

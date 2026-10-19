@@ -6,6 +6,7 @@ import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
 import { TelegramBotClient } from './telegram-bot.client';
 import type { TGChat } from './types/chat.types';
+import type { TGSetMessageReaction } from './types/message.types';
 
 @Injectable()
 export class TelegramService {
@@ -27,6 +28,10 @@ export class TelegramService {
 
   readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
     this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
+
+  setMessageReaction(payload: TGSetMessageReaction): Promise<void> {
+    return this.telegramBotClient.setMessageReaction(payload);
+  }
 
   resolvePosterUrl(posterInfo?: GigPoster): string | undefined {
     if (!posterInfo) return;

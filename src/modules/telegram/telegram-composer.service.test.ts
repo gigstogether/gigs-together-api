@@ -671,6 +671,71 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
+    it('should compose a text Intake post from an escaped Telegram suggestion', () => {
+      const payload = gigCandidateComposer.composeIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: '<b>Band & friends</b>',
+        },
+        gigDraft: {},
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        chat_id: '-3001',
+        text: expect.stringContaining(
+          '<b>Original message</b>\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
+        ),
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
+      });
+      expect('photo' in payload).toBe(false);
+    });
+
+    it('should compose structured moderation content after a Telegram suggestion is edited', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/default.jpg',
+      );
+      const payload = gigCandidateComposer.composeModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Unstructured suggestion',
+        },
+        gigDraft: {
+          title: 'Radiohead',
+          date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.caption).toContain('🟡 Radiohead');
+      expect(payload.caption).toContain('Source: Telegram');
+      expect(payload.caption).not.toContain('Unstructured suggestion');
+    });
+
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 

@@ -261,6 +261,113 @@ describe('GigCandidateService', () => {
     );
   });
 
+  describe('submitMessengerGigCandidate', () => {
+    it('should send and store an Intake post for a Telegram suggestion', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      const withIntakePost = buildGigCandidate({
+        ...gigCandidate,
+        version: 1,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            chatId: -1003001,
+            id: 70,
+            date: 1_790_013_012_000,
+          },
+        ],
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue({
+        chatId: -1003001,
+        messageId: 70,
+        sentAtSeconds: 1_790_013_012,
+      });
+      gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
+        withIntakePost,
+      );
+
+      const result = await service.submitMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(withIntakePost);
+      expect(
+        telegramServiceMock.sendGigCandidateIntakePost,
+      ).toHaveBeenCalledWith(gigCandidate);
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: gigCandidate.id,
+        expectedVersion: 0,
+        post: {
+          to: Messenger.Telegram,
+          type: PostType.Intake,
+          chatId: -1003001,
+          id: 70,
+          date: 1_790_013_012_000,
+        },
+      });
+    });
+
+    it('should keep the candidate when sending the Intake post fails', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+      telegramServiceMock.sendGigCandidateIntakePost.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+
+      const result = await service.submitMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(gigCandidate);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `sendGigCandidateIntakePost failed for gigCandidateId=${gigCandidate.id}`,
+        ),
+      );
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleSubmit', () => {
     it('should throw BadRequestException when title is missing', async () => {
       await expect(

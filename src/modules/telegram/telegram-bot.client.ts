@@ -13,6 +13,7 @@ import type {
   TGSendMediaGroup,
   TGSendMessage,
   TGSendPhoto,
+  TGSetMessageReaction,
 } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
@@ -56,6 +57,10 @@ export class TelegramBotClient {
     const res$ = this.httpService.post('sendMessage', payload);
     const res = await firstValueFrom(res$);
     return res.data.result;
+  }
+
+  async setMessageReaction(payload: TGSetMessageReaction): Promise<void> {
+    await firstValueFrom(this.httpService.post('setMessageReaction', payload));
   }
 
   async sendPhoto(

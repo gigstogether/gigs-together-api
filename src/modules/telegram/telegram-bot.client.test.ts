@@ -76,6 +76,24 @@ describe('TelegramBotClient', () => {
     });
   });
 
+  describe('setMessageReaction', () => {
+    it('should send the reaction to the specified Telegram message', async () => {
+      mockHttpService.post.mockReturnValue(of({ data: { result: true } }));
+
+      await client.setMessageReaction({
+        chat_id: -100123,
+        message_id: 42,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+
+      expect(mockHttpService.post).toHaveBeenCalledWith('setMessageReaction', {
+        chat_id: -100123,
+        message_id: 42,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+  });
+
   describe('sendPhoto', () => {
     it('should throw RangeError when photo string is empty', async () => {
       await expect(
