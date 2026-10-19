@@ -105,6 +105,12 @@ describe('TelegramComposerService', () => {
   };
 
   const mockTelegramBotClient = {
+    getMe: vi.fn().mockResolvedValue({
+      id: 42,
+      first_name: 'Gigs Together',
+      is_bot: true,
+      username: 'GigsTogetherStgBot',
+    }),
     sendMessage: vi.fn(),
     sendPhoto: vi.fn(),
     answerCallbackQuery: vi.fn(),
@@ -117,6 +123,8 @@ describe('TelegramComposerService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
+    vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
 
@@ -137,6 +145,7 @@ describe('TelegramComposerService', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramComposerService);
+    await moduleRef.get(TelegramService).onModuleInit();
     gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
     gigComposer = moduleRef.get(TelegramGigComposerService);
   });
@@ -302,10 +311,6 @@ describe('TelegramComposerService', () => {
   });
 
   describe('buildGigPermalink', () => {
-    afterEach(() => {
-      delete process.env.EDIT_GIG_URL;
-    });
-
     it('should build gigs URL from publicId', () => {
       const input: BuildGigPermalinkPayload = {
         baseUrl: 'https://app.example',
@@ -318,8 +323,6 @@ describe('TelegramComposerService', () => {
     });
 
     it('should build admin Gig Mini App URL from publicId', () => {
-      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
-
       expect(gigComposer.buildAdminUrl('gig-1')).toBe(
         'https://t.me/GigsTogetherStgBot/admin?startapp=openGig-gig-1',
       );
@@ -563,14 +566,12 @@ describe('TelegramComposerService', () => {
       process.env.INTAKE_CHANNEL_ID = '-3001';
       process.env.MODERATION_CHANNEL_ID = '-3002';
       process.env.APP_BASE_URL = 'https://admin.example';
-      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
     });
 
     afterEach(() => {
       delete process.env.INTAKE_CHANNEL_ID;
       delete process.env.MODERATION_CHANNEL_ID;
       delete process.env.APP_BASE_URL;
-      delete process.env.EDIT_GIG_URL;
     });
 
     it('should compose Intake with Send to moderation and Reject actions', () => {
@@ -732,7 +733,7 @@ describe('TelegramComposerService', () => {
       });
 
       expect(payload.caption).toContain('🟡 Radiohead');
-      expect(payload.caption).toContain('Source: Telegram');
+      expect(payload.caption).toContain('Source: user (Telegram)');
       expect(payload.caption).not.toContain('Unstructured suggestion');
     });
 

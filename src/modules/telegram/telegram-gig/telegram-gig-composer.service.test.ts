@@ -52,6 +52,8 @@ describe('TelegramGigComposerService', () => {
   };
 
   const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getAdminMiniAppShortName: vi.fn().mockReturnValue('admin'),
     resolvePosterUrl: vi.fn(
       (poster: PlainGig['poster']) => poster?.externalUrl,
     ),
@@ -60,7 +62,6 @@ describe('TelegramGigComposerService', () => {
   beforeEach(async () => {
     vi.stubEnv('MAIN_CHANNEL_ID', '-100200');
     vi.stubEnv('APP_BASE_URL', 'https://app.example');
-    vi.stubEnv('EDIT_GIG_URL', 'https://app.example/admin');
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -139,7 +140,7 @@ describe('TelegramGigComposerService', () => {
       gigId: '507f1f77bcf86cd799439011',
       expectedVersion: 4,
       isVisible: false,
-      editGigUrl: 'https://app.example/admin?startapp=editGig-test',
+      editGigUrl: 'https://t.me/GigsTogetherStgBot/admin?startapp=editGig-test',
     });
 
     expect(result?.inline_keyboard[0]).toEqual(

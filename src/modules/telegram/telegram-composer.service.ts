@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
+import { TelegramService } from './telegram.service';
 import type {
   BuildCaptionPayload,
   BuildGigPermalinkPayload,
@@ -26,7 +27,10 @@ const ADMIN_MINI_APP_START_ACTION_SEPARATOR = '-';
 
 @Injectable()
 export class TelegramComposerService {
-  constructor(private readonly telegramTemplates: TelegramTemplateService) {}
+  constructor(
+    private readonly telegramTemplates: TelegramTemplateService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   buildCaption(payload: BuildCaptionPayload): string {
     const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
@@ -68,11 +72,10 @@ export class TelegramComposerService {
   buildAdminMiniAppUrl(
     action: AdminMiniAppStartAction,
     resourceId: string,
-  ): string | undefined {
-    const miniAppBaseUrl = (process.env.EDIT_GIG_URL ?? '').trim();
-    return miniAppBaseUrl
-      ? `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${ADMIN_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`
-      : undefined;
+  ): string {
+    const shortName = this.telegramService.getAdminMiniAppShortName();
+    const miniAppBaseUrl = `https://t.me/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
+    return `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${ADMIN_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`;
   }
 
   buildPostUrl(payload: BuildPostUrlPayload): string | undefined {

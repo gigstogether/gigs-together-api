@@ -5,6 +5,7 @@ import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type { TGChat } from '../types/chat.types';
 import { TGParseMode } from '../types/message.types';
 
@@ -55,6 +56,10 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
 
 describe('TelegramBotReplyComposerService', () => {
   let composer: TelegramBotReplyComposerService;
+  const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+  };
   const privateChat = {
     id: 12345,
     type: 'private',
@@ -72,11 +77,11 @@ describe('TelegramBotReplyComposerService', () => {
           provide: TelegramTemplateService,
           useValue: createMockTelegramTemplates(),
         },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 
     composer = moduleRef.get(TelegramBotReplyComposerService);
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
     vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
   });
 
@@ -128,37 +133,6 @@ describe('TelegramBotReplyComposerService', () => {
     expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
       text: 'Suggest a gig',
       url: 'https://t.me/GigsTogetherStgBot/suggest',
-    });
-  });
-
-  it('should reject a user response when suggest Mini App URL is missing', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', '');
-
-    expect(() =>
-      composer.composeStartCommandResponse(supergroupChat),
-    ).toThrowError(
-      'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
-    );
-  });
-
-  it('should reject a user response when suggest Mini App URL is invalid', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', 'not-a-url');
-
-    expect(() =>
-      composer.composeStartCommandResponse(supergroupChat),
-    ).toThrowError(
-      'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
-    );
-  });
-
-  it('should accept a valid non-Telegram suggest URL', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://example.com/suggest');
-
-    const response = composer.composeStartCommandResponse(supergroupChat);
-
-    expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
-      text: 'Suggest a gig',
-      url: 'https://example.com/suggest',
     });
   });
 

@@ -142,6 +142,8 @@ describe('TelegramService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
+    vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
     mockPostTemplates = createMockPostTemplates();
 
     testingModule = await Test.createTestingModule({
@@ -177,6 +179,19 @@ describe('TelegramService', () => {
     }).compile();
 
     service = testingModule.get<TelegramService>(TelegramService);
+    mockHttpService.get.mockReturnValue(
+      of({
+        data: {
+          result: {
+            id: 42,
+            first_name: 'Gigs Together',
+            is_bot: true,
+            username: 'GigsTogetherStgBot',
+          },
+        },
+      }),
+    );
+    await service.onModuleInit();
     telegramGigCandidateService = testingModule.get(
       TelegramGigCandidateService,
     );
@@ -192,7 +207,6 @@ describe('TelegramService', () => {
     delete process.env.MAIN_CHANNEL_ID;
     delete process.env.INTAKE_CHANNEL_ID;
     delete process.env.MODERATION_CHANNEL_ID;
-    delete process.env.EDIT_GIG_URL;
     delete process.env.APP_BASE_URL;
   });
 
@@ -248,11 +262,88 @@ describe('TelegramService', () => {
       );
     });
 
-    it('should reject access to the bot username before initialization', () => {
-      expect(() => service.getBotUsername()).toThrowError(
-        'Telegram bot identity has not been initialized.',
-      );
+    it('should return configured Mini App short names', () => {
+      expect({
+        suggest: service.getSuggestMiniAppShortName(),
+        admin: service.getAdminMiniAppShortName(),
+      }).toEqual({ suggest: 'suggest', admin: 'admin' });
     });
+
+    it('should keep Mini App short names loaded during module initialization', () => {
+      vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'changed-suggest');
+      vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'changed-admin');
+
+      expect({
+        suggest: service.getSuggestMiniAppShortName(),
+        admin: service.getAdminMiniAppShortName(),
+      }).toEqual({ suggest: 'suggest', admin: 'admin' });
+    });
+
+    it.each([
+      {
+        envName: 'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
+      },
+      {
+        envName: 'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
+      },
+    ])(
+      'should reject initialization when $envName is missing',
+      async ({ envName }) => {
+        vi.stubEnv(envName, '');
+
+        await expect(service.onModuleInit()).rejects.toThrowError(
+          `${envName} is not configured.`,
+        );
+      },
+    );
+
+    it.each([
+      {
+        name: 'bot username',
+        getValue: (uninitializedService: TelegramService) =>
+          uninitializedService.getBotUsername(),
+        expectedMessage: 'Telegram bot username has not been initialized.',
+      },
+      {
+        name: 'admin Mini App short name',
+        getValue: (uninitializedService: TelegramService) =>
+          uninitializedService.getAdminMiniAppShortName(),
+        expectedMessage:
+          'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME has not been initialized.',
+      },
+      {
+        name: 'suggest Mini App short name',
+        getValue: (uninitializedService: TelegramService) =>
+          uninitializedService.getSuggestMiniAppShortName(),
+        expectedMessage:
+          'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME has not been initialized.',
+      },
+    ])(
+      'should reject access to $name before initialization',
+      async ({ getValue, expectedMessage }) => {
+        const uninitializedModule = await Test.createTestingModule({
+          providers: [
+            TelegramService,
+            {
+              provide: TelegramBotClient,
+              useValue: {
+                sendMessage: vi.fn(),
+                sendPhoto: vi.fn(),
+                answerCallbackQuery: vi.fn(),
+              },
+            },
+            { provide: BucketService, useValue: mockBucketService },
+            { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
+          ],
+        }).compile();
+        const uninitializedService =
+          uninitializedModule.get<TelegramService>(TelegramService);
+
+        expect(() => getValue(uninitializedService)).toThrowError(
+          expectedMessage,
+        );
+      },
+    );
   });
 
   describe('resolvePosterUrl', () => {
@@ -427,7 +518,6 @@ describe('TelegramService', () => {
   describe('editGigPostsBestEffort', () => {
     it('should keep compact Moderation shape and reuse its fileId for Main after poster update', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       mockBucketService.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
@@ -523,14 +613,14 @@ describe('TelegramService', () => {
               /^https:\/\/cdn\.example\/poster\.jpg\?tgcb=\d+$/,
             ),
             caption:
-              '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>\n\n<a href="https://app.example/edit?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a> | <a href="https://t.me/c/456/99">See main post</a>',
+              '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>\n\n<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a> | <a href="https://t.me/c/456/99">See main post</a>',
           }),
           replyMarkup: {
             inline_keyboard: [
               [
                 {
                   text: '✏️ Edit',
-                  url: 'https://app.example/edit?startapp=editGig-radiohead-barcelona-2026-06-12',
+                  url: 'https://t.me/GigsTogetherStgBot/admin?startapp=editGig-radiohead-barcelona-2026-06-12',
                 },
                 expect.objectContaining({ text: '👁 Show' }),
               ],
@@ -730,7 +820,6 @@ describe('TelegramService', () => {
   describe('sendGigCandidateIntakePost', () => {
     it('should send a text post when GigCandidate has no poster', async () => {
       process.env.INTAKE_CHANNEL_ID = '-100';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 40,
@@ -778,7 +867,6 @@ describe('TelegramService', () => {
   describe('sendGigCandidateModerationPost', () => {
     it('should send a prepared poster file without asking Telegram to download its URL', async () => {
       process.env.MODERATION_CHANNEL_ID = '-200';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const posterFile = {
         buffer: Buffer.from('poster bytes'),
@@ -850,7 +938,6 @@ describe('TelegramService', () => {
 
     it('should reuse the Intake photo fileId when the original file is unavailable', async () => {
       process.env.MODERATION_CHANNEL_ID = '-200';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
@@ -905,7 +992,6 @@ describe('TelegramService', () => {
 
     it('should fall back to the poster URL when the Intake post is text', async () => {
       process.env.MODERATION_CHANNEL_ID = '-200';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
@@ -961,7 +1047,6 @@ describe('TelegramService', () => {
 
     it('should reject a successful photo response without fileId', async () => {
       process.env.MODERATION_CHANNEL_ID = '-200';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
@@ -998,7 +1083,6 @@ describe('TelegramService', () => {
   describe('updateGigModerationPost with main post', () => {
     it('should edit moderation caption with stable gig permalink', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
 
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
@@ -1032,7 +1116,7 @@ describe('TelegramService', () => {
         '<a href="https://app.example/gigs/radiohead-barcelona-2026-06-12">Radiohead</a>',
       );
       expect(editMessageCaptionPayload?.caption).toContain(
-        '<a href="https://app.example/edit?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a>',
+        '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGig-radiohead-barcelona-2026-06-12">Open gig in admin</a>',
       );
       expect(editMessageCaptionSpy).toHaveBeenCalledWith({
         chatId: -100123,
@@ -1045,7 +1129,7 @@ describe('TelegramService', () => {
             [
               {
                 text: '✏️ Edit',
-                url: 'https://app.example/edit?startapp=editGig-radiohead-barcelona-2026-06-12',
+                url: 'https://t.me/GigsTogetherStgBot/admin?startapp=editGig-radiohead-barcelona-2026-06-12',
               },
               expect.objectContaining({ text: '🙈 Hide' }),
             ],
@@ -1058,7 +1142,6 @@ describe('TelegramService', () => {
   describe('updateGigModerationPost without main post', () => {
     it('should keep Post, Edit and Hide controls without a Main post', async () => {
       process.env.APP_BASE_URL = 'https://app.example';
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
@@ -1094,10 +1177,6 @@ describe('TelegramService', () => {
   });
 
   describe('GigCandidate lifecycle messages', () => {
-    beforeEach(() => {
-      process.env.EDIT_GIG_URL = 'https://app.example/edit';
-    });
-
     it('should send newly composed feedback as a direct message', async () => {
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
@@ -1232,7 +1311,7 @@ describe('TelegramService', () => {
           chatId: -1003001,
           messageId: 40,
           caption: expect.stringContaining(
-            '<a href="https://app.example/edit?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
+            '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a> | <a href="https://t.me/c/3002/50">See moderation post</a>',
           ),
           replyMarkup: { inline_keyboard: [] },
         }),

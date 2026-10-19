@@ -8,6 +8,7 @@ import { TelegramBotClient } from '../telegram-bot.client';
 import type { TGMessage, TGSendMessage } from '../types/message.types';
 import { TGParseMode } from '../types/message.types';
 import { TelegramBotReplyService } from './telegram-bot-reply.service';
+import { TelegramService } from '../telegram.service';
 
 type MockTelegramTemplates = Pick<
   TelegramTemplateService,
@@ -43,10 +44,13 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
 describe('TelegramBotReplyService', () => {
   let service: TelegramBotReplyService;
   const sendMessage = vi.fn<(message: TGSendMessage) => Promise<TGMessage>>();
+  const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+  };
 
   beforeEach(async () => {
     vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
     sendMessage.mockResolvedValue({
       message_id: 1,
       chat: { id: 12345, type: 'private' },
@@ -65,6 +69,7 @@ describe('TelegramBotReplyService', () => {
           provide: TelegramBotClient,
           useValue: { sendMessage },
         },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 

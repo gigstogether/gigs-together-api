@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type { TGChat } from '../types/chat.types';
 import type {
   TGInlineKeyboardButton,
@@ -17,7 +18,10 @@ type UserResponseTemplateKey =
 
 @Injectable()
 export class TelegramBotReplyComposerService {
-  constructor(private readonly telegramTemplates: TelegramTemplateService) {}
+  constructor(
+    private readonly telegramTemplates: TelegramTemplateService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   composeIncomingMessageUnavailable(chat: TGChat): TGSendMessage {
     return this.composeUserResponse(
@@ -70,8 +74,13 @@ export class TelegramBotReplyComposerService {
         }
       : {
           text,
-          url: this.getSuggestGigUrl(),
+          url: this.getSuggestGigDirectLink(),
         };
+  }
+
+  private getSuggestGigDirectLink(): string {
+    const shortName = this.telegramService.getSuggestMiniAppShortName();
+    return `https://t.me/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
   }
 
   private escapeTelegramHtmlAttribute(value: string): string {
@@ -80,27 +89,6 @@ export class TelegramBotReplyComposerService {
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
-  }
-
-  private getSuggestGigUrl(): string {
-    const suggestGigUrl = (process.env.SUGGEST_GIG_URL ?? '').trim();
-    if (suggestGigUrl === '') {
-      throw new BadRequestException(
-        'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
-      );
-    }
-
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(suggestGigUrl);
-    } catch (e) {
-      throw new BadRequestException(
-        'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
-        { cause: e },
-      );
-    }
-
-    return parsedUrl.toString();
   }
 
   private getSuggestGigWebAppUrl(): string {

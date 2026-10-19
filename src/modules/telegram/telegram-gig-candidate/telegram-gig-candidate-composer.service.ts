@@ -299,11 +299,6 @@ export class TelegramGigCandidateComposerService {
     const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
       params.gigCandidate.id,
     );
-    if (adminGigCandidateUrl === undefined) {
-      throw new BadRequestException(
-        'Cannot compose GigCandidate channel post: EDIT_GIG_URL is not configured.',
-      );
-    }
 
     const links = [
       this.telegramTemplates.render(
@@ -484,16 +479,14 @@ export class TelegramGigCandidateComposerService {
     };
   }
 
-  private buildEditGigCandidateUrl(gigCandidateId: string): string | undefined {
+  private buildEditGigCandidateUrl(gigCandidateId: string): string {
     return this.telegramComposer.buildAdminMiniAppUrl(
       AdminMiniAppStartAction.EditGigCandidate,
       gigCandidateId,
     );
   }
 
-  private buildAdminGigCandidateUrl(
-    gigCandidateId: string,
-  ): string | undefined {
+  private buildAdminGigCandidateUrl(gigCandidateId: string): string {
     return this.telegramComposer.buildAdminMiniAppUrl(
       AdminMiniAppStartAction.OpenGigCandidate,
       gigCandidateId,
