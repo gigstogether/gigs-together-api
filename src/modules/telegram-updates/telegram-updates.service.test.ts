@@ -310,6 +310,7 @@ describe('TelegramUpdatesService', () => {
 
     it('should preserve suggestion text when the group command mentions the bot', async () => {
       vi.stubEnv('MAIN_CHAT_ID', '-100123');
+      vi.stubEnv('BOT_USERNAME', 'gigstogetherbot');
       const message: TGMessage = {
         message_id: 43,
         date: Date.now(),
@@ -333,6 +334,75 @@ describe('TelegramUpdatesService', () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining({ originalText: 'Band Name\n12 June' }),
       );
+    });
+
+    it('should ignore a command addressed to another bot', async () => {
+      vi.stubEnv('MAIN_CHAT_ID', '-100123');
+      vi.stubEnv('BOT_USERNAME', 'GigsTogetherBot');
+      const message: TGMessage = {
+        message_id: 44,
+        date: Date.now(),
+        text: '/suggest@AnotherBot Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(
+        mockTelegramBotReplyService.sendUnknownCommandResponse,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should reject addressed commands when the bot username is not configured', async () => {
+      const message: TGMessage = {
+        message_id: 45,
+        date: Date.now(),
+        text: '/start@GigsTogetherBot',
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+
+      await expect(service.handleMessage(message)).rejects.toThrowError(
+        'BOT_USERNAME must be configured to validate addressed Telegram commands.',
+      );
+      expect(
+        mockTelegramBotReplyService.sendStartCommandResponse,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should reject addressed commands when the bot username is invalid', async () => {
+      vi.stubEnv('BOT_USERNAME', '@GigsTogetherBot');
+      const message: TGMessage = {
+        message_id: 46,
+        date: Date.now(),
+        text: '/start@GigsTogetherBot',
+        chat: { id: 12345, type: 'private' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+
+      await expect(service.handleMessage(message)).rejects.toThrowError(
+        'BOT_USERNAME must contain only Latin letters, digits, and underscores.',
+      );
+      expect(
+        mockTelegramBotReplyService.sendStartCommandResponse,
+      ).not.toHaveBeenCalled();
     });
 
     it('should not react when the suggestion cannot be saved', async () => {

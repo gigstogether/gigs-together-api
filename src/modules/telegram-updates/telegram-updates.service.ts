@@ -31,6 +31,7 @@ const GIG_SUGGESTION_RECEIVED_REACTION = '👍';
 interface ParsedCommand {
   name: string;
   argument: string;
+  targetBotUsername?: string;
 }
 
 interface HandleCommandParams extends ParsedCommand {
@@ -153,6 +154,9 @@ export class TelegramUpdatesService {
       await this.telegramBotReplyService.sendUnknownCommandResponse(chat);
       return;
     }
+    if (!this.isCommandAddressedToThisBot(command.targetBotUsername)) {
+      return;
+    }
 
     await this.handleCommand({
       ...command,
@@ -171,7 +175,7 @@ export class TelegramUpdatesService {
   }
 
   private parseCommand(text: string): ParsedCommand | undefined {
-    const match = /^\/([a-z0-9_]+)(?:@[a-z0-9_]+)?(?:\s+([\s\S]*))?$/i.exec(
+    const match = /^\/([a-z0-9_]+)(?:@([a-z0-9_]+))?(?:\s+([\s\S]*))?$/i.exec(
       text,
     );
     if (match === null) {
@@ -183,10 +187,37 @@ export class TelegramUpdatesService {
       return;
     }
 
-    return {
+    const command: ParsedCommand = {
       name: name.toLowerCase(),
-      argument: (match[2] ?? '').trim(),
+      argument: (match[3] ?? '').trim(),
     };
+    const targetBotUsername = match[2];
+    if (targetBotUsername !== undefined) {
+      command.targetBotUsername = targetBotUsername;
+    }
+    return command;
+  }
+
+  private isCommandAddressedToThisBot(
+    targetBotUsername: string | undefined,
+  ): boolean {
+    if (targetBotUsername === undefined) {
+      return true;
+    }
+
+    const botUsername = (process.env.BOT_USERNAME ?? '').trim();
+    if (botUsername === '') {
+      throw new Error(
+        'BOT_USERNAME must be configured to validate addressed Telegram commands.',
+      );
+    }
+    if (!/^[a-z0-9_]+$/i.test(botUsername)) {
+      throw new Error(
+        'BOT_USERNAME must contain only Latin letters, digits, and underscores.',
+      );
+    }
+
+    return targetBotUsername.toLowerCase() === botUsername.toLowerCase();
   }
 
   private async handleCommand(params: HandleCommandParams): Promise<void> {
