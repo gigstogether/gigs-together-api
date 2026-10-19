@@ -282,7 +282,12 @@ export class GigCandidateService {
         },
         originalText: params.originalText,
       },
-      gigDraft: {},
+      // TODO: This is temporary while suggestions come from a single city chat.
+      //  Derive this location from the source chat when multi-city chats are supported.
+      gigDraft: {
+        city: 'Barcelona',
+        country: 'ES',
+      },
     });
   }
 

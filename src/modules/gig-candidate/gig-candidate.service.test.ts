@@ -176,7 +176,7 @@ describe('GigCandidateService', () => {
   });
 
   describe('createMessengerGigCandidate', () => {
-    it('should create an anonymous messenger candidate with an empty draft', async () => {
+    it('should create an anonymous messenger candidate with Barcelona location defaults', async () => {
       const gigCandidate = buildGigCandidate({
         source: {
           type: GigSourceType.User,
@@ -186,6 +186,10 @@ describe('GigCandidateService', () => {
             message: { chatId: -100123, messageId: 42 },
           },
           originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -215,7 +219,10 @@ describe('GigCandidateService', () => {
           },
           originalText: 'Radiohead in Barcelona',
         },
-        gigDraft: {},
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
       });
     });
 
