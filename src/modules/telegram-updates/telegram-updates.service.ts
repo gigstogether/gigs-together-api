@@ -39,12 +39,14 @@ interface ParsedCommand {
 interface HandleCommandParams extends ParsedCommand {
   chat: TGChat;
   messageId: number;
+  replyToMessage?: TGMessage;
 }
 
 interface HandleSuggestCommandParams {
   argument: string;
   chat: TGChat;
   messageId: number;
+  replyToMessage?: TGMessage;
 }
 
 const EXPLICIT_USER_MESSAGE_CONTENT_KEYS: string[] = [
@@ -172,11 +174,15 @@ export class TelegramUpdatesService {
       return;
     }
 
-    await this.handleCommand({
+    const params: HandleCommandParams = {
       ...command,
       chat,
       messageId: message.message_id,
-    });
+    };
+    if (message.reply_to_message !== undefined) {
+      params.replyToMessage = message.reply_to_message;
+    }
+    await this.handleCommand(params);
   }
 
   private isExplicitUserMessage(message: TGMessage): boolean {
@@ -225,10 +231,19 @@ export class TelegramUpdatesService {
   }
 
   private async handleCommand(params: HandleCommandParams): Promise<void> {
-    const { name, argument, chat, messageId } = params;
+    const { name, argument, chat, messageId, replyToMessage } = params;
+
     switch (name) {
       case Command.Suggest: {
-        await this.handleSuggestCommand({ argument, chat, messageId });
+        const suggestParams: HandleSuggestCommandParams = {
+          argument,
+          chat,
+          messageId,
+        };
+        if (replyToMessage !== undefined) {
+          suggestParams.replyToMessage = replyToMessage;
+        }
+        await this.handleSuggestCommand(suggestParams);
         break;
       }
       case Command.Start: {
@@ -244,8 +259,21 @@ export class TelegramUpdatesService {
   private async handleSuggestCommand(
     params: HandleSuggestCommandParams,
   ): Promise<void> {
-    const { argument, chat, messageId } = params;
-    if (!this.isGigSuggestionsChat(chat) || argument === '') {
+    const { argument, chat, messageId, replyToMessage } = params;
+    if (!this.isGigSuggestionsChat(chat)) {
+      return;
+    }
+
+    let originalText = argument;
+    let sourceMessageId = messageId;
+    if (replyToMessage !== undefined) {
+      if (replyToMessage.text === undefined) {
+        return;
+      }
+      originalText = replyToMessage.text.trim();
+      sourceMessageId = replyToMessage.message_id;
+    }
+    if (originalText === '') {
       return;
     }
 

@@ -346,6 +346,43 @@ describe('TelegramUpdatesService', () => {
       );
     });
 
+    it('should create a candidate from the message replied to with a suggest command', async () => {
+      const message: TGMessage = {
+        message_id: 44,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+        reply_to_message: {
+          message_id: 41,
+          date: Date.now(),
+          text: '  Radiohead in Barcelona\n12 June  ',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 8, is_bot: false, first_name: 'Another user' },
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 41,
+        originalText: 'Radiohead in Barcelona\n12 June',
+      });
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 44,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
     it('should ignore a command addressed to another bot', async () => {
       const message: TGMessage = {
         message_id: 44,
