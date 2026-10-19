@@ -370,7 +370,7 @@ describe('TelegramUpdatesService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should not react when the suggestion cannot be saved', async () => {
+    it('should log the error and keep the webhook successful when the suggestion cannot be saved', async () => {
       const message: TGMessage = {
         message_id: 49,
         date: Date.now(),
@@ -378,15 +378,19 @@ describe('TelegramUpdatesService', () => {
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
       };
-      mockGigCandidateService.submitMessengerGigCandidate.mockRejectedValue(
+      mockGigCandidateService.submitMessengerGigCandidate.mockRejectedValueOnce(
         new Error('Database unavailable'),
       );
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
 
-      await expect(service.handleMessage(message)).rejects.toThrowError(
-        'Database unavailable',
-      );
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
 
       expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database unavailable'),
+      );
     });
 
     it('should keep the suggestion accepted when Telegram rejects the acknowledgement reaction', async () => {
@@ -467,6 +471,20 @@ describe('TelegramUpdatesService', () => {
           text: 'Radiohead in Barcelona',
           chat: { id: -100123, type: 'supergroup' },
           from: { id: 7, is_bot: false, first_name: 'Arina' },
+        },
+        {
+          message_id: 48,
+          date: Date.now(),
+          text: '/suggest@GigsTogetherBot',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+          reply_to_message: {
+            message_id: 45,
+            date: Date.now(),
+            chat: { id: -100123, type: 'supergroup' },
+            from: { id: 8, is_bot: false, first_name: 'Another user' },
+            photo: [],
+          },
         },
       ];
 

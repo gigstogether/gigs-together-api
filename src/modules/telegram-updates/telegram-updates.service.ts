@@ -81,6 +81,8 @@ export class TelegramUpdatesService {
     private readonly gigCandidateService: GigCandidateService,
     private readonly userService: UserService,
     private readonly authorizationService: AuthorizationService,
+    // A plain constructor parameter is scoped to the constructor body. In TypeScript, adding
+    // public, protected, private, or readonly turns it into a parameter property on the instance.
     configService: ConfigService,
   ) {
     const chatIdRaw = getRequiredConfigString(configService, 'MAIN_CHAT_ID');
@@ -247,12 +249,19 @@ export class TelegramUpdatesService {
       return;
     }
 
-    await this.gigCandidateService.submitMessengerGigCandidate({
-      messenger: Messenger.Telegram,
-      chatId: chat.id,
-      messageId,
-      originalText: argument,
-    });
+    try {
+      await this.gigCandidateService.submitMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: chat.id,
+        messageId: sourceMessageId,
+        originalText,
+      });
+    } catch (e) {
+      this.logger.error(
+        `Saving Telegram gig suggestion failed for chatId=${chat.id} messageId=${sourceMessageId}: ${formatTelegramErrorMessage(e)}`,
+      );
+      return;
+    }
     await this.setGigSuggestionReceivedReactionBestEffort(chat.id, messageId);
   }
 
