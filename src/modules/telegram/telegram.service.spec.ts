@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
@@ -198,6 +198,61 @@ describe('TelegramService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  describe('bot identity', () => {
+    it('should load the bot username during module initialization', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            result: {
+              id: 42,
+              first_name: 'Gigs Together',
+              is_bot: true,
+              username: 'GigsTogetherBot',
+            },
+          },
+        }),
+      );
+
+      await service.onModuleInit();
+
+      expect(service.getBotUsername()).toBe('GigsTogetherBot');
+    });
+
+    it('should reject initialization when getMe omits the username', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            result: {
+              id: 42,
+              first_name: 'Gigs Together',
+              is_bot: true,
+            },
+          },
+        }),
+      );
+
+      await expect(service.onModuleInit()).rejects.toThrowError(
+        'Telegram getMe did not return a bot username.',
+      );
+    });
+
+    it('should propagate a getMe failure during module initialization', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        throwError(() => new Error('Telegram unavailable')),
+      );
+
+      await expect(service.onModuleInit()).rejects.toThrowError(
+        'Telegram unavailable',
+      );
+    });
+
+    it('should reject access to the bot username before initialization', () => {
+      expect(() => service.getBotUsername()).toThrowError(
+        'Telegram bot identity has not been initialized.',
+      );
+    });
   });
 
   describe('resolvePosterUrl', () => {

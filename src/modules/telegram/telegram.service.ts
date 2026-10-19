@@ -1,5 +1,6 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { OnModuleInit } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
 import { logError } from '../../shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
@@ -9,8 +10,9 @@ import type { TGChat } from './types/chat.types';
 import type { TGSetMessageReaction } from './types/message.types';
 
 @Injectable()
-export class TelegramService {
+export class TelegramService implements OnModuleInit {
   private readonly logger = new Logger(TelegramService.name);
+  private botUsername: string | undefined;
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
@@ -19,6 +21,21 @@ export class TelegramService {
     private readonly telegramBotClient: TelegramBotClient,
     private readonly bucketService: BucketService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    const bot = await this.telegramBotClient.getMe();
+    if (bot.username === undefined) {
+      throw new Error('Telegram getMe did not return a bot username.');
+    }
+    this.botUsername = bot.username;
+  }
+
+  getBotUsername(): string {
+    if (this.botUsername === undefined) {
+      throw new Error('Telegram bot identity has not been initialized.');
+    }
+    return this.botUsername;
+  }
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =
     this.telegramBotClient.sendMessage.bind(this.telegramBotClient);

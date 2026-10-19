@@ -17,6 +17,7 @@ import type {
 } from './types/message.types';
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
+import type { TGUser } from './types/user.types';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 import type { DownloadedRemoteImage } from '../remote-image/remote-image.service';
@@ -52,6 +53,12 @@ export class TelegramBotClient {
     private readonly httpService: HttpService,
     private readonly remoteImageService: RemoteImageService,
   ) {}
+
+  async getMe(): Promise<TGUser> {
+    const res$ = this.httpService.get('getMe');
+    const res = await firstValueFrom(res$);
+    return res.data.result;
+  }
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
     const res$ = this.httpService.post('sendMessage', payload);

@@ -205,17 +205,7 @@ export class TelegramUpdatesService {
       return true;
     }
 
-    const botUsername = (process.env.BOT_USERNAME ?? '').trim();
-    if (botUsername === '') {
-      throw new Error(
-        'BOT_USERNAME must be configured to validate addressed Telegram commands.',
-      );
-    }
-    if (!/^[a-z0-9_]+$/i.test(botUsername)) {
-      throw new Error(
-        'BOT_USERNAME must contain only Latin letters, digits, and underscores.',
-      );
-    }
+    const botUsername = this.telegramService.getBotUsername();
 
     return targetBotUsername.toLowerCase() === botUsername.toLowerCase();
   }
