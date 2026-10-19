@@ -3,6 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
 import type { TGMessage } from './types/message.types';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
@@ -175,6 +176,7 @@ describe('TelegramService', () => {
           provide: CACHE_MANAGER,
           useValue: mockChatLookupCache,
         },
+        ConfigService,
       ],
     }).compile();
 
@@ -334,6 +336,7 @@ describe('TelegramService', () => {
             },
             { provide: BucketService, useValue: mockBucketService },
             { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
+            ConfigService,
           ],
         }).compile();
         const uninitializedService =

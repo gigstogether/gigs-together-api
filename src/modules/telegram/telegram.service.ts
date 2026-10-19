@@ -1,7 +1,9 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
+import { getRequiredConfigString } from '../../shared/utils/env';
 import { logError } from '../../shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
@@ -22,13 +24,16 @@ export class TelegramService implements OnModuleInit {
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly bucketService: BucketService,
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const adminMiniAppShortName = this.getRequiredEnvValue(
+    const adminMiniAppShortName = getRequiredConfigString(
+      this.configService,
       'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
     );
-    const suggestMiniAppShortName = this.getRequiredEnvValue(
+    const suggestMiniAppShortName = getRequiredConfigString(
+      this.configService,
       'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
     );
 
@@ -65,14 +70,6 @@ export class TelegramService implements OnModuleInit {
       throw new Error(`${name} has not been initialized.`);
     }
     return value;
-  }
-
-  private getRequiredEnvValue(envName: string): string {
-    const shortName = (process.env[envName] ?? '').trim();
-    if (shortName === '') {
-      throw new Error(`${envName} is not configured.`);
-    }
-    return shortName;
   }
 
   readonly sendMessage: TelegramBotClient['sendMessage'] =

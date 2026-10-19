@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
@@ -141,6 +142,7 @@ describe('TelegramComposerService', () => {
         { provide: BucketService, useValue: mockBucket },
         { provide: TelegramBotClient, useValue: mockTelegramBotClient },
         { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
+        ConfigService,
       ],
     }).compile();
 

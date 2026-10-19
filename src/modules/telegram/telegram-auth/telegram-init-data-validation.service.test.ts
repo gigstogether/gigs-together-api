@@ -1,21 +1,32 @@
 import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 describe('TelegramInitDataValidationService', () => {
+  const botToken = 'unit-test-bot-token';
   let service: TelegramInitDataValidationService;
 
   beforeEach(() => {
-    service = new TelegramInitDataValidationService();
-    process.env.BOT_TOKEN = 'unit-test-bot-token';
+    service = new TelegramInitDataValidationService(
+      new ConfigService({ BOT_TOKEN: botToken }),
+    );
     delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    delete process.env.BOT_TOKEN;
     delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
+  });
+
+  it('should reject construction when BOT_TOKEN is missing', () => {
+    vi.stubEnv('BOT_TOKEN', '');
+
+    expect(
+      () => new TelegramInitDataValidationService(new ConfigService()),
+    ).toThrowError('BOT_TOKEN is not configured.');
   });
 
   describe('parseTelegramInitDataString', () => {
@@ -34,7 +45,7 @@ describe('TelegramInitDataValidationService', () => {
       const dataCheckString = 'auth_date=1\nuser={"id":1}';
       const secretKey = crypto
         .createHmac('sha256', 'WebAppData')
-        .update(process.env.BOT_TOKEN ?? '')
+        .update(botToken)
         .digest();
       const hash = crypto
         .createHmac('sha256', secretKey)

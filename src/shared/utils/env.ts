@@ -1,3 +1,21 @@
+import type { ConfigService } from '@nestjs/config';
+
+export function getRequiredConfigString(
+  configService: ConfigService,
+  variableName: string,
+): string {
+  const raw = configService.get<unknown>(variableName);
+  if (typeof raw !== 'string') {
+    throw new Error(`${variableName} is not configured.`);
+  }
+
+  const value = raw.trim();
+  if (value === '') {
+    throw new Error(`${variableName} is not configured.`);
+  }
+  return value;
+}
+
 export function envBool(name: string, defaultValue: boolean): boolean {
   const raw = process.env[name];
   if (raw === undefined || raw === null) return defaultValue;

@@ -1,5 +1,7 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import { getRequiredConfigString } from '../../../shared/utils/env';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 export interface TelegramInitDataParseResult {
@@ -9,6 +11,12 @@ export interface TelegramInitDataParseResult {
 
 @Injectable()
 export class TelegramInitDataValidationService {
+  private readonly botToken: string;
+
+  constructor(configService: ConfigService) {
+    this.botToken = getRequiredConfigString(configService, 'BOT_TOKEN');
+  }
+
   parseTelegramInitDataString(initData: string): TelegramInitDataParseResult {
     const pairs = initData.split('&');
     const parsedData: Record<string, string> = {};
@@ -34,14 +42,9 @@ export class TelegramInitDataValidationService {
     dataCheckString: string,
     receivedHash: string,
   ): void {
-    const botToken = process.env.BOT_TOKEN;
-    if (!botToken) {
-      throw new ForbiddenException('BOT_TOKEN is not configured');
-    }
-
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(botToken)
+      .update(this.botToken)
       .digest();
 
     const computedHash = crypto

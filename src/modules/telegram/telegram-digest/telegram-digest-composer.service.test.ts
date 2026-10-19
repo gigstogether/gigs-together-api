@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
@@ -104,6 +105,7 @@ describe('TelegramDigestComposerService', () => {
         { provide: BucketService, useValue: bucketService },
         { provide: TelegramBotClient, useValue: telegramBotClient },
         { provide: CACHE_MANAGER, useValue: chatLookupCache },
+        ConfigService,
       ],
     }).compile();
 
