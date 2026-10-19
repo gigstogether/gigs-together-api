@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TELEGRAM_WEB_BASE_URL } from './telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
@@ -74,7 +75,7 @@ export class TelegramComposerService {
     resourceId: string,
   ): string {
     const shortName = this.telegramService.getAdminMiniAppShortName();
-    const miniAppBaseUrl = `https://t.me/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
+    const miniAppBaseUrl = `${TELEGRAM_WEB_BASE_URL}/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
     return `${miniAppBaseUrl}?startapp=${encodeURIComponent(`${action}${ADMIN_MINI_APP_START_ACTION_SEPARATOR}${resourceId}`)}`;
   }
 
@@ -83,14 +84,14 @@ export class TelegramComposerService {
 
     if (!messageId) return;
     if (chatUsername) {
-      return `https://t.me/${chatUsername}/${messageId}`;
+      return `${TELEGRAM_WEB_BASE_URL}/${chatUsername}/${messageId}`;
     }
     if (chatId) {
       const rawChatId = String(chatId);
       const internalChatId = rawChatId.startsWith('-100')
         ? rawChatId.slice(4)
         : rawChatId;
-      return `https://t.me/c/${internalChatId}/${messageId}`;
+      return `${TELEGRAM_WEB_BASE_URL}/c/${internalChatId}/${messageId}`;
     }
   }
 }

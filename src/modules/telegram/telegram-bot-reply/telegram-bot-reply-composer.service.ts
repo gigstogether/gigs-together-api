@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { TELEGRAM_WEB_BASE_URL } from '../telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramService } from '../telegram.service';
@@ -80,7 +81,7 @@ export class TelegramBotReplyComposerService {
 
   private getSuggestGigDirectLink(): string {
     const shortName = this.telegramService.getSuggestMiniAppShortName();
-    return `https://t.me/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
+    return `${TELEGRAM_WEB_BASE_URL}/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
   }
 
   private escapeTelegramHtmlAttribute(value: string): string {
