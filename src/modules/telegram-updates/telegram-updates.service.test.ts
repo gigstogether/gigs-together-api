@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramUpdatesService } from './telegram-updates.service';
@@ -66,9 +67,9 @@ describe('TelegramUpdatesService', () => {
     isAdmin: vi.fn(),
   };
 
-  beforeEach(async () => {
-    vi.unstubAllEnvs();
-
+  async function createService(
+    mainChatId: string,
+  ): Promise<TelegramUpdatesService> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramUpdatesService,
@@ -96,10 +97,20 @@ describe('TelegramUpdatesService', () => {
           provide: AuthorizationService,
           useValue: mockAuthorizationService,
         },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ MAIN_CHAT_ID: mainChatId }),
+        },
       ],
     }).compile();
 
-    service = module.get<TelegramUpdatesService>(TelegramUpdatesService);
+    return module.get<TelegramUpdatesService>(TelegramUpdatesService);
+  }
+
+  beforeEach(async () => {
+    vi.unstubAllEnvs();
+
+    service = await createService('-100123');
     mockTelegramService.getBotUsername.mockReturnValue('gigstogetherbot');
     mockUserService.findOrCreateMessengerUser.mockResolvedValue({
       id: '507f1f77bcf86cd799439088',
@@ -275,7 +286,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should create a candidate and react to a suggestion from the configured group', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const message: TGMessage = {
         message_id: 42,
         date: Date.now(),
@@ -311,7 +321,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should preserve suggestion text when the group command mentions the bot', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const message: TGMessage = {
         message_id: 43,
         date: Date.now(),
@@ -338,7 +347,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should ignore a command addressed to another bot', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const message: TGMessage = {
         message_id: 44,
         date: Date.now(),
@@ -363,7 +371,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should not react when the suggestion cannot be saved', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const message: TGMessage = {
         message_id: 49,
         date: Date.now(),
@@ -383,7 +390,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should keep the suggestion accepted when Telegram rejects the acknowledgement reaction', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const message: TGMessage = {
         message_id: 50,
         date: Date.now(),
@@ -419,7 +425,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should ignore suggestions outside the configured group', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const messages: TGMessage[] = [
         {
           message_id: 44,
@@ -448,7 +453,6 @@ describe('TelegramUpdatesService', () => {
     });
 
     it('should ignore an empty suggestion and ordinary group messages', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', '-100123');
       const messages: TGMessage[] = [
         {
           message_id: 46,
@@ -479,22 +483,16 @@ describe('TelegramUpdatesService', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should reject an invalid suggestions chat ID configuration', async () => {
-      vi.stubEnv('MAIN_CHAT_ID', 'invalid');
-      const message: TGMessage = {
-        message_id: 48,
-        date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
-        chat: { id: -100123, type: 'supergroup' },
-        from: { id: 7, is_bot: false, first_name: 'Arina' },
-      };
-
-      await expect(service.handleMessage(message)).rejects.toThrowError(
+    it('should reject construction when suggestions chat ID is invalid', async () => {
+      await expect(createService('invalid')).rejects.toThrowError(
         'MAIN_CHAT_ID must be a non-zero safe integer.',
       );
-      expect(
-        mockGigCandidateService.submitMessengerGigCandidate,
-      ).not.toHaveBeenCalled();
+    });
+
+    it('should reject construction when suggestions chat ID is empty', async () => {
+      await expect(createService('   ')).rejects.toThrowError(
+        'MAIN_CHAT_ID is not configured.',
+      );
     });
 
     it('should handle an unknown command', async () => {

@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { getRequiredConfigString } from '../../shared/utils/env';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
@@ -70,6 +72,8 @@ const EXPLICIT_USER_MESSAGE_CONTENT_KEYS: string[] = [
 
 @Injectable()
 export class TelegramUpdatesService {
+  private readonly gigSuggestionsChatId: number;
+
   constructor(
     private readonly telegramService: TelegramService,
     private readonly telegramBotReplyService: TelegramBotReplyService,
@@ -77,7 +81,15 @@ export class TelegramUpdatesService {
     private readonly gigCandidateService: GigCandidateService,
     private readonly userService: UserService,
     private readonly authorizationService: AuthorizationService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    const chatIdRaw = getRequiredConfigString(configService, 'MAIN_CHAT_ID');
+    const chatId = Number(chatIdRaw);
+    if (!Number.isSafeInteger(chatId) || chatId === 0) {
+      throw new Error('MAIN_CHAT_ID must be a non-zero safe integer.');
+    }
+    this.gigSuggestionsChatId = chatId;
+  }
 
   private readonly logger = new Logger(TelegramUpdatesService.name);
 
@@ -266,16 +278,7 @@ export class TelegramUpdatesService {
       return false;
     }
 
-    const configuredChatId = (process.env.MAIN_CHAT_ID ?? '').trim();
-    if (configuredChatId === '') {
-      return false;
-    }
-
-    const chatId = Number(configuredChatId);
-    if (!Number.isSafeInteger(chatId) || chatId === 0) {
-      throw new Error('MAIN_CHAT_ID must be a non-zero safe integer.');
-    }
-    return chat.id === chatId;
+    return chat.id === this.gigSuggestionsChatId;
   }
 
   private isGroupChat(chat: TGChat): boolean {

@@ -169,6 +169,7 @@ Current variables defined in `.env.example`:
 | `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | SameSite mode for the refresh cookie.                                    |
 | `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
 | `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
+| `MAIN_CHAT_ID`                                  | For Telegram webhook flows                   | Group or supergroup that accepts `/suggest` commands.                    |
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
 | `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
