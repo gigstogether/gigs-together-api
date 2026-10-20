@@ -2,8 +2,32 @@ import { ConfigService } from '@nestjs/config';
 import {
   getConfigBoolean,
   getConfigPositiveSafeInteger,
+  getConfigString,
   getRequiredConfigString,
 } from './env';
+
+describe('getConfigString', () => {
+  it('should return a trimmed configured string', () => {
+    const configService = new ConfigService({
+      TEST_CONFIG_STRING: '  configured value  ',
+    });
+
+    expect(getConfigString(configService, 'TEST_CONFIG_STRING')).toBe(
+      'configured value',
+    );
+  });
+
+  it.each([undefined, '', '   ', 42])(
+    'should return undefined for %s',
+    (value) => {
+      const configService = new ConfigService({ TEST_CONFIG_STRING: value });
+
+      expect(
+        getConfigString(configService, 'TEST_CONFIG_STRING'),
+      ).toBeUndefined();
+    },
+  );
+});
 
 describe('getRequiredConfigString', () => {
   it('should return a trimmed configured string', () => {

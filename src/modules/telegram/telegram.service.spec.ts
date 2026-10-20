@@ -145,6 +145,9 @@ describe('TelegramService', () => {
   beforeEach(async () => {
     vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
     vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
+    vi.stubEnv('MAIN_CHANNEL_ID', '-100456');
+    vi.stubEnv('INTAKE_CHANNEL_ID', '-100');
+    vi.stubEnv('MODERATION_CHANNEL_ID', '-200');
     mockPostTemplates = createMockPostTemplates();
 
     testingModule = await Test.createTestingModule({
@@ -206,14 +209,23 @@ describe('TelegramService', () => {
     mockRemoteImageService.download.mockReset();
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
-    delete process.env.MAIN_CHANNEL_ID;
-    delete process.env.INTAKE_CHANNEL_ID;
-    delete process.env.MODERATION_CHANNEL_ID;
     delete process.env.APP_BASE_URL;
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+  });
+
+  it('should expose configured channel IDs', () => {
+    expect({
+      main: service.getMainChannelId(),
+      intake: service.getIntakeChannelId(),
+      moderation: service.getModerationChannelId(),
+    }).toEqual({
+      main: '-100456',
+      intake: '-100',
+      moderation: '-200',
+    });
   });
 
   describe('bot identity', () => {
@@ -757,7 +769,6 @@ describe('TelegramService', () => {
 
   describe('sendMainPost', () => {
     it('should return normalized Telegram post metadata', async () => {
-      process.env.MAIN_CHANNEL_ID = '-100456';
       const bot = testingModule.get(TelegramBotClient);
       vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
         message_id: 99,
@@ -798,7 +809,6 @@ describe('TelegramService', () => {
     });
 
     it('should reject incomplete Telegram post metadata', async () => {
-      process.env.MAIN_CHANNEL_ID = '-100456';
       const bot = testingModule.get(TelegramBotClient);
       vi.spyOn(bot, 'sendPhoto').mockResolvedValue({
         message_id: Number.NaN,
@@ -822,7 +832,6 @@ describe('TelegramService', () => {
 
   describe('sendGigCandidateIntakePost', () => {
     it('should send a text post when GigCandidate has no poster', async () => {
-      process.env.INTAKE_CHANNEL_ID = '-100';
       const bot = testingModule.get(TelegramBotClient);
       const sendMessageSpy = vi.spyOn(bot, 'sendMessage').mockResolvedValue({
         message_id: 40,
@@ -869,7 +878,6 @@ describe('TelegramService', () => {
 
   describe('sendGigCandidateModerationPost', () => {
     it('should send a prepared poster file without asking Telegram to download its URL', async () => {
-      process.env.MODERATION_CHANNEL_ID = '-200';
       const bot = testingModule.get(TelegramBotClient);
       const posterFile = {
         buffer: Buffer.from('poster bytes'),
@@ -940,7 +948,6 @@ describe('TelegramService', () => {
     });
 
     it('should reuse the Intake photo fileId when the original file is unavailable', async () => {
-      process.env.MODERATION_CHANNEL_ID = '-200';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
@@ -994,7 +1001,6 @@ describe('TelegramService', () => {
     });
 
     it('should fall back to the poster URL when the Intake post is text', async () => {
-      process.env.MODERATION_CHANNEL_ID = '-200';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
@@ -1049,7 +1055,6 @@ describe('TelegramService', () => {
     });
 
     it('should reject a successful photo response without fileId', async () => {
-      process.env.MODERATION_CHANNEL_ID = '-200';
       const bot = testingModule.get(TelegramBotClient);
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',

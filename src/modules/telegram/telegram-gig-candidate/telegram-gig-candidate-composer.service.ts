@@ -48,7 +48,7 @@ export class TelegramGigCandidateComposerService {
 
   composeIntakePost(gigCandidate: GigCandidate): TGSendMessage | TGSendPhoto {
     const chatId = this.requireChannelId(
-      process.env.INTAKE_CHANNEL_ID,
+      this.telegramService.getIntakeChannelId(),
       'INTAKE_CHANNEL_ID',
       'intake',
     );
@@ -80,7 +80,7 @@ export class TelegramGigCandidateComposerService {
 
   composeModerationPost(gigCandidate: GigCandidate): TGSendPhoto {
     const chatId = this.requireChannelId(
-      process.env.MODERATION_CHANNEL_ID,
+      this.telegramService.getModerationChannelId(),
       'MODERATION_CHANNEL_ID',
       'moderation',
     );
@@ -499,12 +499,11 @@ export class TelegramGigCandidateComposerService {
   }
 
   private requireChannelId(
-    chatIdRaw: string | undefined,
+    chatId: string | undefined,
     envName: string,
     channelPurpose: 'intake' | 'moderation',
   ): string {
-    const chatId = chatIdRaw?.trim() ?? '';
-    if (chatId === '') {
+    if (chatId === undefined) {
       throw new BadRequestException(
         `Cannot compose GigCandidate ${channelPurpose} post: ${envName} is not configured.`,
       );

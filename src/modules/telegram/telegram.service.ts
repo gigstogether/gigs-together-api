@@ -3,7 +3,10 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
-import { getRequiredConfigString } from '../../shared/utils/env';
+import {
+  getConfigString,
+  getRequiredConfigString,
+} from '../../shared/utils/env';
 import { logError } from '../../shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
@@ -17,6 +20,9 @@ export class TelegramService implements OnModuleInit {
   private botUsername: string | undefined;
   private adminMiniAppShortName: string | undefined;
   private suggestMiniAppShortName: string | undefined;
+  private readonly mainChannelId: string | undefined;
+  private readonly intakeChannelId: string | undefined;
+  private readonly moderationChannelId: string | undefined;
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
@@ -25,7 +31,14 @@ export class TelegramService implements OnModuleInit {
     private readonly telegramBotClient: TelegramBotClient,
     private readonly bucketService: BucketService,
     private readonly configService: ConfigService,
-  ) {}
+  ) {
+    this.mainChannelId = getConfigString(configService, 'MAIN_CHANNEL_ID');
+    this.intakeChannelId = getConfigString(configService, 'INTAKE_CHANNEL_ID');
+    this.moderationChannelId = getConfigString(
+      configService,
+      'MODERATION_CHANNEL_ID',
+    );
+  }
 
   async onModuleInit(): Promise<void> {
     const adminMiniAppShortName = getRequiredConfigString(
@@ -63,6 +76,18 @@ export class TelegramService implements OnModuleInit {
       this.suggestMiniAppShortName,
       'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
     );
+  }
+
+  getMainChannelId(): string | undefined {
+    return this.mainChannelId;
+  }
+
+  getIntakeChannelId(): string | undefined {
+    return this.intakeChannelId;
+  }
+
+  getModerationChannelId(): string | undefined {
+    return this.moderationChannelId;
   }
 
   private getInitializedValue(value: string | undefined, name: string): string {

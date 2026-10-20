@@ -97,14 +97,14 @@ describe('TelegramGigCandidateService', () => {
   const telegramServiceMock = {
     getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
     getAdminMiniAppShortName: vi.fn().mockReturnValue('admin'),
+    getIntakeChannelId: vi.fn().mockReturnValue('-100'),
+    getModerationChannelId: vi.fn().mockReturnValue('-200'),
     resolvePosterUrl: vi.fn(
       (poster: GigCandidate['gigDraft']['poster']) => poster?.externalUrl,
     ),
   };
 
   beforeEach(async () => {
-    vi.stubEnv('INTAKE_CHANNEL_ID', '-100');
-    vi.stubEnv('MODERATION_CHANNEL_ID', '-200');
     vi.stubEnv('APP_BASE_URL', 'https://app.example');
 
     const module: TestingModule = await Test.createTestingModule({

@@ -99,6 +99,7 @@ describe('TelegramComposerService', () => {
   let composer: TelegramComposerService;
   let gigCandidateComposer: TelegramGigCandidateComposerService;
   let gigComposer: TelegramGigComposerService;
+  let telegramService: TelegramService;
   let mockPostTemplates: MockPostTemplates;
 
   const mockBucket = {
@@ -126,6 +127,9 @@ describe('TelegramComposerService', () => {
   beforeEach(async () => {
     vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
     vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
+    vi.stubEnv('MAIN_CHANNEL_ID', '-1001');
+    vi.stubEnv('INTAKE_CHANNEL_ID', '-3001');
+    vi.stubEnv('MODERATION_CHANNEL_ID', '-3002');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
 
@@ -147,7 +151,8 @@ describe('TelegramComposerService', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramComposerService);
-    await moduleRef.get(TelegramService).onModuleInit();
+    telegramService = moduleRef.get(TelegramService);
+    await telegramService.onModuleInit();
     gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
     gigComposer = moduleRef.get(TelegramGigComposerService);
   });
@@ -361,16 +366,8 @@ describe('TelegramComposerService', () => {
   });
 
   describe('composeMainPost', () => {
-    beforeEach(() => {
-      process.env.MAIN_CHANNEL_ID = '-1001';
-    });
-
-    afterEach(() => {
-      delete process.env.MAIN_CHANNEL_ID;
-    });
-
     it('should throw BadRequestException when MAIN_CHANNEL_ID is not configured', () => {
-      delete process.env.MAIN_CHANNEL_ID;
+      vi.spyOn(telegramService, 'getMainChannelId').mockReturnValue(undefined);
 
       const gig = {
         id: 'gig-env',
@@ -565,14 +562,10 @@ describe('TelegramComposerService', () => {
 
   describe('TelegramGigCandidateComposerService', () => {
     beforeEach(() => {
-      process.env.INTAKE_CHANNEL_ID = '-3001';
-      process.env.MODERATION_CHANNEL_ID = '-3002';
       process.env.APP_BASE_URL = 'https://admin.example';
     });
 
     afterEach(() => {
-      delete process.env.INTAKE_CHANNEL_ID;
-      delete process.env.MODERATION_CHANNEL_ID;
       delete process.env.APP_BASE_URL;
     });
 
@@ -921,7 +914,9 @@ describe('TelegramComposerService', () => {
     });
 
     it('should throw BadRequestException when INTAKE_CHANNEL_ID is missing', () => {
-      delete process.env.INTAKE_CHANNEL_ID;
+      vi.spyOn(telegramService, 'getIntakeChannelId').mockReturnValue(
+        undefined,
+      );
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       expect(() =>

@@ -1,16 +1,27 @@
 import type { ConfigService } from '@nestjs/config';
 
-export function getRequiredConfigString(
+export function getConfigString(
   configService: ConfigService,
   variableName: string,
-): string {
+): string | undefined {
   const raw = configService.get<unknown>(variableName);
   if (typeof raw !== 'string') {
-    throw new Error(`${variableName} is not configured.`);
+    return undefined;
   }
 
   const value = raw.trim();
   if (value === '') {
+    return undefined;
+  }
+  return value;
+}
+
+export function getRequiredConfigString(
+  configService: ConfigService,
+  variableName: string,
+): string {
+  const value = getConfigString(configService, variableName);
+  if (value === undefined) {
     throw new Error(`${variableName} is not configured.`);
   }
   return value;

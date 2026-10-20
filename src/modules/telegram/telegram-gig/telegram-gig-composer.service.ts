@@ -59,8 +59,8 @@ export class TelegramGigComposerService {
   }
 
   composeMainPost(gig: PlainGig): TGSendPhoto {
-    const chatId = (process.env.MAIN_CHANNEL_ID ?? '').trim();
-    if (chatId === '') {
+    const chatId = this.telegramService.getMainChannelId();
+    if (chatId === undefined) {
       throw new BadRequestException(
         'Cannot compose main channel post: MAIN_CHANNEL_ID is not configured.',
       );
