@@ -1,4 +1,5 @@
 import { BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -105,6 +106,43 @@ describe('GigCandidateService', () => {
     gigToCalendarPayload: vi.fn(),
   };
 
+  async function createService(
+    configService: ConfigService,
+  ): Promise<GigCandidateService> {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigCandidateService,
+        {
+          provide: GIG_CANDIDATE_REPOSITORY,
+          useValue: gigCandidateRepositoryMock,
+        },
+        {
+          provide: GIG_CANDIDATE_APPROVAL_REPOSITORY,
+          useValue: gigCandidateApprovalRepositoryMock,
+        },
+        { provide: GigPosterService, useValue: gigPosterServiceMock },
+        {
+          provide: TelegramGigService,
+          useValue: {
+            updateModerationPost: telegramServiceMock.updateGigModerationPost,
+          },
+        },
+        {
+          provide: TelegramGigCandidateService,
+          useValue: telegramGigCandidateServiceMock,
+        },
+        { provide: AiService, useValue: aiServiceMock },
+        { provide: CalendarService, useValue: calendarServiceMock },
+        { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },
+        { provide: GigService, useValue: gigServiceMock },
+        { provide: UserService, useValue: userServiceMock },
+        { provide: ConfigService, useValue: configService },
+      ],
+    }).compile();
+
+    return module.get(GigCandidateService);
+  }
+
   beforeEach(async () => {
     vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
     gigPosterServiceMock.upload.mockResolvedValue(undefined);
@@ -136,37 +174,11 @@ describe('GigCandidateService', () => {
       updatedAt: new Date('2026-08-22T10:00:00.000Z'),
     });
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GigCandidateService,
-        {
-          provide: GIG_CANDIDATE_REPOSITORY,
-          useValue: gigCandidateRepositoryMock,
-        },
-        {
-          provide: GIG_CANDIDATE_APPROVAL_REPOSITORY,
-          useValue: gigCandidateApprovalRepositoryMock,
-        },
-        { provide: GigPosterService, useValue: gigPosterServiceMock },
-        {
-          provide: TelegramGigService,
-          useValue: {
-            updateModerationPost: telegramServiceMock.updateGigModerationPost,
-          },
-        },
-        {
-          provide: TelegramGigCandidateService,
-          useValue: telegramGigCandidateServiceMock,
-        },
-        { provide: AiService, useValue: aiServiceMock },
-        { provide: CalendarService, useValue: calendarServiceMock },
-        { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },
-        { provide: GigService, useValue: gigServiceMock },
-        { provide: UserService, useValue: userServiceMock },
-      ],
-    }).compile();
-
-    service = module.get(GigCandidateService);
+    service = await createService(
+      new ConfigService({
+        SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: '',
+      }),
+    );
   });
 
   afterEach(() => {
@@ -932,7 +944,11 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
 
-      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+        }),
+      );
       await service.createAdminGigCandidate({
         userId: '507f1f77bcf86cd799439088',
         gigDraft: {},
@@ -969,7 +985,11 @@ describe('GigCandidateService', () => {
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
         undefined,
       );
-      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+        }),
+      );
 
       await service.createAdminGigCandidate({
         userId: '507f1f77bcf86cd799439088',

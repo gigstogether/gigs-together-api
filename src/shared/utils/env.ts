@@ -34,12 +34,22 @@ export function getConfigPositiveSafeInteger(
   return parsed;
 }
 
-export function envBool(name: string, defaultValue: boolean): boolean {
-  const raw = process.env[name];
-  if (raw === undefined || raw === null) return defaultValue;
-  const v = String(raw).trim().toLowerCase();
-  if (v === '') return defaultValue;
-  if (['false', '0', 'no', 'off'].includes(v)) return false;
-  if (['true', '1', 'yes', 'on'].includes(v)) return true;
-  return defaultValue;
+export function getConfigBoolean(
+  configService: ConfigService,
+  variableName: string,
+): boolean | undefined {
+  const raw = configService.get<unknown>(variableName);
+  const value = raw === undefined ? '' : String(raw).trim().toLowerCase();
+
+  if (value === '') {
+    return undefined;
+  }
+
+  if (['true', '1', 'yes', 'on'].includes(value)) {
+    return true;
+  }
+  if (['false', '0', 'no', 'off'].includes(value)) {
+    return false;
+  }
+  throw new Error(`${variableName} must be a boolean.`);
 }

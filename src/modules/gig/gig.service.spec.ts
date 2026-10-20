@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -75,6 +76,32 @@ describe('GigService', () => {
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
   const revalidateFeed = vi.fn();
+  const getPublicFileUrl = vi.fn();
+
+  async function createService(
+    configService: ConfigService,
+  ): Promise<GigService> {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigService,
+        { provide: GIG_REPOSITORY, useValue: gigRepository },
+        { provide: GigPosterService, useValue: { upload: uploadPoster } },
+        {
+          provide: TelegramGigService,
+          useValue: {
+            sendMainPost,
+            editPostsBestEffort: editGigPostsBestEffort,
+            updateModerationPost: updateGigModerationPost,
+          },
+        },
+        { provide: BucketService, useValue: { getPublicFileUrl } },
+        { provide: FeedRevalidateService, useValue: { revalidateFeed } },
+        { provide: ConfigService, useValue: configService },
+      ],
+    }).compile();
+
+    return module.get(GigService);
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -95,25 +122,33 @@ describe('GigService', () => {
     uploadPoster.mockResolvedValue(undefined);
     editGigPostsBestEffort.mockResolvedValue({});
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GigService,
-        { provide: GIG_REPOSITORY, useValue: gigRepository },
-        { provide: GigPosterService, useValue: { upload: uploadPoster } },
-        {
-          provide: TelegramGigService,
-          useValue: {
-            sendMainPost,
-            editPostsBestEffort: editGigPostsBestEffort,
-            updateModerationPost: updateGigModerationPost,
-          },
-        },
-        { provide: BucketService, useValue: { getPublicFileUrl: vi.fn() } },
-        { provide: FeedRevalidateService, useValue: { revalidateFeed } },
-      ],
-    }).compile();
+    service = await createService(
+      new ConfigService({ EXTERNAL_POSTER_URL_FALLBACK_ENABLED: '' }),
+    );
+  });
 
-    service = module.get(GigService);
+  describe('resolveGigPosterPublicUrl', () => {
+    it('should use an external poster URL by default', () => {
+      expect(
+        service.resolveGigPosterPublicUrl({
+          externalUrl: 'https://cdn.example/poster.jpg',
+        }),
+      ).toBe('https://cdn.example/poster.jpg');
+    });
+
+    it('should omit an external poster URL when fallback is disabled', async () => {
+      service = await createService(
+        new ConfigService({
+          EXTERNAL_POSTER_URL_FALLBACK_ENABLED: 'false',
+        }),
+      );
+
+      expect(
+        service.resolveGigPosterPublicUrl({
+          externalUrl: 'https://cdn.example/poster.jpg',
+        }),
+      ).toBeUndefined();
+    });
   });
 
   describe('generateUniquePublicId', () => {

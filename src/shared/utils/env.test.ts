@@ -1,5 +1,9 @@
 import { ConfigService } from '@nestjs/config';
-import { getConfigPositiveSafeInteger, getRequiredConfigString } from './env';
+import {
+  getConfigBoolean,
+  getConfigPositiveSafeInteger,
+  getRequiredConfigString,
+} from './env';
 
 describe('getRequiredConfigString', () => {
   it('should return a trimmed configured string', () => {
@@ -65,4 +69,41 @@ describe('getConfigPositiveSafeInteger', () => {
       ).toThrowError('TEST_POSITIVE_INTEGER must be a positive safe integer.');
     },
   );
+});
+
+describe('getConfigBoolean', () => {
+  it.each(['true', '1', 'yes', 'on', true])(
+    'should return true for %s',
+    (value) => {
+      const configService = new ConfigService({ TEST_BOOLEAN: value });
+
+      expect(getConfigBoolean(configService, 'TEST_BOOLEAN')).toBe(true);
+    },
+  );
+
+  it.each(['false', '0', 'no', 'off', false])(
+    'should return false for %s',
+    (value) => {
+      const configService = new ConfigService({ TEST_BOOLEAN: value });
+
+      expect(getConfigBoolean(configService, 'TEST_BOOLEAN')).toBe(false);
+    },
+  );
+
+  it.each([undefined, '', '   '])(
+    'should return undefined when the configured value is %s',
+    (value) => {
+      const configService = new ConfigService({ TEST_BOOLEAN: value });
+
+      expect(getConfigBoolean(configService, 'TEST_BOOLEAN')).toBeUndefined();
+    },
+  );
+
+  it('should reject an unsupported boolean value', () => {
+    const configService = new ConfigService({ TEST_BOOLEAN: 'enabled' });
+
+    expect(() => getConfigBoolean(configService, 'TEST_BOOLEAN')).toThrowError(
+      'TEST_BOOLEAN must be a boolean.',
+    );
+  });
 });

@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
@@ -24,7 +25,7 @@ import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
-import { envBool } from '../../shared/utils/env';
+import { getConfigBoolean } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
@@ -186,6 +187,8 @@ interface GigCandidateApprovalTransactionResult {
 
 @Injectable()
 export class GigCandidateService {
+  private readonly isAdminSubmissionFeedbackEnabled: boolean;
+
   constructor(
     @Inject(GIG_CANDIDATE_REPOSITORY)
     private readonly gigCandidateRepository: GigCandidateRepository,
@@ -199,7 +202,14 @@ export class GigCandidateService {
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly gigService: GigService,
     private readonly userService: UserService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.isAdminSubmissionFeedbackEnabled =
+      getConfigBoolean(
+        configService,
+        'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
+      ) ?? false;
+  }
 
   private readonly logger = new Logger(GigCandidateService.name);
 
@@ -1124,13 +1134,9 @@ export class GigCandidateService {
       return;
     }
 
-    const shouldSendFeedbackToAdmins = envBool(
-      'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
-      false,
-    );
     if (
       gigCandidate.source.origin.type === GigSourceUserOriginType.Admin &&
-      !shouldSendFeedbackToAdmins
+      !this.isAdminSubmissionFeedbackEnabled
     ) {
       return;
     }
@@ -1145,7 +1151,10 @@ export class GigCandidateService {
         );
         return;
       }
-      if (user.roles.includes(UserRole.Admin) && !shouldSendFeedbackToAdmins) {
+      if (
+        user.roles.includes(UserRole.Admin) &&
+        !this.isAdminSubmissionFeedbackEnabled
+      ) {
         return;
       }
 
