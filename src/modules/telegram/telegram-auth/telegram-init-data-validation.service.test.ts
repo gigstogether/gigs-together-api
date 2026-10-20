@@ -10,15 +10,16 @@ describe('TelegramInitDataValidationService', () => {
 
   beforeEach(() => {
     service = new TelegramInitDataValidationService(
-      new ConfigService({ BOT_TOKEN: botToken }),
+      new ConfigService({
+        BOT_TOKEN: botToken,
+        TELEGRAM_INIT_DATA_MAX_AGE_SEC: '',
+      }),
     );
-    delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
   });
 
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
   });
 
   it('should reject construction when BOT_TOKEN is missing', () => {
@@ -27,6 +28,20 @@ describe('TelegramInitDataValidationService', () => {
     expect(
       () => new TelegramInitDataValidationService(new ConfigService()),
     ).toThrowError('BOT_TOKEN is not configured.');
+  });
+
+  it('should reject construction when max age is invalid', () => {
+    expect(
+      () =>
+        new TelegramInitDataValidationService(
+          new ConfigService({
+            BOT_TOKEN: botToken,
+            TELEGRAM_INIT_DATA_MAX_AGE_SEC: 'invalid',
+          }),
+        ),
+    ).toThrowError(
+      'TELEGRAM_INIT_DATA_MAX_AGE_SEC must be a positive safe integer.',
+    );
   });
 
   describe('parseTelegramInitDataString', () => {
@@ -87,6 +102,21 @@ describe('TelegramInitDataValidationService', () => {
       expect(() =>
         service.validateTelegramInitDataAuthDate(String(authDateSec)),
       ).not.toThrow();
+    });
+
+    it('should use the configured max age', () => {
+      const configuredService = new TelegramInitDataValidationService(
+        new ConfigService({
+          BOT_TOKEN: botToken,
+          TELEGRAM_INIT_DATA_MAX_AGE_SEC: '60',
+        }),
+      );
+      const authDateSec = 1_700_000_000;
+      vi.spyOn(Date, 'now').mockReturnValue((authDateSec + 61) * 1000);
+
+      expect(() =>
+        configuredService.validateTelegramInitDataAuthDate(String(authDateSec)),
+      ).toThrow(TelegramInitDataAuthExpiredError);
     });
   });
 });

@@ -16,6 +16,24 @@ export function getRequiredConfigString(
   return value;
 }
 
+export function getConfigPositiveSafeInteger(
+  configService: ConfigService,
+  variableName: string,
+): number | undefined {
+  const raw = configService.get<unknown>(variableName);
+  const value = raw === undefined ? '' : String(raw).trim();
+
+  if (value === '') {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${variableName} must be a positive safe integer.`);
+  }
+  return parsed;
+}
+
 export function envBool(name: string, defaultValue: boolean): boolean {
   const raw = process.env[name];
   if (raw === undefined || raw === null) return defaultValue;
