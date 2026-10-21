@@ -37,6 +37,14 @@ import type {
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 
 const DIVIDER = '\n\n................................\n';
+const DATE_LOCALE = 'en-GB';
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  weekday: 'short',
+};
+const MISSING_CAPTION_FIELD_PLACEHOLDER = '-';
 
 @Injectable()
 export class TelegramGigCandidateComposerService {
@@ -297,7 +305,49 @@ export class TelegramGigCandidateComposerService {
   }
 
   private buildCaption(params: BuildGigCandidateCaptionParams): string {
-    const body = this.buildBodyCaption(params);
+    const { gigCandidate } = params;
+    const { gigDraft, source } = gigCandidate;
+
+    const isMessengerSource = isGigCandidateSourceMessengerUser(source);
+    const sourceOriginTypeLabel =
+      source.type === GigSourceType.User
+        ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
+        : '';
+    const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
+    const originalMessage = isMessengerSource
+      ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
+      : undefined;
+    let body: string;
+    if (params.channelPurpose === 'intake' && originalMessage !== undefined) {
+      body = `${originalMessage}${sourceLabel}`;
+    } else {
+      const title = gigDraft.title?.trim();
+      const titleLine = title
+        ? this.buildTitleLine(gigCandidate.status, title, params.channelPurpose)
+        : undefined;
+      let dates = MISSING_CAPTION_FIELD_PLACEHOLDER;
+      if (gigDraft.date !== undefined) {
+        const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, DATE_FORMAT);
+        const date = dateFormatter.format(new Date(gigDraft.date));
+        const endDate = gigDraft.endDate
+          ? dateFormatter.format(new Date(gigDraft.endDate))
+          : undefined;
+        dates = [date, endDate].filter(Boolean).join(' - ');
+      }
+      const gigCaption = this.telegramTemplates.render(
+        TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
+        {
+          title: titleLine ?? MISSING_CAPTION_FIELD_PLACEHOLDER,
+          dates,
+          venue: gigDraft.venue?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER,
+          ticketsUrl:
+            gigDraft.ticketsUrl?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER,
+        },
+      );
+      const originalMessageSection =
+        originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
+      body = `${gigCaption}${originalMessageSection}${sourceLabel}`;
+    }
     const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
       params.gigCandidate.id,
     );
@@ -330,38 +380,6 @@ export class TelegramGigCandidateComposerService {
     const isNew = params.gigCandidate.status === GigCandidateStatus.New;
     const shouldAddTrailingSpace = !isIntake || isNew;
     return `${body}\n${links.join(' | ')}${shouldAddTrailingSpace ? '\n.' : ''}`;
-  }
-
-  private buildBodyCaption(params: BuildGigCandidateCaptionParams): string {
-    const { gigCandidate } = params;
-    const { gigDraft, source } = gigCandidate;
-
-    const isMessengerSource = isGigCandidateSourceMessengerUser(source);
-    const sourceOriginTypeLabel =
-      source.type === GigSourceType.User
-        ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
-        : '';
-    const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
-    const originalMessage = isMessengerSource
-      ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
-      : undefined;
-    if (params.channelPurpose === 'intake' && originalMessage !== undefined) {
-      return `${originalMessage}${sourceLabel}`;
-    }
-    const title = gigDraft.title?.trim();
-    const titleLine = title
-      ? this.buildTitleLine(gigCandidate.status, title, params.channelPurpose)
-      : undefined;
-    const body = this.telegramComposer.buildCaption({
-      title: titleLine,
-      ticketsUrl: gigDraft.ticketsUrl,
-      venue: gigDraft.venue,
-      date: gigDraft.date,
-      endDate: gigDraft.endDate,
-    });
-    const originalMessageSection =
-      originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
-    return `${body}${originalMessageSection}${sourceLabel}`;
   }
 
   private buildTitleLine(

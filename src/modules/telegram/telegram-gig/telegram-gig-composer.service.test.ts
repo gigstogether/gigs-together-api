@@ -10,6 +10,7 @@ import {
 } from '../utils/telegram-callback-action';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { PostEditKind } from '../telegram-composer.service.types';
+import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
@@ -103,6 +104,23 @@ describe('TelegramGigComposerService', () => {
         chat_id: '-100200',
         photo: 'moderation-file-id',
       }),
+    );
+  });
+
+  it('should render a main post caption from required Gig fields', () => {
+    const gig = createGig();
+
+    service.composeMainPost(gig);
+
+    expect(telegramTemplates.render).toHaveBeenCalledWith(
+      TELEGRAM_TEMPLATE_KEYS.mainGigWithLink,
+      {
+        url: 'https://app.example/gigs/radiohead-barcelona-2026-06-12',
+        title: 'Radiohead',
+        dates: 'Fri, 12 Jun 2026',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+      },
     );
   });
 

@@ -18,15 +18,6 @@ export type TelegramPostEditComposition =
   | { kind: PostEditKind.Caption; payload: TGEditMessageCaption }
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
-export interface BuildCaptionPayload {
-  date?: string | number | Date;
-  endDate?: string | number | Date;
-  venue?: string;
-  title?: string;
-  ticketsUrl?: string;
-  url?: string;
-}
-
 export interface BuildGigPermalinkPayload {
   baseUrl: string;
   publicId: string;

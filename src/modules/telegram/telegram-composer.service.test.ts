@@ -336,51 +336,6 @@ describe('TelegramComposerService', () => {
     });
   });
 
-  describe('buildCaption', () => {
-    it('should render missing fields as placeholders through the template', () => {
-      const caption = composer.buildCaption({});
-
-      expect(caption).toBe('-\n\n🗓 -\n📍 -\n\n🎫 -');
-      expect(mockPostTemplates.render).toHaveBeenCalledWith(
-        TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
-        {
-          url: undefined,
-          title: '-',
-          dates: '-',
-          venue: '-',
-          ticketsUrl: '-',
-        },
-      );
-    });
-
-    it('should include titled link when url is provided', () => {
-      const caption = composer.buildCaption({
-        url: 'https://app.example/gigs/ab',
-        title: 'Concert',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: new Date('2026-06-01T12:00:00.000Z'),
-      });
-
-      expect(caption).toContain('<a href="https://app.example/gigs/ab">');
-      expect(caption).toContain('Concert</a>');
-      expect(caption).toContain('📍 Hall');
-      expect(caption).toContain('🎫 https://tickets.example/x');
-    });
-
-    it('should include weekday in the date line', () => {
-      const caption = composer.buildCaption({
-        title: 'Concert',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: new Date('2026-06-01T12:00:00.000Z'),
-      });
-
-      expect(caption).toContain('Mon');
-      expect(caption).toContain('1 Jun 2026');
-    });
-  });
-
   describe('composeMainPost', () => {
     it('should throw BadRequestException when MAIN_CHANNEL_ID is not configured', () => {
       vi.spyOn(telegramService, 'getMainChannelId').mockReturnValue(undefined);

@@ -27,6 +27,14 @@ import type {
   ComposeGigPostEditParams,
 } from './telegram-gig-composer.service.types';
 
+const DATE_LOCALE = 'en-GB';
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  weekday: 'short',
+};
+
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
  * (captions, inline keyboards, permalink URLs, edit payloads).
@@ -66,7 +74,7 @@ export class TelegramGigComposerService {
       );
     }
 
-    const caption = this.buildMainPostCaption(gig);
+    const caption = this.buildCaption(gig);
     const moderationPost = this.pickPost(gig.posts, PostType.Moderation);
     const poster =
       moderationPost?.fileId ??
@@ -291,7 +299,7 @@ export class TelegramGigComposerService {
     params: ComposeGigPostEditParams,
   ): TelegramPostEditComposition {
     const { gig, post, isMediaUpdateRequired } = params;
-    const caption = this.buildMainPostCaption(gig);
+    const caption = this.buildCaption(gig);
 
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
@@ -339,19 +347,27 @@ export class TelegramGigComposerService {
     };
   }
 
-  private buildMainPostCaption(gig: PlainGig): string {
+  private buildCaption(gig: PlainGig): string {
     const url = this.telegramComposer.buildGigPermalink({
       baseUrl: this.getAppBaseUrl(),
       publicId: gig.publicId,
     });
+    const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, DATE_FORMAT);
+    const date = dateFormatter.format(new Date(gig.date));
+    const endDate = gig.endDate
+      ? dateFormatter.format(new Date(gig.endDate))
+      : undefined;
+    const dates = [date, endDate].filter(Boolean).join(' - ');
+    const templateKey = url
+      ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
+      : TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink;
 
-    return this.telegramComposer.buildCaption({
+    return this.telegramTemplates.render(templateKey, {
       url,
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+      title: gig.title.trim(),
+      dates,
+      venue: gig.venue.trim(),
+      ticketsUrl: gig.ticketsUrl.trim(),
     });
   }
 
