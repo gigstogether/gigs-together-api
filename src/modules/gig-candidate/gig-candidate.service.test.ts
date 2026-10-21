@@ -1942,6 +1942,99 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
+    it('should send rejected feedback to a known chat user', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const source: GigCandidate['source'] = {
+        type: GigSourceType.User,
+        userId: '507f1f77bcf86cd799439088',
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Radiohead in Barcelona',
+      };
+      const newGigCandidate = buildGigCandidate({
+        source,
+        gigDraft: { title: 'Radiohead in Barcelona' },
+        posts: [intakePost],
+      });
+      const rejected = buildGigCandidate({
+        source,
+        gigDraft: { title: 'Radiohead in Barcelona' },
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+        posts: [intakePost],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+      telegramServiceMock.updateRejectedGigCandidatePost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.rejectGigCandidate({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 0,
+        rejectedByUserId: rejected.rejectedByUserId!,
+      });
+
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        {
+          kind: 'rejected',
+          title: 'Radiohead in Barcelona',
+          chatId: '42',
+        },
+      );
+      expect(userServiceMock.findActiveUserById).toHaveBeenCalledWith(
+        source.userId,
+      );
+    });
+
+    it('should skip rejected feedback when the chat user is unknown', async () => {
+      const source: GigCandidate['source'] = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Radiohead in Barcelona',
+      };
+      const newGigCandidate = buildGigCandidate({
+        source,
+        gigDraft: { title: 'Radiohead in Barcelona' },
+      });
+      const rejected = buildGigCandidate({
+        source,
+        gigDraft: { title: 'Radiohead in Barcelona' },
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+
+      await service.rejectGigCandidate({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 0,
+        rejectedByUserId: rejected.rejectedByUserId!,
+      });
+
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+    });
+
     it('should preserve rejected state and Intake reference when Telegram update fails', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,

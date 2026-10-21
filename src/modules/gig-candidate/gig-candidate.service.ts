@@ -63,7 +63,6 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
-import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -1135,7 +1134,7 @@ export class GigCandidateService {
     if (gigCandidate.source.type === GigSourceType.Provider) {
       return;
     }
-    if (isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+    if (gigCandidate.source.userId === undefined) {
       return;
     }
 
