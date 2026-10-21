@@ -13,7 +13,7 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
-import type { GigCandidateFeedbackMessageContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
+import type { GigCandidateFeedbackMessageWithPublicLinkContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -63,6 +63,15 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+
+interface GigCandidateLifecycleFeedbackRequest {
+  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+  title?: string;
+}
+
+type GigCandidateFeedbackRequest =
+  | GigCandidateLifecycleFeedbackRequest
+  | GigCandidateFeedbackMessageWithPublicLinkContent;
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -1129,7 +1138,7 @@ export class GigCandidateService {
 
   private async sendGigCandidateFeedbackBestEffort(
     gigCandidate: GigCandidate,
-    content: GigCandidateFeedbackMessageContent,
+    request: GigCandidateFeedbackRequest,
   ): Promise<void> {
     if (gigCandidate.source.type === GigSourceType.Provider) {
       return;
@@ -1181,8 +1190,17 @@ export class GigCandidateService {
         return;
       }
 
+      const title = request.title?.trim();
+      if (!title) {
+        this.logger.warn(
+          `GigCandidate feedback skipped because title is missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
+        );
+        return;
+      }
+
       await this.telegramGigCandidateService.sendFeedback({
-        ...content,
+        ...request,
+        title,
         chatId: telegramIdentity.externalUserId,
       });
     } catch (e) {
@@ -1193,53 +1211,29 @@ export class GigCandidateService {
   private async sendGigCandidateSubmittedFeedbackBestEffort(
     gigCandidate: GigCandidate,
   ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
-      this.logger.warn(
-        `GigCandidate submitted feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
+    // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'submitted',
-      title,
+      title: gigCandidate.gigDraft.title,
     });
   }
 
   private async sendGigCandidateAcceptedForModerationFeedbackBestEffort(
     gigCandidate: GigCandidate,
   ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
-      this.logger.warn(
-        `GigCandidate accepted-for-moderation feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
+    // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'acceptedForModeration',
-      title,
+      title: gigCandidate.gigDraft.title,
     });
   }
 
   private async sendGigCandidateRejectedFeedbackBestEffort(
     gigCandidate: GigCandidate,
   ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      this.logger.warn(
-        `GigCandidate rejected feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'rejected',
-      title,
+      title: gigCandidate.gigDraft.title,
     });
   }
 

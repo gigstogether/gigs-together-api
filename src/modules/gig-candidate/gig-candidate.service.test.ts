@@ -1001,7 +1001,7 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
-      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
     it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
@@ -1999,6 +1999,9 @@ describe('GigCandidateService', () => {
     });
 
     it('should skip rejected feedback when the chat user is unknown', async () => {
+      const loggerWarnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
       const source: GigCandidate['source'] = {
         type: GigSourceType.User,
         origin: {
@@ -2008,13 +2011,9 @@ describe('GigCandidateService', () => {
         },
         originalText: 'Radiohead in Barcelona',
       };
-      const newGigCandidate = buildGigCandidate({
-        source,
-        gigDraft: { title: 'Radiohead in Barcelona' },
-      });
+      const newGigCandidate = buildGigCandidate({ source });
       const rejected = buildGigCandidate({
         source,
-        gigDraft: { title: 'Radiohead in Barcelona' },
         status: GigCandidateStatus.Rejected,
         version: 1,
         rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
@@ -2033,6 +2032,7 @@ describe('GigCandidateService', () => {
         telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
       expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+      expect(loggerWarnSpy).not.toHaveBeenCalled();
     });
 
     it('should preserve rejected state and Intake reference when Telegram update fails', async () => {
