@@ -93,8 +93,8 @@ export class TelegramBotReplyComposerService {
   }
 
   private getSuggestGigWebAppUrl(): string {
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    if (appBaseUrl === '') {
+    const appBaseUrl = this.telegramService.getAppBaseUrl();
+    if (appBaseUrl === undefined) {
       throw new BadRequestException(
         'Cannot compose private user response: APP_BASE_URL is not configured.',
       );

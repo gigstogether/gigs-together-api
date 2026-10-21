@@ -130,7 +130,7 @@ export class TelegramGigCandidateComposerService {
         break;
       case 'acceptedWithPublicLink': {
         const gigUrl = this.telegramComposer.buildGigPermalink({
-          baseUrl: this.getAppBaseUrl(),
+          baseUrl: this.telegramService.getAppBaseUrl(),
           publicId: params.publicId,
         });
         if (gigUrl === undefined) {
@@ -535,9 +535,5 @@ export class TelegramGigCandidateComposerService {
     }
 
     return chatId;
-  }
-
-  private getAppBaseUrl(): string {
-    return (process.env.APP_BASE_URL ?? '').trim();
   }
 }

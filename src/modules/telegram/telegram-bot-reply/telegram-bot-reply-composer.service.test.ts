@@ -59,6 +59,7 @@ describe('TelegramBotReplyComposerService', () => {
   const telegramService = {
     getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
     getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://gigs.example'),
   };
   const privateChat = {
     id: 12345,
@@ -82,12 +83,12 @@ describe('TelegramBotReplyComposerService', () => {
     }).compile();
 
     composer = moduleRef.get(TelegramBotReplyComposerService);
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+    telegramService.getAppBaseUrl.mockReturnValue('https://gigs.example');
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it.each([
@@ -137,7 +138,7 @@ describe('TelegramBotReplyComposerService', () => {
   });
 
   it('should reject a private response when app base URL is missing', () => {
-    vi.stubEnv('APP_BASE_URL', '');
+    telegramService.getAppBaseUrl.mockReturnValueOnce(undefined);
 
     expect(() =>
       composer.composeStartCommandResponse(privateChat),
@@ -147,7 +148,7 @@ describe('TelegramBotReplyComposerService', () => {
   });
 
   it('should reject a private response when app base URL is invalid', () => {
-    vi.stubEnv('APP_BASE_URL', 'not-a-url');
+    telegramService.getAppBaseUrl.mockReturnValueOnce('not-a-url');
 
     expect(() =>
       composer.composeStartCommandResponse(privateChat),

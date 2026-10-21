@@ -23,6 +23,7 @@ export class TelegramService implements OnModuleInit {
   private readonly mainChannelId: string | undefined;
   private readonly intakeChannelId: string | undefined;
   private readonly moderationChannelId: string | undefined;
+  private readonly appBaseUrl: string | undefined;
 
   private static readonly CHAT_ERROR_TTL_MS = 60_000 * 5;
 
@@ -38,6 +39,7 @@ export class TelegramService implements OnModuleInit {
       configService,
       'MODERATION_CHANNEL_ID',
     );
+    this.appBaseUrl = getConfigString(configService, 'APP_BASE_URL');
   }
 
   async onModuleInit(): Promise<void> {
@@ -88,6 +90,10 @@ export class TelegramService implements OnModuleInit {
 
   getModerationChannelId(): string | undefined {
     return this.moderationChannelId;
+  }
+
+  getAppBaseUrl(): string | undefined {
+    return this.appBaseUrl;
   }
 
   private getInitializedValue(value: string | undefined, name: string): string {

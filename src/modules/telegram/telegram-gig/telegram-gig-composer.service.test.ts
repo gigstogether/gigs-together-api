@@ -56,14 +56,13 @@ describe('TelegramGigComposerService', () => {
     getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
     getAdminMiniAppShortName: vi.fn().mockReturnValue('admin'),
     getMainChannelId: vi.fn().mockReturnValue('-100200'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://app.example'),
     resolvePosterUrl: vi.fn(
       (poster: PlainGig['poster']) => poster?.externalUrl,
     ),
   };
 
   beforeEach(async () => {
-    vi.stubEnv('APP_BASE_URL', 'https://app.example');
-
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramGigComposerService,

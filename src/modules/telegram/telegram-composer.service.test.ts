@@ -130,6 +130,7 @@ describe('TelegramComposerService', () => {
     vi.stubEnv('MAIN_CHANNEL_ID', '-1001');
     vi.stubEnv('INTAKE_CHANNEL_ID', '-3001');
     vi.stubEnv('MODERATION_CHANNEL_ID', '-3002');
+    vi.stubEnv('APP_BASE_URL', 'https://admin.example');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
 
@@ -327,6 +328,15 @@ describe('TelegramComposerService', () => {
       expect(composer.buildGigPermalink(input)).toBe(
         'https://app.example/gigs/gig-1',
       );
+    });
+
+    it('should return undefined when base URL is not configured', () => {
+      const input: BuildGigPermalinkPayload = {
+        baseUrl: undefined,
+        publicId: 'gig-1',
+      };
+
+      expect(composer.buildGigPermalink(input)).toBeUndefined();
     });
 
     it('should build admin Gig Mini App URL from publicId', () => {
@@ -532,14 +542,6 @@ describe('TelegramComposerService', () => {
   });
 
   describe('TelegramGigCandidateComposerService', () => {
-    beforeEach(() => {
-      process.env.APP_BASE_URL = 'https://admin.example';
-    });
-
-    afterEach(() => {
-      delete process.env.APP_BASE_URL;
-    });
-
     it('should compose Intake with Send to moderation and Reject actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 

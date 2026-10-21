@@ -89,6 +89,7 @@ describe('TelegramDigestComposerService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv('APP_BASE_URL', '');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     telegramTemplates = createMockTelegramTemplates();
 
@@ -115,7 +116,7 @@ describe('TelegramDigestComposerService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    delete process.env.APP_BASE_URL;
+    vi.unstubAllEnvs();
   });
 
   it('should compose an empty-week message when no gigs exist', () => {

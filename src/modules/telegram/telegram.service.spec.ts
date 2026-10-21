@@ -148,6 +148,7 @@ describe('TelegramService', () => {
     vi.stubEnv('MAIN_CHANNEL_ID', '-100456');
     vi.stubEnv('INTAKE_CHANNEL_ID', '-100');
     vi.stubEnv('MODERATION_CHANNEL_ID', '-200');
+    vi.stubEnv('APP_BASE_URL', 'https://app.example');
     mockPostTemplates = createMockPostTemplates();
 
     testingModule = await Test.createTestingModule({
@@ -209,7 +210,6 @@ describe('TelegramService', () => {
     mockRemoteImageService.download.mockReset();
     vi.clearAllMocks();
     delete process.env.S3_PUBLIC_BASE_URL;
-    delete process.env.APP_BASE_URL;
   });
 
   it('should be defined', () => {
@@ -221,10 +221,12 @@ describe('TelegramService', () => {
       main: service.getMainChannelId(),
       intake: service.getIntakeChannelId(),
       moderation: service.getModerationChannelId(),
+      appBaseUrl: service.getAppBaseUrl(),
     }).toEqual({
       main: '-100456',
       intake: '-100',
       moderation: '-200',
+      appBaseUrl: 'https://app.example',
     });
   });
 
@@ -532,7 +534,6 @@ describe('TelegramService', () => {
 
   describe('editGigPostsBestEffort', () => {
     it('should keep compact Moderation shape and reuse its fileId for Main after poster update', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
       mockBucketService.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/poster.jpg',
       );
@@ -1090,8 +1091,6 @@ describe('TelegramService', () => {
 
   describe('updateGigModerationPost with main post', () => {
     it('should edit moderation caption with stable gig permalink', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
-
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
@@ -1149,7 +1148,6 @@ describe('TelegramService', () => {
 
   describe('updateGigModerationPost without main post', () => {
     it('should keep Post, Edit and Hide controls without a Main post', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
@@ -1208,7 +1206,6 @@ describe('TelegramService', () => {
     });
 
     it('should update a rejected channel post and remove its actions', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://app.example');
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
@@ -1263,7 +1260,6 @@ describe('TelegramService', () => {
     });
 
     it('should update Intake with handoff links and remove its actions', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
       const bot = testingModule.get(TelegramBotClient);
       const editMessageCaptionSpy = vi
         .spyOn(bot, 'editMessageCaption')
@@ -1327,7 +1323,6 @@ describe('TelegramService', () => {
     });
 
     it('should update a text Intake after moderation handoff', async () => {
-      process.env.APP_BASE_URL = 'https://app.example';
       const bot = testingModule.get(TelegramBotClient);
       const editMessageTextSpy = vi
         .spyOn(bot, 'editMessageText')

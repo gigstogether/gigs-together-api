@@ -47,10 +47,11 @@ describe('TelegramBotReplyService', () => {
   const telegramService = {
     getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
     getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://gigs.example'),
   };
 
   beforeEach(async () => {
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+    telegramService.getAppBaseUrl.mockReturnValue('https://gigs.example');
     sendMessage.mockResolvedValue({
       message_id: 1,
       chat: { id: 12345, type: 'private' },
@@ -78,7 +79,6 @@ describe('TelegramBotReplyService', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllEnvs();
   });
 
   it('should send the start response to a private chat', async () => {

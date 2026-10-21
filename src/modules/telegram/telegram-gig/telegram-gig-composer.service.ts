@@ -229,7 +229,7 @@ export class TelegramGigComposerService {
       editGigUrl: this.buildEditUrl(gig.publicId),
     });
     const gigUrl = this.telegramComposer.buildGigPermalink({
-      baseUrl: this.getAppBaseUrl(),
+      baseUrl: this.telegramService.getAppBaseUrl(),
       publicId: gig.publicId,
     });
     const fullCaption = this.buildModerationCaption({
@@ -342,7 +342,7 @@ export class TelegramGigComposerService {
 
   private buildCaption(gig: PlainGig): string {
     const url = this.telegramComposer.buildGigPermalink({
-      baseUrl: this.getAppBaseUrl(),
+      baseUrl: this.telegramService.getAppBaseUrl(),
       publicId: gig.publicId,
     });
     const dates = formatTelegramGigDates(gig.date, gig.endDate);
@@ -357,9 +357,5 @@ export class TelegramGigComposerService {
       venue: gig.venue.trim(),
       ticketsUrl: gig.ticketsUrl.trim(),
     });
-  }
-
-  private getAppBaseUrl(): string {
-    return (process.env.APP_BASE_URL ?? '').trim();
   }
 }

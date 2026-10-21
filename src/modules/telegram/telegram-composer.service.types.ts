@@ -19,7 +19,7 @@ export type TelegramPostEditComposition =
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
 export interface BuildGigPermalinkPayload {
-  baseUrl: string;
+  baseUrl: string | undefined;
   publicId: string;
 }
 

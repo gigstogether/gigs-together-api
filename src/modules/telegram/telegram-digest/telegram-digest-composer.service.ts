@@ -140,7 +140,7 @@ export class TelegramDigestComposerService {
       day: 'numeric',
     });
 
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const appBaseUrl = this.telegramService.getAppBaseUrl();
     // TODO
     const header = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader,
