@@ -24,10 +24,6 @@ import type {
 import { TGInputMediaType, TGParseMode } from '../types/message.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import { PostEditKind } from '../telegram-composer.service.types';
-import {
-  TELEGRAM_DATE_LOCALE,
-  TELEGRAM_GIG_DATE_FORMAT,
-} from '../telegram.constants';
 import type {
   BuildGigCandidateCaptionParams,
   BuildGigCandidateModerationReplyMarkupParams,
@@ -39,9 +35,14 @@ import type {
   ComposeRejectedGigCandidatePostEditParams,
 } from './telegram-gig-candidate-composer.service.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { formatTelegramGigDates } from '../utils/telegram-date';
 
 const DIVIDER = '\n\n................................\n';
 const MISSING_CAPTION_FIELD_PLACEHOLDER = '-';
+
+function getCaptionFieldValue(value: string | undefined): string {
+  return value?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER;
+}
 
 @Injectable()
 export class TelegramGigCandidateComposerService {
@@ -302,8 +303,13 @@ export class TelegramGigCandidateComposerService {
   }
 
   private buildCaption(params: BuildGigCandidateCaptionParams): string {
-    const { gigCandidate } = params;
-    const { gigDraft, source } = gigCandidate;
+    const {
+      gigCandidate: { gigDraft, source, status, id },
+      channelPurpose,
+      moderationPost,
+    } = params;
+
+    const isIntake = channelPurpose === 'intake';
 
     const isMessengerSource = isGigCandidateSourceMessengerUser(source);
     const sourceOriginTypeLabel =
@@ -314,43 +320,33 @@ export class TelegramGigCandidateComposerService {
     const originalMessage = isMessengerSource
       ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
       : undefined;
+
     let body: string;
-    if (params.channelPurpose === 'intake' && originalMessage !== undefined) {
+    if (isIntake && originalMessage !== undefined) {
       body = `${originalMessage}${sourceLabel}`;
     } else {
       const title = gigDraft.title?.trim();
       const titleLine = title
-        ? this.buildTitleLine(gigCandidate.status, title, params.channelPurpose)
+        ? this.buildTitleLine(status, title, channelPurpose)
         : undefined;
-      let dates = MISSING_CAPTION_FIELD_PLACEHOLDER;
-      if (gigDraft.date !== undefined) {
-        const dateFormatter = new Intl.DateTimeFormat(
-          TELEGRAM_DATE_LOCALE,
-          TELEGRAM_GIG_DATE_FORMAT,
-        );
-        const date = dateFormatter.format(new Date(gigDraft.date));
-        const endDate = gigDraft.endDate
-          ? dateFormatter.format(new Date(gigDraft.endDate))
-          : undefined;
-        dates = [date, endDate].filter(Boolean).join(' - ');
-      }
+      const dates =
+        gigDraft.date === undefined
+          ? MISSING_CAPTION_FIELD_PLACEHOLDER
+          : formatTelegramGigDates(gigDraft.date, gigDraft.endDate);
       const gigCaption = this.telegramTemplates.render(
         TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
         {
-          title: titleLine ?? MISSING_CAPTION_FIELD_PLACEHOLDER,
+          title: getCaptionFieldValue(titleLine),
           dates,
-          venue: gigDraft.venue?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER,
-          ticketsUrl:
-            gigDraft.ticketsUrl?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER,
+          venue: getCaptionFieldValue(gigDraft.venue),
+          ticketsUrl: getCaptionFieldValue(gigDraft.ticketsUrl),
         },
       );
       const originalMessageSection =
         originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
       body = `${gigCaption}${originalMessageSection}${sourceLabel}`;
     }
-    const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
-      params.gigCandidate.id,
-    );
+    const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(id);
 
     const links = [
       this.telegramTemplates.render(
@@ -358,11 +354,10 @@ export class TelegramGigCandidateComposerService {
         { url: adminGigCandidateUrl },
       ),
     ];
-    const isIntake = params.channelPurpose === 'intake';
-    if (isIntake && params.moderationPost !== undefined) {
+    if (isIntake && moderationPost !== undefined) {
       const moderationPostUrl = this.telegramComposer.buildPostUrl({
-        chatId: params.moderationPost.chatId,
-        messageId: params.moderationPost.id,
+        chatId: moderationPost.chatId,
+        messageId: moderationPost.id,
       });
       if (moderationPostUrl === undefined) {
         throw new BadRequestException(
@@ -377,7 +372,7 @@ export class TelegramGigCandidateComposerService {
       );
     }
 
-    const isNew = params.gigCandidate.status === GigCandidateStatus.New;
+    const isNew = status === GigCandidateStatus.New;
     const shouldAddTrailingSpace = !isIntake || isNew;
     return `${body}\n${links.join(' | ')}${shouldAddTrailingSpace ? '\n.' : ''}`;
   }

@@ -13,10 +13,6 @@ import {
 } from '../telegram-composer.service';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import { PostEditKind } from '../telegram-composer.service.types';
-import {
-  TELEGRAM_DATE_LOCALE,
-  TELEGRAM_GIG_DATE_FORMAT,
-} from '../telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramService } from '../telegram.service';
@@ -30,6 +26,7 @@ import type {
   BuildGigModerationReplyMarkupParams,
   ComposeGigPostEditParams,
 } from './telegram-gig-composer.service.types';
+import { formatTelegramGigDates } from '../utils/telegram-date';
 
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
@@ -348,15 +345,7 @@ export class TelegramGigComposerService {
       baseUrl: this.getAppBaseUrl(),
       publicId: gig.publicId,
     });
-    const dateFormatter = new Intl.DateTimeFormat(
-      TELEGRAM_DATE_LOCALE,
-      TELEGRAM_GIG_DATE_FORMAT,
-    );
-    const date = dateFormatter.format(new Date(gig.date));
-    const endDate = gig.endDate
-      ? dateFormatter.format(new Date(gig.endDate))
-      : undefined;
-    const dates = [date, endDate].filter(Boolean).join(' - ');
+    const dates = formatTelegramGigDates(gig.date, gig.endDate);
     const templateKey = url
       ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
       : TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink;
