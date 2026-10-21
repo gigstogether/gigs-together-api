@@ -42,7 +42,10 @@ src/
   main.ts                  Nest bootstrap
   app.module.ts            root module and environment loading
   modules/
-    gig/                   public gig API and gig lookup
+    gig/                   gig persistence, public API, and Gig feed ownership
+      gig-feed/            Gig feed queries, response mapping, and frontend cache revalidation
+    gig-candidate/         submission and moderation workflow
+      gig-candidate-approval/  candidate-to-Gig approval transaction and persistence mapping
     telegram-updates/      inbound Telegram webhook update handling
     telegram/              Telegram Bot API client, outbound messaging, and message composition
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
@@ -192,10 +195,10 @@ Current variables defined in `.env.example`:
 | `AI_API_KEY`                                    | Optional                                     | AI service key.                                                          |
 | `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                     |
 | `AI_LOOKUP_DEBUG`                               | Optional                                     | Enables extra lookup diagnostics.                                        |
-| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/gig/lookup`.                                 |
+| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/admin/gig-candidates/lookup`.                |
 | `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                           |
 | `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                       |
-| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend feed revalidation.                                   |
+| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend Gig feed cache revalidation.                         |
 
 ### CORS behavior
 
@@ -554,7 +557,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
 - admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the Gig feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
 - translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 
