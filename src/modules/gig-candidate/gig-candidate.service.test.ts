@@ -144,7 +144,6 @@ describe('GigCandidateService', () => {
   }
 
   beforeEach(async () => {
-    vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
     gigPosterServiceMock.upload.mockResolvedValue(undefined);
     gigServiceMock.generateUniquePublicId.mockImplementation(
       async (params: {
@@ -177,6 +176,7 @@ describe('GigCandidateService', () => {
     service = await createService(
       new ConfigService({
         SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: '',
+        DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
       }),
     );
   });
@@ -947,6 +947,7 @@ describe('GigCandidateService', () => {
       service = await createService(
         new ConfigService({
           SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+          DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
         }),
       );
       await service.createAdminGigCandidate({
@@ -988,6 +989,7 @@ describe('GigCandidateService', () => {
       service = await createService(
         new ConfigService({
           SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+          DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
         }),
       );
 
@@ -1220,7 +1222,12 @@ describe('GigCandidateService', () => {
 
   describe('sendGigCandidateToModeration', () => {
     it('should keep New status when no moderation poster can be prepared', async () => {
-      vi.stubEnv('DEFAULT_GIG_POSTER_URL', '');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: '',
+          DEFAULT_GIG_POSTER_URL: '',
+        }),
+      );
       const newGigCandidate = buildGigCandidate({
         gigDraft: { title: 'Band' },
         version: 1,

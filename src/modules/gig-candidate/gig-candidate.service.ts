@@ -25,7 +25,7 @@ import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
-import { getConfigBoolean } from '../../shared/utils/env';
+import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
@@ -188,6 +188,7 @@ interface GigCandidateApprovalTransactionResult {
 @Injectable()
 export class GigCandidateService {
   private readonly isAdminSubmissionFeedbackEnabled: boolean;
+  private readonly defaultGigPosterUrl: string | undefined;
 
   constructor(
     @Inject(GIG_CANDIDATE_REPOSITORY)
@@ -209,6 +210,10 @@ export class GigCandidateService {
         configService,
         'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
       ) ?? false;
+    this.defaultGigPosterUrl = getConfigString(
+      configService,
+      'DEFAULT_GIG_POSTER_URL',
+    );
   }
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -926,7 +931,7 @@ export class GigCandidateService {
       params.existingPoster === undefined &&
       params.shouldUseDefaultPoster
     ) {
-      posterUrl = process.env.DEFAULT_GIG_POSTER_URL?.trim() || undefined;
+      posterUrl = this.defaultGigPosterUrl;
     }
     let poster = params.existingPoster;
     let preparedPosterFile: PreparedGigPosterFile | undefined;
