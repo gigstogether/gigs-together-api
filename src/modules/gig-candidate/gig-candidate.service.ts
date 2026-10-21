@@ -251,7 +251,10 @@ export class GigCandidateService {
       postType: PostType.Intake,
       telegramPost: telegramIntakePost,
     });
-    await this.sendGigCandidateSubmittedFeedbackBestEffort(saved);
+    await this.sendGigCandidateFeedbackBestEffort(saved, {
+      kind: 'submitted',
+      title: saved.gigDraft.title,
+    });
 
     return { id: saved.id };
   }
@@ -363,9 +366,10 @@ export class GigCandidateService {
         saved,
         preparedPoster.posterFile,
       );
-    await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
-      withModerationPost,
-    );
+    await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
+      kind: 'acceptedForModeration',
+      title: withModerationPost.gigDraft.title,
+    });
     return withModerationPost;
   }
 
@@ -501,9 +505,10 @@ export class GigCandidateService {
       withModerationPost,
     );
     if (didTransition) {
-      await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
-        withModerationPost,
-      );
+      await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
+        kind: 'acceptedForModeration',
+        title: withModerationPost.gigDraft.title,
+      });
     }
 
     return withModerationPost;
@@ -540,7 +545,10 @@ export class GigCandidateService {
         updated,
         gigCandidate.status,
       );
-      await this.sendGigCandidateRejectedFeedbackBestEffort(updated);
+      await this.sendGigCandidateFeedbackBestEffort(updated, {
+        kind: 'rejected',
+        title: updated.gigDraft.title,
+      });
       return updated;
     }
 
@@ -1190,6 +1198,8 @@ export class GigCandidateService {
         return;
       }
 
+      // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
+      // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
       const title = request.title?.trim();
       if (!title) {
         this.logger.warn(
@@ -1206,35 +1216,6 @@ export class GigCandidateService {
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
     }
-  }
-
-  private async sendGigCandidateSubmittedFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'submitted',
-      title: gigCandidate.gigDraft.title,
-    });
-  }
-
-  private async sendGigCandidateAcceptedForModerationFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'acceptedForModeration',
-      title: gigCandidate.gigDraft.title,
-    });
-  }
-
-  private async sendGigCandidateRejectedFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'rejected',
-      title: gigCandidate.gigDraft.title,
-    });
   }
 
   private async updateGigCandidateModerationPostBestEffort(
