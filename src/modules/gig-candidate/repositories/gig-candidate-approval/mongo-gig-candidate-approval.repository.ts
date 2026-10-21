@@ -2,12 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Types } from 'mongoose';
 import type { ClientSession, Model, UpdateQuery } from 'mongoose';
-import { Gig } from '../../gig/gig.schema';
-import { GigRepositoryMapper } from '../../gig/repositories/gig.repository.mapper';
-import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import type { GigCandidate as GigCandidateDomain } from '../types/gig-candidate.types';
-import { GigCandidate } from '../gig-candidate.schema';
-import type { GigCandidateDocument } from '../gig-candidate.schema';
+import { Gig } from '../../../gig/gig.schema';
+import { GigCandidateStatus } from '../../types/gig-candidate-status.enum';
+import type { GigCandidate as GigCandidateDomain } from '../../types/gig-candidate.types';
+import { GigCandidate } from '../../gig-candidate.schema';
+import type { GigCandidateDocument } from '../../gig-candidate.schema';
 import type {
   ApproveGigCandidateRecordParams,
   CreateGigAfterApprovalParams,
@@ -15,24 +14,10 @@ import type {
   GigCandidateApprovalRepository,
   GigCandidateApprovalTransaction,
 } from './gig-candidate-approval.repository';
-import { GigCandidateRepositoryMapper } from './gig-candidate.repository.mapper';
-import type { GigCandidateLeanDocument } from './gig-candidate.repository.mapper';
-
-interface GigApprovalResultLeanDocument {
-  _id: Types.ObjectId;
-  publicId: string;
-  title: string;
-  date: number;
-  endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
-  ticketsUrl: string;
-  poster?: { bucketPath?: string; externalUrl?: string };
-  source: unknown;
-  version: number;
-  isVisible: boolean;
-}
+import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval.repository.mapper';
+import type { GigApprovalResultLeanDocument } from './gig-candidate-approval.repository.mapper';
+import { GigCandidateRepositoryMapper } from '../gig-candidate.repository.mapper';
+import type { GigCandidateLeanDocument } from '../gig-candidate.repository.mapper';
 
 // TODO: Extract this cross-aggregate transaction boundary as GigCandidateApprovalUnitOfWork.
 @Injectable()
@@ -103,7 +88,9 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
       .session(session)
       .lean<GigApprovalResultLeanDocument>()
       .exec();
-    return gig ? this.mapGigApprovalResult(gig) : null;
+    return gig
+      ? GigCandidateApprovalRepositoryMapper.toGigApprovalResult(gig)
+      : null;
   }
 
   private async isGigPublicIdTaken(
@@ -183,60 +170,15 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
     if (!Types.ObjectId.isValid(params.gigId)) {
       throw new Error(`Invalid Gig id: ${params.gigId}`);
     }
-    const source = GigRepositoryMapper.toStoredSource(params.source);
-    const created = await this.gigModel.create(
-      [
-        {
-          _id: new Types.ObjectId(params.gigId),
-          publicId: params.publicId,
-          title: params.title,
-          date: params.date,
-          ...(params.endDate !== undefined ? { endDate: params.endDate } : {}),
-          city: params.city,
-          country: params.country,
-          venue: params.venue,
-          ticketsUrl: params.ticketsUrl,
-          ...(params.poster !== undefined
-            ? { poster: { ...params.poster } }
-            : {}),
-          source,
-          version: 0,
-          isVisible: true,
-          posts:
-            params.moderationPost === undefined
-              ? []
-              : [{ ...params.moderationPost }],
-        },
-      ],
-      { session },
-    );
+    const document =
+      GigCandidateApprovalRepositoryMapper.toGigCreationData(params);
+    const created = await this.gigModel.create([document], { session });
     const gig = created[0];
     if (!gig) {
       throw new Error(`Gig ${params.gigId} was not created.`);
     }
-    return this.mapGigApprovalResult(
+    return GigCandidateApprovalRepositoryMapper.toGigApprovalResult(
       gig.toObject<GigApprovalResultLeanDocument>(),
     );
-  }
-
-  // TODO: extract mappers to mapper
-  private mapGigApprovalResult(
-    gig: GigApprovalResultLeanDocument,
-  ): GigApprovalResult {
-    return {
-      id: gig._id.toString(),
-      publicId: gig.publicId,
-      title: gig.title,
-      date: gig.date,
-      ...(gig.endDate !== undefined ? { endDate: gig.endDate } : {}),
-      city: gig.city,
-      country: gig.country,
-      venue: gig.venue,
-      ticketsUrl: gig.ticketsUrl,
-      ...(gig.poster !== undefined ? { poster: { ...gig.poster } } : {}),
-      source: GigRepositoryMapper.fromStoredSource(gig.source),
-      version: gig.version,
-      isVisible: gig.isVisible,
-    };
   }
 }

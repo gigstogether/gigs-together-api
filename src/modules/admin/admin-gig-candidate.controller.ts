@@ -24,6 +24,7 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import type { User } from '../auth/types/user.types';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import {
   mapV1AdminCreateGigCandidateRequest,
@@ -74,6 +75,7 @@ const GigCandidatePosterFileInterceptor = FileInterceptor('posterFile', {
 export class AdminGigCandidateController {
   constructor(
     private readonly gigCandidateService: GigCandidateService,
+    private readonly gigCandidateApprovalService: GigCandidateApprovalService,
     private readonly adminGigCandidateService: AdminGigCandidateService,
   ) {}
 
@@ -164,7 +166,7 @@ export class AdminGigCandidateController {
     @Body(AdminGigCandidateApproveBodyPipe)
     body: V1AdminApproveGigCandidateRequestBody,
   ): Promise<V1AdminGigCandidateResponseBody> {
-    await this.gigCandidateService.approveGigCandidate({
+    await this.gigCandidateApprovalService.approveGigCandidate({
       gigCandidateId: id,
       expectedVersion: body.expectedVersion,
       approvedByUserId: user.userId,

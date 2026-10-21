@@ -16,7 +16,8 @@ import {
 } from '../telegram/utils/telegram-callback-action';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
+import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
+import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { UserService } from '../user/user.service';
 import { AuthorizationService } from '../auth/authorization.service';
 
@@ -53,10 +54,13 @@ describe('TelegramUpdatesService', () => {
   };
 
   const mockGigCandidateService = {
-    approveGigCandidate: vi.fn(),
     submitMessengerGigCandidate: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
+  };
+
+  const mockGigCandidateApprovalService = {
+    approveGigCandidate: vi.fn(),
   };
 
   const mockUserService = {
@@ -88,6 +92,10 @@ describe('TelegramUpdatesService', () => {
         {
           provide: GigCandidateService,
           useValue: mockGigCandidateService,
+        },
+        {
+          provide: GigCandidateApprovalService,
+          useValue: mockGigCandidateApprovalService,
         },
         {
           provide: UserService,
@@ -801,7 +809,9 @@ describe('TelegramUpdatesService', () => {
 
       await service.handleCallbackQuery(callbackQuery);
 
-      expect(mockGigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
+      expect(
+        mockGigCandidateApprovalService.approveGigCandidate,
+      ).toHaveBeenCalledWith({
         gigCandidateId: '507f1f77bcf86cd799439099',
         expectedVersion: 4,
         approvedByUserId: '507f1f77bcf86cd799439088',
@@ -832,7 +842,7 @@ describe('TelegramUpdatesService', () => {
       const warnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
-      mockGigCandidateService.approveGigCandidate.mockRejectedValue({
+      mockGigCandidateApprovalService.approveGigCandidate.mockRejectedValue({
         isAxiosError: true,
         message: 'Request failed with status code 400',
         response: {
@@ -876,7 +886,7 @@ describe('TelegramUpdatesService', () => {
       const warnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
-      mockGigCandidateService.approveGigCandidate.mockRejectedValue(
+      mockGigCandidateApprovalService.approveGigCandidate.mockRejectedValue(
         new GigCandidateApprovalValidationError([
           { field: 'venue', code: 'required', message: 'venue is required' },
         ]),

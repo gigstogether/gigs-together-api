@@ -15,6 +15,7 @@ import type {
   GigCandidateSourceMessengerUser,
   GigCandidateSourceProvider,
 } from '../types/gig-candidate.types';
+import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval/gig-candidate-approval.repository.mapper';
 
 type MongoId = { toString(): string } | string;
 type GigCandidateLeanIdentifiedUserSource = Omit<
@@ -329,17 +330,14 @@ export class GigCandidateRepositoryMapper {
         }
         return;
       case GigCandidateStatus.Approved:
-        if (
-          params.gigId === undefined ||
-          params.approvedAt === undefined ||
-          params.approvedByUserId === undefined ||
-          hasRejectionAudit
-        ) {
-          throw new Error(
-            `GigCandidate ${params.id} Approved state is inconsistent.`,
-          );
-        }
-        this.assertCompleteGigDraft(params.gigDraft, params.id);
+        GigCandidateApprovalRepositoryMapper.assertApprovedStateIsValid({
+          id: params.id,
+          gigDraft: params.gigDraft,
+          gigId: params.gigId,
+          approvedAt: params.approvedAt,
+          approvedByUserId: params.approvedByUserId,
+          hasRejectionAudit,
+        });
         return;
       case GigCandidateStatus.Rejected:
         if (
@@ -355,28 +353,6 @@ export class GigCandidateRepositoryMapper {
         return;
       default:
         throw new Error(`GigCandidate ${params.id} status is invalid.`);
-    }
-  }
-
-  private static assertCompleteGigDraft(
-    gigDraft: Partial<GigData>,
-    id: string,
-  ): void {
-    const requiredFields: Array<keyof GigData> = [
-      'title',
-      'date',
-      'city',
-      'country',
-      'venue',
-      'ticketsUrl',
-    ];
-    const missingFields = requiredFields.filter(
-      (field) => gigDraft[field] === undefined,
-    );
-    if (missingFields.length > 0) {
-      throw new Error(
-        `GigCandidate ${id} Approved gigDraft is missing: ${missingFields.join(', ')}.`,
-      );
     }
   }
 

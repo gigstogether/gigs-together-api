@@ -17,7 +17,7 @@ import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -25,13 +25,15 @@ import {
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
-import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
-import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
+import { GigCandidateApprovalValidationError } from './gig-candidate-approval/gig-candidate-approval';
+import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
+  let approvalService: GigCandidateApprovalService;
 
   const gigCandidateRepositoryMock: {
     createId: ReturnType<typeof vi.fn>;
@@ -113,6 +115,7 @@ describe('GigCandidateService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GigCandidateService,
+        GigCandidateApprovalService,
         GigCandidateFeedbackService,
         {
           provide: GIG_CANDIDATE_REPOSITORY,
@@ -142,6 +145,7 @@ describe('GigCandidateService', () => {
       ],
     }).compile();
 
+    approvalService = module.get(GigCandidateApprovalService);
     return module.get(GigCandidateService);
   }
 
@@ -1566,7 +1570,7 @@ describe('GigCandidateService', () => {
       gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: approved.approvedByUserId!,
@@ -1666,7 +1670,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: reviewing.version,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1688,7 +1692,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 1,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1709,7 +1713,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1734,7 +1738,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigById.mockResolvedValue(gig);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: approved.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1790,7 +1794,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.createGig.mockResolvedValue(gig);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: approved.approvedByUserId!,
@@ -1822,7 +1826,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(null);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1885,7 +1889,7 @@ describe('GigCandidateService', () => {
       );
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',

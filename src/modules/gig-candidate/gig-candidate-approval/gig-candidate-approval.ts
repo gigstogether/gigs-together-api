@@ -1,16 +1,16 @@
 import type {
   GigCandidate,
   GigCandidateSource,
-} from './types/gig-candidate.types';
+} from '../types/gig-candidate.types';
 import type {
   GigData,
   GigSource,
   GigSourceMessengerUser,
-} from '../gig/types/gig.types';
-import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
-import { GigSourceType } from '../gig/types/gig-source-type.enum';
-import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
+} from '../../gig/types/gig.types';
+import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate-source.guards';
 
 export interface GigCandidateApprovalIssue {
   field: string;

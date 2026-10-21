@@ -8,13 +8,14 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { UserModule } from '../user/user.module';
 import { GigCandidateBodyPipe } from './pipes/gig-candidate-body.pipe';
 import { MongoGigCandidateRepository } from './repositories/mongo-gig-candidate.repository';
-import { MongoGigCandidateApprovalRepository } from './repositories/mongo-gig-candidate-approval.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import { MongoGigCandidateApprovalRepository } from './repositories/gig-candidate-approval/mongo-gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import { GigCandidateController } from './gig-candidate.controller';
 import { GigCandidate, GigCandidateSchema } from './gig-candidate.schema';
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
+import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
   providers: [
     GigCandidateService,
     GigCandidateFeedbackService,
+    GigCandidateApprovalService,
     GigCandidateBodyPipe,
     {
       provide: GIG_CANDIDATE_REPOSITORY,
@@ -42,6 +44,6 @@ import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
       useClass: MongoGigCandidateApprovalRepository,
     },
   ],
-  exports: [GigCandidateService],
+  exports: [GigCandidateService, GigCandidateApprovalService],
 })
 export class GigCandidateModule {}

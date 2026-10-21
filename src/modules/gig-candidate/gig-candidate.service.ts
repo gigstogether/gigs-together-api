@@ -10,20 +10,15 @@ import { ConfigService } from '@nestjs/config';
 import type { User } from '../auth/types/user.types';
 import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
-import { CalendarService } from '../calendar/calendar.service';
-import { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
-import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { getConfigString } from '../../shared/utils/env';
-import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
@@ -31,12 +26,6 @@ import type {
   GigCandidateRepository,
   SendGigCandidateToModerationWithPosterParams,
 } from './repositories/gig-candidate.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
-import type {
-  GigApprovalResult,
-  GigCandidateApprovalRepository,
-  GigCandidateApprovalTransaction,
-} from './repositories/gig-candidate-approval.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import type { GigCandidate } from './types/gig-candidate.types';
@@ -55,11 +44,6 @@ import {
   GigCandidateConflictError,
   getGigCandidateTransitionPolicy,
 } from './gig-candidate-state-machine';
-import {
-  mapGigCandidateSourceToGigSource,
-  requireApprovedGigId,
-  validateGigCandidateDraftForApproval,
-} from './gig-candidate-approval';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 
 export interface FindGigCandidatesParams {
@@ -118,12 +102,6 @@ export interface RejectGigCandidateParams {
   rejectedByUserId: string;
 }
 
-export interface ApproveGigCandidateParams {
-  gigCandidateId: string;
-  expectedVersion: number;
-  approvedByUserId: string;
-}
-
 export interface UpdateGigCandidateDraftApplicationParams {
   gigCandidateId: string;
   expectedVersion: number;
@@ -175,13 +153,6 @@ interface StoreGigCandidateTelegramPostParams {
   telegramPost: TelegramGigCandidatePostSendResult | undefined;
 }
 
-interface GigCandidateApprovalTransactionResult {
-  gig: GigApprovalResult;
-  gigCandidate: GigCandidate;
-  moderationPost?: GigCandidate['posts'][number];
-  isNewApproval: boolean;
-}
-
 @Injectable()
 export class GigCandidateService {
   private readonly defaultGigPosterUrl: string | undefined;
@@ -189,15 +160,9 @@ export class GigCandidateService {
   constructor(
     @Inject(GIG_CANDIDATE_REPOSITORY)
     private readonly gigCandidateRepository: GigCandidateRepository,
-    @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
-    private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigPosterService: GigPosterService,
-    private readonly telegramGigService: TelegramGigService,
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
-    private readonly calendarService: CalendarService,
-    private readonly feedRevalidateService: FeedRevalidateService,
-    private readonly gigService: GigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
     configService: ConfigService,
   ) {
@@ -551,27 +516,6 @@ export class GigCandidateService {
     );
   }
 
-  async approveGigCandidate(
-    params: ApproveGigCandidateParams,
-  ): Promise<GigApprovalResult> {
-    const command = GigCandidateCommand.Approve;
-    this.assertExpectedVersionIsValid(
-      params.gigCandidateId,
-      params.expectedVersion,
-      command,
-    );
-
-    const result = await this.gigCandidateApprovalRepository.withTransaction(
-      async (transaction) =>
-        this.approveGigCandidateInTransaction(params, transaction),
-    );
-
-    if (result.isNewApproval) {
-      await this.runApprovalPostCommitActions(result);
-    }
-    return result.gig;
-  }
-
   async updateGigCandidateDraft(
     params: UpdateGigCandidateDraftApplicationParams,
   ): Promise<GigCandidate> {
@@ -672,167 +616,6 @@ export class GigCandidateService {
       result.posterFile = preparedPoster.posterFile;
     }
     return result;
-  }
-
-  private async approveGigCandidateInTransaction(
-    params: ApproveGigCandidateParams,
-    transaction: GigCandidateApprovalTransaction,
-  ): Promise<GigCandidateApprovalTransactionResult> {
-    const gigCandidate = await transaction.findGigCandidateById(
-      params.gigCandidateId,
-    );
-    if (!gigCandidate) {
-      throw new NotFoundException(
-        `GigCandidate with ID ${params.gigCandidateId} not found`,
-      );
-    }
-
-    const policy = getGigCandidateTransitionPolicy({
-      gigCandidateId: gigCandidate.id,
-      status: gigCandidate.status,
-      command: GigCandidateCommand.Approve,
-    });
-    if (policy.isIdempotent) {
-      const gigId = requireApprovedGigId(gigCandidate);
-      const existingGig = await transaction.findGigById(gigId);
-      if (!existingGig) {
-        throw new Error(
-          `Approved GigCandidate ${gigCandidate.id} references missing Gig ${gigId}.`,
-        );
-      }
-      return { gig: existingGig, gigCandidate, isNewApproval: false };
-    }
-
-    this.assertExpectedVersionMatches(
-      gigCandidate,
-      params.expectedVersion,
-      GigCandidateCommand.Approve,
-    );
-    const gigData = validateGigCandidateDraftForApproval(gigCandidate.gigDraft);
-    const gigId = transaction.createGigId();
-    const publicId = await this.generateUniqueGigPublicId(
-      gigData.title,
-      gigData.date,
-      transaction,
-    );
-    const source = mapGigCandidateSourceToGigSource(gigCandidate.source);
-    const moderationPost =
-      this.getGigCandidateModerationPostForApproval(gigCandidate);
-    const approvedAt = new Date();
-    const approvedGigCandidate = await transaction.approveGigCandidate({
-      ...params,
-      gigId,
-      approvedAt,
-      gigDraft: gigData,
-      moderationPost,
-    });
-    if (!approvedGigCandidate) {
-      throw new GigCandidateConflictError({
-        gigCandidateId: gigCandidate.id,
-        command: GigCandidateCommand.Approve,
-        reason: 'concurrentModification',
-        message: `GigCandidate ${gigCandidate.id} changed concurrently during ${GigCandidateCommand.Approve}.`,
-      });
-    }
-
-    const gig = await transaction.createGig({
-      ...gigData,
-      gigId,
-      publicId,
-      source,
-      moderationPost,
-    });
-    return {
-      gig,
-      gigCandidate: approvedGigCandidate,
-      moderationPost,
-      isNewApproval: true,
-    };
-  }
-
-  private async generateUniqueGigPublicId(
-    title: string,
-    date: number,
-    transaction: GigCandidateApprovalTransaction,
-  ): Promise<string> {
-    return this.gigService.generateUniquePublicId({
-      title,
-      yyyyMmDd: new Date(date).toISOString().slice(0, 10),
-      isPublicIdTaken: (publicId) => transaction.isGigPublicIdTaken(publicId),
-    });
-  }
-
-  private async runApprovalPostCommitActions(
-    result: GigCandidateApprovalTransactionResult,
-  ): Promise<void> {
-    const { gig, gigCandidate, moderationPost } = result;
-    try {
-      await this.feedRevalidateService.revalidateFeedOrThrow({
-        country: gig.country,
-        city: gig.city,
-      });
-    } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'revalidateFeed',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
-    }
-
-    try {
-      await this.calendarService.addEvent(
-        this.gigService.gigToCalendarPayload(gig),
-      );
-    } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'addCalendarEvent',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
-    }
-
-    await this.gigCandidateFeedbackService.sendBestEffort(gigCandidate, {
-      kind: 'acceptedWithPublicLink',
-      publicId: gig.publicId,
-      subject: gig.title,
-    });
-
-    if (!moderationPost) {
-      this.logger.warn(
-        `No moderation post linked after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}`,
-      );
-      return;
-    }
-    try {
-      await this.telegramGigService.updateModerationPost({
-        gigId: gig.id,
-        expectedVersion: gig.version,
-        isVisible: gig.isVisible,
-        title: gig.title,
-        publicId: gig.publicId,
-        moderationPost: {
-          chatId: moderationPost.chatId,
-          messageId: moderationPost.id,
-        },
-      });
-    } catch (e) {
-      this.logger.warn(
-        `updateGigModerationPost failed after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}: ${formatTelegramErrorMessage(e)}`,
-      );
-    }
-  }
-
-  private logApprovalIntegrationFailure(
-    operation: string,
-    gigCandidateId: string,
-    gigId: string,
-    e: unknown,
-  ): void {
-    this.logger.warn(
-      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${formatErrorMessage(e)}`,
-    );
   }
 
   private parseAndValidateCreateBody(
@@ -1198,21 +981,6 @@ export class GigCandidateService {
     return gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === postType,
     );
-  }
-
-  private getGigCandidateModerationPostForApproval(
-    gigCandidate: GigCandidate,
-  ): GigCandidate['posts'][number] | undefined {
-    const moderationPosts = gigCandidate.posts.filter(
-      (post) =>
-        post.to === Messenger.Telegram && post.type === PostType.Moderation,
-    );
-    if (moderationPosts.length > 1) {
-      throw new Error(
-        `GigCandidate ${gigCandidate.id} has multiple Telegram Moderation posts.`,
-      );
-    }
-    return moderationPosts[0];
   }
 
   private logTelegramFailure(

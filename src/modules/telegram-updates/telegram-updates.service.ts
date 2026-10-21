@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRequiredConfigString } from '../../shared/utils/env';
-import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
+import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
+import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
 import { AuthorizationService } from '../auth/authorization.service';
@@ -81,6 +82,7 @@ export class TelegramUpdatesService {
     private readonly telegramBotReplyService: TelegramBotReplyService,
     private readonly gigService: GigService,
     private readonly gigCandidateService: GigCandidateService,
+    private readonly gigCandidateApprovalService: GigCandidateApprovalService,
     private readonly userService: UserService,
     private readonly authorizationService: AuthorizationService,
     // A plain constructor parameter is scoped to the constructor body. In TypeScript, adding
@@ -407,7 +409,7 @@ export class TelegramUpdatesService {
             break;
           }
           case GigCandidateCallbackAction.Approve: {
-            await this.gigCandidateService.approveGigCandidate({
+            await this.gigCandidateApprovalService.approveGigCandidate({
               gigCandidateId: parsed.id,
               expectedVersion: parsed.expectedVersion,
               approvedByUserId: adminUserId,

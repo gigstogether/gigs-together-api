@@ -7,6 +7,7 @@ import { AccessJwtAuthGuard } from '../auth/guards/access-jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { AuthenticatedUserGuard } from '../auth/guards/authenticated-user.guard';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
@@ -14,7 +15,7 @@ import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-typ
 import { AdminGigCandidateController } from './admin-gig-candidate.controller';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
-import type { GigApprovalResult } from '../gig-candidate/repositories/gig-candidate-approval.repository';
+import type { GigApprovalResult } from '../gig-candidate/repositories/gig-candidate-approval/gig-candidate-approval.repository';
 
 function buildGigCandidate(
   overrides: Partial<GigCandidate> = {},
@@ -83,7 +84,6 @@ describe('AdminGigCandidateController', () => {
     isVisible: true,
   };
   const gigCandidateService = {
-    approveGigCandidate: vi.fn().mockResolvedValue(gigApprovalResult),
     createAdminGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     updateAdminGigCandidateDraft: vi.fn().mockResolvedValue(gigCandidate),
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
@@ -99,12 +99,14 @@ describe('AdminGigCandidateController', () => {
   } satisfies Pick<
     GigCandidateService,
     | 'createAdminGigCandidate'
-    | 'approveGigCandidate'
     | 'updateAdminGigCandidateDraft'
     | 'rejectGigCandidate'
     | 'sendGigCandidateToModeration'
     | 'lookupGigCandidateDraft'
   >;
+  const gigCandidateApprovalService = {
+    approveGigCandidate: vi.fn().mockResolvedValue(gigApprovalResult),
+  } satisfies Pick<GigCandidateApprovalService, 'approveGigCandidate'>;
   const adminGigCandidateService = {
     getList: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(details),
@@ -120,6 +122,10 @@ describe('AdminGigCandidateController', () => {
       controllers: [AdminGigCandidateController],
       providers: [
         { provide: GigCandidateService, useValue: gigCandidateService },
+        {
+          provide: GigCandidateApprovalService,
+          useValue: gigCandidateApprovalService,
+        },
         {
           provide: AdminGigCandidateService,
           useValue: adminGigCandidateService,
@@ -238,7 +244,9 @@ describe('AdminGigCandidateController', () => {
       expectedVersion: 0,
     });
 
-    expect(gigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
+    expect(
+      gigCandidateApprovalService.approveGigCandidate,
+    ).toHaveBeenCalledWith({
       gigCandidateId: details.id,
       expectedVersion: 0,
       approvedByUserId: user.userId,

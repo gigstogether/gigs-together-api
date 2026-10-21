@@ -2,13 +2,13 @@ import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { Gig } from '../../gig/gig.schema';
-import { GigSourceType } from '../../gig/types/gig-source-type.enum';
-import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
-import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import { GigCandidate } from '../gig-candidate.schema';
+import { Gig } from '../../../gig/gig.schema';
+import { GigSourceType } from '../../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
+import { Messenger } from '../../../../shared/types/messenger.enum';
+import { PostType } from '../../../../shared/types/post-type.enum';
+import { GigCandidateStatus } from '../../types/gig-candidate-status.enum';
+import { GigCandidate } from '../../gig-candidate.schema';
 import { MongoGigCandidateApprovalRepository } from './mongo-gig-candidate-approval.repository';
 
 describe('MongoGigCandidateApprovalRepository', () => {
