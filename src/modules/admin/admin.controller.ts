@@ -48,7 +48,7 @@ import type { V1AdminTranslationNamespacesListResponseBody } from './types/reque
 import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';

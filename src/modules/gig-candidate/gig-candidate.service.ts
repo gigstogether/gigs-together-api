@@ -16,7 +16,7 @@ import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gi
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';

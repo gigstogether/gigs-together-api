@@ -12,7 +12,7 @@ import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.servic
 import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
 import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';

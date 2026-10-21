@@ -8,7 +8,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
-import type { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import type { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
 import type { GigService } from '../gig/gig.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
