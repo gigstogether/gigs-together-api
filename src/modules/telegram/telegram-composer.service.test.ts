@@ -337,6 +337,22 @@ describe('TelegramComposerService', () => {
   });
 
   describe('buildCaption', () => {
+    it('should render missing fields as placeholders through the template', () => {
+      const caption = composer.buildCaption({});
+
+      expect(caption).toBe('-\n\n🗓 -\n📍 -\n\n🎫 -');
+      expect(mockPostTemplates.render).toHaveBeenCalledWith(
+        TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
+        {
+          url: undefined,
+          title: '-',
+          dates: '-',
+          venue: '-',
+          ticketsUrl: '-',
+        },
+      );
+    });
+
     it('should include titled link when url is provided', () => {
       const caption = composer.buildCaption({
         url: 'https://app.example/gigs/ab',
@@ -698,6 +714,84 @@ describe('TelegramComposerService', () => {
         disable_web_page_preview: true,
       });
       expect('photo' in payload).toBe(false);
+    });
+
+    it('should compose Moderation with placeholders when draft fields are missing', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/default.jpg',
+      );
+      const payload = gigCandidateComposer.composeModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: '<b>Band & friends</b>',
+        },
+        gigDraft: {
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.caption).toContain(
+        'Original message:\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
+      );
+      expect(payload.caption).toContain('-\n\n🗓 -\n📍 -\n\n🎫 -');
+      expect(payload.caption).toContain('Source: user (Telegram)');
+    });
+
+    it('should add a partial date to the edited Moderation post while preserving the original message', () => {
+      const composition = gigCandidateComposer.composePostEdit({
+        gigCandidate: {
+          id: '507f1f77bcf86cd799439099',
+          source: {
+            type: GigSourceType.User,
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: Messenger.Telegram,
+              message: { chatId: -100123, messageId: 42 },
+            },
+            originalText: 'Unstructured suggestion',
+          },
+          gigDraft: {
+            date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+            poster: { bucketPath: 'gigs/default.jpg' },
+          },
+          version: 3,
+          status: GigCandidateStatus.Reviewing,
+          posts: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        post: {
+          to: Messenger.Telegram,
+          type: PostType.Moderation,
+          date: 1,
+          id: 50,
+          chatId: -3002,
+          fileId: 'moderation-file-id',
+        },
+        isMediaUpdateRequired: false,
+      });
+
+      expect(composition.kind).toBe(PostEditKind.Caption);
+      if (composition.kind !== PostEditKind.Caption) {
+        throw new Error('Expected a Telegram caption edit');
+      }
+      expect(composition.payload.caption).toContain('-\n\n🗓 Sat, 1 Aug 2026');
+      expect(composition.payload.caption).toContain('📍 -\n\n🎫 -');
+      expect(composition.payload.caption).toContain('🗓 Sat, 1 Aug 2026');
+      expect(composition.payload.caption).toContain(
+        'Original message:\nUnstructured suggestion',
+      );
     });
 
     it('should keep the original message in structured moderation content', () => {

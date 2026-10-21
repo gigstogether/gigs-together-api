@@ -348,22 +348,14 @@ export class TelegramGigCandidateComposerService {
     if (params.channelPurpose === 'intake' && originalMessage !== undefined) {
       return `${originalMessage}${sourceLabel}`;
     }
-    if (gigDraft.title === undefined || gigDraft.date === undefined) {
-      if (originalMessage !== undefined) {
-        return `${originalMessage}${sourceLabel}`;
-      }
-      throw new BadRequestException(
-        'Cannot compose GigCandidate post: gigDraft title and date are required.',
-      );
-    }
+    const title = gigDraft.title?.trim();
+    const titleLine = title
+      ? this.buildTitleLine(gigCandidate.status, title, params.channelPurpose)
+      : undefined;
     const body = this.telegramComposer.buildCaption({
-      title: this.buildTitleLine(
-        gigCandidate.status,
-        gigDraft.title,
-        params.channelPurpose,
-      ),
-      ticketsUrl: gigDraft.ticketsUrl ?? '',
-      venue: gigDraft.venue ?? '',
+      title: titleLine,
+      ticketsUrl: gigDraft.ticketsUrl,
+      venue: gigDraft.venue,
       date: gigDraft.date,
       endDate: gigDraft.endDate,
     });

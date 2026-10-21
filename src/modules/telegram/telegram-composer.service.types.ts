@@ -19,11 +19,11 @@ export type TelegramPostEditComposition =
   | { kind: PostEditKind.Text; payload: TGEditMessageText };
 
 export interface BuildCaptionPayload {
-  date: string | number | Date;
+  date?: string | number | Date;
   endDate?: string | number | Date;
-  venue: string;
-  title: string;
-  ticketsUrl: string;
+  venue?: string;
+  title?: string;
+  ticketsUrl?: string;
   url?: string;
 }
 

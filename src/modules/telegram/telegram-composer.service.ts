@@ -25,6 +25,7 @@ const DATE_FORMAT: Intl.DateTimeFormatOptions = {
 };
 
 const ADMIN_MINI_APP_START_ACTION_SEPARATOR = '-';
+const MISSING_CAPTION_FIELD_PLACEHOLDER = '-';
 
 @Injectable()
 export class TelegramComposerService {
@@ -34,17 +35,24 @@ export class TelegramComposerService {
   ) {}
 
   buildCaption(payload: BuildCaptionPayload): string {
-    const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
-      year: DATE_FORMAT.year,
-      month: DATE_FORMAT.month,
-      day: DATE_FORMAT.day,
-      weekday: DATE_FORMAT.weekday,
-    });
-    const date = dateFormatter.format(new Date(payload.date));
-    const endDate = payload.endDate
-      ? dateFormatter.format(new Date(payload.endDate))
-      : undefined;
-    const dates = [date, endDate].filter(Boolean).join(' - ');
+    const title = payload.title?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER;
+    const venue = payload.venue?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER;
+    const ticketsUrl =
+      payload.ticketsUrl?.trim() || MISSING_CAPTION_FIELD_PLACEHOLDER;
+    let dates = MISSING_CAPTION_FIELD_PLACEHOLDER;
+    if (payload.date !== undefined) {
+      const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+        year: DATE_FORMAT.year,
+        month: DATE_FORMAT.month,
+        day: DATE_FORMAT.day,
+        weekday: DATE_FORMAT.weekday,
+      });
+      const date = dateFormatter.format(new Date(payload.date));
+      const endDate = payload.endDate
+        ? dateFormatter.format(new Date(payload.endDate))
+        : undefined;
+      dates = [date, endDate].filter(Boolean).join(' - ');
+    }
 
     const templateKey = payload.url
       ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
@@ -52,10 +60,10 @@ export class TelegramComposerService {
 
     return this.telegramTemplates.render(templateKey, {
       url: payload.url,
-      title: payload.title,
+      title,
       dates,
-      venue: payload.venue,
-      ticketsUrl: payload.ticketsUrl,
+      venue,
+      ticketsUrl,
     });
   }
 
