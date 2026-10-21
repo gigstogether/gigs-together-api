@@ -323,7 +323,7 @@ export class TelegramGigCandidateComposerService {
 
   private buildCaption(params: BuildGigCandidateCaptionParams): string {
     const { gigCandidate, postType } = params;
-    const { source, status } = gigCandidate;
+    const { gigDraft, source, status } = gigCandidate;
 
     const isIntake = postType === PostType.Intake;
 
@@ -338,10 +338,17 @@ export class TelegramGigCandidateComposerService {
       : undefined;
     const originalMessageSection =
       originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
-    const content =
-      isIntake && originalMessage !== undefined
-        ? `${originalMessage}${sourceLabel}`
-        : `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+    const hasGigDraftCaptionContent =
+      [gigDraft.title, gigDraft.venue, gigDraft.ticketsUrl].some(
+        (value) => value !== undefined && value.trim() !== '',
+      ) ||
+      gigDraft.date !== undefined ||
+      gigDraft.endDate !== undefined;
+    const shouldShowOnlyOriginalMessage =
+      originalMessage !== undefined && (isIntake || !hasGigDraftCaptionContent);
+    const content = shouldShowOnlyOriginalMessage
+      ? `${originalMessage}${sourceLabel}`
+      : `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
     const actionLinks = this.buildActionLinks(params);
 
     const isNew = status === GigCandidateStatus.New;

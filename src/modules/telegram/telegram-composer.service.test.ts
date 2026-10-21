@@ -673,7 +673,7 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
-    it('should compose Moderation with placeholders when draft fields are missing', () => {
+    it('should omit Gig draft from initial Moderation for a Telegram suggestion', () => {
       mockBucket.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/default.jpg',
       );
@@ -689,6 +689,8 @@ describe('TelegramComposerService', () => {
           originalText: '<b>Band & friends</b>',
         },
         gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         version: 2,
@@ -701,7 +703,9 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).toContain(
         'Original message:\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
       );
-      expect(payload.caption).toContain('-\n\n🗓 -\n📍 -\n\n🎫 -');
+      expect(payload.caption).not.toContain('🗓');
+      expect(payload.caption).not.toContain('📍');
+      expect(payload.caption).not.toContain('🎫');
       expect(payload.caption).toContain('Source: user (Telegram)');
     });
 
@@ -751,7 +755,7 @@ describe('TelegramComposerService', () => {
       );
     });
 
-    it('should keep the original message in structured moderation content', () => {
+    it('should include existing Gig draft content in Moderation for a Telegram suggestion', () => {
       mockBucket.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/default.jpg',
       );
@@ -781,6 +785,7 @@ describe('TelegramComposerService', () => {
       });
 
       expect(payload.caption).toContain('🟡 Radiohead');
+      expect(payload.caption).toContain('🗓 Sat, 1 Aug 2026');
       expect(payload.caption).toContain(
         '\n\n................................\nOriginal message:\nUnstructured suggestion\n\n................................\nSource: user (Telegram)',
       );
