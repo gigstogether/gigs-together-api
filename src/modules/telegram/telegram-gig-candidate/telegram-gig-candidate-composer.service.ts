@@ -59,7 +59,7 @@ export class TelegramGigCandidateComposerService {
     const chatId = this.requireChannelId(
       this.telegramService.getIntakeChannelId(),
       'INTAKE_CHANNEL_ID',
-      'intake',
+      PostType.Intake,
     );
 
     const replyMarkup = this.buildIntakeReplyMarkup(gigCandidate);
@@ -71,7 +71,7 @@ export class TelegramGigCandidateComposerService {
         chat_id: chatId,
         text: this.buildCaption({
           gigCandidate,
-          channelPurpose: 'intake',
+          postType: PostType.Intake,
         }),
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: true,
@@ -82,7 +82,7 @@ export class TelegramGigCandidateComposerService {
     return this.composeChannelPost({
       gigCandidate,
       chatId,
-      channelPurpose: 'intake',
+      postType: PostType.Intake,
       replyMarkup,
     });
   }
@@ -91,13 +91,13 @@ export class TelegramGigCandidateComposerService {
     const chatId = this.requireChannelId(
       this.telegramService.getModerationChannelId(),
       'MODERATION_CHANNEL_ID',
-      'moderation',
+      PostType.Moderation,
     );
 
     return this.composeChannelPost({
       gigCandidate,
       chatId,
-      channelPurpose: 'moderation',
+      postType: PostType.Moderation,
       replyMarkup: this.buildModerationReplyMarkup({
         gigCandidate,
         expectedVersion: gigCandidate.version + 1,
@@ -164,11 +164,11 @@ export class TelegramGigCandidateComposerService {
       params.post.type === PostType.Intake
         ? {
             gigCandidate: params.gigCandidate,
-            channelPurpose: 'intake',
+            postType: PostType.Intake,
           }
         : {
             gigCandidate: params.gigCandidate,
-            channelPurpose: 'moderation',
+            postType: PostType.Moderation,
           };
 
     return this.composeExistingPostEdit({
@@ -185,7 +185,7 @@ export class TelegramGigCandidateComposerService {
       post: params.intakePost,
       text: this.buildCaption({
         gigCandidate: params.gigCandidate,
-        channelPurpose: 'intake',
+        postType: PostType.Intake,
         moderationPost: params.moderationPost,
       }),
       replyMarkup: { inline_keyboard: [] },
@@ -213,7 +213,7 @@ export class TelegramGigCandidateComposerService {
   ): TelegramPostEditComposition {
     const caption = this.buildCaption({
       gigCandidate: params.gigCandidate,
-      channelPurpose: 'moderation',
+      postType: PostType.Moderation,
     });
     const replyMarkup = this.buildModerationReplyMarkup({
       gigCandidate: params.gigCandidate,
@@ -265,7 +265,7 @@ export class TelegramGigCandidateComposerService {
     );
     if (poster === undefined || poster === '') {
       throw new BadRequestException(
-        `Cannot compose GigCandidate ${params.channelPurpose} post: gigCandidate has no poster URL.`,
+        `Cannot compose GigCandidate ${params.postType.toLowerCase()} post: gigCandidate has no poster URL.`,
       );
     }
 
@@ -308,10 +308,10 @@ export class TelegramGigCandidateComposerService {
   }
 
   private buildCaption(params: BuildGigCandidateCaptionParams): string {
-    const { gigCandidate, channelPurpose } = params;
+    const { gigCandidate, postType } = params;
     const { source, status } = gigCandidate;
 
-    const isIntake = channelPurpose === 'intake';
+    const isIntake = postType === PostType.Intake;
 
     const isMessengerSource = isGigCandidateSourceMessengerUser(source);
     const sourceOriginTypeLabel =
@@ -327,7 +327,7 @@ export class TelegramGigCandidateComposerService {
     const content =
       isIntake && originalMessage !== undefined
         ? `${originalMessage}${sourceLabel}`
-        : `${this.renderGigDraftCaption(gigCandidate, channelPurpose)}${originalMessageSection}${sourceLabel}`;
+        : `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
     const actionLinks = this.buildActionLinks(params);
 
     const isNew = status === GigCandidateStatus.New;
@@ -345,7 +345,7 @@ export class TelegramGigCandidateComposerService {
     );
 
     if (
-      params.channelPurpose !== 'intake' ||
+      params.postType !== PostType.Intake ||
       params.moderationPost === undefined
     ) {
       return [openAdminLink];
@@ -373,13 +373,13 @@ export class TelegramGigCandidateComposerService {
 
   private renderGigDraftCaption(
     gigCandidate: GigCandidate,
-    channelPurpose: 'intake' | 'moderation',
+    postType: GigCandidatePost['type'],
   ): string {
     const { gigDraft, status } = gigCandidate;
 
     const title = gigDraft.title?.trim();
     const titleLine = title
-      ? this.buildTitleLine(status, title, channelPurpose)
+      ? this.buildTitleLine(status, title, postType)
       : undefined;
     const dates =
       gigDraft.date === undefined
@@ -400,10 +400,10 @@ export class TelegramGigCandidateComposerService {
   private buildTitleLine(
     status: GigCandidateStatus,
     title: string,
-    channelPurpose: 'intake' | 'moderation',
+    postType: GigCandidatePost['type'],
   ): string {
     const escapedTitle = this.escapeTelegramHtmlText(title);
-    if (channelPurpose === 'intake') {
+    if (postType === PostType.Intake) {
       return status === GigCandidateStatus.Rejected
         ? `🔴 ${escapedTitle}`
         : escapedTitle;
@@ -526,11 +526,11 @@ export class TelegramGigCandidateComposerService {
   private requireChannelId(
     chatId: string | undefined,
     envName: string,
-    channelPurpose: 'intake' | 'moderation',
+    postType: GigCandidatePost['type'],
   ): string {
     if (chatId === undefined) {
       throw new BadRequestException(
-        `Cannot compose GigCandidate ${channelPurpose} post: ${envName} is not configured.`,
+        `Cannot compose GigCandidate ${postType.toLowerCase()} post: ${envName} is not configured.`,
       );
     }
 

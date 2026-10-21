@@ -1,3 +1,4 @@
+import type { PostType } from '../../../shared/types/post-type.enum';
 import type {
   GigCandidate,
   GigCandidatePost,
@@ -48,11 +49,11 @@ interface ComposeGigCandidateChannelPostBaseParams {
 }
 
 interface ComposeGigCandidateIntakeChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
-  channelPurpose: 'intake';
+  postType: PostType.Intake;
 }
 
 interface ComposeGigCandidateModerationChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
-  channelPurpose: 'moderation';
+  postType: PostType.Moderation;
 }
 
 export type ComposeGigCandidateChannelPostParams =
@@ -64,12 +65,12 @@ interface BuildGigCandidateCaptionBaseParams {
 }
 
 interface BuildGigCandidateIntakeCaptionParams extends BuildGigCandidateCaptionBaseParams {
-  channelPurpose: 'intake';
+  postType: PostType.Intake;
   moderationPost?: GigCandidatePost;
 }
 
 interface BuildGigCandidateModerationCaptionParams extends BuildGigCandidateCaptionBaseParams {
-  channelPurpose: 'moderation';
+  postType: PostType.Moderation;
   moderationPost?: never;
 }
 
