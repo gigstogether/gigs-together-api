@@ -613,7 +613,7 @@ describe('GigCandidateService', () => {
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created, undefined);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'submitted', title: 'B', chatId: '42' },
+        { kind: 'submitted', subject: 'B', chatId: '42' },
       );
     });
 
@@ -955,7 +955,11 @@ describe('GigCandidateService', () => {
         gigDraft: {},
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
+        {
+          kind: 'acceptedForModeration',
+          subject: 'Band',
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -963,7 +967,7 @@ describe('GigCandidateService', () => {
       expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
-    it('should skip accepted-for-moderation feedback when the Gig title is missing', async () => {
+    it('should skip accepted-for-moderation feedback when the title and original message are missing', async () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
@@ -1353,7 +1357,11 @@ describe('GigCandidateService', () => {
         moderationPost,
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
+        {
+          kind: 'acceptedForModeration',
+          subject: 'Band',
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -1935,14 +1943,18 @@ describe('GigCandidateService', () => {
         rejectedAt: expect.any(Date),
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'rejected', title: 'Rejected gig', chatId: '42' },
+        {
+          kind: 'rejected',
+          subject: 'Rejected gig',
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.updateRejectedGigCandidatePost,
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
-    it('should send rejected feedback to a known chat user', async () => {
+    it('should use the original message for known chat user feedback when the title is missing', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -1962,12 +1974,10 @@ describe('GigCandidateService', () => {
       };
       const newGigCandidate = buildGigCandidate({
         source,
-        gigDraft: { title: 'Radiohead in Barcelona' },
         posts: [intakePost],
       });
       const rejected = buildGigCandidate({
         source,
-        gigDraft: { title: 'Radiohead in Barcelona' },
         status: GigCandidateStatus.Rejected,
         version: 1,
         rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
@@ -1989,7 +1999,7 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'rejected',
-          title: 'Radiohead in Barcelona',
+          subject: 'Radiohead in Barcelona',
           chatId: '42',
         },
       );

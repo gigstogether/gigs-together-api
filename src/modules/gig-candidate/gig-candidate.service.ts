@@ -63,10 +63,11 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 interface GigCandidateLifecycleFeedbackRequest {
   kind: 'submitted' | 'acceptedForModeration' | 'rejected';
-  title?: string;
+  subject?: string;
 }
 
 type GigCandidateFeedbackRequest =
@@ -253,7 +254,7 @@ export class GigCandidateService {
     });
     await this.sendGigCandidateFeedbackBestEffort(saved, {
       kind: 'submitted',
-      title: saved.gigDraft.title,
+      subject: saved.gigDraft.title,
     });
 
     return { id: saved.id };
@@ -368,7 +369,7 @@ export class GigCandidateService {
       );
     await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
       kind: 'acceptedForModeration',
-      title: withModerationPost.gigDraft.title,
+      subject: withModerationPost.gigDraft.title,
     });
     return withModerationPost;
   }
@@ -507,7 +508,7 @@ export class GigCandidateService {
     if (didTransition) {
       await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
         kind: 'acceptedForModeration',
-        title: withModerationPost.gigDraft.title,
+        subject: withModerationPost.gigDraft.title,
       });
     }
 
@@ -547,7 +548,7 @@ export class GigCandidateService {
       );
       await this.sendGigCandidateFeedbackBestEffort(updated, {
         kind: 'rejected',
-        title: updated.gigDraft.title,
+        subject: updated.gigDraft.title,
       });
       return updated;
     }
@@ -810,7 +811,7 @@ export class GigCandidateService {
     await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
       kind: 'acceptedWithPublicLink',
       publicId: gig.publicId,
-      title: gig.title,
+      subject: gig.title,
     });
 
     if (!moderationPost) {
@@ -1198,19 +1199,22 @@ export class GigCandidateService {
         return;
       }
 
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
-      const title = request.title?.trim();
-      if (!title) {
+      const subject =
+        request.subject?.trim() ||
+        (isGigCandidateSourceMessengerUser(gigCandidate.source)
+          ? gigCandidate.source.originalText.trim()
+          : undefined);
+
+      if (!subject) {
         this.logger.warn(
-          `GigCandidate feedback skipped because title is missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
+          `GigCandidate feedback skipped because title and original text are missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
         );
         return;
       }
 
       await this.telegramGigCandidateService.sendFeedback({
         ...request,
-        title,
+        subject,
         chatId: telegramIdentity.externalUserId,
       });
     } catch (e) {

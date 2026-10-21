@@ -999,7 +999,7 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'submitted',
-          title: 'Band & Friends',
+          subject: 'Band & Friends',
         }),
       ).toEqual({
         chat_id: '42',
@@ -1014,7 +1014,7 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
-          title: 'Band & Friends',
+          subject: 'Band & Friends',
         }),
       ).toEqual({
         chat_id: '42',
@@ -1029,7 +1029,7 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedForModeration',
-          title: 'Band & Friends',
+          subject: 'Band & Friends',
         }),
       ).toEqual({
         chat_id: '42',
@@ -1045,7 +1045,7 @@ describe('TelegramComposerService', () => {
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
-          title: 'Radiohead & Friends',
+          subject: 'Radiohead & Friends',
         }),
       ).toEqual({
         chat_id: '42',

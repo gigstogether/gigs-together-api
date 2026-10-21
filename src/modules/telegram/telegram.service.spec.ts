@@ -1194,7 +1194,7 @@ describe('TelegramService', () => {
       await telegramGigCandidateService.sendFeedback({
         chatId: '42',
         kind: 'submitted',
-        title: 'Band',
+        subject: 'Band',
       });
 
       expect(sendMessageSpy).toHaveBeenCalledWith({

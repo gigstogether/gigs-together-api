@@ -113,19 +113,19 @@ export class TelegramGigCandidateComposerService {
       case 'submitted':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
-          { title: this.escapeTelegramHtmlText(params.title) },
+          { title: this.escapeTelegramHtmlText(params.subject) },
         );
         break;
       case 'acceptedForModeration':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
-          { title: this.escapeTelegramHtmlText(params.title) },
+          { title: this.escapeTelegramHtmlText(params.subject) },
         );
         break;
       case 'rejected':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
-          { title: this.escapeTelegramHtmlText(params.title) },
+          { title: this.escapeTelegramHtmlText(params.subject) },
         );
         break;
       case 'acceptedWithPublicLink': {
@@ -142,7 +142,7 @@ export class TelegramGigCandidateComposerService {
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
           {
             gigUrl,
-            title: this.escapeTelegramHtmlText(params.title),
+            title: this.escapeTelegramHtmlText(params.subject),
           },
         );
         break;

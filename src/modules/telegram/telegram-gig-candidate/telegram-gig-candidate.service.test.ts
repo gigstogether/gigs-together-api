@@ -211,7 +211,7 @@ describe('TelegramGigCandidateService', () => {
     const result = await service.sendFeedback({
       kind: 'submitted',
       chatId: 42,
-      title: 'Band',
+      subject: 'Band',
     });
 
     expect(result).toBe(sentMessage);

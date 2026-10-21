@@ -5,19 +5,19 @@ import type {
 } from '../../gig-candidate/types/gig-candidate.types';
 import type { TGChatId, TGInlineKeyboardMarkup } from '../types/message.types';
 
-export interface GigCandidateFeedbackMessageWithTitleContent {
+export interface GigCandidateLifecycleFeedbackMessageContent {
   kind: 'submitted' | 'acceptedForModeration' | 'rejected';
-  title: string;
+  subject: string;
 }
 
 export interface GigCandidateFeedbackMessageWithPublicLinkContent {
   kind: 'acceptedWithPublicLink';
   publicId: string;
-  title: string;
+  subject: string;
 }
 
 export type GigCandidateFeedbackMessageContent =
-  | GigCandidateFeedbackMessageWithTitleContent
+  | GigCandidateLifecycleFeedbackMessageContent
   | GigCandidateFeedbackMessageWithPublicLinkContent;
 
 export type ComposeGigCandidateFeedbackMessageParams =
