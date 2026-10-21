@@ -14,6 +14,7 @@ import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repositor
 import { GigCandidateController } from './gig-candidate.controller';
 import { GigCandidate, GigCandidateSchema } from './gig-candidate.schema';
 import { GigCandidateService } from './gig-candidate.service';
+import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { GigCandidateService } from './gig-candidate.service';
   controllers: [GigCandidateController],
   providers: [
     GigCandidateService,
+    GigCandidateFeedbackService,
     GigCandidateBodyPipe,
     {
       provide: GIG_CANDIDATE_REPOSITORY,

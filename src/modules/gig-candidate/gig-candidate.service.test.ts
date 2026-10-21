@@ -28,6 +28,7 @@ import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
 import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
+import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
@@ -112,6 +113,7 @@ describe('GigCandidateService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GigCandidateService,
+        GigCandidateFeedbackService,
         {
           provide: GIG_CANDIDATE_REPOSITORY,
           useValue: gigCandidateRepositoryMock,

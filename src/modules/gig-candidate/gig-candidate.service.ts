@@ -13,10 +13,6 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
-import {
-  GigCandidateFeedbackMessageContent,
-  GigCandidateFeedbackTelegramMessageSubject,
-} from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -26,9 +22,7 @@ import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { UserService } from '../user/user.service';
-import { UserRole } from '../user/types/user-role.enum';
-import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
+import { getConfigString } from '../../shared/utils/env';
 import { formatErrorMessage } from '../../shared/utils/logging';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
@@ -66,22 +60,7 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
-import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
-
-interface GigCandidateLifecycleFeedbackRequest {
-  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
-  subject?: string;
-}
-
-interface GigCandidateFeedbackWithPublicLinkRequest {
-  kind: 'acceptedWithPublicLink';
-  publicId: string;
-  subject: string;
-}
-
-type GigCandidateFeedbackRequest =
-  | GigCandidateLifecycleFeedbackRequest
-  | GigCandidateFeedbackWithPublicLinkRequest;
+import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -205,7 +184,6 @@ interface GigCandidateApprovalTransactionResult {
 
 @Injectable()
 export class GigCandidateService {
-  private readonly isAdminSubmissionFeedbackEnabled: boolean;
   private readonly defaultGigPosterUrl: string | undefined;
 
   constructor(
@@ -220,14 +198,9 @@ export class GigCandidateService {
     private readonly calendarService: CalendarService,
     private readonly feedRevalidateService: FeedRevalidateService,
     private readonly gigService: GigService,
-    private readonly userService: UserService,
+    private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
     configService: ConfigService,
   ) {
-    this.isAdminSubmissionFeedbackEnabled =
-      getConfigBoolean(
-        configService,
-        'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
-      ) ?? false;
     this.defaultGigPosterUrl = getConfigString(
       configService,
       'DEFAULT_GIG_POSTER_URL',
@@ -261,7 +234,7 @@ export class GigCandidateService {
       postType: PostType.Intake,
       telegramPost: telegramIntakePost,
     });
-    await this.sendGigCandidateFeedbackBestEffort(saved, {
+    await this.gigCandidateFeedbackService.sendBestEffort(saved, {
       kind: 'submitted',
       subject: saved.gigDraft.title,
     });
@@ -376,7 +349,7 @@ export class GigCandidateService {
         saved,
         preparedPoster.posterFile,
       );
-    await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
+    await this.gigCandidateFeedbackService.sendBestEffort(withModerationPost, {
       kind: 'acceptedForModeration',
       subject: withModerationPost.gigDraft.title,
     });
@@ -515,10 +488,13 @@ export class GigCandidateService {
       withModerationPost,
     );
     if (didTransition) {
-      await this.sendGigCandidateFeedbackBestEffort(withModerationPost, {
-        kind: 'acceptedForModeration',
-        subject: withModerationPost.gigDraft.title,
-      });
+      await this.gigCandidateFeedbackService.sendBestEffort(
+        withModerationPost,
+        {
+          kind: 'acceptedForModeration',
+          subject: withModerationPost.gigDraft.title,
+        },
+      );
     }
 
     return withModerationPost;
@@ -555,7 +531,7 @@ export class GigCandidateService {
         updated,
         gigCandidate.status,
       );
-      await this.sendGigCandidateFeedbackBestEffort(updated, {
+      await this.gigCandidateFeedbackService.sendBestEffort(updated, {
         kind: 'rejected',
         subject: updated.gigDraft.title,
       });
@@ -817,7 +793,7 @@ export class GigCandidateService {
       );
     }
 
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
+    await this.gigCandidateFeedbackService.sendBestEffort(gigCandidate, {
       kind: 'acceptedWithPublicLink',
       publicId: gig.publicId,
       subject: gig.title,
@@ -1152,96 +1128,6 @@ export class GigCandidateService {
         e,
       );
     }
-  }
-
-  private async sendGigCandidateFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-    request: GigCandidateFeedbackRequest,
-  ): Promise<void> {
-    if (gigCandidate.source.type === GigSourceType.Provider) {
-      return;
-    }
-    if (gigCandidate.source.userId === undefined) {
-      return;
-    }
-
-    if (
-      gigCandidate.source.origin.type === GigSourceUserOriginType.Admin &&
-      !this.isAdminSubmissionFeedbackEnabled
-    ) {
-      return;
-    }
-
-    try {
-      const user = await this.userService.findActiveUserById(
-        gigCandidate.source.userId,
-      );
-      if (!user) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because no active User was found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-      if (
-        user.roles.includes(UserRole.Admin) &&
-        !this.isAdminSubmissionFeedbackEnabled
-      ) {
-        return;
-      }
-
-      const telegramIdentities = user.identities.filter(
-        (identity) =>
-          identity.type === 'messenger' &&
-          identity.messenger === Messenger.Telegram,
-      );
-      const telegramIdentity = telegramIdentities[0];
-      if (!telegramIdentity) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because no Telegram identity was found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-      if (telegramIdentities.length > 1) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because multiple Telegram identities were found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-
-      const subject =
-        request.subject?.trim() ||
-        this.getGigCandidateFeedbackTelegramMessageSubject(gigCandidate);
-
-      if (!subject) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because title and source message are missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
-        );
-        return;
-      }
-
-      const content: GigCandidateFeedbackMessageContent =
-        request.kind === 'acceptedWithPublicLink'
-          ? request
-          : { ...request, subject };
-      await this.telegramGigCandidateService.sendFeedback({
-        ...content,
-        chatId: telegramIdentity.externalUserId,
-      });
-    } catch (e) {
-      this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
-    }
-  }
-
-  private getGigCandidateFeedbackTelegramMessageSubject(
-    gigCandidate: GigCandidate,
-  ): GigCandidateFeedbackTelegramMessageSubject | undefined {
-    return isGigCandidateSourceMessengerUser(gigCandidate.source)
-      ? {
-          type: 'telegramMessage',
-          chatId: gigCandidate.source.origin.message.chatId,
-          messageId: gigCandidate.source.origin.message.messageId,
-        }
-      : undefined;
   }
 
   private async updateGigCandidateModerationPostBestEffort(
