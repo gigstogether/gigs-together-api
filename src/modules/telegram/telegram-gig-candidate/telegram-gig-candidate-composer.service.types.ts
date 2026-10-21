@@ -41,18 +41,41 @@ export interface ComposeRejectedGigCandidatePostEditParams {
   post: GigCandidatePost;
 }
 
-export interface ComposeGigCandidateChannelPostParams {
+interface ComposeGigCandidateChannelPostBaseParams {
   gigCandidate: GigCandidate;
   chatId: string;
-  channelPurpose: 'intake' | 'moderation';
   replyMarkup: TGInlineKeyboardMarkup;
 }
 
-export interface BuildGigCandidateCaptionParams {
+interface ComposeGigCandidateIntakeChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
+  channelPurpose: 'intake';
+}
+
+interface ComposeGigCandidateModerationChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
+  channelPurpose: 'moderation';
+}
+
+export type ComposeGigCandidateChannelPostParams =
+  | ComposeGigCandidateIntakeChannelPostParams
+  | ComposeGigCandidateModerationChannelPostParams;
+
+interface BuildGigCandidateCaptionBaseParams {
   gigCandidate: GigCandidate;
-  channelPurpose: 'intake' | 'moderation';
+}
+
+interface BuildGigCandidateIntakeCaptionParams extends BuildGigCandidateCaptionBaseParams {
+  channelPurpose: 'intake';
   moderationPost?: GigCandidatePost;
 }
+
+interface BuildGigCandidateModerationCaptionParams extends BuildGigCandidateCaptionBaseParams {
+  channelPurpose: 'moderation';
+  moderationPost?: never;
+}
+
+export type BuildGigCandidateCaptionParams =
+  | BuildGigCandidateIntakeCaptionParams
+  | BuildGigCandidateModerationCaptionParams;
 
 export interface BuildGigCandidateModerationReplyMarkupParams {
   gigCandidate: GigCandidate;

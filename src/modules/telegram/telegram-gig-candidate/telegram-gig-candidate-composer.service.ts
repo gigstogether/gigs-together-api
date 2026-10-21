@@ -2,7 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
-import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../../gig-candidate/types/gig-candidate.types';
 import { isGigCandidateSourceMessengerUser } from '../../gig-candidate/gig-candidate-source.guards';
 import {
   CallbackScope,
@@ -157,15 +160,20 @@ export class TelegramGigCandidateComposerService {
   composeRejectedPostEdit(
     params: ComposeRejectedGigCandidatePostEditParams,
   ): TelegramPostEditComposition {
-    const channelPurpose =
-      params.post.type === PostType.Intake ? 'intake' : 'moderation';
+    const captionParams: BuildGigCandidateCaptionParams =
+      params.post.type === PostType.Intake
+        ? {
+            gigCandidate: params.gigCandidate,
+            channelPurpose: 'intake',
+          }
+        : {
+            gigCandidate: params.gigCandidate,
+            channelPurpose: 'moderation',
+          };
 
     return this.composeExistingPostEdit({
       post: params.post,
-      text: this.buildCaption({
-        gigCandidate: params.gigCandidate,
-        channelPurpose,
-      }),
+      text: this.buildCaption(captionParams),
       replyMarkup: { inline_keyboard: [] },
     });
   }
@@ -264,10 +272,7 @@ export class TelegramGigCandidateComposerService {
     return {
       chat_id: params.chatId,
       photo: poster,
-      caption: this.buildCaption({
-        gigCandidate: params.gigCandidate,
-        channelPurpose: params.channelPurpose,
-      }),
+      caption: this.buildCaption(params),
       parse_mode: TGParseMode.HTML,
       reply_markup: params.replyMarkup,
     };
@@ -303,11 +308,8 @@ export class TelegramGigCandidateComposerService {
   }
 
   private buildCaption(params: BuildGigCandidateCaptionParams): string {
-    const {
-      gigCandidate: { gigDraft, source, status, id },
-      channelPurpose,
-      moderationPost,
-    } = params;
+    const { gigCandidate, channelPurpose } = params;
+    const { source, status } = gigCandidate;
 
     const isIntake = channelPurpose === 'intake';
 
@@ -320,61 +322,79 @@ export class TelegramGigCandidateComposerService {
     const originalMessage = isMessengerSource
       ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
       : undefined;
-
-    let body: string;
-    if (isIntake && originalMessage !== undefined) {
-      body = `${originalMessage}${sourceLabel}`;
-    } else {
-      const title = gigDraft.title?.trim();
-      const titleLine = title
-        ? this.buildTitleLine(status, title, channelPurpose)
-        : undefined;
-      const dates =
-        gigDraft.date === undefined
-          ? MISSING_CAPTION_FIELD_PLACEHOLDER
-          : formatTelegramGigDates(gigDraft.date, gigDraft.endDate);
-      const gigCaption = this.telegramTemplates.render(
-        TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
-        {
-          title: getCaptionFieldValue(titleLine),
-          dates,
-          venue: getCaptionFieldValue(gigDraft.venue),
-          ticketsUrl: getCaptionFieldValue(gigDraft.ticketsUrl),
-        },
-      );
-      const originalMessageSection =
-        originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
-      body = `${gigCaption}${originalMessageSection}${sourceLabel}`;
-    }
-    const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(id);
-
-    const links = [
-      this.telegramTemplates.render(
-        TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin,
-        { url: adminGigCandidateUrl },
-      ),
-    ];
-    if (isIntake && moderationPost !== undefined) {
-      const moderationPostUrl = this.telegramComposer.buildPostUrl({
-        chatId: moderationPost.chatId,
-        messageId: moderationPost.id,
-      });
-      if (moderationPostUrl === undefined) {
-        throw new BadRequestException(
-          'Cannot compose GigCandidate intake post: moderation post URL is unavailable.',
-        );
-      }
-      links.push(
-        this.telegramTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost,
-          { url: moderationPostUrl },
-        ),
-      );
-    }
+    const originalMessageSection =
+      originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
+    const content =
+      isIntake && originalMessage !== undefined
+        ? `${originalMessage}${sourceLabel}`
+        : `${this.renderGigDraftCaption(gigCandidate, channelPurpose)}${originalMessageSection}${sourceLabel}`;
+    const actionLinks = this.buildActionLinks(params);
 
     const isNew = status === GigCandidateStatus.New;
-    const shouldAddTrailingSpace = !isIntake || isNew;
-    return `${body}\n${links.join(' | ')}${shouldAddTrailingSpace ? '\n.' : ''}`;
+    const shouldPreserveTrailingSpace = !isIntake || isNew;
+    return `${content}\n${actionLinks.join(' | ')}${shouldPreserveTrailingSpace ? '\n.' : ''}`;
+  }
+
+  private buildActionLinks(params: BuildGigCandidateCaptionParams): string[] {
+    const adminGigCandidateUrl = this.buildAdminGigCandidateUrl(
+      params.gigCandidate.id,
+    );
+    const openAdminLink = this.telegramTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin,
+      { url: adminGigCandidateUrl },
+    );
+
+    if (
+      params.channelPurpose !== 'intake' ||
+      params.moderationPost === undefined
+    ) {
+      return [openAdminLink];
+    }
+
+    return [openAdminLink, this.buildModerationPostLink(params.moderationPost)];
+  }
+
+  private buildModerationPostLink(moderationPost: GigCandidatePost): string {
+    const moderationPostUrl = this.telegramComposer.buildPostUrl({
+      chatId: moderationPost.chatId,
+      messageId: moderationPost.id,
+    });
+    if (moderationPostUrl === undefined) {
+      throw new BadRequestException(
+        'Cannot compose GigCandidate intake post: moderation post URL is unavailable.',
+      );
+    }
+
+    return this.telegramTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkSeeModerationPost,
+      { url: moderationPostUrl },
+    );
+  }
+
+  private renderGigDraftCaption(
+    gigCandidate: GigCandidate,
+    channelPurpose: 'intake' | 'moderation',
+  ): string {
+    const { gigDraft, status } = gigCandidate;
+
+    const title = gigDraft.title?.trim();
+    const titleLine = title
+      ? this.buildTitleLine(status, title, channelPurpose)
+      : undefined;
+    const dates =
+      gigDraft.date === undefined
+        ? MISSING_CAPTION_FIELD_PLACEHOLDER
+        : formatTelegramGigDates(gigDraft.date, gigDraft.endDate);
+
+    return this.telegramTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
+      {
+        title: getCaptionFieldValue(titleLine),
+        dates,
+        venue: getCaptionFieldValue(gigDraft.venue),
+        ticketsUrl: getCaptionFieldValue(gigDraft.ticketsUrl),
+      },
+    );
   }
 
   private buildTitleLine(
