@@ -108,24 +108,38 @@ export class TelegramGigCandidateComposerService {
   composeFeedbackMessage(
     params: ComposeGigCandidateFeedbackMessageParams,
   ): TGSendMessage {
+    const subjectValue =
+      typeof params.subject === 'string'
+        ? this.escapeTelegramHtmlText(params.subject)
+        : this.telegramComposer.buildPostUrl(params.subject);
+    if (subjectValue === undefined) {
+      throw new BadRequestException(
+        'Cannot compose GigCandidate feedback: source message URL is unavailable.',
+      );
+    }
+    const subject =
+      typeof params.subject === 'string'
+        ? subjectValue
+        : `<a href="${subjectValue}">${subjectValue}</a>`;
+
     let text: string;
     switch (params.kind) {
       case 'submitted':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
-          { title: this.escapeTelegramHtmlText(params.subject) },
+          { title: subject },
         );
         break;
       case 'acceptedForModeration':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
-          { title: this.escapeTelegramHtmlText(params.subject) },
+          { title: subject },
         );
         break;
       case 'rejected':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
-          { title: this.escapeTelegramHtmlText(params.subject) },
+          { title: subject },
         );
         break;
       case 'acceptedWithPublicLink': {
@@ -142,7 +156,7 @@ export class TelegramGigCandidateComposerService {
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
           {
             gigUrl,
-            title: this.escapeTelegramHtmlText(params.subject),
+            title: subject,
           },
         );
         break;

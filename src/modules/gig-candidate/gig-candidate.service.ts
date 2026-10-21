@@ -13,7 +13,10 @@ import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
-import type { GigCandidateFeedbackMessageWithPublicLinkContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
+import {
+  GigCandidateFeedbackMessageContent,
+  GigCandidateFeedbackTelegramMessageSubject,
+} from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
@@ -70,9 +73,15 @@ interface GigCandidateLifecycleFeedbackRequest {
   subject?: string;
 }
 
+interface GigCandidateFeedbackWithPublicLinkRequest {
+  kind: 'acceptedWithPublicLink';
+  publicId: string;
+  subject: string;
+}
+
 type GigCandidateFeedbackRequest =
   | GigCandidateLifecycleFeedbackRequest
-  | GigCandidateFeedbackMessageWithPublicLinkContent;
+  | GigCandidateFeedbackWithPublicLinkRequest;
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -1201,25 +1210,38 @@ export class GigCandidateService {
 
       const subject =
         request.subject?.trim() ||
-        (isGigCandidateSourceMessengerUser(gigCandidate.source)
-          ? gigCandidate.source.originalText.trim()
-          : undefined);
+        this.getGigCandidateFeedbackTelegramMessageSubject(gigCandidate);
 
       if (!subject) {
         this.logger.warn(
-          `GigCandidate feedback skipped because title and original text are missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
+          `GigCandidate feedback skipped because title and source message are missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
         );
         return;
       }
 
+      const content: GigCandidateFeedbackMessageContent =
+        request.kind === 'acceptedWithPublicLink'
+          ? request
+          : { ...request, subject };
       await this.telegramGigCandidateService.sendFeedback({
-        ...request,
-        subject,
+        ...content,
         chatId: telegramIdentity.externalUserId,
       });
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
     }
+  }
+
+  private getGigCandidateFeedbackTelegramMessageSubject(
+    gigCandidate: GigCandidate,
+  ): GigCandidateFeedbackTelegramMessageSubject | undefined {
+    return isGigCandidateSourceMessengerUser(gigCandidate.source)
+      ? {
+          type: 'telegramMessage',
+          chatId: gigCandidate.source.origin.message.chatId,
+          messageId: gigCandidate.source.origin.message.messageId,
+        }
+      : undefined;
   }
 
   private async updateGigCandidateModerationPostBestEffort(

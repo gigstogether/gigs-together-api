@@ -5,9 +5,18 @@ import type {
 } from '../../gig-candidate/types/gig-candidate.types';
 import type { TGChatId, TGInlineKeyboardMarkup } from '../types/message.types';
 
+export interface GigCandidateFeedbackTelegramMessageSubject {
+  type: 'telegramMessage';
+  chatId: number;
+  messageId: number;
+}
+
+type GigCandidateFeedbackSubject =
+  string | GigCandidateFeedbackTelegramMessageSubject;
+
 export interface GigCandidateLifecycleFeedbackMessageContent {
   kind: 'submitted' | 'acceptedForModeration' | 'rejected';
-  subject: string;
+  subject: GigCandidateFeedbackSubject;
 }
 
 export interface GigCandidateFeedbackMessageWithPublicLinkContent {

@@ -1009,16 +1009,20 @@ describe('TelegramComposerService', () => {
       });
     });
 
-    it('should compose rejected feedback with the Gig title', () => {
+    it('should compose rejected feedback with the source message link', () => {
       expect(
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
-          subject: 'Band & Friends',
+          subject: {
+            type: 'telegramMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
         }),
       ).toEqual({
         chat_id: '42',
-        text: 'Suggestion Band &amp; Friends rejected',
+        text: 'Suggestion <a href="https://t.me/c/123/42">https://t.me/c/123/42</a> rejected',
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: false,
       });

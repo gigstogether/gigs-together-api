@@ -967,7 +967,7 @@ describe('GigCandidateService', () => {
       expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
-    it('should skip accepted-for-moderation feedback when the title and original message are missing', async () => {
+    it('should skip accepted-for-moderation feedback when the title and source message are missing', async () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
@@ -1954,7 +1954,7 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
-    it('should use the original message for known chat user feedback when the title is missing', async () => {
+    it('should use the source message for known chat user feedback when the title is missing', async () => {
       const intakePost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -1999,7 +1999,11 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'rejected',
-          subject: 'Radiohead in Barcelona',
+          subject: {
+            type: 'telegramMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
           chatId: '42',
         },
       );
