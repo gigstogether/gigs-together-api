@@ -24,6 +24,10 @@ import type {
 import { TGInputMediaType, TGParseMode } from '../types/message.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import { PostEditKind } from '../telegram-composer.service.types';
+import {
+  TELEGRAM_DATE_LOCALE,
+  TELEGRAM_GIG_DATE_FORMAT,
+} from '../telegram.constants';
 import type {
   BuildGigCandidateCaptionParams,
   BuildGigCandidateModerationReplyMarkupParams,
@@ -37,13 +41,6 @@ import type {
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 
 const DIVIDER = '\n\n................................\n';
-const DATE_LOCALE = 'en-GB';
-const DATE_FORMAT: Intl.DateTimeFormatOptions = {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  weekday: 'short',
-};
 const MISSING_CAPTION_FIELD_PLACEHOLDER = '-';
 
 @Injectable()
@@ -327,7 +324,10 @@ export class TelegramGigCandidateComposerService {
         : undefined;
       let dates = MISSING_CAPTION_FIELD_PLACEHOLDER;
       if (gigDraft.date !== undefined) {
-        const dateFormatter = new Intl.DateTimeFormat(DATE_LOCALE, DATE_FORMAT);
+        const dateFormatter = new Intl.DateTimeFormat(
+          TELEGRAM_DATE_LOCALE,
+          TELEGRAM_GIG_DATE_FORMAT,
+        );
         const date = dateFormatter.format(new Date(gigDraft.date));
         const endDate = gigDraft.endDate
           ? dateFormatter.format(new Date(gigDraft.endDate))
