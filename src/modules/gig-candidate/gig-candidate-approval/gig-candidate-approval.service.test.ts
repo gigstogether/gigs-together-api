@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { CalendarService } from '../../calendar/calendar.service';
-import { FeedRevalidationService } from '../../feed-revalidation/feed-revalidation.service';
+import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { GigCandidateFeedbackService } from '../gig-candidate-feedback.service';
@@ -43,7 +43,7 @@ describe('GigCandidateApprovalService', () => {
           useValue: gigCandidateApprovalRepositoryMock,
         },
         { provide: GigService, useValue: {} },
-        { provide: FeedRevalidationService, useValue: {} },
+        { provide: GigFeedRevalidationService, useValue: {} },
         { provide: CalendarService, useValue: {} },
         { provide: TelegramGigService, useValue: {} },
         { provide: GigCandidateFeedbackService, useValue: {} },

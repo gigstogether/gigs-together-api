@@ -5,10 +5,10 @@ import {
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { FeedRevalidationService } from './feed-revalidation.service';
+import { GigFeedRevalidationService } from './gig-feed-revalidation.service';
 
-describe('FeedRevalidationService', () => {
-  let service: FeedRevalidationService;
+describe('GigFeedRevalidationService', () => {
+  let service: GigFeedRevalidationService;
   const fetchMock = vi.fn();
 
   beforeEach(async () => {
@@ -18,10 +18,12 @@ describe('FeedRevalidationService', () => {
     vi.stubEnv('FEED_REVALIDATE_SECRET', '');
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [FeedRevalidationService],
+      providers: [GigFeedRevalidationService],
     }).compile();
 
-    service = module.get<FeedRevalidationService>(FeedRevalidationService);
+    service = module.get<GigFeedRevalidationService>(
+      GigFeedRevalidationService,
+    );
   });
 
   afterEach(() => {
@@ -29,28 +31,28 @@ describe('FeedRevalidationService', () => {
     vi.unstubAllEnvs();
   });
 
-  describe('buildFeedPath', () => {
+  describe('buildGigFeedPath', () => {
     it('should build encoded feed path when country and city are provided', () => {
-      expect(service.buildFeedPath({ country: 'ES', city: 'Barcelona' })).toBe(
-        '/feed/es/barcelona',
-      );
+      expect(
+        service.buildGigFeedPath({ country: 'ES', city: 'Barcelona' }),
+      ).toBe('/feed/es/barcelona');
     });
 
     it('should throw when country or city is missing', () => {
       expect(() =>
-        service.buildFeedPath({ country: '  ', city: 'barcelona' }),
-      ).toThrow('Missing country/city for feed path');
+        service.buildGigFeedPath({ country: '  ', city: 'barcelona' }),
+      ).toThrow('Missing country/city for Gig feed path');
     });
   });
 
-  describe('revalidateFeed', () => {
+  describe('revalidateGigFeed', () => {
     it('should skip request when revalidation env is not configured', async () => {
-      await service.revalidateFeed({ country: 'ES', city: 'barcelona' });
+      await service.revalidateGigFeed({ country: 'ES', city: 'barcelona' });
 
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('should POST feed revalidate request when env is configured', async () => {
+    it('should POST Gig feed revalidation request when env is configured', async () => {
       vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
       vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
       fetchMock.mockResolvedValue({
@@ -59,7 +61,7 @@ describe('FeedRevalidationService', () => {
         text: () => Promise.resolve(''),
       });
 
-      await service.revalidateFeed({ country: 'ES', city: 'barcelona' });
+      await service.revalidateGigFeed({ country: 'ES', city: 'barcelona' });
 
       expect(fetchMock).toHaveBeenCalledWith(
         'https://gigs.example/api/revalidate/feed',
@@ -78,7 +80,7 @@ describe('FeedRevalidationService', () => {
       vi.stubEnv('APP_BASE_URL', 'gigs.example');
       vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
 
-      await service.revalidateFeed({ country: 'ES', city: 'barcelona' });
+      await service.revalidateGigFeed({ country: 'ES', city: 'barcelona' });
 
       expect(fetchMock).not.toHaveBeenCalled();
     });
@@ -92,7 +94,7 @@ describe('FeedRevalidationService', () => {
         text: () => Promise.resolve(''),
       });
 
-      await service.revalidateFeed({});
+      await service.revalidateGigFeed({});
 
       expect(fetchMock).toHaveBeenCalledWith(
         'https://gigs.example/api/revalidate/feed',
@@ -108,9 +110,9 @@ describe('FeedRevalidationService', () => {
     });
   });
 
-  describe('revalidateFeedOrThrow', () => {
+  describe('revalidateGigFeedOrThrow', () => {
     it('should reject when revalidation env is not configured', async () => {
-      await expect(service.revalidateFeedOrThrow({})).rejects.toBeInstanceOf(
+      await expect(service.revalidateGigFeedOrThrow({})).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
     });
@@ -121,7 +123,10 @@ describe('FeedRevalidationService', () => {
       fetchMock.mockRejectedValue(new Error('Network unavailable'));
 
       await expect(
-        service.revalidateFeedOrThrow({ country: 'ES', city: 'barcelona' }),
+        service.revalidateGigFeedOrThrow({
+          country: 'ES',
+          city: 'barcelona',
+        }),
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
 
@@ -136,7 +141,10 @@ describe('FeedRevalidationService', () => {
       });
 
       await expect(
-        service.revalidateFeedOrThrow({ country: 'ES', city: 'barcelona' }),
+        service.revalidateGigFeedOrThrow({
+          country: 'ES',
+          city: 'barcelona',
+        }),
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
   });

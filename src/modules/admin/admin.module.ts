@@ -23,7 +23,6 @@ import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.fil
 import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-approval-validation.filter';
 import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
 import { UserModule } from '../user/user.module';
-import { FeedRevalidationModule } from '../feed-revalidation/feed-revalidation.module';
 
 @Module({
   imports: [
@@ -35,7 +34,6 @@ import { FeedRevalidationModule } from '../feed-revalidation/feed-revalidation.m
     TelegramModule,
     GigCandidateModule,
     UserModule,
-    FeedRevalidationModule,
   ],
   controllers: [AdminController, AdminGigCandidateController],
   providers: [

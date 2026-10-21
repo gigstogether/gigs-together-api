@@ -8,7 +8,7 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
-import { FeedRevalidationService } from '../feed-revalidation/feed-revalidation.service';
+import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { GigPosterService } from './gig.poster.service';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
@@ -75,7 +75,7 @@ describe('GigService', () => {
   const sendMainPost = vi.fn();
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
-  const revalidateFeed = vi.fn();
+  const revalidateGigFeed = vi.fn();
   const getPublicFileUrl = vi.fn();
 
   async function createService(
@@ -95,7 +95,10 @@ describe('GigService', () => {
           },
         },
         { provide: BucketService, useValue: { getPublicFileUrl } },
-        { provide: FeedRevalidationService, useValue: { revalidateFeed } },
+        {
+          provide: GigFeedRevalidationService,
+          useValue: { revalidateGigFeed },
+        },
         { provide: ConfigService, useValue: configService },
       ],
     }).compile();
@@ -316,7 +319,7 @@ describe('GigService', () => {
           posterFile: undefined,
         }),
       ).resolves.toEqual({ publicId: updated.publicId });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });
@@ -638,7 +641,7 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });
@@ -665,7 +668,7 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });

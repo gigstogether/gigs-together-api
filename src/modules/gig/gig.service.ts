@@ -36,7 +36,7 @@ import type {
   GigRepository,
   UpdateGigByPublicIdRecordParams,
 } from './repositories/gig.repository';
-import { FeedRevalidationService } from '../feed-revalidation/feed-revalidation.service';
+import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import type {
@@ -155,7 +155,7 @@ export class GigService {
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
     private readonly telegramGigService: TelegramGigService,
-    private readonly feedRevalidationService: FeedRevalidationService,
+    private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     configService: ConfigService,
   ) {
     this.isExternalPosterUrlFallbackEnabled =
@@ -727,7 +727,7 @@ export class GigService {
   }
 
   private revalidateGigFeed(gig: PlainGig): Promise<void> {
-    return this.feedRevalidationService.revalidateFeed({
+    return this.gigFeedRevalidationService.revalidateGigFeed({
       country: gig.country,
       city: gig.city,
     });

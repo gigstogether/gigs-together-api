@@ -3,7 +3,7 @@ import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { formatErrorMessage } from '../../../shared/utils/logging';
 import { CalendarService } from '../../calendar/calendar.service';
-import { FeedRevalidationService } from '../../feed-revalidation/feed-revalidation.service';
+import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
@@ -47,7 +47,7 @@ export class GigCandidateApprovalService {
     @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigService: GigService,
-    private readonly feedRevalidationService: FeedRevalidationService,
+    private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly calendarService: CalendarService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
@@ -160,12 +160,17 @@ export class GigCandidateApprovalService {
   ): Promise<void> {
     const { gig, gigCandidate, moderationPost } = result;
     try {
-      await this.feedRevalidationService.revalidateFeedOrThrow({
+      await this.gigFeedRevalidationService.revalidateGigFeedOrThrow({
         country: gig.country,
         city: gig.city,
       });
     } catch (e) {
-      this.logIntegrationFailure('revalidateFeed', gigCandidate.id, gig.id, e);
+      this.logIntegrationFailure(
+        'revalidateGigFeed',
+        gigCandidate.id,
+        gig.id,
+        e,
+      );
     }
 
     try {
