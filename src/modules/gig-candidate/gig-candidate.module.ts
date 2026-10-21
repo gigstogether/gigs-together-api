@@ -16,6 +16,7 @@ import { GigCandidate, GigCandidateSchema } from './gig-candidate.schema';
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
+import { FeedRevalidationModule } from '../feed-revalidation/feed-revalidation.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candid
     UserModule,
     AuthModule,
     AiModule,
+    FeedRevalidationModule,
   ],
   controllers: [GigCandidateController],
   providers: [

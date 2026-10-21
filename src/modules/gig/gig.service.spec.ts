@@ -8,7 +8,7 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
-import { FeedRevalidateService } from './feed/feed-revalidate.service';
+import { FeedRevalidationService } from '../feed-revalidation/feed-revalidation.service';
 import { GigPosterService } from './gig.poster.service';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
@@ -95,7 +95,7 @@ describe('GigService', () => {
           },
         },
         { provide: BucketService, useValue: { getPublicFileUrl } },
-        { provide: FeedRevalidateService, useValue: { revalidateFeed } },
+        { provide: FeedRevalidationService, useValue: { revalidateFeed } },
         { provide: ConfigService, useValue: configService },
       ],
     }).compile();

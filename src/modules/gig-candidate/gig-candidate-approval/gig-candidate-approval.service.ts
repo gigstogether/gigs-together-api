@@ -3,7 +3,7 @@ import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { formatErrorMessage } from '../../../shared/utils/logging';
 import { CalendarService } from '../../calendar/calendar.service';
-import { FeedRevalidateService } from '../../gig/feed/feed-revalidate.service';
+import { FeedRevalidationService } from '../../feed-revalidation/feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
@@ -47,7 +47,7 @@ export class GigCandidateApprovalService {
     @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigService: GigService,
-    private readonly feedRevalidateService: FeedRevalidateService,
+    private readonly feedRevalidationService: FeedRevalidationService,
     private readonly calendarService: CalendarService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
@@ -160,7 +160,7 @@ export class GigCandidateApprovalService {
   ): Promise<void> {
     const { gig, gigCandidate, moderationPost } = result;
     try {
-      await this.feedRevalidateService.revalidateFeedOrThrow({
+      await this.feedRevalidationService.revalidateFeedOrThrow({
         country: gig.country,
         city: gig.city,
       });

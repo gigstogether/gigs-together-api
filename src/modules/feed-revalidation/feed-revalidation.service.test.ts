@@ -5,10 +5,10 @@ import {
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { FeedRevalidateService } from './feed-revalidate.service';
+import { FeedRevalidationService } from './feed-revalidation.service';
 
-describe('FeedRevalidateService', () => {
-  let service: FeedRevalidateService;
+describe('FeedRevalidationService', () => {
+  let service: FeedRevalidationService;
   const fetchMock = vi.fn();
 
   beforeEach(async () => {
@@ -18,10 +18,10 @@ describe('FeedRevalidateService', () => {
     vi.stubEnv('FEED_REVALIDATE_SECRET', '');
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [FeedRevalidateService],
+      providers: [FeedRevalidationService],
     }).compile();
 
-    service = module.get<FeedRevalidateService>(FeedRevalidateService);
+    service = module.get<FeedRevalidationService>(FeedRevalidationService);
   });
 
   afterEach(() => {

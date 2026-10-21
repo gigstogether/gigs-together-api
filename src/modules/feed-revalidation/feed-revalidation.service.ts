@@ -6,24 +6,24 @@ import {
 } from '@nestjs/common';
 
 interface BuildFeedPathParams {
-  readonly country: string;
-  readonly city: string;
+  country: string;
+  city: string;
 }
 
 interface RevalidateFeedParams {
-  readonly country?: string;
-  readonly city?: string;
+  country?: string;
+  city?: string;
 }
 
 interface PostFeedRevalidateRequestParams {
-  readonly url: string;
-  readonly secret: string;
-  readonly path: string | undefined;
+  url: string;
+  secret: string;
+  path: string | undefined;
 }
 
 @Injectable()
-export class FeedRevalidateService {
-  private readonly logger = new Logger(FeedRevalidateService.name);
+export class FeedRevalidationService {
+  private readonly logger = new Logger(FeedRevalidationService.name);
 
   async revalidateFeed(params: RevalidateFeedParams): Promise<void> {
     try {

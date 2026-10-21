@@ -8,7 +8,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
-import type { FeedRevalidateService } from '../gig/feed/feed-revalidate.service';
+import type { FeedRevalidationService } from '../feed-revalidation/feed-revalidation.service';
 import type { GigService } from '../gig/gig.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
@@ -101,9 +101,9 @@ describe('AdminController', () => {
     revalidateAll: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
 
-  const feedRevalidateService = {
+  const feedRevalidationService = {
     revalidateFeedOrThrow: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<FeedRevalidateService, 'revalidateFeedOrThrow'>;
+  } satisfies Pick<FeedRevalidationService, 'revalidateFeedOrThrow'>;
 
   const digestService = {
     createPost: vi.fn().mockResolvedValue(undefined),
@@ -116,7 +116,7 @@ describe('AdminController', () => {
     translationService as unknown as TranslationService,
     translationRevalidateService as unknown as TranslationRevalidateService,
     gigService as unknown as GigService,
-    feedRevalidateService as unknown as FeedRevalidateService,
+    feedRevalidationService as unknown as FeedRevalidationService,
     digestService as unknown as DigestService,
   );
 
@@ -237,16 +237,16 @@ describe('AdminController', () => {
     it('should strictly revalidate all feed paths via feed revalidate service', async () => {
       await expect(controller.revalidateFeed()).resolves.toBeUndefined();
 
-      expect(feedRevalidateService.revalidateFeedOrThrow).toHaveBeenCalledWith(
-        {},
-      );
+      expect(
+        feedRevalidationService.revalidateFeedOrThrow,
+      ).toHaveBeenCalledWith({});
     });
 
     it('should propagate manual feed revalidation failure', async () => {
       const e = new ServiceUnavailableException(
         'Feed revalidation service is unavailable',
       );
-      feedRevalidateService.revalidateFeedOrThrow.mockRejectedValueOnce(e);
+      feedRevalidationService.revalidateFeedOrThrow.mockRejectedValueOnce(e);
 
       await expect(controller.revalidateFeed()).rejects.toBe(e);
     });

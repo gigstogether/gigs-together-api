@@ -5,7 +5,7 @@ import type {
   DigestService,
   GetPreviousDigestCronFireDateParams,
 } from './digest.service';
-import { GigFeedService } from '../gig/feed/gig-feed.service';
+import { GigFeedService } from '../gig/gig-feed/gig-feed.service';
 import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
 import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
 

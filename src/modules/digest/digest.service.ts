@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CronTime } from 'cron';
 import type { PlainGig } from '../gig/types/gig.types';
-import { GigFeedService } from '../gig/feed/gig-feed.service';
+import { GigFeedService } from '../gig/gig-feed/gig-feed.service';
 import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
