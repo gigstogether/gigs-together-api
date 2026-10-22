@@ -17,7 +17,7 @@ import type {
 } from './types/gig.types';
 import { getConfigBoolean } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
-import { GigPosterService } from './gig.poster.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
   EditGigPostsParams,

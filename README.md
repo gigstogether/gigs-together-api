@@ -44,8 +44,10 @@ src/
   modules/
     gig/                   gig persistence, public API, and Gig feed ownership
       gig-feed/            Gig feed queries, response mapping, and frontend cache revalidation
+      gig-poster/          Gig poster validation, download, and storage
     gig-candidate/         submission and moderation workflow
       gig-candidate-approval/  candidate-to-Gig approval transaction and persistence mapping
+      gig-candidate-poster/    candidate poster selection and defaulting
     telegram-updates/      inbound Telegram webhook update handling
     telegram/              Telegram Bot API client, outbound messaging, and message composition
     auth/                  JWT session, HttpOnly cookies, auth and authorization services

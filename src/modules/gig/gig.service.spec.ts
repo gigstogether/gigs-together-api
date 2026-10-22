@@ -9,7 +9,7 @@ import { BucketService } from '../bucket/bucket.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
-import { GigPosterService } from './gig.poster.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 import { GigService } from './gig.service';

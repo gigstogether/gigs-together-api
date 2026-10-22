@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { GigPosterService } from '../gig/gig.poster.service';
+import { GigPosterService } from '../gig/gig-poster/gig-poster.service';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
@@ -30,6 +30,7 @@ import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candid
 import type { GigApprovalResult } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
+import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
@@ -119,6 +120,7 @@ describe('GigCandidateService', () => {
         GigCandidateService,
         GigCandidateApprovalService,
         GigCandidateFeedbackService,
+        GigCandidatePosterService,
         {
           provide: GIG_CANDIDATE_REPOSITORY,
           useValue: gigCandidateRepositoryMock,

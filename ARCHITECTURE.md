@@ -55,7 +55,7 @@ Responsibilities:
 - owns gig persistence and public gig APIs
 - owns Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
 - exposes `GigService`, `GigFeedService`, and `GigFeedRevalidationService`
-- contains `GigPosterService` for poster handling
+- owns Gig poster validation, download, and storage through `GigPosterService` under `gig/gig-poster`
 
 Dependencies:
 
@@ -75,6 +75,7 @@ Main files:
 - `src/modules/gig/gig-feed/gig-feed.service.ts`
 - `src/modules/gig/gig-feed/gig-feed.mapper.ts`
 - `src/modules/gig/gig-feed/gig-feed-revalidation.service.ts`
+- `src/modules/gig/gig-poster/gig-poster.service.ts`
 
 #### `GigCandidateModule`
 
@@ -82,6 +83,7 @@ Responsibilities:
 
 - owns GigCandidate submission and moderation workflows
 - keeps candidate lifecycle feedback in `GigCandidateFeedbackService`
+- keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file validation and storage to `GigPosterService`
 - keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
 - uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
 
@@ -100,6 +102,7 @@ Main files:
 - `src/modules/gig-candidate/gig-candidate.module.ts`
 - `src/modules/gig-candidate/gig-candidate.service.ts`
 - `src/modules/gig-candidate/gig-candidate-feedback.service.ts`
+- `src/modules/gig-candidate/gig-candidate-poster/gig-candidate-poster.service.ts`
 - `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
 - `src/modules/gig-candidate/repositories/gig-candidate-approval/`
 

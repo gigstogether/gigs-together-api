@@ -5,7 +5,7 @@ import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
 import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
-import { GigPosterService } from './gig.poster.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { GIG_REPOSITORY } from './repositories/gig.repository';

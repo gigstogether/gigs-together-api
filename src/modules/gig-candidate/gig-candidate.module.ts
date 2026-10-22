@@ -16,6 +16,7 @@ import { GigCandidate, GigCandidateSchema } from './gig-candidate.schema';
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
+import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candid
   providers: [
     GigCandidateService,
     GigCandidateFeedbackService,
+    GigCandidatePosterService,
     GigCandidateApprovalService,
     GigCandidateBodyPipe,
     {

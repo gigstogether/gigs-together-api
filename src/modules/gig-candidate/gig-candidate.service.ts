@@ -6,9 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { User } from '../auth/types/user.types';
-import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
@@ -18,7 +16,6 @@ import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { getConfigString } from '../../shared/utils/env';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
@@ -45,6 +42,7 @@ import {
   getGigCandidateTransitionPolicy,
 } from './gig-candidate-state-machine';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
+import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -117,20 +115,6 @@ interface HandleGigCandidateSubmitParams {
   posterFile: GigPosterFile | undefined;
 }
 
-interface PrepareGigCandidateDraftPosterParams {
-  gigCandidateId: string;
-  gigDraft: Partial<GigCandidate['gigDraft']>;
-  posterUrl?: string;
-  posterFile?: GigPosterFile;
-  existingPoster?: GigCandidate['gigDraft']['poster'];
-  shouldUseDefaultPoster: boolean;
-}
-
-interface PreparedGigCandidateDraftPoster {
-  gigDraft: Partial<GigCandidate['gigDraft']>;
-  posterFile?: PreparedGigPosterFile;
-}
-
 interface CreatedGigCandidate {
   gigCandidate: GigCandidate;
   posterFile?: PreparedGigPosterFile;
@@ -155,22 +139,14 @@ interface StoreGigCandidateTelegramPostParams {
 
 @Injectable()
 export class GigCandidateService {
-  private readonly defaultGigPosterUrl: string | undefined;
-
   constructor(
     @Inject(GIG_CANDIDATE_REPOSITORY)
     private readonly gigCandidateRepository: GigCandidateRepository,
-    private readonly gigPosterService: GigPosterService,
+    private readonly gigCandidatePosterService: GigCandidatePosterService,
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
-    configService: ConfigService,
-  ) {
-    this.defaultGigPosterUrl = getConfigString(
-      configService,
-      'DEFAULT_GIG_POSTER_URL',
-    );
-  }
+  ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
 
@@ -290,13 +266,14 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId,
-      gigDraft: params.gigDraft,
-      posterUrl: params.posterUrl,
-      posterFile: params.posterFile,
-      shouldUseDefaultPoster: true,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId,
+        gigDraft: params.gigDraft,
+        posterUrl: params.posterUrl,
+        posterFile: params.posterFile,
+        shouldUseDefaultPoster: true,
+      });
 
     const saved = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId,
@@ -344,14 +321,15 @@ export class GigCandidateService {
       command,
     );
 
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId: currentGigCandidate.id,
-      gigDraft: params.gigDraft,
-      posterUrl: params.posterUrl,
-      posterFile: params.posterFile,
-      existingPoster: currentGigCandidate.gigDraft.poster,
-      shouldUseDefaultPoster: false,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId: currentGigCandidate.id,
+        gigDraft: params.gigDraft,
+        posterUrl: params.posterUrl,
+        posterFile: params.posterFile,
+        existingPoster: currentGigCandidate.gigDraft.poster,
+        shouldUseDefaultPoster: false,
+      });
 
     return this.updateGigCandidateDraft({
       gigCandidateId: params.gigCandidateId,
@@ -400,12 +378,13 @@ export class GigCandidateService {
         command,
       );
 
-      const preparedPoster = await this.prepareGigCandidateDraftPoster({
-        gigCandidateId: currentGigCandidate.id,
-        gigDraft: currentGigCandidate.gigDraft,
-        existingPoster: currentGigCandidate.gigDraft.poster,
-        shouldUseDefaultPoster: true,
-      });
+      const preparedPoster =
+        await this.gigCandidatePosterService.prepareDraftPoster({
+          gigCandidateId: currentGigCandidate.id,
+          gigDraft: currentGigCandidate.gigDraft,
+          existingPoster: currentGigCandidate.gigDraft.poster,
+          shouldUseDefaultPoster: true,
+        });
       const moderationPoster = preparedPoster.gigDraft.poster;
       if (moderationPoster === undefined) {
         throw new InternalServerErrorException(
@@ -592,13 +571,14 @@ export class GigCandidateService {
       gigDraft.ticketsUrl = gig.ticketsUrl;
     }
 
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId: id,
-      gigDraft,
-      posterUrl: gig.posterUrl,
-      posterFile,
-      shouldUseDefaultPoster: false,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId: id,
+        gigDraft,
+        posterUrl: gig.posterUrl,
+        posterFile,
+        shouldUseDefaultPoster: false,
+      });
 
     const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
@@ -700,56 +680,6 @@ export class GigCandidateService {
       throw new BadRequestException(`${field} must be a valid date`);
     }
     return ms;
-  }
-
-  private async prepareGigCandidateDraftPoster(
-    params: PrepareGigCandidateDraftPosterParams,
-  ): Promise<PreparedGigCandidateDraftPoster> {
-    const gigDraft = { ...params.gigDraft };
-    delete gigDraft.poster;
-
-    const explicitPosterUrl = params.posterUrl?.trim() || undefined;
-    let posterUrl = explicitPosterUrl;
-    if (
-      posterUrl === undefined &&
-      params.posterFile === undefined &&
-      params.existingPoster === undefined &&
-      params.shouldUseDefaultPoster
-    ) {
-      posterUrl = this.defaultGigPosterUrl;
-    }
-    let poster = params.existingPoster;
-    let preparedPosterFile: PreparedGigPosterFile | undefined;
-    if (params.posterFile !== undefined || posterUrl !== undefined) {
-      const posterUploadResult = await this.gigPosterService.upload({
-        url: posterUrl,
-        file: params.posterFile,
-        context: {
-          date: gigDraft.date ?? new Date(),
-          city: gigDraft.city ?? 'unknown',
-          country: gigDraft.country ?? 'unknown',
-          publicId: `gc-${params.gigCandidateId}`,
-        },
-      });
-      poster = posterUploadResult?.storedPoster;
-      preparedPosterFile = posterUploadResult?.posterFile;
-    }
-
-    if (poster !== undefined) {
-      gigDraft.poster = poster;
-    }
-
-    if (params.shouldUseDefaultPoster && gigDraft.poster === undefined) {
-      throw new InternalServerErrorException(
-        `Cannot prepare GigCandidate ${params.gigCandidateId} for moderation without a poster.`,
-      );
-    }
-
-    const result: PreparedGigCandidateDraftPoster = { gigDraft };
-    if (preparedPosterFile !== undefined) {
-      result.posterFile = preparedPosterFile;
-    }
-    return result;
   }
 
   private async ensureGigCandidateModerationPostBestEffort(
