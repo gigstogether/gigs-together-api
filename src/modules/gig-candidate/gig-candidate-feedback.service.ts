@@ -101,8 +101,7 @@ export class GigCandidateFeedbackService {
         return;
       }
 
-      const subject =
-        request.subject?.trim() || this.getTelegramMessageSubject(gigCandidate);
+      const subject = this.getFeedbackSubject(gigCandidate, request);
 
       if (!subject) {
         this.logger.warn(
@@ -124,6 +123,21 @@ export class GigCandidateFeedbackService {
         `sendGigCandidateFeedback failed for gigCandidateId=${gigCandidate.id}: ${formatTelegramErrorMessage(e)}`,
       );
     }
+  }
+
+  private getFeedbackSubject(
+    gigCandidate: GigCandidate,
+    request: GigCandidateFeedbackRequest,
+  ): string | GigCandidateFeedbackTelegramMessageSubject | undefined {
+    if (request.kind !== 'acceptedWithPublicLink') {
+      const telegramMessageSubject =
+        this.getTelegramMessageSubject(gigCandidate);
+      if (telegramMessageSubject !== undefined) {
+        return telegramMessageSubject;
+      }
+    }
+
+    return request.subject?.trim();
   }
 
   private getTelegramMessageSubject(

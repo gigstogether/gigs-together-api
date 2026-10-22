@@ -108,6 +108,7 @@ export class TelegramGigCandidateComposerService {
   composeFeedbackMessage(
     params: ComposeGigCandidateFeedbackMessageParams,
   ): TGSendMessage {
+    const isTelegramMessageSubject = typeof params.subject !== 'string';
     const subjectValue =
       typeof params.subject === 'string'
         ? this.escapeTelegramHtmlText(params.subject)
@@ -117,30 +118,39 @@ export class TelegramGigCandidateComposerService {
         'Cannot compose GigCandidate feedback: source message URL is unavailable.',
       );
     }
-    const subject =
-      typeof params.subject === 'string'
-        ? subjectValue
-        : `<a href="${subjectValue}">${subjectValue}</a>`;
-
     let text: string;
     switch (params.kind) {
       case 'submitted':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
-          { title: subject },
+          { title: subjectValue },
         );
         break;
       case 'acceptedForModeration':
-        text = this.telegramTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
-          { title: subject },
-        );
+        if (isTelegramMessageSubject) {
+          text = this.telegramTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationTelegramMessage,
+            { messageUrl: subjectValue },
+          );
+        } else {
+          text = this.telegramTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
+            { title: subjectValue },
+          );
+        }
         break;
       case 'rejected':
-        text = this.telegramTemplates.render(
-          TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
-          { title: subject },
-        );
+        if (isTelegramMessageSubject) {
+          text = this.telegramTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedTelegramMessage,
+            { messageUrl: subjectValue },
+          );
+        } else {
+          text = this.telegramTemplates.render(
+            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
+            { title: subjectValue },
+          );
+        }
         break;
       case 'acceptedWithPublicLink': {
         const gigUrl = this.telegramComposer.buildGigPermalink({
@@ -156,7 +166,7 @@ export class TelegramGigCandidateComposerService {
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
           {
             gigUrl,
-            title: subject,
+            title: subjectValue,
           },
         );
         break;
@@ -167,7 +177,7 @@ export class TelegramGigCandidateComposerService {
       chat_id: params.chatId,
       text,
       parse_mode: TGParseMode.HTML,
-      disable_web_page_preview: params.kind === 'acceptedWithPublicLink',
+      disable_web_page_preview: true,
     };
   }
 

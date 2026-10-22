@@ -87,7 +87,7 @@ describe('GigCandidateFeedbackService', () => {
     });
   });
 
-  it('should use the source message when lifecycle feedback has no text subject', async () => {
+  it('should prefer the source message over text for messenger lifecycle feedback', async () => {
     const service = await createService();
     const gigCandidate = buildGigCandidate({
       source: {
@@ -102,7 +102,10 @@ describe('GigCandidateFeedbackService', () => {
       },
     });
 
-    await service.sendBestEffort(gigCandidate, { kind: 'rejected' });
+    await service.sendBestEffort(gigCandidate, {
+      kind: 'rejected',
+      subject: 'Radiohead',
+    });
 
     expect(telegramGigCandidateServiceMock.sendFeedback).toHaveBeenCalledWith({
       kind: 'rejected',

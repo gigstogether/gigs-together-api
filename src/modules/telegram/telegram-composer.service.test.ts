@@ -67,8 +67,12 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion {title} accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationTelegramMessage]:
+      '<a href="{messageUrl}">Your gig suggestion</a> accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
       'Suggestion {title} rejected',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedTelegramMessage]:
+      '<a href="{messageUrl}">Your gig suggestion</a> rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
@@ -1027,9 +1031,9 @@ describe('TelegramComposerService', () => {
         }),
       ).toEqual({
         chat_id: '42',
-        text: 'Suggestion <a href="https://t.me/c/123/42">https://t.me/c/123/42</a> rejected',
+        text: '<a href="https://t.me/c/123/42">Your gig suggestion</a> rejected',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
       });
     });
 
@@ -1045,6 +1049,25 @@ describe('TelegramComposerService', () => {
         text: 'Suggestion Band &amp; Friends accepted for moderation',
         parse_mode: TGParseMode.HTML,
         disable_web_page_preview: false,
+      });
+    });
+
+    it('should compose accepted-for-moderation feedback with the source message link', () => {
+      expect(
+        gigCandidateComposer.composeFeedbackMessage({
+          chatId: '42',
+          kind: 'acceptedForModeration',
+          subject: {
+            type: 'telegramMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: '<a href="https://t.me/c/123/42">Your gig suggestion</a> accepted for moderation',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
       });
     });
 
