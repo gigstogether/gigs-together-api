@@ -93,26 +93,10 @@ describe('TelegramBotReplyComposerService', () => {
     vi.clearAllMocks();
   });
 
-  it.each([
-    {
-      name: 'start command',
-      compose: () => composer.composeStartCommandResponse(privateChat),
-      text: 'Start: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-    {
-      name: 'unknown command',
-      compose: () => composer.composeUnknownCommandResponse(privateChat),
-      text: 'Unknown: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-    {
-      name: 'unavailable incoming message',
-      compose: () => composer.composeIncomingMessageUnavailable(privateChat),
-      text: 'Unavailable: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-  ])('should compose the $name response', ({ compose, text }) => {
-    expect(compose()).toEqual({
+  it('should compose the start-command response with a suggest-gig button', () => {
+    expect(composer.composeStartCommandResponse(privateChat)).toEqual({
       chat_id: 12345,
-      text,
+      text: 'Start: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
       reply_markup: {
@@ -130,7 +114,27 @@ describe('TelegramBotReplyComposerService', () => {
     });
   });
 
-  it('should compose a private suggest-command response with form and chat actions', () => {
+  it.each([
+    {
+      name: 'unknown command',
+      compose: () => composer.composeUnknownCommandResponse(privateChat),
+      text: 'Unknown: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
+    },
+    {
+      name: 'unavailable incoming message',
+      compose: () => composer.composeIncomingMessageUnavailable(privateChat),
+      text: 'Unavailable: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
+    },
+  ])('should compose the $name response', ({ compose, text }) => {
+    expect(compose()).toEqual({
+      chat_id: 12345,
+      text,
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
+  });
+
+  it('should compose a private suggest-command response with form and chat links', () => {
     expect(
       composer.composeSuggestCommandUnavailableInPrivateChat(privateChat),
     ).toEqual({

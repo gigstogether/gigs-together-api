@@ -32,7 +32,11 @@ export class TelegramBotReplyComposerService {
   }
 
   composeStartCommandResponse(chat: TGChat): TGSendMessage {
-    return this.composeUserResponse(chat, TELEGRAM_TEMPLATE_KEYS.commandStart);
+    return this.composeUserResponse(
+      chat,
+      TELEGRAM_TEMPLATE_KEYS.commandStart,
+      this.composeSuggestGigButton(chat),
+    );
   }
 
   composeSuggestCommandUnavailableInPrivateChat(chat: TGChat): TGSendMessage {
@@ -63,7 +67,7 @@ export class TelegramBotReplyComposerService {
   private composeUserResponse(
     chat: TGChat,
     templateKey: UserResponseTemplateKey,
-    additionalButton?: TGInlineKeyboardButton,
+    button?: TGInlineKeyboardButton,
   ): TGSendMessage {
     const contactAdminsUrl = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
@@ -72,30 +76,18 @@ export class TelegramBotReplyComposerService {
     const text = this.telegramTemplates.render(templateKey, {
       contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
     });
-    return this.composeUserResponseWithText(chat, text, additionalButton);
-  }
-
-  private composeUserResponseWithText(
-    chat: TGChat,
-    text: string,
-    additionalButton?: TGInlineKeyboardButton,
-  ): TGSendMessage {
-    const inlineKeyboard: TGInlineKeyboardButton[][] = [
-      [this.composeSuggestGigButton(chat)],
-    ];
-    if (additionalButton !== undefined) {
-      inlineKeyboard.push([additionalButton]);
-    }
-
-    return {
+    const response: TGSendMessage = {
       chat_id: chat.id,
       text,
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: inlineKeyboard,
-      },
     };
+    if (button !== undefined) {
+      response.reply_markup = {
+        inline_keyboard: [[button]],
+      };
+    }
+    return response;
   }
 
   private composeSuggestGigButton(chat: TGChat): TGInlineKeyboardButton {

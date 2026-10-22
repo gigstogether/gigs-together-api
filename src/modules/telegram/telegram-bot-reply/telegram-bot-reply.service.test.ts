@@ -107,12 +107,12 @@ describe('TelegramBotReplyService', () => {
   it('should send the unknown-command response to a private chat', async () => {
     await service.sendUnknownCommandResponse({ id: 12345, type: 'private' });
 
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: 12345,
-        text: 'Unknown https://t.me/admins',
-      }),
-    );
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: 12345,
+      text: 'Unknown https://t.me/admins',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
   });
 
   it('should send the private suggest-command response', async () => {
@@ -135,21 +135,11 @@ describe('TelegramBotReplyService', () => {
       type: 'supergroup',
     });
 
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: -100123,
-        text: 'Unavailable https://t.me/admins',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Suggest a gig',
-                url: 'https://t.me/GigsTogetherStgBot/suggest',
-              },
-            ],
-          ],
-        },
-      }),
-    );
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: -100123,
+      text: 'Unavailable https://t.me/admins',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
   });
 });
