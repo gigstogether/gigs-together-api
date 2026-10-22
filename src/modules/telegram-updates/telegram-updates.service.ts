@@ -43,11 +43,11 @@ interface UserCommandSender {
   userId: number;
 }
 
-interface ChannelCommandSender {
-  type: 'channel';
+interface ChatCommandSender {
+  type: 'chat';
 }
 
-type CommandSender = UserCommandSender | ChannelCommandSender;
+type CommandSender = UserCommandSender | ChatCommandSender;
 
 interface HandleCommandParams extends ParsedCommand {
   chat: TGChat;
@@ -216,10 +216,13 @@ export class TelegramUpdatesService {
     }
 
     if (message.sender_chat !== undefined) {
-      if (message.sender_chat.type !== 'channel') {
+      const isSupportedSenderChat =
+        message.sender_chat.type === 'channel' ||
+        this.isGroupChat(message.sender_chat);
+      if (!isSupportedSenderChat) {
         return;
       }
-      return { type: 'channel' };
+      return { type: 'chat' };
     }
 
     if (message.from?.is_bot !== false) {
