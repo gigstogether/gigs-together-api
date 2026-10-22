@@ -36,6 +36,7 @@ import type {
   ComposeGigCandidateIntakePostAfterModerationEditParams,
   ComposeGigCandidatePostEditParams,
   ComposeRejectedGigCandidatePostEditParams,
+  GigCandidateFeedbackChatMessageSubject,
 } from './telegram-gig-candidate-composer.service.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { formatTelegramGigDates } from '../utils/telegram-date';
@@ -108,48 +109,44 @@ export class TelegramGigCandidateComposerService {
   composeFeedbackMessage(
     params: ComposeGigCandidateFeedbackMessageParams,
   ): TGSendMessage {
-    const isTelegramMessageSubject = typeof params.subject !== 'string';
-    const subjectValue =
-      typeof params.subject === 'string'
-        ? this.escapeTelegramHtmlText(params.subject)
-        : this.telegramComposer.buildPostUrl(params.subject);
-    if (subjectValue === undefined) {
-      throw new BadRequestException(
-        'Cannot compose GigCandidate feedback: source message URL is unavailable.',
-      );
-    }
     let text: string;
     switch (params.kind) {
       case 'submitted':
         text = this.telegramTemplates.render(
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackSubmitted,
-          { title: subjectValue },
+          { title: this.escapeTelegramHtmlText(params.subject.title) },
         );
         break;
       case 'acceptedForModeration':
-        if (isTelegramMessageSubject) {
-          text = this.telegramTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationTelegramMessage,
-            { messageUrl: subjectValue },
-          );
-        } else {
-          text = this.telegramTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
-            { title: subjectValue },
-          );
+        switch (params.subject.type) {
+          case 'gigTitle':
+            text = this.telegramTemplates.render(
+              TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration,
+              { title: this.escapeTelegramHtmlText(params.subject.title) },
+            );
+            break;
+          case 'chatMessage':
+            text = this.telegramTemplates.render(
+              TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationChatMessage,
+              { messageUrl: this.requireFeedbackMessageUrl(params.subject) },
+            );
+            break;
         }
         break;
       case 'rejected':
-        if (isTelegramMessageSubject) {
-          text = this.telegramTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedTelegramMessage,
-            { messageUrl: subjectValue },
-          );
-        } else {
-          text = this.telegramTemplates.render(
-            TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
-            { title: subjectValue },
-          );
+        switch (params.subject.type) {
+          case 'gigTitle':
+            text = this.telegramTemplates.render(
+              TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected,
+              { title: this.escapeTelegramHtmlText(params.subject.title) },
+            );
+            break;
+          case 'chatMessage':
+            text = this.telegramTemplates.render(
+              TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedChatMessage,
+              { messageUrl: this.requireFeedbackMessageUrl(params.subject) },
+            );
+            break;
         }
         break;
       case 'acceptedWithPublicLink': {
@@ -166,7 +163,7 @@ export class TelegramGigCandidateComposerService {
           TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink,
           {
             gigUrl,
-            title: subjectValue,
+            title: this.escapeTelegramHtmlText(params.subject.title),
           },
         );
         break;
@@ -179,6 +176,18 @@ export class TelegramGigCandidateComposerService {
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
     };
+  }
+
+  private requireFeedbackMessageUrl(
+    subject: GigCandidateFeedbackChatMessageSubject,
+  ): string {
+    const messageUrl = this.telegramComposer.buildPostUrl(subject);
+    if (messageUrl === undefined) {
+      throw new BadRequestException(
+        'Cannot compose GigCandidate feedback: source message URL is unavailable.',
+      );
+    }
+    return messageUrl;
   }
 
   composeRejectedPostEdit(

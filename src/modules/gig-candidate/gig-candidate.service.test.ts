@@ -666,7 +666,11 @@ describe('GigCandidateService', () => {
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created, undefined);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'submitted', subject: 'B', chatId: '42' },
+        {
+          kind: 'submitted',
+          subject: { type: 'gigTitle', title: 'B' },
+          chatId: '42',
+        },
       );
     });
 
@@ -1010,7 +1014,7 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'acceptedForModeration',
-          subject: 'Band',
+          subject: { type: 'gigTitle', title: 'Band' },
           chatId: '42',
         },
       );
@@ -1412,7 +1416,7 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'acceptedForModeration',
-          subject: 'Band',
+          subject: { type: 'gigTitle', title: 'Band' },
           chatId: '42',
         },
       );
@@ -1998,7 +2002,7 @@ describe('GigCandidateService', () => {
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'rejected',
-          subject: 'Rejected gig',
+          subject: { type: 'gigTitle', title: 'Rejected gig' },
           chatId: '42',
         },
       );
@@ -2053,7 +2057,7 @@ describe('GigCandidateService', () => {
         {
           kind: 'rejected',
           subject: {
-            type: 'telegramMessage',
+            type: 'chatMessage',
             chatId: -100123,
             messageId: 42,
           },

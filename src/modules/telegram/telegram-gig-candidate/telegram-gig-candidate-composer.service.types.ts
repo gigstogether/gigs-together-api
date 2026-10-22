@@ -5,24 +5,44 @@ import type {
 } from '../../gig-candidate/types/gig-candidate.types';
 import type { TGChatId, TGInlineKeyboardMarkup } from '../types/message.types';
 
-export interface GigCandidateFeedbackTelegramMessageSubject {
-  type: 'telegramMessage';
+export interface GigCandidateFeedbackGigTitleSubject {
+  type: 'gigTitle';
+  title: string;
+}
+
+export interface GigCandidateFeedbackChatMessageSubject {
+  type: 'chatMessage';
   chatId: number;
   messageId: number;
 }
 
 type GigCandidateFeedbackSubject =
-  string | GigCandidateFeedbackTelegramMessageSubject;
+  GigCandidateFeedbackGigTitleSubject | GigCandidateFeedbackChatMessageSubject;
 
-export interface GigCandidateLifecycleFeedbackMessageContent {
-  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+interface GigCandidateSubmittedFeedbackMessageContent {
+  kind: 'submitted';
+  subject: GigCandidateFeedbackGigTitleSubject;
+}
+
+interface GigCandidateAcceptedForModerationFeedbackMessageContent {
+  kind: 'acceptedForModeration';
   subject: GigCandidateFeedbackSubject;
 }
+
+interface GigCandidateRejectedFeedbackMessageContent {
+  kind: 'rejected';
+  subject: GigCandidateFeedbackSubject;
+}
+
+export type GigCandidateLifecycleFeedbackMessageContent =
+  | GigCandidateSubmittedFeedbackMessageContent
+  | GigCandidateAcceptedForModerationFeedbackMessageContent
+  | GigCandidateRejectedFeedbackMessageContent;
 
 export interface GigCandidateFeedbackMessageWithPublicLinkContent {
   kind: 'acceptedWithPublicLink';
   publicId: string;
-  subject: string;
+  subject: GigCandidateFeedbackGigTitleSubject;
 }
 
 export type GigCandidateFeedbackMessageContent =

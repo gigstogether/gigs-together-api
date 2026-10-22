@@ -6,8 +6,9 @@ import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type {
+  GigCandidateFeedbackChatMessageSubject,
+  GigCandidateFeedbackGigTitleSubject,
   GigCandidateFeedbackMessageContent,
-  GigCandidateFeedbackTelegramMessageSubject,
 } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { UserService } from '../user/user.service';
@@ -101,19 +102,14 @@ export class GigCandidateFeedbackService {
         return;
       }
 
-      const subject = this.getFeedbackSubject(gigCandidate, request);
-
-      if (!subject) {
+      const content = this.buildFeedbackContent(gigCandidate, request);
+      if (content === undefined) {
         this.logger.warn(
           `GigCandidate feedback skipped because title and source message are missing for gigCandidateId=${gigCandidate.id} feedbackKind=${request.kind}`,
         );
         return;
       }
 
-      const content: GigCandidateFeedbackMessageContent =
-        request.kind === 'acceptedWithPublicLink'
-          ? request
-          : { ...request, subject };
       await this.telegramGigCandidateService.sendFeedback({
         ...content,
         chatId: telegramIdentity.externalUserId,
@@ -125,27 +121,61 @@ export class GigCandidateFeedbackService {
     }
   }
 
-  private getFeedbackSubject(
+  private buildFeedbackContent(
     gigCandidate: GigCandidate,
     request: GigCandidateFeedbackRequest,
-  ): string | GigCandidateFeedbackTelegramMessageSubject | undefined {
-    if (request.kind !== 'acceptedWithPublicLink') {
-      const telegramMessageSubject =
-        this.getTelegramMessageSubject(gigCandidate);
-      if (telegramMessageSubject !== undefined) {
-        return telegramMessageSubject;
+  ): GigCandidateFeedbackMessageContent | undefined {
+    switch (request.kind) {
+      case 'submitted': {
+        const subject = this.getGigTitleSubject(request.subject);
+        if (subject === undefined) {
+          return;
+        }
+        return { kind: request.kind, subject };
+      }
+      case 'acceptedForModeration':
+      case 'rejected': {
+        const chatMessageSubject = this.getChatMessageSubject(gigCandidate);
+        if (chatMessageSubject !== undefined) {
+          return { kind: request.kind, subject: chatMessageSubject };
+        }
+
+        const subject = this.getGigTitleSubject(request.subject);
+        if (subject === undefined) {
+          return;
+        }
+        return { kind: request.kind, subject };
+      }
+      case 'acceptedWithPublicLink': {
+        const subject = this.getGigTitleSubject(request.subject);
+        if (subject === undefined) {
+          return;
+        }
+        return {
+          kind: request.kind,
+          publicId: request.publicId,
+          subject,
+        };
       }
     }
-
-    return request.subject?.trim();
   }
 
-  private getTelegramMessageSubject(
+  private getGigTitleSubject(
+    title: string | undefined,
+  ): GigCandidateFeedbackGigTitleSubject | undefined {
+    const normalizedTitle = title?.trim();
+    if (!normalizedTitle) {
+      return;
+    }
+    return { type: 'gigTitle', title: normalizedTitle };
+  }
+
+  private getChatMessageSubject(
     gigCandidate: GigCandidate,
-  ): GigCandidateFeedbackTelegramMessageSubject | undefined {
+  ): GigCandidateFeedbackChatMessageSubject | undefined {
     return isGigCandidateSourceMessengerUser(gigCandidate.source)
       ? {
-          type: 'telegramMessage',
+          type: 'chatMessage',
           chatId: gigCandidate.source.origin.message.chatId,
           messageId: gigCandidate.source.origin.message.messageId,
         }

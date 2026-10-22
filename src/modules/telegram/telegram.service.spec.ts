@@ -1194,14 +1194,14 @@ describe('TelegramService', () => {
       await telegramGigCandidateService.sendFeedback({
         chatId: '42',
         kind: 'submitted',
-        subject: 'Band',
+        subject: { type: 'gigTitle', title: 'Band' },
       });
 
       expect(sendMessageSpy).toHaveBeenCalledWith({
         chat_id: '42',
         text: 'Suggestion Band submitted',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
       });
     });
 

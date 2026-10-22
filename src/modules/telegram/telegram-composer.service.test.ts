@@ -67,11 +67,11 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion {title} accepted for moderation',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationTelegramMessage]:
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationChatMessage]:
       '<a href="{messageUrl}">Your gig suggestion</a> accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
       'Suggestion {title} rejected',
-    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedTelegramMessage]:
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedChatMessage]:
       '<a href="{messageUrl}">Your gig suggestion</a> rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
@@ -1008,13 +1008,13 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'submitted',
-          subject: 'Band & Friends',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
         text: 'Suggestion Band &amp; Friends submitted',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
       });
     });
 
@@ -1024,7 +1024,7 @@ describe('TelegramComposerService', () => {
           chatId: '42',
           kind: 'rejected',
           subject: {
-            type: 'telegramMessage',
+            type: 'chatMessage',
             chatId: -100123,
             messageId: 42,
           },
@@ -1037,18 +1037,33 @@ describe('TelegramComposerService', () => {
       });
     });
 
+    it('should compose rejected feedback with the Gig title', () => {
+      expect(
+        gigCandidateComposer.composeFeedbackMessage({
+          chatId: '42',
+          kind: 'rejected',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: 'Suggestion Band &amp; Friends rejected',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
+      });
+    });
+
     it('should compose accepted-for-moderation feedback with the Gig title', () => {
       expect(
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedForModeration',
-          subject: 'Band & Friends',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
         text: 'Suggestion Band &amp; Friends accepted for moderation',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
       });
     });
 
@@ -1058,7 +1073,7 @@ describe('TelegramComposerService', () => {
           chatId: '42',
           kind: 'acceptedForModeration',
           subject: {
-            type: 'telegramMessage',
+            type: 'chatMessage',
             chatId: -100123,
             messageId: 42,
           },
@@ -1077,7 +1092,7 @@ describe('TelegramComposerService', () => {
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
-          subject: 'Radiohead & Friends',
+          subject: { type: 'gigTitle', title: 'Radiohead & Friends' },
         }),
       ).toEqual({
         chat_id: '42',

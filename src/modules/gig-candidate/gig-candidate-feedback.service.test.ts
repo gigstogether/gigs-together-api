@@ -82,7 +82,7 @@ describe('GigCandidateFeedbackService', () => {
     );
     expect(telegramGigCandidateServiceMock.sendFeedback).toHaveBeenCalledWith({
       kind: 'submitted',
-      subject: 'Radiohead',
+      subject: { type: 'gigTitle', title: 'Radiohead' },
       chatId: '42',
     });
   });
@@ -110,7 +110,7 @@ describe('GigCandidateFeedbackService', () => {
     expect(telegramGigCandidateServiceMock.sendFeedback).toHaveBeenCalledWith({
       kind: 'rejected',
       subject: {
-        type: 'telegramMessage',
+        type: 'chatMessage',
         chatId: -100123,
         messageId: 17,
       },
@@ -131,7 +131,7 @@ describe('GigCandidateFeedbackService', () => {
     expect(telegramGigCandidateServiceMock.sendFeedback).toHaveBeenCalledWith({
       kind: 'acceptedWithPublicLink',
       publicId: 'radiohead-2026-06-12',
-      subject: 'Radiohead',
+      subject: { type: 'gigTitle', title: 'Radiohead' },
       chatId: '42',
     });
   });
@@ -186,7 +186,7 @@ describe('GigCandidateFeedbackService', () => {
 
     expect(telegramGigCandidateServiceMock.sendFeedback).toHaveBeenCalledWith({
       kind: 'acceptedForModeration',
-      subject: 'Radiohead',
+      subject: { type: 'gigTitle', title: 'Radiohead' },
       chatId: '42',
     });
   });
