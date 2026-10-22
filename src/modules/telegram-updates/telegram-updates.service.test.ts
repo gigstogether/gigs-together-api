@@ -371,7 +371,7 @@ describe('TelegramUpdatesService', () => {
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
-    it('should create an anonymous candidate for a suggestion sent on behalf of a channel', async () => {
+    it('should ignore a suggestion sent on behalf of another channel', async () => {
       const message: TGMessage = {
         message_id: 52,
         date: Date.now(),
@@ -388,29 +388,15 @@ describe('TelegramUpdatesService', () => {
           first_name: 'Channel',
         },
       };
-      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
-        undefined,
-      );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
-
       await service.handleMessage(message);
 
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
-      ).toHaveBeenCalledWith({
-        messenger: Messenger.Telegram,
-        chatId: -100123,
-        messageId: 52,
-        originalText: 'Massive Attack in Barcelona',
-      });
+      ).not.toHaveBeenCalled();
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
-        chat_id: -100123,
-        message_id: 52,
-        reaction: [{ type: 'emoji', emoji: '👍' }],
-      });
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should preserve suggestion text when the group command mentions the bot', async () => {
@@ -486,7 +472,7 @@ describe('TelegramUpdatesService', () => {
       });
     });
 
-    it('should create an anonymous candidate from a reply sent on behalf of a channel', async () => {
+    it('should ignore a reply suggestion sent on behalf of another channel', async () => {
       const message: TGMessage = {
         message_id: 53,
         date: Date.now(),
@@ -505,29 +491,15 @@ describe('TelegramUpdatesService', () => {
           from: { id: 8, is_bot: false, first_name: 'Another user' },
         },
       };
-      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
-        undefined,
-      );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
-
       await service.handleMessage(message);
 
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
-      ).toHaveBeenCalledWith({
-        messenger: Messenger.Telegram,
-        chatId: -100123,
-        messageId: 41,
-        originalText: 'Massive Attack in Barcelona\n12 June',
-      });
+      ).not.toHaveBeenCalled();
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
-        chat_id: -100123,
-        message_id: 53,
-        reaction: [{ type: 'emoji', emoji: '👍' }],
-      });
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should create an anonymous candidate for a suggestion sent by an anonymous group administrator', async () => {

@@ -45,6 +45,7 @@ interface UserCommandSender {
 
 interface ChatCommandSender {
   type: 'chat';
+  senderChatId: number;
 }
 
 type CommandSender = UserCommandSender | ChatCommandSender;
@@ -222,7 +223,10 @@ export class TelegramUpdatesService {
       if (!isSupportedSenderChat) {
         return;
       }
-      return { type: 'chat' };
+      return {
+        type: 'chat',
+        senderChatId: message.sender_chat.id,
+      };
     }
 
     if (message.from?.is_bot !== false) {
@@ -306,6 +310,9 @@ export class TelegramUpdatesService {
       return;
     }
     if (!this.isGigSuggestionsChat(chat)) {
+      return;
+    }
+    if (sender.type === 'chat' && sender.senderChatId !== chat.id) {
       return;
     }
 
