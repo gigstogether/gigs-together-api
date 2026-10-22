@@ -91,6 +91,7 @@ const EXPLICIT_MESSAGE_CONTENT_KEYS: string[] = [
 @Injectable()
 export class TelegramUpdatesService {
   private readonly gigSuggestionsChatId: number;
+  private readonly gigSuggestionsChannelId: number;
 
   constructor(
     private readonly telegramService: TelegramService,
@@ -110,6 +111,16 @@ export class TelegramUpdatesService {
       throw new Error('MAIN_CHAT_ID must be a non-zero safe integer.');
     }
     this.gigSuggestionsChatId = chatId;
+
+    const channelIdRaw = getRequiredConfigString(
+      configService,
+      'MAIN_CHANNEL_ID',
+    );
+    const channelId = Number(channelIdRaw);
+    if (!Number.isSafeInteger(channelId) || channelId === 0) {
+      throw new Error('MAIN_CHANNEL_ID must be a non-zero safe integer.');
+    }
+    this.gigSuggestionsChannelId = channelId;
   }
 
   private readonly logger = new Logger(TelegramUpdatesService.name);
@@ -312,8 +323,13 @@ export class TelegramUpdatesService {
     if (!this.isGigSuggestionsChat(chat)) {
       return;
     }
-    if (sender.type === 'chat' && sender.senderChatId !== chat.id) {
-      return;
+    if (sender.type === 'chat') {
+      const isAllowedSenderChat =
+        sender.senderChatId === chat.id ||
+        sender.senderChatId === this.gigSuggestionsChannelId;
+      if (!isAllowedSenderChat) {
+        return;
+      }
     }
 
     let originalText = argument;

@@ -76,6 +76,7 @@ describe('TelegramUpdatesService', () => {
 
   async function createService(
     mainChatId: string,
+    mainChannelId = '-100456',
   ): Promise<TelegramUpdatesService> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -110,7 +111,10 @@ describe('TelegramUpdatesService', () => {
         },
         {
           provide: ConfigService,
-          useValue: new ConfigService({ MAIN_CHAT_ID: mainChatId }),
+          useValue: new ConfigService({
+            MAIN_CHAT_ID: mainChatId,
+            MAIN_CHANNEL_ID: mainChannelId,
+          }),
         },
       ],
     }).compile();
@@ -371,7 +375,7 @@ describe('TelegramUpdatesService', () => {
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
-    it('should ignore a suggestion sent on behalf of another channel', async () => {
+    it('should create a candidate for a suggestion sent on behalf of the configured channel', async () => {
       const message: TGMessage = {
         message_id: 52,
         date: Date.now(),
@@ -388,6 +392,75 @@ describe('TelegramUpdatesService', () => {
           first_name: 'Channel',
         },
       };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 52,
+        originalText: 'Massive Attack in Barcelona',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 52,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore the configured channel outside the configured group', async () => {
+      const message: TGMessage = {
+        message_id: 56,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Portishead in Madrid',
+        chat: { id: -100999, type: 'supergroup' },
+        sender_chat: {
+          id: -100456,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a suggestion sent on behalf of another channel', async () => {
+      const message: TGMessage = {
+        message_id: 55,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Portishead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100789,
+          type: 'channel',
+          title: 'Another Music Channel',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+
       await service.handleMessage(message);
 
       expect(
@@ -479,7 +552,7 @@ describe('TelegramUpdatesService', () => {
         text: '/suggest@GigsTogetherBot',
         chat: { id: -100123, type: 'supergroup' },
         sender_chat: {
-          id: -100456,
+          id: -100789,
           type: 'channel',
           title: 'Barcelona Music',
         },
@@ -730,6 +803,18 @@ describe('TelegramUpdatesService', () => {
     it('should reject construction when suggestions chat ID is empty', async () => {
       await expect(createService('   ')).rejects.toThrowError(
         'MAIN_CHAT_ID is not configured.',
+      );
+    });
+
+    it('should reject construction when main channel ID is invalid', async () => {
+      await expect(createService('-100123', 'invalid')).rejects.toThrowError(
+        'MAIN_CHANNEL_ID must be a non-zero safe integer.',
+      );
+    });
+
+    it('should reject construction when main channel ID is empty', async () => {
+      await expect(createService('-100123', '   ')).rejects.toThrowError(
+        'MAIN_CHANNEL_ID is not configured.',
       );
     });
 
