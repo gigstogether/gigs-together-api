@@ -25,11 +25,11 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   gigCandidateFeedbackSubmitted: 'gigCandidateFeedback.submitted',
   gigCandidateFeedbackAcceptedForModeration:
     'gigCandidateFeedback.acceptedForModeration',
-  gigCandidateFeedbackAcceptedForModerationTelegramMessage:
-    'gigCandidateFeedback.acceptedForModeration.telegramMessage',
+  gigCandidateFeedbackAcceptedForModerationChatMessage:
+    'gigCandidateFeedback.acceptedForModeration.chatMessage',
   gigCandidateFeedbackRejected: 'gigCandidateFeedback.rejected',
-  gigCandidateFeedbackRejectedTelegramMessage:
-    'gigCandidateFeedback.rejected.telegramMessage',
+  gigCandidateFeedbackRejectedChatMessage:
+    'gigCandidateFeedback.rejected.chatMessage',
   gigCandidateFeedbackAcceptedWithPublicLink:
     'gigCandidateFeedback.acceptedWithPublicLink',
   gigCandidateLinkOpenAdmin: 'gigCandidateLink.openAdmin',
