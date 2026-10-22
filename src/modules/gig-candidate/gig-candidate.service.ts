@@ -25,7 +25,10 @@ import type {
 } from './repositories/gig-candidate.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
-import type { GigCandidate } from './types/gig-candidate.types';
+import type {
+  GigCandidate,
+  GigCandidateSourceMessengerUser,
+} from './types/gig-candidate.types';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
@@ -58,11 +61,12 @@ export interface CreateAdminGigCandidateParams {
   posterFile?: GigPosterFile;
 }
 
-interface CreateMessengerGigCandidateParams {
+export interface CreateMessengerGigCandidateParams {
   messenger: Messenger;
   chatId: number;
   messageId: number;
   originalText: string;
+  userId?: string;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -217,21 +221,26 @@ export class GigCandidateService {
       throw new BadRequestException('originalText is required');
     }
 
+    const source: GigCandidateSourceMessengerUser = {
+      type: GigSourceType.User,
+      origin: {
+        type: GigSourceUserOriginType.Messenger,
+        messenger: params.messenger,
+        message: {
+          chatId: params.chatId,
+          messageId: params.messageId,
+        },
+      },
+      originalText: params.originalText,
+    };
+    if (params.userId !== undefined) {
+      source.userId = params.userId;
+    }
+
     return this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: this.gigCandidateRepository.createId(),
       status: GigCandidateStatus.New,
-      source: {
-        type: GigSourceType.User,
-        origin: {
-          type: GigSourceUserOriginType.Messenger,
-          messenger: params.messenger,
-          message: {
-            chatId: params.chatId,
-            messageId: params.messageId,
-          },
-        },
-        originalText: params.originalText,
-      },
+      source,
       // TODO: This is temporary while suggestions come from a single city chat.
       //  Derive this location from the source chat when multi-city chats are supported.
       gigDraft: {

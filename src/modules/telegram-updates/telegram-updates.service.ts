@@ -4,6 +4,7 @@ import { getRequiredConfigString } from '../../shared/utils/env';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
+import type { CreateMessengerGigCandidateParams } from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
 import { AuthorizationService } from '../auth/authorization.service';
 import { UserService } from '../user/user.service';
@@ -40,6 +41,7 @@ interface ParsedCommand {
 interface HandleCommandParams extends ParsedCommand {
   chat: TGChat;
   messageId: number;
+  senderUserId: number;
   replyToMessage?: TGMessage;
 }
 
@@ -47,6 +49,7 @@ interface HandleSuggestCommandParams {
   argument: string;
   chat: TGChat;
   messageId: number;
+  senderUserId: number;
   replyToMessage?: TGMessage;
 }
 
@@ -153,7 +156,12 @@ export class TelegramUpdatesService {
 
   async handleMessage(message: TGMessage): Promise<void> {
     const chat = message?.chat;
-    if (!chat?.id || !this.isExplicitUserMessage(message)) {
+    const senderUserId = message?.from?.id;
+    if (
+      !chat?.id ||
+      senderUserId === undefined ||
+      !this.isExplicitUserMessage(message)
+    ) {
       return;
     }
 
@@ -180,6 +188,7 @@ export class TelegramUpdatesService {
       ...command,
       chat,
       messageId: message.message_id,
+      senderUserId,
     };
     if (message.reply_to_message !== undefined) {
       params.replyToMessage = message.reply_to_message;
@@ -233,7 +242,8 @@ export class TelegramUpdatesService {
   }
 
   private async handleCommand(params: HandleCommandParams): Promise<void> {
-    const { name, argument, chat, messageId, replyToMessage } = params;
+    const { name, argument, chat, messageId, senderUserId, replyToMessage } =
+      params;
 
     switch (name) {
       case Command.Suggest: {
@@ -241,6 +251,7 @@ export class TelegramUpdatesService {
           argument,
           chat,
           messageId,
+          senderUserId,
         };
         if (replyToMessage !== undefined) {
           suggestParams.replyToMessage = replyToMessage;
@@ -261,7 +272,7 @@ export class TelegramUpdatesService {
   private async handleSuggestCommand(
     params: HandleSuggestCommandParams,
   ): Promise<void> {
-    const { argument, chat, messageId, replyToMessage } = params;
+    const { argument, chat, messageId, senderUserId, replyToMessage } = params;
     if (!this.isGigSuggestionsChat(chat)) {
       return;
     }
@@ -280,12 +291,22 @@ export class TelegramUpdatesService {
     }
 
     try {
-      await this.gigCandidateService.submitMessengerGigCandidate({
+      const user = await this.userService.findActiveUserByMessengerIdentity({
+        messenger: Messenger.Telegram,
+        externalUserId: String(senderUserId),
+      });
+      const candidateParams: CreateMessengerGigCandidateParams = {
         messenger: Messenger.Telegram,
         chatId: chat.id,
         messageId: sourceMessageId,
         originalText,
-      });
+      };
+      if (user !== null) {
+        candidateParams.userId = user.id;
+      }
+      await this.gigCandidateService.submitMessengerGigCandidate(
+        candidateParams,
+      );
     } catch (e) {
       this.logger.error(
         `Saving Telegram gig suggestion failed for chatId=${chat.id} messageId=${sourceMessageId}: ${formatTelegramErrorMessage(e)}`,

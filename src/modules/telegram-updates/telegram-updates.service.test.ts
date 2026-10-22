@@ -65,6 +65,7 @@ describe('TelegramUpdatesService', () => {
 
   const mockUserService = {
     findOrCreateMessengerUser: vi.fn(),
+    findActiveUserByMessengerIdentity: vi.fn(),
   };
 
   const mockAuthorizationService = {
@@ -123,6 +124,7 @@ describe('TelegramUpdatesService', () => {
     mockUserService.findOrCreateMessengerUser.mockResolvedValue({
       id: '507f1f77bcf86cd799439088',
     });
+    mockUserService.findActiveUserByMessengerIdentity.mockResolvedValue(null);
     mockAuthorizationService.isAdmin.mockResolvedValue(true);
   });
 
@@ -320,6 +322,12 @@ describe('TelegramUpdatesService', () => {
         messageId: 42,
         originalText: 'Radiohead in Barcelona',
       });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        externalUserId: '7',
+      });
       expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
         message_id: 42,
@@ -373,6 +381,9 @@ describe('TelegramUpdatesService', () => {
         undefined,
       );
       mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockUserService.findActiveUserByMessengerIdentity.mockResolvedValueOnce({
+        id: '507f1f77bcf86cd799439088',
+      });
 
       await service.handleMessage(message);
 
@@ -383,6 +394,13 @@ describe('TelegramUpdatesService', () => {
         chatId: -100123,
         messageId: 41,
         originalText: 'Radiohead in Barcelona\n12 June',
+        userId: '507f1f77bcf86cd799439088',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        externalUserId: '7',
       });
       expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
@@ -435,6 +453,32 @@ describe('TelegramUpdatesService', () => {
       expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining('Database unavailable'),
+      );
+    });
+
+    it('should not create a candidate when the User lookup fails', async () => {
+      const message: TGMessage = {
+        message_id: 51,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockUserService.findActiveUserByMessengerIdentity.mockRejectedValueOnce(
+        new Error('User lookup unavailable'),
+      );
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('User lookup unavailable'),
       );
     });
 

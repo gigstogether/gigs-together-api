@@ -23,11 +23,13 @@ function domainUser(status: User['status'] = 'active'): User {
 
 describe('UserService', () => {
   const upsertMessengerUser = vi.fn();
+  const findActiveUserByMessengerIdentity = vi.fn();
   const findActiveUserById = vi.fn();
   const findActiveUsersByIds = vi.fn();
   const findActiveUserIdsByRole = vi.fn();
   const repository = {
     upsertMessengerUser,
+    findActiveUserByMessengerIdentity,
     findActiveUserById,
     findActiveUsersByIds,
     findActiveUserIdsByRole,
@@ -36,6 +38,7 @@ describe('UserService', () => {
 
   beforeEach(() => {
     upsertMessengerUser.mockReset();
+    findActiveUserByMessengerIdentity.mockReset();
     findActiveUserById.mockReset();
     findActiveUsersByIds.mockReset();
     findActiveUserIdsByRole.mockReset();
@@ -80,6 +83,32 @@ describe('UserService', () => {
         externalUserId: '   ',
       }),
     ).toThrow('externalUserId is required');
+  });
+
+  it('should find an active User by normalized messenger identity', async () => {
+    const user = domainUser();
+    findActiveUserByMessengerIdentity.mockResolvedValue(user);
+
+    await expect(
+      service.findActiveUserByMessengerIdentity({
+        messenger: Messenger.Telegram,
+        externalUserId: ' 42 ',
+      }),
+    ).resolves.toBe(user);
+    expect(findActiveUserByMessengerIdentity).toHaveBeenCalledWith({
+      messenger: Messenger.Telegram,
+      externalUserId: '42',
+    });
+  });
+
+  it('should reject an empty external user id for messenger identity lookup', () => {
+    expect(() =>
+      service.findActiveUserByMessengerIdentity({
+        messenger: Messenger.Telegram,
+        externalUserId: '   ',
+      }),
+    ).toThrow('externalUserId is required');
+    expect(findActiveUserByMessengerIdentity).not.toHaveBeenCalled();
   });
 
   it('should load active User ids by role', async () => {

@@ -251,6 +251,46 @@ describe('GigCandidateService', () => {
       });
     });
 
+    it('should associate a messenger candidate with an existing User', async () => {
+      const userId = '507f1f77bcf86cd799439088';
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          userId,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+
+      await service.createMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+        userId,
+      });
+
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: expect.objectContaining({ userId }),
+        }),
+      );
+    });
+
     it.each([
       {
         name: 'zero chat id',

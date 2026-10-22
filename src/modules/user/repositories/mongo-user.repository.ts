@@ -4,6 +4,7 @@ import type { Model } from 'mongoose';
 import { User } from '../user.schema';
 import type { UserDocument } from '../user.schema';
 import type {
+  FindActiveUserByMessengerIdentityParams,
   FindOrCreateMessengerUserParams,
   User as DomainUser,
   UserMessengerIdentity,
@@ -116,6 +117,21 @@ export class MongoUserRepository implements UserRepository {
     return user ? UserRepositoryMapper.toUser(user) : null;
   }
 
+  async findActiveUserByMessengerIdentity(
+    params: FindActiveUserByMessengerIdentityParams,
+  ): Promise<DomainUser | null> {
+    const user = await this.userModel
+      .findOne({
+        ...this.toIdentityFilter(params),
+        status: 'active',
+      })
+      .select(USER_PROJECTION)
+      .lean<UserLeanDocument>()
+      .exec();
+
+    return user ? UserRepositoryMapper.toUser(user) : null;
+  }
+
   async findActiveUsersByIds(userIds: string[]): Promise<DomainUser[]> {
     const uniqueUserIds = [...new Set(userIds)];
     if (uniqueUserIds.length === 0) {
@@ -203,7 +219,7 @@ export class MongoUserRepository implements UserRepository {
     };
   }
 
-  private toIdentityFilter(params: FindOrCreateMessengerUserParams) {
+  private toIdentityFilter(params: FindActiveUserByMessengerIdentityParams) {
     return {
       identities: {
         $elemMatch: {

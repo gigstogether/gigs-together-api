@@ -1,5 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { FindOrCreateMessengerUserParams, User } from './types/user.types';
+import type {
+  FindActiveUserByMessengerIdentityParams,
+  FindOrCreateMessengerUserParams,
+  User,
+} from './types/user.types';
 import { USER_REPOSITORY } from './repositories/user.repository';
 import type { UserRepository } from './repositories/user.repository';
 import type { UserRole } from './types/user-role.enum';
@@ -27,6 +31,20 @@ export class UserService {
       externalUserId,
       ...(username !== undefined ? { username } : {}),
       ...(displayName !== undefined ? { displayName } : {}),
+    });
+  }
+
+  findActiveUserByMessengerIdentity(
+    params: FindActiveUserByMessengerIdentityParams,
+  ): Promise<User | null> {
+    const externalUserId = params.externalUserId.trim();
+    if (!externalUserId) {
+      throw new Error('externalUserId is required');
+    }
+
+    return this.userRepository.findActiveUserByMessengerIdentity({
+      messenger: params.messenger,
+      externalUserId,
     });
   }
 
