@@ -38,10 +38,21 @@ interface ParsedCommand {
   targetBotUsername?: string;
 }
 
+interface UserCommandSender {
+  type: 'user';
+  userId: number;
+}
+
+interface ChannelCommandSender {
+  type: 'channel';
+}
+
+type CommandSender = UserCommandSender | ChannelCommandSender;
+
 interface HandleCommandParams extends ParsedCommand {
   chat: TGChat;
   messageId: number;
-  senderUserId: number;
+  sender: CommandSender;
   replyToMessage?: TGMessage;
 }
 
@@ -49,11 +60,11 @@ interface HandleSuggestCommandParams {
   argument: string;
   chat: TGChat;
   messageId: number;
-  senderUserId: number;
+  sender: CommandSender;
   replyToMessage?: TGMessage;
 }
 
-const EXPLICIT_USER_MESSAGE_CONTENT_KEYS: string[] = [
+const EXPLICIT_MESSAGE_CONTENT_KEYS: string[] = [
   'text',
   'rich_message',
   'animation',
@@ -156,12 +167,12 @@ export class TelegramUpdatesService {
 
   async handleMessage(message: TGMessage): Promise<void> {
     const chat = message?.chat;
-    const senderUserId = message?.from?.id;
-    if (
-      !chat?.id ||
-      senderUserId === undefined ||
-      !this.isExplicitUserMessage(message)
-    ) {
+    if (!chat?.id) {
+      return;
+    }
+
+    const sender = this.getCommandSender(message);
+    if (sender === undefined) {
       return;
     }
 
@@ -188,7 +199,7 @@ export class TelegramUpdatesService {
       ...command,
       chat,
       messageId: message.message_id,
-      senderUserId,
+      sender,
     };
     if (message.reply_to_message !== undefined) {
       params.replyToMessage = message.reply_to_message;
@@ -196,13 +207,26 @@ export class TelegramUpdatesService {
     await this.handleCommand(params);
   }
 
-  private isExplicitUserMessage(message: TGMessage): boolean {
-    const isUser = message.from?.is_bot === false;
-    const hasExplicitContent = EXPLICIT_USER_MESSAGE_CONTENT_KEYS.some((key) =>
+  private getCommandSender(message: TGMessage): CommandSender | undefined {
+    const hasExplicitContent = EXPLICIT_MESSAGE_CONTENT_KEYS.some((key) =>
       Object.prototype.hasOwnProperty.call(message, key),
     );
+    if (!hasExplicitContent) {
+      return;
+    }
 
-    return isUser && hasExplicitContent;
+    if (message.sender_chat !== undefined) {
+      if (message.sender_chat.type !== 'channel') {
+        return;
+      }
+      return { type: 'channel' };
+    }
+
+    if (message.from?.is_bot !== false) {
+      return;
+    }
+
+    return { type: 'user', userId: message.from.id };
   }
 
   private parseCommand(text: string): ParsedCommand | undefined {
@@ -242,8 +266,7 @@ export class TelegramUpdatesService {
   }
 
   private async handleCommand(params: HandleCommandParams): Promise<void> {
-    const { name, argument, chat, messageId, senderUserId, replyToMessage } =
-      params;
+    const { name, argument, chat, messageId, sender, replyToMessage } = params;
 
     switch (name) {
       case Command.Suggest: {
@@ -251,7 +274,7 @@ export class TelegramUpdatesService {
           argument,
           chat,
           messageId,
-          senderUserId,
+          sender,
         };
         if (replyToMessage !== undefined) {
           suggestParams.replyToMessage = replyToMessage;
@@ -272,7 +295,7 @@ export class TelegramUpdatesService {
   private async handleSuggestCommand(
     params: HandleSuggestCommandParams,
   ): Promise<void> {
-    const { argument, chat, messageId, senderUserId, replyToMessage } = params;
+    const { argument, chat, messageId, sender, replyToMessage } = params;
     if (!this.isGigSuggestionsChat(chat)) {
       return;
     }
@@ -291,18 +314,20 @@ export class TelegramUpdatesService {
     }
 
     try {
-      const user = await this.userService.findActiveUserByMessengerIdentity({
-        messenger: Messenger.Telegram,
-        externalUserId: String(senderUserId),
-      });
       const candidateParams: CreateMessengerGigCandidateParams = {
         messenger: Messenger.Telegram,
         chatId: chat.id,
         messageId: sourceMessageId,
         originalText,
       };
-      if (user !== null) {
-        candidateParams.userId = user.id;
+      if (sender.type === 'user') {
+        const user = await this.userService.findActiveUserByMessengerIdentity({
+          messenger: Messenger.Telegram,
+          externalUserId: String(sender.userId),
+        });
+        if (user !== null) {
+          candidateParams.userId = user.id;
+        }
       }
       await this.gigCandidateService.submitMessengerGigCandidate(
         candidateParams,

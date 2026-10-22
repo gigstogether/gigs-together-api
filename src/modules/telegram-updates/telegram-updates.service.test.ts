@@ -336,6 +336,48 @@ describe('TelegramUpdatesService', () => {
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
     });
 
+    it('should create an anonymous candidate for a suggestion sent on behalf of a channel', async () => {
+      const message: TGMessage = {
+        message_id: 52,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100456,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 52,
+        originalText: 'Massive Attack in Barcelona',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 52,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
     it('should preserve suggestion text when the group command mentions the bot', async () => {
       const message: TGMessage = {
         message_id: 43,
@@ -407,6 +449,75 @@ describe('TelegramUpdatesService', () => {
         message_id: 44,
         reaction: [{ type: 'emoji', emoji: '👍' }],
       });
+    });
+
+    it('should create an anonymous candidate from a reply sent on behalf of a channel', async () => {
+      const message: TGMessage = {
+        message_id: 53,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100456,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        reply_to_message: {
+          message_id: 41,
+          date: Date.now(),
+          text: '  Massive Attack in Barcelona\n12 June  ',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 8, is_bot: false, first_name: 'Another user' },
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 41,
+        originalText: 'Massive Attack in Barcelona\n12 June',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 53,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore a suggestion sent by an anonymous group administrator', async () => {
+      const message: TGMessage = {
+        message_id: 54,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Group',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should ignore a command addressed to another bot', async () => {
