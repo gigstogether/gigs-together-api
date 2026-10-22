@@ -10,7 +10,10 @@ import type {
   GigCandidateFeedbackGigTitleSubject,
   GigCandidateFeedbackMessageContent,
 } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
-import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
+import {
+  formatTelegramErrorMessage,
+  isTelegramChatNotFoundError,
+} from '../telegram/utils/telegram-error';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
@@ -115,6 +118,13 @@ export class GigCandidateFeedbackService {
         chatId: telegramIdentity.externalUserId,
       });
     } catch (e) {
+      if (isTelegramChatNotFoundError(e)) {
+        this.logger.debug(
+          `GigCandidate feedback was not sent because the Telegram chat is unavailable for gigCandidateId=${gigCandidate.id}`,
+        );
+        return;
+      }
+
       this.logger.warn(
         `sendGigCandidateFeedback failed for gigCandidateId=${gigCandidate.id}: ${formatTelegramErrorMessage(e)}`,
       );

@@ -2140,7 +2140,7 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
-    it('should update the Moderation post after rejecting Reviewing and preserve the transition when Telegram fails', async () => {
+    it('should preserve rejection and suppress the expected feedback warning when the Telegram chat is unavailable', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
@@ -2203,7 +2203,7 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).toHaveBeenCalledOnce();
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect(loggerWarnSpy).not.toHaveBeenCalledWith(
         'sendGigCandidateFeedback failed for gigCandidateId=507f1f77bcf86cd799439099: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: chat not found',
       );
     });

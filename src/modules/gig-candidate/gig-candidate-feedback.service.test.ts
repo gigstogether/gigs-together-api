@@ -231,6 +231,40 @@ describe('GigCandidateFeedbackService', () => {
       `sendGigCandidateFeedback failed for gigCandidateId=${gigCandidate.id}: Telegram unavailable`,
     );
   });
+
+  it('should only log at debug level when the Telegram chat is unavailable', async () => {
+    const loggerWarnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const loggerDebugSpy = vi
+      .spyOn(Logger.prototype, 'debug')
+      .mockImplementation(() => undefined);
+    const service = await createService();
+    const gigCandidate = buildGigCandidate();
+    telegramGigCandidateServiceMock.sendFeedback.mockRejectedValueOnce({
+      isAxiosError: true,
+      message: 'Request failed with status code 400',
+      response: {
+        status: 400,
+        data: {
+          ok: false,
+          error_code: 400,
+          description: 'Bad Request: chat not found',
+        },
+      },
+    });
+
+    await expect(
+      service.sendBestEffort(gigCandidate, {
+        kind: 'submitted',
+        subject: 'Radiohead',
+      }),
+    ).resolves.toBeUndefined();
+    expect(loggerWarnSpy).not.toHaveBeenCalled();
+    expect(loggerDebugSpy).toHaveBeenCalledWith(
+      `GigCandidate feedback was not sent because the Telegram chat is unavailable for gigCandidateId=${gigCandidate.id}`,
+    );
+  });
 });
 
 function buildGigCandidate(
