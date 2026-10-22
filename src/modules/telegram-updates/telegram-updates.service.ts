@@ -296,6 +296,12 @@ export class TelegramUpdatesService {
     params: HandleSuggestCommandParams,
   ): Promise<void> {
     const { argument, chat, messageId, sender, replyToMessage } = params;
+    if (chat.type === 'private') {
+      await this.telegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat(
+        chat,
+      );
+      return;
+    }
     if (!this.isGigSuggestionsChat(chat)) {
       return;
     }

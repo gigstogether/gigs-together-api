@@ -35,6 +35,25 @@ export class TelegramBotReplyComposerService {
     return this.composeUserResponse(chat, TELEGRAM_TEMPLATE_KEYS.commandStart);
   }
 
+  composeSuggestCommandUnavailableInPrivateChat(chat: TGChat): TGSendMessage {
+    const text = this.telegramTemplates.getText(
+      TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable,
+    );
+    const openGigSuggestionsChatButton: TGInlineKeyboardButton = {
+      text: this.telegramTemplates.getText(
+        TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat,
+      ),
+      url: this.telegramTemplates.getText(
+        TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat,
+      ),
+    };
+    return this.composeUserResponseWithText(
+      chat,
+      text,
+      openGigSuggestionsChatButton,
+    );
+  }
+
   composeUnknownCommandResponse(chat: TGChat): TGSendMessage {
     return this.composeUserResponse(
       chat,
@@ -45,20 +64,37 @@ export class TelegramBotReplyComposerService {
   private composeUserResponse(
     chat: TGChat,
     templateKey: UserResponseTemplateKey,
+    additionalButton?: TGInlineKeyboardButton,
   ): TGSendMessage {
     const contactAdminsUrl = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
     );
 
+    const text = this.telegramTemplates.render(templateKey, {
+      contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
+    });
+    return this.composeUserResponseWithText(chat, text, additionalButton);
+  }
+
+  private composeUserResponseWithText(
+    chat: TGChat,
+    text: string,
+    additionalButton?: TGInlineKeyboardButton,
+  ): TGSendMessage {
+    const inlineKeyboard: TGInlineKeyboardButton[][] = [
+      [this.composeSuggestGigButton(chat)],
+    ];
+    if (additionalButton !== undefined) {
+      inlineKeyboard.push([additionalButton]);
+    }
+
     return {
       chat_id: chat.id,
-      text: this.telegramTemplates.render(templateKey, {
-        contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
-      }),
+      text,
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
       reply_markup: {
-        inline_keyboard: [[this.composeSuggestGigButton(chat)]],
+        inline_keyboard: inlineKeyboard,
       },
     };
   }

@@ -29,9 +29,15 @@ function renderPlainTemplate(
 
 function createMockTelegramTemplates(): MockTelegramTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat]:
+      'Open suggestions chat',
     [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Chat suggestions are unavailable in private messages.',
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]:
       'https://t.me/gigs_together?topic=help&source=bot',
+    [TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat]:
+      'https://t.me/gigs_together_chat',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
     [TELEGRAM_TEMPLATE_KEYS.commandStart]:
@@ -121,6 +127,35 @@ describe('TelegramBotReplyComposerService', () => {
               web_app: {
                 url: 'https://gigs.example/suggest/launch',
               },
+            },
+          ],
+        ],
+      },
+    });
+  });
+
+  it('should compose a private suggest-command response with form and chat actions', () => {
+    expect(
+      composer.composeSuggestCommandUnavailableInPrivateChat(privateChat),
+    ).toEqual({
+      chat_id: 12345,
+      text: 'Chat suggestions are unavailable in private messages.',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Suggest a gig',
+              web_app: {
+                url: 'https://gigs.example/suggest/launch',
+              },
+            },
+          ],
+          [
+            {
+              text: 'Open suggestions chat',
+              url: 'https://t.me/gigs_together_chat',
             },
           ],
         ],

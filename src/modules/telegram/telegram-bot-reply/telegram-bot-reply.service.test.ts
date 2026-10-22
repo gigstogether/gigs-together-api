@@ -17,8 +17,14 @@ type MockTelegramTemplates = Pick<
 
 function createMockTelegramTemplates(): MockTelegramTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat]:
+      'Open suggestions chat',
     [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Private suggestions unavailable',
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/admins',
+    [TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat]:
+      'https://t.me/gigs_together_chat',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
     [TELEGRAM_TEMPLATE_KEYS.commandStart]: 'Start {contactAdminsUrl}',
@@ -111,6 +117,36 @@ describe('TelegramBotReplyService', () => {
         text: 'Unknown https://t.me/admins',
       }),
     );
+  });
+
+  it('should send the private suggest-command response', async () => {
+    await service.sendSuggestCommandUnavailableInPrivateChat({
+      id: 12345,
+      type: 'private',
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: 12345,
+      text: 'Private suggestions unavailable',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Suggest a gig',
+              web_app: { url: 'https://gigs.example/suggest/launch' },
+            },
+          ],
+          [
+            {
+              text: 'Open suggestions chat',
+              url: 'https://t.me/gigs_together_chat',
+            },
+          ],
+        ],
+      },
+    });
   });
 
   it('should send the unavailable response to a shared chat', async () => {

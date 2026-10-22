@@ -6,6 +6,7 @@ import { TelegramUpdatesService } from './telegram-updates.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
+import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import {
@@ -40,6 +41,7 @@ describe('TelegramUpdatesService', () => {
   const mockTelegramBotReplyService = {
     sendIncomingMessageUnavailable: vi.fn(),
     sendStartCommandResponse: vi.fn(),
+    sendSuggestCommandUnavailableInPrivateChat: vi.fn(),
     sendUnknownCommandResponse: vi.fn(),
   };
 
@@ -293,6 +295,39 @@ describe('TelegramUpdatesService', () => {
         mockTelegramBotReplyService.sendStartCommandResponse,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
+    });
+
+    it('should explain that the suggest command is unavailable in a private chat', async () => {
+      const privateChat = {
+        id: 12345,
+        type: 'private',
+      } satisfies TGChat;
+      const message: TGMessage = {
+        message_id: 124,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: privateChat,
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+      mockTelegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat.mockResolvedValue(
+        undefined,
+      );
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat,
+      ).toHaveBeenCalledWith(privateChat);
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
     });
 
     it('should create a candidate and react to a suggestion from the configured group', async () => {
