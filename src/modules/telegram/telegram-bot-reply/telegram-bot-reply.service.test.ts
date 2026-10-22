@@ -17,16 +17,12 @@ type MockTelegramTemplates = Pick<
 
 function createMockTelegramTemplates(): MockTelegramTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
-    [TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat]:
-      'Open suggestions chat',
     [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
-    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
-      'Private suggestions unavailable',
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/admins',
-    [TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat]:
-      'https://t.me/gigs_together_chat',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Private suggestions unavailable. Use <a href="{formUrl}">the form</a> or <a href="https://t.me/gigs_together_chat">the chat</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandStart]: 'Start {contactAdminsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.commandUnknown]: 'Unknown {contactAdminsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
@@ -37,11 +33,11 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
     getText: vi.fn((key: TelegramTemplateKey) => texts[key] ?? ''),
     render: vi.fn(
       (key: TelegramTemplateKey, params: Record<string, unknown>) => {
-        const template = templates[key] ?? '';
-        return template.replace(
-          '{contactAdminsUrl}',
-          String(params.contactAdminsUrl ?? ''),
-        );
+        let rendered = templates[key] ?? '';
+        for (const [paramKey, value] of Object.entries(params)) {
+          rendered = rendered.replaceAll(`{${paramKey}}`, String(value ?? ''));
+        }
+        return rendered;
       },
     ),
   };
@@ -127,25 +123,9 @@ describe('TelegramBotReplyService', () => {
 
     expect(sendMessage).toHaveBeenCalledWith({
       chat_id: 12345,
-      text: 'Private suggestions unavailable',
+      text: 'Private suggestions unavailable. Use <a href="https://t.me/GigsTogetherStgBot/suggest">the form</a> or <a href="https://t.me/gigs_together_chat">the chat</a>.',
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Suggest a gig',
-              web_app: { url: 'https://gigs.example/suggest/launch' },
-            },
-          ],
-          [
-            {
-              text: 'Open suggestions chat',
-              url: 'https://t.me/gigs_together_chat',
-            },
-          ],
-        ],
-      },
     });
   });
 

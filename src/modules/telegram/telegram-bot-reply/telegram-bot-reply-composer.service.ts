@@ -36,22 +36,21 @@ export class TelegramBotReplyComposerService {
   }
 
   composeSuggestCommandUnavailableInPrivateChat(chat: TGChat): TGSendMessage {
-    const text = this.telegramTemplates.getText(
+    const text = this.telegramTemplates.render(
       TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable,
+      {
+        formUrl: this.escapeTelegramHtmlAttribute(
+          this.getSuggestGigDirectLink(),
+        ),
+      },
     );
-    const openGigSuggestionsChatButton: TGInlineKeyboardButton = {
-      text: this.telegramTemplates.getText(
-        TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat,
-      ),
-      url: this.telegramTemplates.getText(
-        TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat,
-      ),
-    };
-    return this.composeUserResponseWithText(
-      chat,
+
+    return {
+      chat_id: chat.id,
       text,
-      openGigSuggestionsChatButton,
-    );
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    };
   }
 
   composeUnknownCommandResponse(chat: TGChat): TGSendMessage {

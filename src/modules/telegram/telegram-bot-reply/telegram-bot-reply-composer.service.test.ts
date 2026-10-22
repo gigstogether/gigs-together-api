@@ -29,17 +29,13 @@ function renderPlainTemplate(
 
 function createMockTelegramTemplates(): MockTelegramTemplates {
   const texts: Partial<Record<TelegramTemplateKey, string>> = {
-    [TELEGRAM_TEMPLATE_KEYS.buttonOpenGigSuggestionsChat]:
-      'Open suggestions chat',
     [TELEGRAM_TEMPLATE_KEYS.buttonSuggestGig]: 'Suggest a gig',
-    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
-      'Chat suggestions are unavailable in private messages.',
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]:
       'https://t.me/gigs_together?topic=help&source=bot',
-    [TELEGRAM_TEMPLATE_KEYS.linkGigSuggestionsChat]:
-      'https://t.me/gigs_together_chat',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Chat suggestions are unavailable in private messages. You can suggest a gig using <a href="{formUrl}">the form</a> or in <a href="https://t.me/gigs_together_chat">our community chat</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandStart]:
       'Start: <a href="{contactAdminsUrl}">contact admins</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
@@ -139,27 +135,9 @@ describe('TelegramBotReplyComposerService', () => {
       composer.composeSuggestCommandUnavailableInPrivateChat(privateChat),
     ).toEqual({
       chat_id: 12345,
-      text: 'Chat suggestions are unavailable in private messages.',
+      text: 'Chat suggestions are unavailable in private messages. You can suggest a gig using <a href="https://t.me/GigsTogetherStgBot/suggest">the form</a> or in <a href="https://t.me/gigs_together_chat">our community chat</a>.',
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [
-          [
-            {
-              text: 'Suggest a gig',
-              web_app: {
-                url: 'https://gigs.example/suggest/launch',
-              },
-            },
-          ],
-          [
-            {
-              text: 'Open suggestions chat',
-              url: 'https://t.me/gigs_together_chat',
-            },
-          ],
-        ],
-      },
     });
   });
 
