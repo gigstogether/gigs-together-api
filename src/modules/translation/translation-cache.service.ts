@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
@@ -14,6 +13,7 @@ import {
   buildTranslationCacheIndex,
 } from './translation-bundle.parser';
 import { isValidTranslationNamespace } from './translation-identifiers';
+import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import type {
@@ -116,9 +116,11 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       ?.get(params.key);
 
     if (entry === undefined) {
-      throw new InternalServerErrorException(
-        `Translation "${params.key}" is missing for namespace "${namespace}" and locale "${normalizedLocale}".`,
-      );
+      throw new MissingTranslationError({
+        namespace,
+        key: params.key,
+        locale: normalizedLocale,
+      });
     }
 
     return entry;

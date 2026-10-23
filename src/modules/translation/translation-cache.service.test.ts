@@ -7,6 +7,7 @@ import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
 import { TranslationCacheService } from './translation-cache.service';
+import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationRecord } from './types/translation.types';
 
@@ -142,6 +143,13 @@ describe('TranslationCacheService', () => {
           .getNamespaceEntries({ namespace: 'telegram', locale: 'en' })
           .has(TELEGRAM_TEMPLATE_KEYS.commandStart),
       ).toBe(false);
+      expect(() =>
+        service.getEntry({
+          namespace: 'telegram',
+          key: TELEGRAM_TEMPLATE_KEYS.commandStart,
+          locale: 'en',
+        }),
+      ).toThrow(MissingTranslationError);
     });
   });
 
