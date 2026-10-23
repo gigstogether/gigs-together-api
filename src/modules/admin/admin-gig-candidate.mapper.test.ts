@@ -2,6 +2,8 @@ import { Readable } from 'node:stream';
 
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
 import {
   mapV1AdminCreateGigCandidateRequest,
@@ -15,12 +17,12 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '66a000000000000000000000042',
       displayName: 'Test User',
       isCurrentlyAdmin: false,
       telegramUsername: 'test_user',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
       title: 'Band',
@@ -64,7 +66,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
           displayName: 'Test User',
           isCurrentlyAdmin: false,
           telegramUsername: 'test_user',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: expect.objectContaining({ date: '2026-08-20' }),
         intakePostUrl: 'https://t.me/c/123/77',
@@ -81,7 +83,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
     const response = mapV1AdminGigCandidateResponse({
       ...buildGigCandidateDetails(),
       source: {
-        type: 'provider',
+        type: GigSourceType.Provider,
         provider: {
           name: 'exampleProvider',
           externalEventId: 'event-1',
@@ -104,29 +106,43 @@ describe('mapV1AdminGigCandidateResponse', () => {
     });
   });
 
-  it('should serialize messenger origin without message identifiers', () => {
+  it('should serialize an original message separately from messenger source', () => {
     const response = mapV1AdminGigCandidateResponse({
       ...buildGigCandidateDetails(),
       source: {
-        type: 'user',
-        userId: '66a000000000000000000000042',
-        isCurrentlyAdmin: false,
+        type: GigSourceType.User,
         origin: {
-          type: 'messenger',
+          type: GigSourceUserOriginType.Messenger,
           messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
         },
+        originalText: 'Radiohead in Barcelona',
+        isCurrentlyAdmin: false,
+      },
+      originalMessage: {
+        text: 'Radiohead in Barcelona',
+        url: 'https://t.me/c/123/42',
       },
     });
 
     expect(response.source).toEqual({
       type: 'user',
-      userId: '66a000000000000000000000042',
       isCurrentlyAdmin: false,
       origin: {
         type: 'messenger',
         messenger: Messenger.Telegram,
       },
     });
+    expect(response.originalMessage).toEqual({
+      text: 'Radiohead in Barcelona',
+      url: 'https://t.me/c/123/42',
+    });
+  });
+
+  it('should omit originalMessage when a candidate has no source message', () => {
+    const response = mapV1AdminGigCandidateResponse(buildGigCandidateDetails());
+
+    expect(response).not.toHaveProperty('originalMessage');
   });
 });
 

@@ -1,20 +1,23 @@
 import { BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { GigPosterService } from '../gig/gig.poster.service';
+import { GigPosterService } from '../gig/gig-poster/gig-poster.service';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -22,12 +25,16 @@ import {
 import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
-import { GigCandidateApprovalValidationError } from './gig-candidate-approval';
-import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
+import { GigCandidateApprovalValidationError } from './gig-candidate-approval/gig-candidate-approval';
+import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
+import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
+import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 
 describe('GigCandidateService', () => {
   let service: GigCandidateService;
+  let approvalService: GigCandidateApprovalService;
 
   const gigCandidateRepositoryMock: {
     createId: ReturnType<typeof vi.fn>;
@@ -97,14 +104,59 @@ describe('GigCandidateService', () => {
   };
 
   const calendarServiceMock = { addEvent: vi.fn() };
-  const feedRevalidateServiceMock = { revalidateFeedOrThrow: vi.fn() };
+  const gigFeedRevalidationServiceMock = {
+    revalidateGigFeedOrThrow: vi.fn(),
+  };
   const gigServiceMock = {
     generateUniquePublicId: vi.fn(),
     gigToCalendarPayload: vi.fn(),
   };
 
+  async function createService(
+    configService: ConfigService,
+  ): Promise<GigCandidateService> {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigCandidateService,
+        GigCandidateApprovalService,
+        GigCandidateFeedbackService,
+        GigCandidatePosterService,
+        {
+          provide: GIG_CANDIDATE_REPOSITORY,
+          useValue: gigCandidateRepositoryMock,
+        },
+        {
+          provide: GIG_CANDIDATE_APPROVAL_REPOSITORY,
+          useValue: gigCandidateApprovalRepositoryMock,
+        },
+        { provide: GigPosterService, useValue: gigPosterServiceMock },
+        {
+          provide: TelegramGigService,
+          useValue: {
+            updateModerationPost: telegramServiceMock.updateGigModerationPost,
+          },
+        },
+        {
+          provide: TelegramGigCandidateService,
+          useValue: telegramGigCandidateServiceMock,
+        },
+        { provide: AiService, useValue: aiServiceMock },
+        { provide: CalendarService, useValue: calendarServiceMock },
+        {
+          provide: GigFeedRevalidationService,
+          useValue: gigFeedRevalidationServiceMock,
+        },
+        { provide: GigService, useValue: gigServiceMock },
+        { provide: UserService, useValue: userServiceMock },
+        { provide: ConfigService, useValue: configService },
+      ],
+    }).compile();
+
+    approvalService = module.get(GigCandidateApprovalService);
+    return module.get(GigCandidateService);
+  }
+
   beforeEach(async () => {
-    vi.stubEnv('DEFAULT_GIG_POSTER_URL', 'https://cdn.example/default.jpg');
     gigPosterServiceMock.upload.mockResolvedValue(undefined);
     gigServiceMock.generateUniquePublicId.mockImplementation(
       async (params: {
@@ -134,43 +186,258 @@ describe('GigCandidateService', () => {
       updatedAt: new Date('2026-08-22T10:00:00.000Z'),
     });
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GigCandidateService,
-        {
-          provide: GIG_CANDIDATE_REPOSITORY,
-          useValue: gigCandidateRepositoryMock,
-        },
-        {
-          provide: GIG_CANDIDATE_APPROVAL_REPOSITORY,
-          useValue: gigCandidateApprovalRepositoryMock,
-        },
-        { provide: GigPosterService, useValue: gigPosterServiceMock },
-        {
-          provide: TelegramGigService,
-          useValue: {
-            updateModerationPost: telegramServiceMock.updateGigModerationPost,
-          },
-        },
-        {
-          provide: TelegramGigCandidateService,
-          useValue: telegramGigCandidateServiceMock,
-        },
-        { provide: AiService, useValue: aiServiceMock },
-        { provide: CalendarService, useValue: calendarServiceMock },
-        { provide: FeedRevalidateService, useValue: feedRevalidateServiceMock },
-        { provide: GigService, useValue: gigServiceMock },
-        { provide: UserService, useValue: userServiceMock },
-      ],
-    }).compile();
-
-    service = module.get(GigCandidateService);
+    service = await createService(
+      new ConfigService({
+        SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: '',
+        DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
+      }),
+    );
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+  });
+
+  describe('createMessengerGigCandidate', () => {
+    it('should create an anonymous messenger candidate with Barcelona location defaults', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+
+      const result = await service.createMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(gigCandidate);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: gigCandidate.id,
+        status: GigCandidateStatus.New,
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+    });
+
+    it('should associate a messenger candidate with an existing User', async () => {
+      const userId = '507f1f77bcf86cd799439088';
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          userId,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+
+      await service.createMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+        userId,
+      });
+
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: expect.objectContaining({ userId }),
+        }),
+      );
+    });
+
+    it.each([
+      {
+        name: 'zero chat id',
+        chatId: 0,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+        expectedMessage: 'chatId must be a non-zero safe integer',
+      },
+      {
+        name: 'non-positive message id',
+        chatId: -100123,
+        messageId: 0,
+        originalText: 'Radiohead in Barcelona',
+        expectedMessage: 'messageId must be a positive safe integer',
+      },
+      {
+        name: 'blank original text',
+        chatId: -100123,
+        messageId: 42,
+        originalText: '   ',
+        expectedMessage: 'originalText is required',
+      },
+    ])(
+      'should reject $name',
+      ({ chatId, messageId, originalText, expectedMessage }) => {
+        const createGigCandidate = () =>
+          service.createMessengerGigCandidate({
+            messenger: Messenger.Telegram,
+            chatId,
+            messageId,
+            originalText,
+          });
+
+        expect(createGigCandidate).toThrowError(BadRequestException);
+        expect(createGigCandidate).toThrowError(expectedMessage);
+        expect(
+          gigCandidateRepositoryMock.createGigCandidate,
+        ).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('submitMessengerGigCandidate', () => {
+    it('should send and store an Intake post for a Telegram suggestion', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      const withIntakePost = buildGigCandidate({
+        ...gigCandidate,
+        version: 1,
+        posts: [
+          {
+            to: Messenger.Telegram,
+            type: PostType.Intake,
+            chatId: -1003001,
+            id: 70,
+            date: 1_790_013_012_000,
+          },
+        ],
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue({
+        chatId: -1003001,
+        messageId: 70,
+        sentAtSeconds: 1_790_013_012,
+      });
+      gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent.mockResolvedValue(
+        withIntakePost,
+      );
+
+      const result = await service.submitMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(withIntakePost);
+      expect(
+        telegramServiceMock.sendGigCandidateIntakePost,
+      ).toHaveBeenCalledWith(gigCandidate);
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: gigCandidate.id,
+        expectedVersion: 0,
+        post: {
+          to: Messenger.Telegram,
+          type: PostType.Intake,
+          chatId: -1003001,
+          id: 70,
+          date: 1_790_013_012_000,
+        },
+      });
+    });
+
+    it('should keep the candidate when sending the Intake post fails', async () => {
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Radiohead in Barcelona',
+        },
+      });
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+      telegramServiceMock.sendGigCandidateIntakePost.mockRejectedValue(
+        new Error('Telegram unavailable'),
+      );
+
+      const result = await service.submitMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+
+      expect(result).toEqual(gigCandidate);
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `sendGigCandidateIntakePost failed for gigCandidateId=${gigCandidate.id}`,
+        ),
+      );
+      expect(
+        gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('handleSubmit', () => {
@@ -328,9 +595,9 @@ describe('GigCandidateService', () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000099',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'B',
@@ -380,9 +647,9 @@ describe('GigCandidateService', () => {
           gigCandidateId: created.id,
           status: GigCandidateStatus.New,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '66a000000000000000000000099',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: expect.objectContaining({
             title: 'B',
@@ -399,7 +666,11 @@ describe('GigCandidateService', () => {
         telegramServiceMock.sendGigCandidateIntakePost,
       ).toHaveBeenCalledWith(created, undefined);
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'submitted', title: 'B', chatId: '42' },
+        {
+          kind: 'submitted',
+          subject: { type: 'gigTitle', title: 'B' },
+          chatId: '42',
+        },
       );
     });
 
@@ -407,9 +678,9 @@ describe('GigCandidateService', () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -515,9 +786,9 @@ describe('GigCandidateService', () => {
     ])('should keep submission successful when $reason', async ({ user }) => {
       const created = buildGigCandidate({
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -562,9 +833,9 @@ describe('GigCandidateService', () => {
         .mockImplementation(() => undefined);
       const created = buildGigCandidate({
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000001',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Band',
@@ -627,9 +898,9 @@ describe('GigCandidateService', () => {
         id: gigCandidateId,
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId,
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Band',
@@ -662,9 +933,9 @@ describe('GigCandidateService', () => {
         gigCandidateId,
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId,
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: created.gigDraft,
       });
@@ -688,9 +959,9 @@ describe('GigCandidateService', () => {
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -730,13 +1001,22 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
 
-      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+          DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
+        }),
+      );
       await service.createAdminGigCandidate({
         userId: '507f1f77bcf86cd799439088',
         gigDraft: {},
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
+        {
+          kind: 'acceptedForModeration',
+          subject: { type: 'gigTitle', title: 'Band' },
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -744,13 +1024,13 @@ describe('GigCandidateService', () => {
       expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
-    it('should skip accepted-for-moderation feedback when the Gig title is missing', async () => {
+    it('should skip accepted-for-moderation feedback when the title and source message are missing', async () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: { poster: { bucketPath: 'gigs/default.jpg' } },
       });
@@ -767,7 +1047,12 @@ describe('GigCandidateService', () => {
       telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
         undefined,
       );
-      vi.stubEnv('SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS', 'true');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: 'true',
+          DEFAULT_GIG_POSTER_URL: 'https://cdn.example/default.jpg',
+        }),
+      );
 
       await service.createAdminGigCandidate({
         userId: '507f1f77bcf86cd799439088',
@@ -777,7 +1062,7 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).not.toHaveBeenCalled();
-      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).toHaveBeenCalledTimes(1);
     });
 
     it('should store a direct Moderation post for an admin-created GigCandidate', async () => {
@@ -792,9 +1077,9 @@ describe('GigCandidateService', () => {
       const created = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
       });
       const stored = buildGigCandidate({
@@ -998,7 +1283,12 @@ describe('GigCandidateService', () => {
 
   describe('sendGigCandidateToModeration', () => {
     it('should keep New status when no moderation poster can be prepared', async () => {
-      vi.stubEnv('DEFAULT_GIG_POSTER_URL', '');
+      service = await createService(
+        new ConfigService({
+          SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS: '',
+          DEFAULT_GIG_POSTER_URL: '',
+        }),
+      );
       const newGigCandidate = buildGigCandidate({
         gigDraft: { title: 'Band' },
         version: 1,
@@ -1124,7 +1414,11 @@ describe('GigCandidateService', () => {
         moderationPost,
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'acceptedForModeration', title: 'Band', chatId: '42' },
+        {
+          kind: 'acceptedForModeration',
+          subject: { type: 'gigTitle', title: 'Band' },
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -1290,14 +1584,13 @@ describe('GigCandidateService', () => {
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         source: {
-          type: 'user',
-          userId: '507f1f77bcf86cd799439088',
+          type: GigSourceType.User,
           origin: {
-            type: 'messenger',
+            type: GigSourceUserOriginType.Messenger,
             messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
           },
           originalText: 'Private intake text',
-          attachments: [{ bucketPath: 'private/source.png' }],
         },
         gigDraft: {
           title: 'Radiohead',
@@ -1328,7 +1621,7 @@ describe('GigCandidateService', () => {
       gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: approved.approvedByUserId!,
@@ -1356,9 +1649,11 @@ describe('GigCandidateService', () => {
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
-          type: 'user',
-          userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'messenger' },
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+          },
         },
         moderationPost,
       });
@@ -1371,7 +1666,7 @@ describe('GigCandidateService', () => {
         'radiohead-2026-06-12',
       );
       expect(
-        feedRevalidateServiceMock.revalidateFeedOrThrow,
+        gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow,
       ).toHaveBeenCalledWith({
         country: gig.country,
         city: gig.city,
@@ -1387,14 +1682,9 @@ describe('GigCandidateService', () => {
         publicId: gig.publicId,
         moderationPost: { chatId: -200, messageId: 50 },
       });
-      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        {
-          kind: 'acceptedWithPublicLink',
-          publicId: gig.publicId,
-          title: gig.title,
-          chatId: '42',
-        },
-      );
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
     });
 
     it('should stop before writing when multiple Moderation posts are present', async () => {
@@ -1431,7 +1721,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: reviewing.version,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1453,7 +1743,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 1,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1474,7 +1764,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1499,7 +1789,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.findGigById.mockResolvedValue(gig);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: approved.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1510,7 +1800,7 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
       expect(
-        feedRevalidateServiceMock.revalidateFeedOrThrow,
+        gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow,
       ).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -1519,7 +1809,7 @@ describe('GigCandidateService', () => {
 
     it('should skip submitter feedback for a provider-origin GigCandidate', async () => {
       const source: GigCandidate['source'] = {
-        type: 'provider',
+        type: GigSourceType.Provider,
         provider: {
           name: 'exampleProvider',
           externalEventId: 'event-1',
@@ -1555,7 +1845,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.createGig.mockResolvedValue(gig);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: approved.approvedByUserId!,
@@ -1587,7 +1877,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(null);
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1636,7 +1926,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
       gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
-      feedRevalidateServiceMock.revalidateFeedOrThrow.mockRejectedValue(
+      gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow.mockRejectedValue(
         new Error('Revalidation unavailable'),
       );
       calendarServiceMock.addEvent.mockRejectedValue(
@@ -1650,7 +1940,7 @@ describe('GigCandidateService', () => {
       );
 
       await expect(
-        service.approveGigCandidate({
+        approvalService.approveGigCandidate({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           approvedByUserId: '507f1f77bcf86cd799439077',
@@ -1710,11 +2000,110 @@ describe('GigCandidateService', () => {
         rejectedAt: expect.any(Date),
       });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
-        { kind: 'rejected', title: 'Rejected gig', chatId: '42' },
+        {
+          kind: 'rejected',
+          subject: { type: 'gigTitle', title: 'Rejected gig' },
+          chatId: '42',
+        },
       );
       expect(
         telegramServiceMock.updateRejectedGigCandidatePost,
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
+    });
+
+    it('should use the source message for known chat user feedback when the title is missing', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+      };
+      const source: GigCandidate['source'] = {
+        type: GigSourceType.User,
+        userId: '507f1f77bcf86cd799439088',
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Radiohead in Barcelona',
+      };
+      const newGigCandidate = buildGigCandidate({
+        source,
+        posts: [intakePost],
+      });
+      const rejected = buildGigCandidate({
+        source,
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+        posts: [intakePost],
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+      telegramServiceMock.updateRejectedGigCandidatePost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.rejectGigCandidate({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 0,
+        rejectedByUserId: rejected.rejectedByUserId!,
+      });
+
+      expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
+        {
+          kind: 'rejected',
+          subject: {
+            type: 'chatMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
+          chatId: '42',
+        },
+      );
+      expect(userServiceMock.findActiveUserById).toHaveBeenCalledWith(
+        source.userId,
+      );
+    });
+
+    it('should skip rejected feedback when the chat user is unknown', async () => {
+      const loggerWarnSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      const source: GigCandidate['source'] = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Radiohead in Barcelona',
+      };
+      const newGigCandidate = buildGigCandidate({ source });
+      const rejected = buildGigCandidate({
+        source,
+        status: GigCandidateStatus.Rejected,
+        version: 1,
+        rejectedAt: new Date('2026-08-24T12:00:00.000Z'),
+        rejectedByUserId: '507f1f77bcf86cd799439077',
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.rejectGigCandidate.mockResolvedValue(rejected);
+
+      await service.rejectGigCandidate({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 0,
+        rejectedByUserId: rejected.rejectedByUserId!,
+      });
+
+      expect(
+        telegramServiceMock.sendGigCandidateFeedback,
+      ).not.toHaveBeenCalled();
+      expect(userServiceMock.findActiveUserById).not.toHaveBeenCalled();
+      expect(loggerWarnSpy).not.toHaveBeenCalled();
     });
 
     it('should preserve rejected state and Intake reference when Telegram update fails', async () => {
@@ -1751,7 +2140,7 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith({ gigCandidate: rejected, post: intakePost });
     });
 
-    it('should update the Moderation post after rejecting Reviewing and preserve the transition when Telegram fails', async () => {
+    it('should preserve rejection and suppress the expected feedback warning when the Telegram chat is unavailable', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
@@ -1814,7 +2203,7 @@ describe('GigCandidateService', () => {
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
       ).toHaveBeenCalledOnce();
-      expect(loggerWarnSpy).toHaveBeenCalledWith(
+      expect(loggerWarnSpy).not.toHaveBeenCalledWith(
         'sendGigCandidateFeedback failed for gigCandidateId=507f1f77bcf86cd799439099: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: chat not found',
       );
     });
@@ -1994,9 +2383,9 @@ function buildGigCandidate(
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439088',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {},
     version: 0,
@@ -2021,9 +2410,11 @@ function buildGigApprovalResult(
     venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     source: {
-      type: 'user',
-      userId: '507f1f77bcf86cd799439088',
-      origin: { type: 'messenger' },
+      type: GigSourceType.User,
+      origin: {
+        type: GigSourceUserOriginType.Messenger,
+        messenger: Messenger.Telegram,
+      },
     },
     version: 0,
     isVisible: true,

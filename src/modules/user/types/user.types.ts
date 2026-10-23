@@ -22,9 +22,12 @@ export interface User {
   updatedAt: Date;
 }
 
-export interface FindOrCreateMessengerUserParams {
+export interface FindActiveUserByMessengerIdentityParams {
   messenger: Messenger;
   externalUserId: string;
+}
+
+export interface FindOrCreateMessengerUserParams extends FindActiveUserByMessengerIdentityParams {
   username?: string;
   displayName?: string;
 }

@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { TELEGRAM_WEB_BASE_URL } from '../telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type { TGChat } from '../types/chat.types';
 import type {
   TGInlineKeyboardButton,
@@ -17,7 +19,10 @@ type UserResponseTemplateKey =
 
 @Injectable()
 export class TelegramBotReplyComposerService {
-  constructor(private readonly telegramTemplates: TelegramTemplateService) {}
+  constructor(
+    private readonly telegramTemplates: TelegramTemplateService,
+    private readonly telegramService: TelegramService,
+  ) {}
 
   composeIncomingMessageUnavailable(chat: TGChat): TGSendMessage {
     return this.composeUserResponse(
@@ -27,7 +32,29 @@ export class TelegramBotReplyComposerService {
   }
 
   composeStartCommandResponse(chat: TGChat): TGSendMessage {
-    return this.composeUserResponse(chat, TELEGRAM_TEMPLATE_KEYS.commandStart);
+    return this.composeUserResponse(
+      chat,
+      TELEGRAM_TEMPLATE_KEYS.commandStart,
+      this.composeSuggestGigButton(chat),
+    );
+  }
+
+  composeSuggestCommandUnavailableInPrivateChat(chat: TGChat): TGSendMessage {
+    const text = this.telegramTemplates.render(
+      TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable,
+      {
+        formUrl: this.escapeTelegramHtmlAttribute(
+          this.getSuggestGigDirectLink(),
+        ),
+      },
+    );
+
+    return {
+      chat_id: chat.id,
+      text,
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    };
   }
 
   composeUnknownCommandResponse(chat: TGChat): TGSendMessage {
@@ -40,22 +67,27 @@ export class TelegramBotReplyComposerService {
   private composeUserResponse(
     chat: TGChat,
     templateKey: UserResponseTemplateKey,
+    button?: TGInlineKeyboardButton,
   ): TGSendMessage {
     const contactAdminsUrl = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.linkContactAdmins,
     );
 
-    return {
+    const text = this.telegramTemplates.render(templateKey, {
+      contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
+    });
+    const response: TGSendMessage = {
       chat_id: chat.id,
-      text: this.telegramTemplates.render(templateKey, {
-        contactAdminsUrl: this.escapeTelegramHtmlAttribute(contactAdminsUrl),
-      }),
+      text,
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
-      reply_markup: {
-        inline_keyboard: [[this.composeSuggestGigButton(chat)]],
-      },
     };
+    if (button !== undefined) {
+      response.reply_markup = {
+        inline_keyboard: [[button]],
+      };
+    }
+    return response;
   }
 
   private composeSuggestGigButton(chat: TGChat): TGInlineKeyboardButton {
@@ -70,8 +102,13 @@ export class TelegramBotReplyComposerService {
         }
       : {
           text,
-          url: this.getSuggestGigUrl(),
+          url: this.getSuggestGigDirectLink(),
         };
+  }
+
+  private getSuggestGigDirectLink(): string {
+    const shortName = this.telegramService.getSuggestMiniAppShortName();
+    return `${TELEGRAM_WEB_BASE_URL}/${this.telegramService.getBotUsername()}/${encodeURIComponent(shortName)}`;
   }
 
   private escapeTelegramHtmlAttribute(value: string): string {
@@ -82,30 +119,9 @@ export class TelegramBotReplyComposerService {
       .replaceAll('"', '&quot;');
   }
 
-  private getSuggestGigUrl(): string {
-    const suggestGigUrl = (process.env.SUGGEST_GIG_URL ?? '').trim();
-    if (suggestGigUrl === '') {
-      throw new BadRequestException(
-        'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
-      );
-    }
-
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(suggestGigUrl);
-    } catch (e) {
-      throw new BadRequestException(
-        'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
-        { cause: e },
-      );
-    }
-
-    return parsedUrl.toString();
-  }
-
   private getSuggestGigWebAppUrl(): string {
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    if (appBaseUrl === '') {
+    const appBaseUrl = this.telegramService.getAppBaseUrl();
+    if (appBaseUrl === undefined) {
       throw new BadRequestException(
         'Cannot compose private user response: APP_BASE_URL is not configured.',
       );

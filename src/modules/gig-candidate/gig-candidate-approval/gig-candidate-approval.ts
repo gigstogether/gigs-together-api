@@ -1,9 +1,16 @@
 import type {
   GigCandidate,
   GigCandidateSource,
-} from './types/gig-candidate.types';
-import type { GigData, GigSource } from '../gig/types/gig.types';
-import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
+} from '../types/gig-candidate.types';
+import type {
+  GigData,
+  GigSource,
+  GigSourceMessengerUser,
+} from '../../gig/types/gig.types';
+import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate-source.guards';
 
 export interface GigCandidateApprovalIssue {
   field: string;
@@ -108,19 +115,33 @@ export function validateGigCandidateDraftForApproval(
   };
 }
 
-export function projectGigCandidateSource(
+export function mapGigCandidateSourceToGigSource(
   source: GigCandidateSource,
 ): GigSource {
-  if (source.type === 'user') {
+  if (source.type === GigSourceType.User) {
+    if (isGigCandidateSourceMessengerUser(source)) {
+      const gigSource: GigSourceMessengerUser = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: source.origin.messenger,
+        },
+      };
+      if (source.userId !== undefined) {
+        gigSource.userId = source.userId;
+      }
+      return gigSource;
+    }
+
     return {
-      type: 'user',
+      type: GigSourceType.User,
       userId: source.userId,
       origin: { type: source.origin.type },
     };
   }
 
   return {
-    type: 'provider',
+    type: GigSourceType.Provider,
     provider: {
       name: source.provider.name,
       externalEventId: source.provider.externalEventId,

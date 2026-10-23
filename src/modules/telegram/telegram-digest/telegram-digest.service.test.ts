@@ -7,6 +7,7 @@ import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { TGInputMediaType } from '../types/message.types';
 import { TelegramDigestService } from './telegram-digest.service';
+import { TelegramService } from '../telegram.service';
 
 const mediaGroupPlan: WeeklyDigestSendPlan = {
   kind: WeeklyDigestSendKind.SendMediaGroup,
@@ -43,6 +44,9 @@ describe('TelegramDigestService', () => {
   const telegramComposer = {
     buildPostUrl: vi.fn(),
   };
+  const telegramService = {
+    getMainChannelId: vi.fn().mockReturnValue('-1001'),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -57,16 +61,15 @@ describe('TelegramDigestService', () => {
           provide: TelegramComposerService,
           useValue: telegramComposer,
         },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 
     service = moduleRef.get(TelegramDigestService);
-    process.env.MAIN_CHANNEL_ID = '-1001';
     telegramComposer.buildPostUrl.mockReturnValue('https://t.me/c/1/42');
   });
 
   afterEach(() => {
-    delete process.env.MAIN_CHANNEL_ID;
     vi.restoreAllMocks();
     vi.clearAllMocks();
   });
@@ -114,7 +117,7 @@ describe('TelegramDigestService', () => {
   });
 
   it('should skip sending when the main channel is not configured', async () => {
-    delete process.env.MAIN_CHANNEL_ID;
+    telegramService.getMainChannelId.mockReturnValueOnce(undefined);
 
     await expect(service.sendWeeklyDigestPost([])).resolves.toBeUndefined();
     expect(telegramDigestComposer.composeWeeklyDigest).not.toHaveBeenCalled();

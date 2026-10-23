@@ -24,15 +24,19 @@ import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-e
 import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
+import { getRequiredConfigString } from '../../shared/utils/env';
 
 @Module({
   imports: [
     HttpModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        baseURL: `https://api.telegram.org/bot${configService.get<string>('BOT_TOKEN')}`,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const botToken = getRequiredConfigString(configService, 'BOT_TOKEN');
+        return {
+          baseURL: `https://api.telegram.org/bot${botToken}`,
+        };
+      },
     }),
     CacheModule.register({
       ttl: 60_000 * 60,

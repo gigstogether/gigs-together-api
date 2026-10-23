@@ -1,8 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
@@ -64,8 +67,12 @@ function createMockPostTemplates(): MockPostTemplates {
       'Suggestion {title} submitted',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModeration]:
       'Suggestion {title} accepted for moderation',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedForModerationChatMessage]:
+      '<a href="{messageUrl}">Your gig suggestion</a> accepted for moderation',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejected]:
       'Suggestion {title} rejected',
+    [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackRejectedChatMessage]:
+      '<a href="{messageUrl}">Your gig suggestion</a> rejected',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateFeedbackAcceptedWithPublicLink]:
       'Suggestion accepted: <a href="{gigUrl}">{title}</a>',
     [TELEGRAM_TEMPLATE_KEYS.gigCandidateLinkOpenAdmin]:
@@ -96,6 +103,7 @@ describe('TelegramComposerService', () => {
   let composer: TelegramComposerService;
   let gigCandidateComposer: TelegramGigCandidateComposerService;
   let gigComposer: TelegramGigComposerService;
+  let telegramService: TelegramService;
   let mockPostTemplates: MockPostTemplates;
 
   const mockBucket = {
@@ -103,6 +111,12 @@ describe('TelegramComposerService', () => {
   };
 
   const mockTelegramBotClient = {
+    getMe: vi.fn().mockResolvedValue({
+      id: 42,
+      first_name: 'Gigs Together',
+      is_bot: true,
+      username: 'GigsTogetherStgBot',
+    }),
     sendMessage: vi.fn(),
     sendPhoto: vi.fn(),
     answerCallbackQuery: vi.fn(),
@@ -115,6 +129,12 @@ describe('TelegramComposerService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
+    vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
+    vi.stubEnv('MAIN_CHANNEL_ID', '-1001');
+    vi.stubEnv('INTAKE_CHANNEL_ID', '-3001');
+    vi.stubEnv('MODERATION_CHANNEL_ID', '-3002');
+    vi.stubEnv('APP_BASE_URL', 'https://admin.example');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     mockPostTemplates = createMockPostTemplates();
 
@@ -131,10 +151,13 @@ describe('TelegramComposerService', () => {
         { provide: BucketService, useValue: mockBucket },
         { provide: TelegramBotClient, useValue: mockTelegramBotClient },
         { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
+        ConfigService,
       ],
     }).compile();
 
     composer = moduleRef.get(TelegramComposerService);
+    telegramService = moduleRef.get(TelegramService);
+    await telegramService.onModuleInit();
     gigCandidateComposer = moduleRef.get(TelegramGigCandidateComposerService);
     gigComposer = moduleRef.get(TelegramGigComposerService);
   });
@@ -294,16 +317,12 @@ describe('TelegramComposerService', () => {
           adminGigUrl: 'https://app.example/admin/gigs/concert',
         }),
       ).toBe(
-        '<a href="https://app.example/gigs/concert">Concert</a>\n\n<a href="https://app.example/admin/gigs/concert">Open gig in admin</a> | <a href="https://t.me/gigs/42">See main post</a>',
+        '<a href="https://app.example/gigs/concert">Concert</a>\n\n<a href="https://app.example/admin/gigs/concert">Open gig in admin</a> | <a href="https://t.me/gigs/42">See main post</a>\n.',
       );
     });
   });
 
   describe('buildGigPermalink', () => {
-    afterEach(() => {
-      delete process.env.EDIT_GIG_URL;
-    });
-
     it('should build gigs URL from publicId', () => {
       const input: BuildGigPermalinkPayload = {
         baseUrl: 'https://app.example',
@@ -315,55 +334,25 @@ describe('TelegramComposerService', () => {
       );
     });
 
-    it('should build admin Gig Mini App URL from publicId', () => {
-      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
+    it('should return undefined when base URL is not configured', () => {
+      const input: BuildGigPermalinkPayload = {
+        baseUrl: undefined,
+        publicId: 'gig-1',
+      };
 
+      expect(composer.buildGigPermalink(input)).toBeUndefined();
+    });
+
+    it('should build admin Gig Mini App URL from publicId', () => {
       expect(gigComposer.buildAdminUrl('gig-1')).toBe(
         'https://t.me/GigsTogetherStgBot/admin?startapp=openGig-gig-1',
       );
     });
   });
 
-  describe('buildCaption', () => {
-    it('should include titled link when url is provided', () => {
-      const caption = composer.buildCaption({
-        url: 'https://app.example/gigs/ab',
-        title: 'Concert',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: new Date('2026-06-01T12:00:00.000Z'),
-      });
-
-      expect(caption).toContain('<a href="https://app.example/gigs/ab">');
-      expect(caption).toContain('Concert</a>');
-      expect(caption).toContain('📍 Hall');
-      expect(caption).toContain('🎫 https://tickets.example/x');
-    });
-
-    it('should include weekday in the date line', () => {
-      const caption = composer.buildCaption({
-        title: 'Concert',
-        ticketsUrl: 'https://tickets.example/x',
-        venue: 'Hall',
-        date: new Date('2026-06-01T12:00:00.000Z'),
-      });
-
-      expect(caption).toContain('Mon');
-      expect(caption).toContain('1 Jun 2026');
-    });
-  });
-
   describe('composeMainPost', () => {
-    beforeEach(() => {
-      process.env.MAIN_CHANNEL_ID = '-1001';
-    });
-
-    afterEach(() => {
-      delete process.env.MAIN_CHANNEL_ID;
-    });
-
     it('should throw BadRequestException when MAIN_CHANNEL_ID is not configured', () => {
-      delete process.env.MAIN_CHANNEL_ID;
+      vi.spyOn(telegramService, 'getMainChannelId').mockReturnValue(undefined);
 
       const gig = {
         id: 'gig-env',
@@ -557,29 +546,15 @@ describe('TelegramComposerService', () => {
   });
 
   describe('TelegramGigCandidateComposerService', () => {
-    beforeEach(() => {
-      process.env.INTAKE_CHANNEL_ID = '-3001';
-      process.env.MODERATION_CHANNEL_ID = '-3002';
-      process.env.APP_BASE_URL = 'https://admin.example';
-      process.env.EDIT_GIG_URL = 'https://t.me/GigsTogetherStgBot/admin';
-    });
-
-    afterEach(() => {
-      delete process.env.INTAKE_CHANNEL_ID;
-      delete process.env.MODERATION_CHANNEL_ID;
-      delete process.env.APP_BASE_URL;
-      delete process.env.EDIT_GIG_URL;
-    });
-
     it('should compose Intake with Send to moderation and Reject actions', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -606,7 +581,9 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).not.toContain('⚪');
       expect(payload.caption).not.toContain('New');
       expect(payload.caption).not.toContain('ES / Barcelona');
-      expect(payload.caption).toContain('\n\n──────────\nSource: user');
+      expect(payload.caption).toContain(
+        '\n\n................................\nSource: user (form)',
+      );
       expect(payload.caption).toContain(
         '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
       );
@@ -640,9 +617,9 @@ describe('TelegramComposerService', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -669,15 +646,164 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
+    it('should compose a text Intake post from an escaped Telegram suggestion', () => {
+      const payload = gigCandidateComposer.composeIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: '<b>Band & friends</b>',
+        },
+        gigDraft: {},
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        chat_id: '-3001',
+        text: expect.stringContaining(
+          'Original message:\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
+        ),
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
+      });
+      expect('photo' in payload).toBe(false);
+    });
+
+    it('should omit Gig draft from initial Moderation for a Telegram suggestion', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/default.jpg',
+      );
+      const payload = gigCandidateComposer.composeModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: '<b>Band & friends</b>',
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.caption).toContain(
+        'Original message:\n&lt;b&gt;Band &amp; friends&lt;/b&gt;',
+      );
+      expect(payload.caption).not.toContain('🗓');
+      expect(payload.caption).not.toContain('📍');
+      expect(payload.caption).not.toContain('🎫');
+      expect(payload.caption).toContain('Source: user (Telegram)');
+    });
+
+    it('should add a partial date to the edited Moderation post while preserving the original message', () => {
+      const composition = gigCandidateComposer.composePostEdit({
+        gigCandidate: {
+          id: '507f1f77bcf86cd799439099',
+          source: {
+            type: GigSourceType.User,
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: Messenger.Telegram,
+              message: { chatId: -100123, messageId: 42 },
+            },
+            originalText: 'Unstructured suggestion',
+          },
+          gigDraft: {
+            date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+            poster: { bucketPath: 'gigs/default.jpg' },
+          },
+          version: 3,
+          status: GigCandidateStatus.Reviewing,
+          posts: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        post: {
+          to: Messenger.Telegram,
+          type: PostType.Moderation,
+          date: 1,
+          id: 50,
+          chatId: -3002,
+          fileId: 'moderation-file-id',
+        },
+        isMediaUpdateRequired: false,
+      });
+
+      expect(composition.kind).toBe(PostEditKind.Caption);
+      if (composition.kind !== PostEditKind.Caption) {
+        throw new Error('Expected a Telegram caption edit');
+      }
+      expect(composition.payload.caption).toContain('-\n\n🗓 Sat, 1 Aug 2026');
+      expect(composition.payload.caption).toContain('📍 -\n\n🎫 -');
+      expect(composition.payload.caption).toContain('🗓 Sat, 1 Aug 2026');
+      expect(composition.payload.caption).toContain(
+        'Original message:\nUnstructured suggestion',
+      );
+    });
+
+    it('should include existing Gig draft content in Moderation for a Telegram suggestion', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/default.jpg',
+      );
+      const payload = gigCandidateComposer.composeModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Unstructured suggestion',
+        },
+        gigDraft: {
+          title: 'Radiohead',
+          date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+          city: 'Barcelona',
+          country: 'ES',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload.caption).toContain('🟡 Radiohead');
+      expect(payload.caption).toContain('🗓 Sat, 1 Aug 2026');
+      expect(payload.caption).toContain(
+        '\n\n................................\nOriginal message:\nUnstructured suggestion\n\n................................\nSource: user (Telegram)',
+      );
+    });
+
     it('should compose Moderation with Approve, Edit and Reject controls', () => {
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       const payload = gigCandidateComposer.composeModerationPost({
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -700,7 +826,9 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).toContain('🟡 Suggested Band');
       expect(payload.caption).not.toContain('Reviewing');
       expect(payload.caption).not.toContain('ES / Barcelona');
-      expect(payload.caption).toContain('\n\n──────────\nSource: user');
+      expect(payload.caption).toContain(
+        '\n\n................................\nSource: user (admin)',
+      );
       expect(payload.caption).not.toContain('66a000000000000000000000042');
       expect(payload.caption).toContain(
         '<a href="https://t.me/GigsTogetherStgBot/admin?startapp=openGigCandidate-507f1f77bcf86cd799439099">Open gig candidate in admin</a>',
@@ -735,9 +863,13 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
-          userId: '66a000000000000000000000042',
-          origin: { type: 'admin' },
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Original updated-band suggestion',
         },
         gigDraft: {
           title: 'Updated Band',
@@ -769,6 +901,9 @@ describe('TelegramComposerService', () => {
       expect(composition.kind).toBe(PostEditKind.Caption);
       if (composition.kind !== PostEditKind.Caption) return;
       expect(composition.payload.caption).toContain('🟡 Updated Band');
+      expect(composition.payload.caption).toContain(
+        'Original message:\nOriginal updated-band suggestion',
+      );
       expect(composition.payload.replyMarkup?.inline_keyboard[0]?.[0]).toEqual(
         expect.objectContaining({
           callback_data: encodeCallbackData({
@@ -788,9 +923,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Updated Band',
@@ -839,16 +974,18 @@ describe('TelegramComposerService', () => {
     });
 
     it('should throw BadRequestException when INTAKE_CHANNEL_ID is missing', () => {
-      delete process.env.INTAKE_CHANNEL_ID;
+      vi.spyOn(telegramService, 'getIntakeChannelId').mockReturnValue(
+        undefined,
+      );
       mockBucket.getPublicFileUrl.mockReturnValue('https://cdn.example/ug.jpg');
 
       expect(() =>
         gigCandidateComposer.composeIntakePost({
           id: '507f1f77bcf86cd799439099',
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '66a000000000000000000000042',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {
             title: 'Suggested Band',
@@ -871,13 +1008,32 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'submitted',
-          title: 'Band & Friends',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
         text: 'Suggestion Band &amp; Friends submitted',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
+      });
+    });
+
+    it('should compose rejected feedback with the source message link', () => {
+      expect(
+        gigCandidateComposer.composeFeedbackMessage({
+          chatId: '42',
+          kind: 'rejected',
+          subject: {
+            type: 'chatMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: '<a href="https://t.me/c/123/42">Your gig suggestion</a> rejected',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
       });
     });
 
@@ -886,13 +1042,13 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'rejected',
-          title: 'Band & Friends',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
         text: 'Suggestion Band &amp; Friends rejected',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
       });
     });
 
@@ -901,13 +1057,32 @@ describe('TelegramComposerService', () => {
         gigCandidateComposer.composeFeedbackMessage({
           chatId: '42',
           kind: 'acceptedForModeration',
-          title: 'Band & Friends',
+          subject: { type: 'gigTitle', title: 'Band & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
         text: 'Suggestion Band &amp; Friends accepted for moderation',
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: false,
+        disable_web_page_preview: true,
+      });
+    });
+
+    it('should compose accepted-for-moderation feedback with the source message link', () => {
+      expect(
+        gigCandidateComposer.composeFeedbackMessage({
+          chatId: '42',
+          kind: 'acceptedForModeration',
+          subject: {
+            type: 'chatMessage',
+            chatId: -100123,
+            messageId: 42,
+          },
+        }),
+      ).toEqual({
+        chat_id: '42',
+        text: '<a href="https://t.me/c/123/42">Your gig suggestion</a> accepted for moderation',
+        parse_mode: TGParseMode.HTML,
+        disable_web_page_preview: true,
       });
     });
 
@@ -917,7 +1092,7 @@ describe('TelegramComposerService', () => {
           chatId: '42',
           kind: 'acceptedWithPublicLink',
           publicId: 'radiohead-2026-06-12',
-          title: 'Radiohead & Friends',
+          subject: { type: 'gigTitle', title: 'Radiohead & Friends' },
         }),
       ).toEqual({
         chat_id: '42',
@@ -931,9 +1106,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -984,9 +1159,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',
@@ -1045,9 +1220,9 @@ describe('TelegramComposerService', () => {
       const gigCandidate: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
         source: {
-          type: 'user',
+          type: GigSourceType.User,
           userId: '66a000000000000000000000042',
-          origin: { type: 'form' },
+          origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
           title: 'Suggested Band',

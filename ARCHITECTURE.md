@@ -53,14 +53,15 @@ In practice:
 Responsibilities:
 
 - owns gig persistence and public gig APIs
-- exposes `GigService`
-- contains `GigPosterService` for poster handling
+- owns Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
+- exposes `GigService`, `GigFeedService`, and `GigFeedRevalidationService`
+- owns Gig poster validation, download, and storage through `GigPosterService` under `gig/gig-poster`
 
 Dependencies:
 
-- `AiModule`
 - `CalendarModule`
 - `BucketModule`
+- `RemoteImageModule`
 - `AuthModule`
 - `TelegramModule`
 - local `Gig` Mongoose model
@@ -71,6 +72,39 @@ Main files:
 - `src/modules/gig/gig.controller.ts`
 - `src/modules/gig/gig.service.ts`
 - `src/modules/gig/gig.schema.ts`
+- `src/modules/gig/gig-feed/gig-feed.service.ts`
+- `src/modules/gig/gig-feed/gig-feed.mapper.ts`
+- `src/modules/gig/gig-feed/gig-feed-revalidation.service.ts`
+- `src/modules/gig/gig-poster/gig-poster.service.ts`
+
+#### `GigCandidateModule`
+
+Responsibilities:
+
+- owns GigCandidate submission and moderation workflows
+- keeps candidate lifecycle feedback in `GigCandidateFeedbackService`
+- keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file validation and storage to `GigPosterService`
+- keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
+- uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
+
+Dependencies:
+
+- `GigModule`
+- `AiModule`
+- `CalendarModule`
+- `TelegramModule`
+- `UserModule`
+- `AuthModule`
+- local `GigCandidate` Mongoose model
+
+Main files:
+
+- `src/modules/gig-candidate/gig-candidate.module.ts`
+- `src/modules/gig-candidate/gig-candidate.service.ts`
+- `src/modules/gig-candidate/gig-candidate-feedback.service.ts`
+- `src/modules/gig-candidate/gig-candidate-poster/gig-candidate-poster.service.ts`
+- `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
+- `src/modules/gig-candidate/repositories/gig-candidate-approval/`
 
 #### `TelegramUpdatesModule`
 
@@ -232,14 +266,19 @@ Typical path:
 
 1. request hits a controller such as `GigController`, `LocaleController`, or `CountriesController`
 2. DTO/query validation runs through the global validation pipe
-3. the controller delegates to a domain service
-4. the service reads from MongoDB and returns a response DTO
+3. the controller maps the HTTP request into application parameters when the boundary differs
+4. the application service reads through its repository and returns an application result
+5. the controller maps that result into the versioned response DTO
+
+For the Gig feed, both HTTP mappings are pure functions in
+`src/modules/gig/gig-feed/gig-feed.mapper.ts`; `GigFeedService` does not depend
+on versioned response DTOs.
 
 Examples:
 
-- `/v1/gig`
-- `/v1/gig/dates`
-- `/v1/gig/around`
+- `/v1/gigs`
+- `/v1/gigs/dates`
+- `/v1/gigs/around`
 - `/v1/countries`
 - `/v1/locales`
 - `/v1/translations`
@@ -273,7 +312,7 @@ This keeps schema ownership aligned with the module that owns the use case.
 - validation: global Nest `ValidationPipe` in `AppModule`
 - error handling: global exception filter plus Telegram update-specific filters
 - configuration: `@nestjs/config` with env-based loading
-- API versioning: URI versioning, for example `/v1/gig`
+- API versioning: URI versioning, for example `/v1/gigs`
 - uploads: multer memory storage in Gig and GigCandidate write flows, capped at 10 MB for poster images
 - scheduling: enabled globally through `ScheduleModule.forRoot()`
 

@@ -1,7 +1,7 @@
 import type {
   GigCandidate,
   GigCandidatePost,
-  GigCandidateSourceUser,
+  GigCandidateSource,
 } from '../types/gig-candidate.types';
 import type { GigData } from '../../gig/types/gig.types';
 import type { GigCandidateStatus } from '../types/gig-candidate-status.enum';
@@ -15,7 +15,7 @@ export const GIG_CANDIDATE_REPOSITORY = Symbol('GIG_CANDIDATE_REPOSITORY');
 export interface CreateGigCandidateParams {
   gigCandidateId: string;
   status: GigCandidateStatus.New | GigCandidateStatus.Reviewing;
-  source: GigCandidateSourceUser;
+  source: GigCandidateSource;
   gigDraft: Partial<GigData>;
 }
 

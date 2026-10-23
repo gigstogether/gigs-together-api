@@ -2,6 +2,21 @@ import { isAxiosError } from 'axios';
 import { isRecord } from '../../../shared/utils/is-record';
 import { formatErrorMessage } from '../../../shared/utils/logging';
 
+const TELEGRAM_CHAT_NOT_FOUND_DESCRIPTION = 'Bad Request: chat not found';
+
+export function isTelegramChatNotFoundError(e: unknown): boolean {
+  if (!isAxiosError(e) || e.response?.status !== 400) {
+    return false;
+  }
+
+  const responseData = e.response.data;
+  return (
+    isRecord(responseData) &&
+    responseData.error_code === 400 &&
+    responseData.description === TELEGRAM_CHAT_NOT_FOUND_DESCRIPTION
+  );
+}
+
 export function formatTelegramErrorMessage(e: unknown): string {
   if (!isAxiosError(e)) {
     return formatErrorMessage(e);

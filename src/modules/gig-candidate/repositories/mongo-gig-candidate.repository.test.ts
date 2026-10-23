@@ -4,6 +4,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
   GigCandidatePost,
@@ -58,10 +60,9 @@ describe('MongoGigCandidateRepository', () => {
     it('should persist the target shape with immutable source and version zero', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       const source = {
-        type: 'user',
+        type: GigSourceType.User,
         userId: '507f1f77bcf86cd799439088',
-        origin: { type: 'form' },
-        originalText: 'Original submission',
+        origin: { type: GigSourceUserOriginType.Form },
       } satisfies GigCandidateSourceUser;
       const createdAt = new Date('2026-01-01T00:00:00.000Z');
       const updatedAt = new Date('2026-01-02T00:00:00.000Z');
@@ -112,9 +113,9 @@ describe('MongoGigCandidateRepository', () => {
     it('should update only Reviewing gigDraft at expected version and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       const source = {
-        type: 'user',
+        type: GigSourceType.User,
         userId: '507f1f77bcf86cd799439088',
-        origin: { type: 'admin' },
+        origin: { type: GigSourceUserOriginType.Admin },
       } satisfies GigCandidateSourceUser;
       findOneAndUpdateMock.mockReturnValue(
         updateQueryResult({
@@ -170,9 +171,9 @@ describe('MongoGigCandidateRepository', () => {
         updateQueryResult({
           _id: gigCandidateId,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '507f1f77bcf86cd799439088',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: { poster },
           version: 1,
@@ -217,9 +218,9 @@ describe('MongoGigCandidateRepository', () => {
         updateQueryResult({
           _id: gigCandidateId,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '507f1f77bcf86cd799439088',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {},
           version: 1,
@@ -293,9 +294,9 @@ describe('MongoGigCandidateRepository', () => {
           exec: vi.fn().mockResolvedValue({
             _id: gigCandidateId,
             source: {
-              type: 'user',
+              type: GigSourceType.User,
               userId: '507f1f77bcf86cd799439088',
-              origin: { type: 'form' },
+              origin: { type: GigSourceUserOriginType.Form },
             },
             gigDraft: { title: 'Band' },
             version: 0,
@@ -360,9 +361,9 @@ describe('MongoGigCandidateRepository', () => {
         updateQueryResult({
           _id: gigCandidateId,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '507f1f77bcf86cd799439088',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {},
           version: 1,
@@ -414,9 +415,9 @@ describe('MongoGigCandidateRepository', () => {
         updateQueryResult({
           _id: gigCandidateId,
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '507f1f77bcf86cd799439088',
-            origin: { type: 'form' },
+            origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {},
           version: 4,

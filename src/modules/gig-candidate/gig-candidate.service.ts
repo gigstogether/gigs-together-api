@@ -7,23 +7,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { User } from '../auth/types/user.types';
-import { GigPosterService } from '../gig/gig.poster.service';
 import { Messenger } from '../../shared/types/messenger.enum';
-import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
-import type { GigCandidateFeedbackMessageContent } from '../telegram/telegram-gig-candidate/telegram-gig-candidate-composer.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
-import { CalendarService } from '../calendar/calendar.service';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
-import { GigService } from '../gig/gig.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
-import { UserService } from '../user/user.service';
-import { UserRole } from '../user/types/user-role.enum';
-import { envBool } from '../../shared/utils/env';
-import { formatErrorMessage } from '../../shared/utils/logging';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
@@ -31,15 +23,12 @@ import type {
   GigCandidateRepository,
   SendGigCandidateToModerationWithPosterParams,
 } from './repositories/gig-candidate.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
-import type {
-  GigApprovalResult,
-  GigCandidateApprovalRepository,
-  GigCandidateApprovalTransaction,
-} from './repositories/gig-candidate-approval.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
-import type { GigCandidate } from './types/gig-candidate.types';
+import type {
+  GigCandidate,
+  GigCandidateSourceMessengerUser,
+} from './types/gig-candidate.types';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
@@ -55,11 +44,8 @@ import {
   GigCandidateConflictError,
   getGigCandidateTransitionPolicy,
 } from './gig-candidate-state-machine';
-import {
-  projectGigCandidateSource,
-  requireApprovedGigId,
-  validateGigCandidateDraftForApproval,
-} from './gig-candidate-approval';
+import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
+import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -73,6 +59,14 @@ export interface CreateAdminGigCandidateParams {
   gigDraft: Partial<GigData>;
   posterUrl?: string;
   posterFile?: GigPosterFile;
+}
+
+export interface CreateMessengerGigCandidateParams {
+  messenger: Messenger;
+  chatId: number;
+  messageId: number;
+  originalText: string;
+  userId?: string;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -110,12 +104,6 @@ export interface RejectGigCandidateParams {
   rejectedByUserId: string;
 }
 
-export interface ApproveGigCandidateParams {
-  gigCandidateId: string;
-  expectedVersion: number;
-  approvedByUserId: string;
-}
-
 export interface UpdateGigCandidateDraftApplicationParams {
   gigCandidateId: string;
   expectedVersion: number;
@@ -129,20 +117,6 @@ interface HandleGigCandidateSubmitParams {
   body: V1CreateGigCandidateRequestBody;
   user: User;
   posterFile: GigPosterFile | undefined;
-}
-
-interface PrepareGigCandidateDraftPosterParams {
-  gigCandidateId: string;
-  gigDraft: Partial<GigCandidate['gigDraft']>;
-  posterUrl?: string;
-  posterFile?: GigPosterFile;
-  existingPoster?: GigCandidate['gigDraft']['poster'];
-  shouldUseDefaultPoster: boolean;
-}
-
-interface PreparedGigCandidateDraftPoster {
-  gigDraft: Partial<GigCandidate['gigDraft']>;
-  posterFile?: PreparedGigPosterFile;
 }
 
 interface CreatedGigCandidate {
@@ -167,28 +141,15 @@ interface StoreGigCandidateTelegramPostParams {
   telegramPost: TelegramGigCandidatePostSendResult | undefined;
 }
 
-interface GigCandidateApprovalTransactionResult {
-  gig: GigApprovalResult;
-  gigCandidate: GigCandidate;
-  moderationPost?: GigCandidate['posts'][number];
-  isNewApproval: boolean;
-}
-
 @Injectable()
 export class GigCandidateService {
   constructor(
     @Inject(GIG_CANDIDATE_REPOSITORY)
     private readonly gigCandidateRepository: GigCandidateRepository,
-    @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
-    private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
-    private readonly gigPosterService: GigPosterService,
-    private readonly telegramGigService: TelegramGigService,
+    private readonly gigCandidatePosterService: GigCandidatePosterService,
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
-    private readonly calendarService: CalendarService,
-    private readonly feedRevalidateService: FeedRevalidateService,
-    private readonly gigService: GigService,
-    private readonly userService: UserService,
+    private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -218,7 +179,10 @@ export class GigCandidateService {
       postType: PostType.Intake,
       telegramPost: telegramIntakePost,
     });
-    await this.sendGigCandidateSubmittedFeedbackBestEffort(saved);
+    await this.gigCandidateFeedbackService.sendBestEffort(saved, {
+      kind: 'submitted',
+      subject: saved.gigDraft.title,
+    });
 
     return { id: saved.id };
   }
@@ -239,25 +203,94 @@ export class GigCandidateService {
     return this.gigCandidateRepository.findMany(params);
   }
 
+  createMessengerGigCandidate(
+    params: CreateMessengerGigCandidateParams,
+  ): Promise<GigCandidate> {
+    if (params.messenger !== Messenger.Telegram) {
+      throw new BadRequestException('messenger is invalid');
+    }
+    if (!Number.isSafeInteger(params.chatId) || params.chatId === 0) {
+      throw new BadRequestException('chatId must be a non-zero safe integer');
+    }
+    if (!Number.isSafeInteger(params.messageId) || params.messageId <= 0) {
+      throw new BadRequestException(
+        'messageId must be a positive safe integer',
+      );
+    }
+    if (params.originalText.trim() === '') {
+      throw new BadRequestException('originalText is required');
+    }
+
+    const source: GigCandidateSourceMessengerUser = {
+      type: GigSourceType.User,
+      origin: {
+        type: GigSourceUserOriginType.Messenger,
+        messenger: params.messenger,
+        message: {
+          chatId: params.chatId,
+          messageId: params.messageId,
+        },
+      },
+      originalText: params.originalText,
+    };
+    if (params.userId !== undefined) {
+      source.userId = params.userId;
+    }
+
+    return this.gigCandidateRepository.createGigCandidate({
+      gigCandidateId: this.gigCandidateRepository.createId(),
+      status: GigCandidateStatus.New,
+      source,
+      // TODO: This is temporary while suggestions come from a single city chat.
+      //  Derive this location from the source chat when multi-city chats are supported.
+      gigDraft: {
+        city: 'Barcelona',
+        country: 'ES',
+      },
+    });
+  }
+
+  async submitMessengerGigCandidate(
+    params: CreateMessengerGigCandidateParams,
+  ): Promise<GigCandidate> {
+    const saved = await this.createMessengerGigCandidate(params);
+
+    let telegramIntakePost: TelegramGigCandidatePostSendResult | undefined;
+    try {
+      telegramIntakePost =
+        await this.telegramGigCandidateService.sendIntakePost(saved);
+    } catch (e) {
+      this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
+    }
+
+    const withIntakePost = await this.storeGigCandidateTelegramPostBestEffort({
+      gigCandidate: saved,
+      postType: PostType.Intake,
+      telegramPost: telegramIntakePost,
+    });
+    return withIntakePost ?? saved;
+  }
+
   async createAdminGigCandidate(
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId,
-      gigDraft: params.gigDraft,
-      posterUrl: params.posterUrl,
-      posterFile: params.posterFile,
-      shouldUseDefaultPoster: true,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId,
+        gigDraft: params.gigDraft,
+        posterUrl: params.posterUrl,
+        posterFile: params.posterFile,
+        shouldUseDefaultPoster: true,
+      });
 
     const saved = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId,
       status: GigCandidateStatus.Reviewing,
       source: {
-        type: 'user',
+        type: GigSourceType.User,
         userId: params.userId,
-        origin: { type: 'admin' },
+        origin: { type: GigSourceUserOriginType.Admin },
       },
       gigDraft: preparedPoster.gigDraft,
     });
@@ -267,9 +300,10 @@ export class GigCandidateService {
         saved,
         preparedPoster.posterFile,
       );
-    await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
-      withModerationPost,
-    );
+    await this.gigCandidateFeedbackService.sendBestEffort(withModerationPost, {
+      kind: 'acceptedForModeration',
+      subject: withModerationPost.gigDraft.title,
+    });
     return withModerationPost;
   }
 
@@ -296,14 +330,15 @@ export class GigCandidateService {
       command,
     );
 
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId: currentGigCandidate.id,
-      gigDraft: params.gigDraft,
-      posterUrl: params.posterUrl,
-      posterFile: params.posterFile,
-      existingPoster: currentGigCandidate.gigDraft.poster,
-      shouldUseDefaultPoster: false,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId: currentGigCandidate.id,
+        gigDraft: params.gigDraft,
+        posterUrl: params.posterUrl,
+        posterFile: params.posterFile,
+        existingPoster: currentGigCandidate.gigDraft.poster,
+        shouldUseDefaultPoster: false,
+      });
 
     return this.updateGigCandidateDraft({
       gigCandidateId: params.gigCandidateId,
@@ -352,12 +387,13 @@ export class GigCandidateService {
         command,
       );
 
-      const preparedPoster = await this.prepareGigCandidateDraftPoster({
-        gigCandidateId: currentGigCandidate.id,
-        gigDraft: currentGigCandidate.gigDraft,
-        existingPoster: currentGigCandidate.gigDraft.poster,
-        shouldUseDefaultPoster: true,
-      });
+      const preparedPoster =
+        await this.gigCandidatePosterService.prepareDraftPoster({
+          gigCandidateId: currentGigCandidate.id,
+          gigDraft: currentGigCandidate.gigDraft,
+          existingPoster: currentGigCandidate.gigDraft.poster,
+          shouldUseDefaultPoster: true,
+        });
       const moderationPoster = preparedPoster.gigDraft.poster;
       if (moderationPoster === undefined) {
         throw new InternalServerErrorException(
@@ -405,8 +441,12 @@ export class GigCandidateService {
       withModerationPost,
     );
     if (didTransition) {
-      await this.sendGigCandidateAcceptedForModerationFeedbackBestEffort(
+      await this.gigCandidateFeedbackService.sendBestEffort(
         withModerationPost,
+        {
+          kind: 'acceptedForModeration',
+          subject: withModerationPost.gigDraft.title,
+        },
       );
     }
 
@@ -444,7 +484,10 @@ export class GigCandidateService {
         updated,
         gigCandidate.status,
       );
-      await this.sendGigCandidateRejectedFeedbackBestEffort(updated);
+      await this.gigCandidateFeedbackService.sendBestEffort(updated, {
+        kind: 'rejected',
+        subject: updated.gigDraft.title,
+      });
       return updated;
     }
 
@@ -459,27 +502,6 @@ export class GigCandidateService {
       params.expectedVersion,
       command,
     );
-  }
-
-  async approveGigCandidate(
-    params: ApproveGigCandidateParams,
-  ): Promise<GigApprovalResult> {
-    const command = GigCandidateCommand.Approve;
-    this.assertExpectedVersionIsValid(
-      params.gigCandidateId,
-      params.expectedVersion,
-      command,
-    );
-
-    const result = await this.gigCandidateApprovalRepository.withTransaction(
-      async (transaction) =>
-        this.approveGigCandidateInTransaction(params, transaction),
-    );
-
-    if (result.isNewApproval) {
-      await this.runApprovalPostCommitActions(result);
-    }
-    return result.gig;
   }
 
   async updateGigCandidateDraft(
@@ -558,21 +580,22 @@ export class GigCandidateService {
       gigDraft.ticketsUrl = gig.ticketsUrl;
     }
 
-    const preparedPoster = await this.prepareGigCandidateDraftPoster({
-      gigCandidateId: id,
-      gigDraft,
-      posterUrl: gig.posterUrl,
-      posterFile,
-      shouldUseDefaultPoster: false,
-    });
+    const preparedPoster =
+      await this.gigCandidatePosterService.prepareDraftPoster({
+        gigCandidateId: id,
+        gigDraft,
+        posterUrl: gig.posterUrl,
+        posterFile,
+        shouldUseDefaultPoster: false,
+      });
 
     const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
       gigCandidateId: id,
       status: GigCandidateStatus.New,
       source: {
-        type: 'user',
+        type: GigSourceType.User,
         userId: user.userId,
-        origin: { type: 'form' },
+        origin: { type: GigSourceUserOriginType.Form },
       },
       gigDraft: preparedPoster.gigDraft,
     });
@@ -582,167 +605,6 @@ export class GigCandidateService {
       result.posterFile = preparedPoster.posterFile;
     }
     return result;
-  }
-
-  private async approveGigCandidateInTransaction(
-    params: ApproveGigCandidateParams,
-    transaction: GigCandidateApprovalTransaction,
-  ): Promise<GigCandidateApprovalTransactionResult> {
-    const gigCandidate = await transaction.findGigCandidateById(
-      params.gigCandidateId,
-    );
-    if (!gigCandidate) {
-      throw new NotFoundException(
-        `GigCandidate with ID ${params.gigCandidateId} not found`,
-      );
-    }
-
-    const policy = getGigCandidateTransitionPolicy({
-      gigCandidateId: gigCandidate.id,
-      status: gigCandidate.status,
-      command: GigCandidateCommand.Approve,
-    });
-    if (policy.isIdempotent) {
-      const gigId = requireApprovedGigId(gigCandidate);
-      const existingGig = await transaction.findGigById(gigId);
-      if (!existingGig) {
-        throw new Error(
-          `Approved GigCandidate ${gigCandidate.id} references missing Gig ${gigId}.`,
-        );
-      }
-      return { gig: existingGig, gigCandidate, isNewApproval: false };
-    }
-
-    this.assertExpectedVersionMatches(
-      gigCandidate,
-      params.expectedVersion,
-      GigCandidateCommand.Approve,
-    );
-    const gigData = validateGigCandidateDraftForApproval(gigCandidate.gigDraft);
-    const gigId = transaction.createGigId();
-    const publicId = await this.generateUniqueGigPublicId(
-      gigData.title,
-      gigData.date,
-      transaction,
-    );
-    const source = projectGigCandidateSource(gigCandidate.source);
-    const moderationPost =
-      this.getGigCandidateModerationPostForApproval(gigCandidate);
-    const approvedAt = new Date();
-    const approvedGigCandidate = await transaction.approveGigCandidate({
-      ...params,
-      gigId,
-      approvedAt,
-      gigDraft: gigData,
-      moderationPost,
-    });
-    if (!approvedGigCandidate) {
-      throw new GigCandidateConflictError({
-        gigCandidateId: gigCandidate.id,
-        command: GigCandidateCommand.Approve,
-        reason: 'concurrentModification',
-        message: `GigCandidate ${gigCandidate.id} changed concurrently during ${GigCandidateCommand.Approve}.`,
-      });
-    }
-
-    const gig = await transaction.createGig({
-      ...gigData,
-      gigId,
-      publicId,
-      source,
-      moderationPost,
-    });
-    return {
-      gig,
-      gigCandidate: approvedGigCandidate,
-      moderationPost,
-      isNewApproval: true,
-    };
-  }
-
-  private async generateUniqueGigPublicId(
-    title: string,
-    date: number,
-    transaction: GigCandidateApprovalTransaction,
-  ): Promise<string> {
-    return this.gigService.generateUniquePublicId({
-      title,
-      yyyyMmDd: new Date(date).toISOString().slice(0, 10),
-      isPublicIdTaken: (publicId) => transaction.isGigPublicIdTaken(publicId),
-    });
-  }
-
-  private async runApprovalPostCommitActions(
-    result: GigCandidateApprovalTransactionResult,
-  ): Promise<void> {
-    const { gig, gigCandidate, moderationPost } = result;
-    try {
-      await this.feedRevalidateService.revalidateFeedOrThrow({
-        country: gig.country,
-        city: gig.city,
-      });
-    } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'revalidateFeed',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
-    }
-
-    try {
-      await this.calendarService.addEvent(
-        this.gigService.gigToCalendarPayload(gig),
-      );
-    } catch (e) {
-      this.logApprovalIntegrationFailure(
-        'addCalendarEvent',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
-    }
-
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'acceptedWithPublicLink',
-      publicId: gig.publicId,
-      title: gig.title,
-    });
-
-    if (!moderationPost) {
-      this.logger.warn(
-        `No moderation post linked after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}`,
-      );
-      return;
-    }
-    try {
-      await this.telegramGigService.updateModerationPost({
-        gigId: gig.id,
-        expectedVersion: gig.version,
-        isVisible: gig.isVisible,
-        title: gig.title,
-        publicId: gig.publicId,
-        moderationPost: {
-          chatId: moderationPost.chatId,
-          messageId: moderationPost.id,
-        },
-      });
-    } catch (e) {
-      this.logger.warn(
-        `updateGigModerationPost failed after approval for gigCandidateId=${gigCandidate.id} gigId=${gig.id}: ${formatTelegramErrorMessage(e)}`,
-      );
-    }
-  }
-
-  private logApprovalIntegrationFailure(
-    operation: string,
-    gigCandidateId: string,
-    gigId: string,
-    e: unknown,
-  ): void {
-    this.logger.warn(
-      `${operation} failed after approval for gigCandidateId=${gigCandidateId} gigId=${gigId}: ${formatErrorMessage(e)}`,
-    );
   }
 
   private parseAndValidateCreateBody(
@@ -827,56 +689,6 @@ export class GigCandidateService {
       throw new BadRequestException(`${field} must be a valid date`);
     }
     return ms;
-  }
-
-  private async prepareGigCandidateDraftPoster(
-    params: PrepareGigCandidateDraftPosterParams,
-  ): Promise<PreparedGigCandidateDraftPoster> {
-    const gigDraft = { ...params.gigDraft };
-    delete gigDraft.poster;
-
-    const explicitPosterUrl = params.posterUrl?.trim() || undefined;
-    let posterUrl = explicitPosterUrl;
-    if (
-      posterUrl === undefined &&
-      params.posterFile === undefined &&
-      params.existingPoster === undefined &&
-      params.shouldUseDefaultPoster
-    ) {
-      posterUrl = process.env.DEFAULT_GIG_POSTER_URL?.trim() || undefined;
-    }
-    let poster = params.existingPoster;
-    let preparedPosterFile: PreparedGigPosterFile | undefined;
-    if (params.posterFile !== undefined || posterUrl !== undefined) {
-      const posterUploadResult = await this.gigPosterService.upload({
-        url: posterUrl,
-        file: params.posterFile,
-        context: {
-          date: gigDraft.date ?? new Date(),
-          city: gigDraft.city ?? 'unknown',
-          country: gigDraft.country ?? 'unknown',
-          publicId: `gc-${params.gigCandidateId}`,
-        },
-      });
-      poster = posterUploadResult?.storedPoster;
-      preparedPosterFile = posterUploadResult?.posterFile;
-    }
-
-    if (poster !== undefined) {
-      gigDraft.poster = poster;
-    }
-
-    if (params.shouldUseDefaultPoster && gigDraft.poster === undefined) {
-      throw new InternalServerErrorException(
-        `Cannot prepare GigCandidate ${params.gigCandidateId} for moderation without a poster.`,
-      );
-    }
-
-    const result: PreparedGigCandidateDraftPoster = { gigDraft };
-    if (preparedPosterFile !== undefined) {
-      result.posterFile = preparedPosterFile;
-    }
-    return result;
   }
 
   private async ensureGigCandidateModerationPostBestEffort(
@@ -1040,120 +852,6 @@ export class GigCandidateService {
     }
   }
 
-  private async sendGigCandidateFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-    content: GigCandidateFeedbackMessageContent,
-  ): Promise<void> {
-    if (gigCandidate.source.type !== 'user') {
-      return;
-    }
-
-    const shouldSendFeedbackToAdmins = envBool(
-      'SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS',
-      false,
-    );
-    if (
-      gigCandidate.source.origin.type === 'admin' &&
-      !shouldSendFeedbackToAdmins
-    ) {
-      return;
-    }
-
-    try {
-      const user = await this.userService.findActiveUserById(
-        gigCandidate.source.userId,
-      );
-      if (!user) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because no active User was found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-      if (user.roles.includes(UserRole.Admin) && !shouldSendFeedbackToAdmins) {
-        return;
-      }
-
-      const telegramIdentities = user.identities.filter(
-        (identity) =>
-          identity.type === 'messenger' &&
-          identity.messenger === Messenger.Telegram,
-      );
-      const telegramIdentity = telegramIdentities[0];
-      if (!telegramIdentity) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because no Telegram identity was found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-      if (telegramIdentities.length > 1) {
-        this.logger.warn(
-          `GigCandidate feedback skipped because multiple Telegram identities were found for gigCandidateId=${gigCandidate.id}`,
-        );
-        return;
-      }
-
-      await this.telegramGigCandidateService.sendFeedback({
-        ...content,
-        chatId: telegramIdentity.externalUserId,
-      });
-    } catch (e) {
-      this.logTelegramFailure('sendGigCandidateFeedback', gigCandidate.id, e);
-    }
-  }
-
-  private async sendGigCandidateSubmittedFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can be acknowledged without a prepared Gig title.
-      this.logger.warn(
-        `GigCandidate submitted feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'submitted',
-      title,
-    });
-  }
-
-  private async sendGigCandidateAcceptedForModerationFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      // TODO: add a title-less feedback template before raw Telegram chat submissions can enter moderation without a prepared Gig title.
-      this.logger.warn(
-        `GigCandidate accepted-for-moderation feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'acceptedForModeration',
-      title,
-    });
-  }
-
-  private async sendGigCandidateRejectedFeedbackBestEffort(
-    gigCandidate: GigCandidate,
-  ): Promise<void> {
-    const title = gigCandidate.gigDraft.title?.trim();
-    if (!title) {
-      this.logger.warn(
-        `GigCandidate rejected feedback skipped because title is missing for gigCandidateId=${gigCandidate.id}`,
-      );
-      return;
-    }
-
-    await this.sendGigCandidateFeedbackBestEffort(gigCandidate, {
-      kind: 'rejected',
-      title,
-    });
-  }
-
   private async updateGigCandidateModerationPostBestEffort(
     gigCandidate: GigCandidate,
     posterFile?: PreparedGigPosterFile,
@@ -1222,21 +920,6 @@ export class GigCandidateService {
     return gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === postType,
     );
-  }
-
-  private getGigCandidateModerationPostForApproval(
-    gigCandidate: GigCandidate,
-  ): GigCandidate['posts'][number] | undefined {
-    const moderationPosts = gigCandidate.posts.filter(
-      (post) =>
-        post.to === Messenger.Telegram && post.type === PostType.Moderation,
-    );
-    if (moderationPosts.length > 1) {
-      throw new Error(
-        `GigCandidate ${gigCandidate.id} has multiple Telegram Moderation posts.`,
-      );
-    }
-    return moderationPosts[0];
   }
 
   private logTelegramFailure(

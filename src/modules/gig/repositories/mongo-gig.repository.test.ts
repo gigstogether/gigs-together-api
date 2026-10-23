@@ -6,6 +6,7 @@ import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { Gig } from '../gig.schema';
+import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
@@ -30,7 +31,7 @@ function buildDocument(
     source: {
       type: 'user',
       userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),

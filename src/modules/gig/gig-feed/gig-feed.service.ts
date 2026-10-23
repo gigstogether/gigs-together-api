@@ -4,20 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { PlainGig } from './types/gig.types';
-import { startOfTodayMs } from './types/requests/v1-gig-date-range.shared';
-import { decodeGigCursorOrThrow, encodeGigCursor } from './utils/gig-cursor';
-import { GIG_REPOSITORY } from './repositories/gig.repository';
+import type { PlainGig } from '../types/gig.types';
+import { startOfTodayMs } from '../types/requests/v1-gig-date-range.shared';
+import { decodeGigCursorOrThrow, encodeGigCursor } from '../utils/gig-cursor';
+import { GIG_REPOSITORY } from '../repositories/gig.repository';
 import type {
   FindVisibleGigsAroundParams,
   FindVisibleGigsInRangeParams,
   FindVisibleGigsPageParams,
   GigRepository,
-} from './repositories/gig.repository';
-import { GigService } from './gig.service';
-import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
-import { CalendarService } from '../calendar/calendar.service';
-import { PostType } from '../../shared/types/post-type.enum';
+} from '../repositories/gig.repository';
+import { GigService } from '../gig.service';
+import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
+import { CalendarService } from '../../calendar/calendar.service';
+import { PostType } from '../../../shared/types/post-type.enum';
 
 export interface GigVisibleInclusiveMsRangeParams {
   fromMs: number;

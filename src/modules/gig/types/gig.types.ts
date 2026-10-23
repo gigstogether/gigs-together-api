@@ -1,6 +1,8 @@
 import type { Messenger } from '../../../shared/types/messenger.enum';
 import type { PostType } from '../../../shared/types/post-type.enum';
 import type { ProviderReference } from '../../../shared/types/provider-reference.types';
+import type { GigSourceType } from './gig-source-type.enum';
+import type { GigSourceUserOriginType } from './gig-source-user-origin-type.enum';
 
 export type GigId = string;
 
@@ -52,7 +54,7 @@ export interface V1GetGigsResponseBodyGig {
   postUrl?: string;
 }
 
-export interface GigPosterInput {
+interface GigPosterInput {
   bucketPath?: string;
   externalUrl?: string;
 }
@@ -68,28 +70,43 @@ export interface GigData {
   poster?: GigPosterInput;
 }
 
-export interface GigSourceUserOrigin {
-  type: 'form' | 'admin' | 'messenger';
+interface GigSourceUserIdentifiedOrigin {
+  type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;
 }
 
-export interface GigSourceUser {
-  type: 'user';
-  userId: string;
-  origin: GigSourceUserOrigin;
+interface GigSourceUserMessengerOrigin {
+  type: GigSourceUserOriginType.Messenger;
+  messenger: Messenger;
 }
+
+export interface GigSourceIdentifiedUser {
+  type: GigSourceType.User;
+  userId: string;
+  origin: GigSourceUserIdentifiedOrigin;
+}
+
+export interface GigSourceMessengerUser {
+  type: GigSourceType.User;
+  userId?: string;
+  origin: GigSourceUserMessengerOrigin;
+}
+
+type GigSourceUser = GigSourceIdentifiedUser | GigSourceMessengerUser;
 
 export interface GigSourceProvider {
-  type: 'provider';
+  type: GigSourceType.Provider;
   provider: ProviderReference;
 }
 
 export type GigSource = GigSourceUser | GigSourceProvider;
 
-export interface GigSourceUserWithProfile extends GigSourceUser {
+interface GigSourceUserProfile {
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
 }
+
+type GigSourceUserWithProfile = GigSourceUser & GigSourceUserProfile;
 
 export type GigSourceForAdminView =
   GigSourceUserWithProfile | GigSourceProvider;

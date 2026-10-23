@@ -5,6 +5,8 @@ import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate/gig-candidate-source.guards';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
@@ -12,6 +14,7 @@ import type { User } from '../user/types/user.types';
 import { getUserSourceProfile } from './admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
+  AdminGigCandidateOriginalMessage,
   GigCandidateSourceForAdminView,
   GetAdminGigCandidatesParams,
 } from './admin-gig-candidate.types';
@@ -95,8 +98,9 @@ export class AdminGigCandidateService {
         })
       : undefined;
     const source = this.resolveSource(gigCandidate, activeSourceUsersById);
+    const originalMessage = this.resolveOriginalMessage(gigCandidate);
 
-    return {
+    const details: AdminGigCandidateDetails = {
       id: gigCandidate.id,
       source,
       gigDraft: gigCandidate.gigDraft,
@@ -117,21 +121,47 @@ export class AdminGigCandidateService {
       createdAt: gigCandidate.createdAt,
       updatedAt: gigCandidate.updatedAt,
     };
+    if (originalMessage !== undefined) {
+      details.originalMessage = originalMessage;
+    }
+    return details;
+  }
+
+  private resolveOriginalMessage(
+    gigCandidate: GigCandidate,
+  ): AdminGigCandidateOriginalMessage | undefined {
+    if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+      return;
+    }
+
+    const url = this.telegramComposer.buildPostUrl({
+      chatId: gigCandidate.source.origin.message.chatId,
+      messageId: gigCandidate.source.origin.message.messageId,
+    });
+    if (url === undefined) {
+      throw new Error(
+        `Cannot build original message URL for GigCandidate ${gigCandidate.id}.`,
+      );
+    }
+    return { text: gigCandidate.source.originalText, url };
   }
 
   private resolveSource(
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
   ): GigCandidateSourceForAdminView {
-    if (gigCandidate.source.type === 'provider') {
+    if (gigCandidate.source.type === GigSourceType.Provider) {
       return gigCandidate.source;
     }
 
+    const sourceUser =
+      gigCandidate.source.userId !== undefined
+        ? activeSourceUsersById.get(gigCandidate.source.userId)
+        : undefined;
+
     return {
       ...gigCandidate.source,
-      ...getUserSourceProfile(
-        activeSourceUsersById.get(gigCandidate.source.userId),
-      ),
+      ...getUserSourceProfile(sourceUser),
     };
   }
 
@@ -139,8 +169,12 @@ export class AdminGigCandidateService {
     gigCandidates: readonly GigCandidate[],
   ): Promise<ReadonlyMap<string, User>> {
     const userIds = gigCandidates.flatMap((gigCandidate) =>
-      gigCandidate.source.type === 'user' ? [gigCandidate.source.userId] : [],
+      gigCandidate.source.type === GigSourceType.User &&
+      gigCandidate.source.userId !== undefined
+        ? [gigCandidate.source.userId]
+        : [],
     );
+
     const users = await this.userService.findActiveUsersByIds(userIds);
     return new Map(users.map((user) => [user.id, user]));
   }

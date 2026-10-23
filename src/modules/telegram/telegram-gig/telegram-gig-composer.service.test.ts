@@ -2,12 +2,15 @@ import { Test } from '@nestjs/testing';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import {
   CallbackScope,
   GigCallbackAction,
 } from '../utils/telegram-callback-action';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { PostEditKind } from '../telegram-composer.service.types';
+import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
@@ -28,9 +31,9 @@ function createGig(): PlainGig {
     isVisible: false,
     version: 4,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),
@@ -50,16 +53,16 @@ describe('TelegramGigComposerService', () => {
   };
 
   const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getAdminMiniAppShortName: vi.fn().mockReturnValue('admin'),
+    getMainChannelId: vi.fn().mockReturnValue('-100200'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://app.example'),
     resolvePosterUrl: vi.fn(
       (poster: PlainGig['poster']) => poster?.externalUrl,
     ),
   };
 
   beforeEach(async () => {
-    vi.stubEnv('MAIN_CHANNEL_ID', '-100200');
-    vi.stubEnv('APP_BASE_URL', 'https://app.example');
-    vi.stubEnv('EDIT_GIG_URL', 'https://app.example/admin');
-
     const moduleRef = await Test.createTestingModule({
       providers: [
         TelegramGigComposerService,
@@ -103,6 +106,23 @@ describe('TelegramGigComposerService', () => {
     );
   });
 
+  it('should render a main post caption from required Gig fields', () => {
+    const gig = createGig();
+
+    service.composeMainPost(gig);
+
+    expect(telegramTemplates.render).toHaveBeenCalledWith(
+      TELEGRAM_TEMPLATE_KEYS.mainGigWithLink,
+      {
+        url: 'https://app.example/gigs/radiohead-barcelona-2026-06-12',
+        title: 'Radiohead',
+        dates: 'Fri, 12 Jun 2026',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+      },
+    );
+  });
+
   it('should compose a media edit for a main post', () => {
     const gig = createGig();
     const mainPost = {
@@ -137,7 +157,7 @@ describe('TelegramGigComposerService', () => {
       gigId: '507f1f77bcf86cd799439011',
       expectedVersion: 4,
       isVisible: false,
-      editGigUrl: 'https://app.example/admin?startapp=editGig-test',
+      editGigUrl: 'https://t.me/GigsTogetherStgBot/admin?startapp=editGig-test',
     });
 
     expect(result?.inline_keyboard[0]).toEqual(

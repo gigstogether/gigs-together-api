@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { BucketService } from '../bucket/bucket.service';
+import { BucketService } from '../../bucket/bucket.service';
 import {
   InvalidRemoteImageUrlError,
   RemoteImageContentTypeError,
   RemoteImageService,
-} from '../remote-image/remote-image.service';
+} from '../../remote-image/remote-image.service';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
-} from './types/gig-poster.types';
-import type { GigPoster } from './types/gig.types';
+} from '../types/gig-poster.types';
+import type { GigPoster } from '../types/gig.types';
 
 interface UploadPosterPayload {
   url?: string;

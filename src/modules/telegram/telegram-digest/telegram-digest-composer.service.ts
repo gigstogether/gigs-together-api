@@ -3,6 +3,7 @@ import type { PlainGig } from '../../gig/types/gig.types';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from '../telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
+import { TELEGRAM_DATE_LOCALE } from '../telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import type { TGInputMedia } from '../types/message.types';
@@ -17,7 +18,6 @@ import { TelegramService } from '../telegram.service';
 
 export const TELEGRAM_DIGEST_CAPTION_MAX_CHARS = 1024;
 
-const DATE_LOCALE = 'en-GB';
 const WEEKLY_DIGEST_GIGS_SEPARATOR = '\n\n';
 
 interface ComposedDigestText {
@@ -134,13 +134,13 @@ export class TelegramDigestComposerService {
   }
 
   private composeWeeklyDigestText(gigs: PlainGig[]): ComposedDigestText {
-    const formatter = new Intl.DateTimeFormat(DATE_LOCALE, {
+    const formatter = new Intl.DateTimeFormat(TELEGRAM_DATE_LOCALE, {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     });
 
-    const appBaseUrl = (process.env.APP_BASE_URL ?? '').trim();
+    const appBaseUrl = this.telegramService.getAppBaseUrl();
     // TODO
     const header = this.telegramTemplates.getText(
       TELEGRAM_TEMPLATE_KEYS.weeklyDigestHeader,

@@ -1,10 +1,12 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramUpdatesService } from './telegram-updates.service';
 import { TelegramService } from '../telegram/telegram.service';
 import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
+import type { TGChat } from '../telegram/types/chat.types';
 import type { TGMessage } from '../telegram/types/message.types';
 import type { TGCallbackQuery } from '../telegram/types/update.types';
 import {
@@ -15,7 +17,8 @@ import {
 } from '../telegram/utils/telegram-callback-action';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval';
+import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
+import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { UserService } from '../user/user.service';
 import { AuthorizationService } from '../auth/authorization.service';
 
@@ -23,7 +26,9 @@ describe('TelegramUpdatesService', () => {
   let service: TelegramUpdatesService;
 
   const mockTelegramService = {
+    getBotUsername: vi.fn(),
     sendMessage: vi.fn(),
+    setMessageReaction: vi.fn(),
     answerCallbackQuery: vi.fn(),
     editMessageReplyMarkup: vi.fn(),
     editGigPost: vi.fn(),
@@ -36,6 +41,7 @@ describe('TelegramUpdatesService', () => {
   const mockTelegramBotReplyService = {
     sendIncomingMessageUnavailable: vi.fn(),
     sendStartCommandResponse: vi.fn(),
+    sendSuggestCommandUnavailableInPrivateChat: vi.fn(),
     sendUnknownCommandResponse: vi.fn(),
   };
 
@@ -50,22 +56,28 @@ describe('TelegramUpdatesService', () => {
   };
 
   const mockGigCandidateService = {
-    approveGigCandidate: vi.fn(),
+    submitMessengerGigCandidate: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
   };
 
+  const mockGigCandidateApprovalService = {
+    approveGigCandidate: vi.fn(),
+  };
+
   const mockUserService = {
     findOrCreateMessengerUser: vi.fn(),
+    findActiveUserByMessengerIdentity: vi.fn(),
   };
 
   const mockAuthorizationService = {
     isAdmin: vi.fn(),
   };
 
-  beforeEach(async () => {
-    vi.unstubAllEnvs();
-
+  async function createService(
+    mainChatId: string,
+    mainChannelId = '-100456',
+  ): Promise<TelegramUpdatesService> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramUpdatesService,
@@ -86,6 +98,10 @@ describe('TelegramUpdatesService', () => {
           useValue: mockGigCandidateService,
         },
         {
+          provide: GigCandidateApprovalService,
+          useValue: mockGigCandidateApprovalService,
+        },
+        {
           provide: UserService,
           useValue: mockUserService,
         },
@@ -93,13 +109,28 @@ describe('TelegramUpdatesService', () => {
           provide: AuthorizationService,
           useValue: mockAuthorizationService,
         },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({
+            MAIN_CHAT_ID: mainChatId,
+            MAIN_CHANNEL_ID: mainChannelId,
+          }),
+        },
       ],
     }).compile();
 
-    service = module.get<TelegramUpdatesService>(TelegramUpdatesService);
+    return module.get<TelegramUpdatesService>(TelegramUpdatesService);
+  }
+
+  beforeEach(async () => {
+    vi.unstubAllEnvs();
+
+    service = await createService('-100123');
+    mockTelegramService.getBotUsername.mockReturnValue('gigstogetherbot');
     mockUserService.findOrCreateMessengerUser.mockResolvedValue({
       id: '507f1f77bcf86cd799439088',
     });
+    mockUserService.findActiveUserByMessengerIdentity.mockResolvedValue(null);
     mockAuthorizationService.isAdmin.mockResolvedValue(true);
   });
 
@@ -268,6 +299,523 @@ describe('TelegramUpdatesService', () => {
         mockTelegramBotReplyService.sendStartCommandResponse,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
+    });
+
+    it('should explain that the suggest command is unavailable in a private chat', async () => {
+      const privateChat = {
+        id: 12345,
+        type: 'private',
+      } satisfies TGChat;
+      const message: TGMessage = {
+        message_id: 124,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: privateChat,
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+      mockTelegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat.mockResolvedValue(
+        undefined,
+      );
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat,
+      ).toHaveBeenCalledWith(privateChat);
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should create a candidate and react to a suggestion from the configured group', async () => {
+      const message: TGMessage = {
+        message_id: 42,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        originalText: 'Radiohead in Barcelona',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        externalUserId: '7',
+      });
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 42,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+      expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
+    });
+
+    it('should create a candidate for a suggestion sent on behalf of the configured channel', async () => {
+      const message: TGMessage = {
+        message_id: 52,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100456,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 52,
+        originalText: 'Massive Attack in Barcelona',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 52,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore the configured channel outside the configured group', async () => {
+      const message: TGMessage = {
+        message_id: 56,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Portishead in Madrid',
+        chat: { id: -100999, type: 'supergroup' },
+        sender_chat: {
+          id: -100456,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+    });
+
+    it('should ignore a suggestion sent on behalf of another channel', async () => {
+      const message: TGMessage = {
+        message_id: 55,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Portishead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100789,
+          type: 'channel',
+          title: 'Another Music Channel',
+        },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Channel',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+    });
+
+    it('should preserve suggestion text when the group command mentions the bot', async () => {
+      const message: TGMessage = {
+        message_id: 43,
+        date: Date.now(),
+        text: '/SuGgEsT@GigsTogetherBot   Band Name\n12 June',
+        chat: { id: -100123, type: 'group' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ originalText: 'Band Name\n12 June' }),
+      );
+    });
+
+    it('should create a candidate from the message replied to with a suggest command', async () => {
+      const message: TGMessage = {
+        message_id: 44,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+        reply_to_message: {
+          message_id: 41,
+          date: Date.now(),
+          text: '  Radiohead in Barcelona\n12 June  ',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 8, is_bot: false, first_name: 'Another user' },
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockUserService.findActiveUserByMessengerIdentity.mockResolvedValueOnce({
+        id: '507f1f77bcf86cd799439088',
+      });
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 41,
+        originalText: 'Radiohead in Barcelona\n12 June',
+        userId: '507f1f77bcf86cd799439088',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        externalUserId: '7',
+      });
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 44,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore a reply suggestion sent on behalf of another channel', async () => {
+      const message: TGMessage = {
+        message_id: 53,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: {
+          id: -100789,
+          type: 'channel',
+          title: 'Barcelona Music',
+        },
+        reply_to_message: {
+          message_id: 41,
+          date: Date.now(),
+          text: '  Massive Attack in Barcelona\n12 June  ',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 8, is_bot: false, first_name: 'Another user' },
+        },
+      };
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+    });
+
+    it('should create an anonymous candidate for a suggestion sent by an anonymous group administrator', async () => {
+      const message: TGMessage = {
+        message_id: 54,
+        date: Date.now(),
+        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        sender_chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 1087968824,
+          is_bot: true,
+          first_name: 'Group',
+        },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 54,
+        originalText: 'Massive Attack in Barcelona',
+      });
+      expect(
+        mockUserService.findActiveUserByMessengerIdentity,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 54,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore a command addressed to another bot', async () => {
+      const message: TGMessage = {
+        message_id: 44,
+        date: Date.now(),
+        text: '/suggest@AnotherBot Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 7,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+
+      await service.handleMessage(message);
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(
+        mockTelegramBotReplyService.sendUnknownCommandResponse,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should log the error and keep the webhook successful when the suggestion cannot be saved', async () => {
+      const message: TGMessage = {
+        message_id: 49,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockGigCandidateService.submitMessengerGigCandidate.mockRejectedValueOnce(
+        new Error('Database unavailable'),
+      );
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Database unavailable'),
+      );
+    });
+
+    it('should not create a candidate when the User lookup fails', async () => {
+      const message: TGMessage = {
+        message_id: 51,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockUserService.findActiveUserByMessengerIdentity.mockRejectedValueOnce(
+        new Error('User lookup unavailable'),
+      );
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('User lookup unavailable'),
+      );
+    });
+
+    it('should keep the suggestion accepted when Telegram rejects the acknowledgement reaction', async () => {
+      const message: TGMessage = {
+        message_id: 50,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramService.setMessageReaction.mockRejectedValue({
+        response: {
+          data: {
+            error_code: 400,
+            description: 'Bad Request: REACTION_INVALID',
+          },
+        },
+      });
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledOnce();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Setting Telegram suggestion acknowledgement reaction failed for chatId=-100123 messageId=50',
+        ),
+      );
+    });
+
+    it('should ignore suggestions outside the configured group', async () => {
+      const messages: TGMessage[] = [
+        {
+          message_id: 44,
+          date: Date.now(),
+          text: '/suggest Wrong group',
+          chat: { id: -100456, type: 'supergroup' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+        },
+        {
+          message_id: 45,
+          date: Date.now(),
+          text: '/suggest Private chat',
+          chat: { id: -100123, type: 'private' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+        },
+      ];
+
+      for (const message of messages) {
+        await service.handleMessage(message);
+      }
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+    });
+
+    it('should ignore an empty suggestion and ordinary group messages', async () => {
+      const messages: TGMessage[] = [
+        {
+          message_id: 46,
+          date: Date.now(),
+          text: '/suggest   ',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+        },
+        {
+          message_id: 47,
+          date: Date.now(),
+          text: 'Radiohead in Barcelona',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+        },
+        {
+          message_id: 48,
+          date: Date.now(),
+          text: '/suggest@GigsTogetherBot',
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 7, is_bot: false, first_name: 'Arina' },
+          reply_to_message: {
+            message_id: 45,
+            date: Date.now(),
+            chat: { id: -100123, type: 'supergroup' },
+            from: { id: 8, is_bot: false, first_name: 'Another user' },
+            photo: [],
+          },
+        },
+      ];
+
+      for (const message of messages) {
+        await service.handleMessage(message);
+      }
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(
+        mockTelegramBotReplyService.sendIncomingMessageUnavailable,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should reject construction when suggestions chat ID is invalid', async () => {
+      await expect(createService('invalid')).rejects.toThrowError(
+        'MAIN_CHAT_ID must be a non-zero safe integer.',
+      );
+    });
+
+    it('should reject construction when suggestions chat ID is empty', async () => {
+      await expect(createService('   ')).rejects.toThrowError(
+        'MAIN_CHAT_ID is not configured.',
+      );
+    });
+
+    it('should reject construction when main channel ID is invalid', async () => {
+      await expect(createService('-100123', 'invalid')).rejects.toThrowError(
+        'MAIN_CHANNEL_ID must be a non-zero safe integer.',
+      );
+    });
+
+    it('should reject construction when main channel ID is empty', async () => {
+      await expect(createService('-100123', '   ')).rejects.toThrowError(
+        'MAIN_CHANNEL_ID is not configured.',
+      );
     });
 
     it('should handle an unknown command', async () => {
@@ -521,7 +1069,9 @@ describe('TelegramUpdatesService', () => {
 
       await service.handleCallbackQuery(callbackQuery);
 
-      expect(mockGigCandidateService.approveGigCandidate).toHaveBeenCalledWith({
+      expect(
+        mockGigCandidateApprovalService.approveGigCandidate,
+      ).toHaveBeenCalledWith({
         gigCandidateId: '507f1f77bcf86cd799439099',
         expectedVersion: 4,
         approvedByUserId: '507f1f77bcf86cd799439088',
@@ -552,7 +1102,7 @@ describe('TelegramUpdatesService', () => {
       const warnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
-      mockGigCandidateService.approveGigCandidate.mockRejectedValue({
+      mockGigCandidateApprovalService.approveGigCandidate.mockRejectedValue({
         isAxiosError: true,
         message: 'Request failed with status code 400',
         response: {
@@ -596,7 +1146,7 @@ describe('TelegramUpdatesService', () => {
       const warnSpy = vi
         .spyOn(Logger.prototype, 'warn')
         .mockImplementation(() => undefined);
-      mockGigCandidateService.approveGigCandidate.mockRejectedValue(
+      mockGigCandidateApprovalService.approveGigCandidate.mockRejectedValue(
         new GigCandidateApprovalValidationError([
           { field: 'venue', code: 'required', message: 'venue is required' },
         ]),

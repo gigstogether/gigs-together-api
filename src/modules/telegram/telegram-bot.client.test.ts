@@ -4,6 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { of, throwError } from 'rxjs';
 import type { TGMessage } from './types/message.types';
+import type { TGUser } from './types/user.types';
 import { TGInputMediaType } from './types/message.types';
 import {
   TelegramBotClient,
@@ -47,6 +48,23 @@ describe('TelegramBotClient', () => {
     remoteImageService.download.mockReset();
   });
 
+  describe('getMe', () => {
+    it('should return the current Telegram bot identity', async () => {
+      const bot: TGUser = {
+        id: 42,
+        first_name: 'Gigs Together',
+        is_bot: true,
+        username: 'GigsTogetherBot',
+      };
+      mockHttpService.get.mockReturnValueOnce(of({ data: { result: bot } }));
+
+      const result = await client.getMe();
+
+      expect(mockHttpService.get).toHaveBeenCalledWith('getMe');
+      expect(result).toEqual(bot);
+    });
+  });
+
   describe('sendMessage', () => {
     it('should send the correct HTTP request', async () => {
       const chat_id = 12345;
@@ -73,6 +91,24 @@ describe('TelegramBotClient', () => {
         text,
       });
       expect(result).toEqual(mockMessage);
+    });
+  });
+
+  describe('setMessageReaction', () => {
+    it('should send the reaction to the specified Telegram message', async () => {
+      mockHttpService.post.mockReturnValue(of({ data: { result: true } }));
+
+      await client.setMessageReaction({
+        chat_id: -100123,
+        message_id: 42,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+
+      expect(mockHttpService.post).toHaveBeenCalledWith('setMessageReaction', {
+        chat_id: -100123,
+        message_id: 42,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
     });
   });
 

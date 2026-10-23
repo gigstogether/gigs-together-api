@@ -3,16 +3,24 @@ import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { GigPoster, GigPosterSchema } from '../gig/gig.schema';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { Messenger } from '../../shared/types/messenger.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type {
+  GigCandidateSourceIdentifiedUser,
+  GigCandidateSourceMessengerUser,
   GigCandidateSourceProvider,
-  GigCandidateSourceUser,
 } from './types/gig-candidate.types';
 
-type GigCandidateStoredSource =
-  | (Omit<GigCandidateSourceUser, 'userId'> & { userId: Types.ObjectId })
+export type GigCandidateStoredSource =
+  | (Omit<GigCandidateSourceIdentifiedUser, 'userId'> & {
+      userId: Types.ObjectId;
+    })
+  | (Omit<GigCandidateSourceMessengerUser, 'userId'> & {
+      userId?: Types.ObjectId;
+    })
   | GigCandidateSourceProvider;
 
 @Schema({ _id: false })
@@ -125,3 +133,18 @@ export const GigCandidateSchema = SchemaFactory.createForClass(GigCandidate);
 
 GigCandidateSchema.index({ status: 1, createdAt: -1, _id: -1 });
 GigCandidateSchema.index({ gigId: 1 }, { unique: true, sparse: true });
+GigCandidateSchema.index(
+  {
+    'source.origin.messenger': 1,
+    'source.origin.message.chatId': 1,
+    'source.origin.message.messageId': 1,
+  },
+  {
+    name: 'source_messenger_message_unique',
+    unique: true,
+    partialFilterExpression: {
+      'source.type': GigSourceType.User,
+      'source.origin.type': GigSourceUserOriginType.Messenger,
+    },
+  },
+);

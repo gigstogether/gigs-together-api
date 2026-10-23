@@ -5,13 +5,13 @@ import { Gig, GigSchema } from './gig.schema';
 import { GigController } from './gig.controller';
 import { CalendarModule } from '../calendar/calendar.module';
 import { BucketModule } from '../bucket/bucket.module';
-import { GigPosterService } from './gig.poster.service';
-import { FeedRevalidateService } from './feed-revalidate.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
 import { AuthModule } from '../auth/auth.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import { MongoGigRepository } from './repositories/mongo-gig.repository';
-import { GigFeedService } from './gig-feed.service';
+import { GigFeedService } from './gig-feed/gig-feed.service';
+import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
 
 @Module({
@@ -30,14 +30,14 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     },
     GigService,
     GigFeedService,
+    GigFeedRevalidationService,
     GigPosterService,
-    FeedRevalidateService,
   ],
   exports: [
     MongooseModule,
     GigService,
     GigFeedService,
-    FeedRevalidateService,
+    GigFeedRevalidationService,
     GigPosterService,
   ],
   controllers: [GigController],

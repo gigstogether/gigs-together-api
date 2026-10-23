@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, Version } from '@nestjs/common';
-import { GigFeedService } from './gig-feed.service';
+import { GigFeedService } from './gig-feed/gig-feed.service';
 import { V1GigGetRequestQuery } from './types/requests/v1-gig-get-request';
 import type { V1GetGigsResponseBody } from './types/requests/v1-gig-get-request';
 import { V1GigDatesGetRequestQuery } from './types/requests/v1-gig-dates-get-request';
@@ -16,7 +16,7 @@ import {
   mapVisibleGigDatesResultToV1,
   mapVisibleGigsAroundResultToV1,
   mapVisibleGigsResultToV1,
-} from './gig-feed.mapper';
+} from './gig-feed/gig-feed.mapper';
 
 @Controller('gigs')
 export class GigController {

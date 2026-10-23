@@ -1,7 +1,7 @@
 import { PATH_METADATA } from '@nestjs/common/constants';
 
 import { GigController } from './gig.controller';
-import type { GigFeedService } from './gig-feed.service';
+import type { GigFeedService } from './gig-feed/gig-feed.service';
 
 describe('GigController', () => {
   const gigFeedService = {

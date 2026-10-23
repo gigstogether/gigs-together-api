@@ -2,13 +2,13 @@ import { BadRequestException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { BucketService } from '../bucket/bucket.service';
+import { BucketService } from '../../bucket/bucket.service';
 import {
   InvalidRemoteImageUrlError,
   RemoteImageContentTypeError,
   RemoteImageService,
-} from '../remote-image/remote-image.service';
-import { GigPosterService } from './gig.poster.service';
+} from '../../remote-image/remote-image.service';
+import { GigPosterService } from './gig-poster.service';
 
 describe('GigPosterService', () => {
   let gigPosterService: GigPosterService;

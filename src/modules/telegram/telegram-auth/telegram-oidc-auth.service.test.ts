@@ -25,6 +25,24 @@ describe('TelegramOidcAuthService', () => {
     service = moduleRef.get(TelegramOidcAuthService);
   });
 
+  it('should reject construction when client ID is missing', () => {
+    expect(
+      () =>
+        new TelegramOidcAuthService(
+          new ConfigService({ TELEGRAM_OIDC_CLIENT_ID: '' }),
+        ),
+    ).toThrowError('TELEGRAM_OIDC_CLIENT_ID is not configured.');
+  });
+
+  it('should reject construction when client ID is invalid', () => {
+    expect(
+      () =>
+        new TelegramOidcAuthService(
+          new ConfigService({ TELEGRAM_OIDC_CLIENT_ID: 'invalid' }),
+        ),
+    ).toThrowError('TELEGRAM_OIDC_CLIENT_ID must be a positive safe integer.');
+  });
+
   it('should resolve a trusted Telegram user from a verified ID token', async () => {
     vi.mocked(jwtVerify).mockResolvedValue({
       payload: {

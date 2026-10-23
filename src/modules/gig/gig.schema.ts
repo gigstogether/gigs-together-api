@@ -1,9 +1,16 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { Messenger } from '../../shared/types/messenger.enum';
-import type { GigSourceProvider, GigSourceUser } from './types/gig.types';
+import type {
+  GigSourceIdentifiedUser,
+  GigSourceMessengerUser,
+  GigSourceProvider,
+} from './types/gig.types';
 import { PostType } from '../../shared/types/post-type.enum';
+import { isRecord } from '../../shared/utils/is-record';
 import { GIG_TITLE_MAX_LENGTH } from './gig.constants';
+import { GigSourceType } from './types/gig-source-type.enum';
+import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 
 @Schema({ _id: false })
 export class GigPost {
@@ -41,12 +48,9 @@ export class GigPoster {
 export const GigPosterSchema = SchemaFactory.createForClass(GigPoster);
 
 export type GigStoredSource =
-  | (Omit<GigSourceUser, 'userId'> & { userId: Types.ObjectId })
+  | (Omit<GigSourceIdentifiedUser, 'userId'> & { userId: Types.ObjectId })
+  | (Omit<GigSourceMessengerUser, 'userId'> & { userId?: Types.ObjectId })
   | GigSourceProvider;
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function hasOnlyKeys(
   value: Record<string, unknown>,
@@ -61,7 +65,7 @@ function isGigSource(value: unknown): boolean {
     return false;
   }
 
-  if (value.type === 'user') {
+  if (value.type === GigSourceType.User) {
     if (
       !hasOnlyKeys(value, ['type', 'userId', 'origin']) ||
       !isRecord(value.origin)
@@ -69,17 +73,26 @@ function isGigSource(value: unknown): boolean {
       return false;
     }
 
+    if (value.origin.type === GigSourceUserOriginType.Messenger) {
+      return (
+        (value.userId === undefined ||
+          (value.userId instanceof Types.ObjectId &&
+            Types.ObjectId.isValid(value.userId))) &&
+        hasOnlyKeys(value.origin, ['type', 'messenger']) &&
+        value.origin.messenger === Messenger.Telegram
+      );
+    }
+
     return (
       value.userId instanceof Types.ObjectId &&
       Types.ObjectId.isValid(value.userId) &&
       hasOnlyKeys(value.origin, ['type']) &&
-      (value.origin.type === 'form' ||
-        value.origin.type === 'admin' ||
-        value.origin.type === 'messenger')
+      (value.origin.type === GigSourceUserOriginType.Form ||
+        value.origin.type === GigSourceUserOriginType.Admin)
     );
   }
 
-  if (value.type === 'provider') {
+  if (value.type === GigSourceType.Provider) {
     if (
       !hasOnlyKeys(value, ['type', 'provider']) ||
       !isRecord(value.provider)

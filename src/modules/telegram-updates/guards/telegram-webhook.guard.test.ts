@@ -1,22 +1,22 @@
 import type { ExecutionContext } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TelegramWebhookGuard } from './telegram-webhook.guard';
 import type { TelegramWebhookRequest } from './telegram-webhook.guard';
 
 describe('TelegramWebhookGuard', () => {
-  const guard = new TelegramWebhookGuard();
-  const previousBotSecret = process.env.BOT_SECRET;
+  let guard: TelegramWebhookGuard;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.BOT_SECRET = 'test-secret';
+    guard = new TelegramWebhookGuard(
+      new ConfigService({ BOT_SECRET: 'test-secret' }),
+    );
   });
 
-  afterAll(() => {
-    if (previousBotSecret === undefined) {
-      delete process.env.BOT_SECRET;
-    } else {
-      process.env.BOT_SECRET = previousBotSecret;
-    }
+  it('should reject construction when BOT_SECRET is empty', () => {
+    expect(
+      () => new TelegramWebhookGuard(new ConfigService({ BOT_SECRET: '   ' })),
+    ).toThrowError('BOT_SECRET is not configured.');
   });
 
   it('should authenticate a Telegram webhook with a valid secret', () => {
