@@ -19,8 +19,13 @@ export interface TranslationRecordLeanDocument {
 
 interface InvalidTranslationDocumentErrorParams {
   documentId: string;
+  locale: unknown;
+  namespace: unknown;
+  key: unknown;
   issues: readonly TranslationRecordValidationIssue[];
 }
+
+type TranslationDocumentIdentifierField = 'namespace' | 'key' | 'locale';
 
 export class InvalidTranslationDocumentError extends Error {
   documentId: string;
@@ -30,9 +35,14 @@ export class InvalidTranslationDocumentError extends Error {
     const details = params.issues
       .map((issue) => `${issue.field} ${issue.reason}`)
       .join('; ');
+    const identifiers = [
+      formatDiagnosticField('namespace', params.namespace),
+      formatDiagnosticField('key', params.key),
+      formatDiagnosticField('locale', params.locale),
+    ].join(', ');
 
     super(
-      `Translation document "${params.documentId}" is invalid: ${details}.`,
+      `Translation document "${params.documentId}" (${identifiers}) is invalid: ${details}.`,
     );
     this.name = InvalidTranslationDocumentError.name;
     this.documentId = params.documentId;
@@ -55,6 +65,9 @@ export class TranslationRepositoryMapper {
 
       throw new InvalidTranslationDocumentError({
         documentId: id,
+        locale: doc.locale,
+        namespace: doc.namespace,
+        key: doc.key,
         issues: e.issues,
       });
     }
@@ -74,4 +87,23 @@ export class TranslationRepositoryMapper {
   private static getDocumentId(doc: TranslationRecordLeanDocument): string {
     return typeof doc._id === 'string' ? doc._id : doc._id.toString();
   }
+}
+
+function formatDiagnosticField(
+  field: TranslationDocumentIdentifierField,
+  value: unknown,
+): string {
+  if (value === undefined) {
+    return `${field}=<missing>`;
+  }
+
+  if (value === null) {
+    return `${field}=null`;
+  }
+
+  if (typeof value === 'string') {
+    return `${field}=${JSON.stringify(value)}`;
+  }
+
+  return `${field}=<invalid:${typeof value}>`;
 }

@@ -42,6 +42,9 @@ describe('TranslationRepositoryMapper', () => {
       ).toThrow(
         new InvalidTranslationDocumentError({
           documentId: '64f1a2b3c4d5e6f7a8b9c0d0',
+          locale: undefined,
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
           issues: [
             {
               field: 'locale',
