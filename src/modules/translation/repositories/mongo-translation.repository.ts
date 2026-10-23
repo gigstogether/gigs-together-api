@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import type { TranslationRecord } from '../types/translation.types';
@@ -7,10 +7,10 @@ import type {
   UpsertTranslationRecordResult,
 } from '../types/translation-record.types';
 import { Translation, TranslationDocument } from '../translation.schema';
-import { TranslationRepositoryMapper } from './translation.repository.mapper';
-import type {
-  StoredTranslationRecordLeanDocument,
-  TranslationRecordLeanDocument,
+import type { TranslationRecordLeanDocument } from './translation.repository.mapper';
+import {
+  InvalidTranslationDocumentError,
+  TranslationRepositoryMapper,
 } from './translation.repository.mapper';
 import type {
   FindActiveByNamespaceParams,
@@ -22,7 +22,7 @@ import type {
 } from './translation.repository';
 
 const TRANSLATION_RECORD_PROJECTION = {
-  _id: 0,
+  _id: 1,
   locale: 1,
   namespace: 1,
   key: 1,
@@ -45,6 +45,8 @@ const STORED_TRANSLATION_RECORD_PROJECTION = {
 
 @Injectable()
 export class MongoTranslationRepository implements TranslationRepository {
+  private readonly logger = new Logger(MongoTranslationRepository.name);
+
   constructor(
     @InjectModel(Translation.name)
     private readonly translationModel: Model<TranslationDocument>,
@@ -62,7 +64,7 @@ export class MongoTranslationRepository implements TranslationRepository {
       .lean<readonly TranslationRecordLeanDocument[]>()
       .exec();
 
-    return TranslationRepositoryMapper.toTranslationRecords(docs);
+    return this.mapValidTranslationRecords(docs);
   }
 
   async findAllActiveRecords(): Promise<readonly TranslationRecord[]> {
@@ -72,7 +74,7 @@ export class MongoTranslationRepository implements TranslationRepository {
       .lean<readonly TranslationRecordLeanDocument[]>()
       .exec();
 
-    return TranslationRepositoryMapper.toTranslationRecords(docs);
+    return this.mapValidTranslationRecords(docs);
   }
 
   async findByNamespace(
@@ -89,10 +91,10 @@ export class MongoTranslationRepository implements TranslationRepository {
     const docs = await this.translationModel
       .find(filter, STORED_TRANSLATION_RECORD_PROJECTION)
       .sort({ locale: 1, key: 1 })
-      .lean<readonly StoredTranslationRecordLeanDocument[]>()
+      .lean<readonly TranslationRecordLeanDocument[]>()
       .exec();
 
-    return TranslationRepositoryMapper.toStoredTranslationRecords(docs);
+    return this.mapValidStoredTranslationRecords(docs);
   }
 
   async findAll(
@@ -107,10 +109,10 @@ export class MongoTranslationRepository implements TranslationRepository {
     const docs = await this.translationModel
       .find(filter, STORED_TRANSLATION_RECORD_PROJECTION)
       .sort({ namespace: 1, locale: 1, key: 1 })
-      .lean<readonly StoredTranslationRecordLeanDocument[]>()
+      .lean<readonly TranslationRecordLeanDocument[]>()
       .exec();
 
-    return TranslationRepositoryMapper.toStoredTranslationRecords(docs);
+    return this.mapValidStoredTranslationRecords(docs);
   }
 
   async listDistinctNamespaces(): Promise<readonly string[]> {
@@ -173,7 +175,7 @@ export class MongoTranslationRepository implements TranslationRepository {
         { returnDocument: 'after' },
       )
       .select(STORED_TRANSLATION_RECORD_PROJECTION)
-      .lean<StoredTranslationRecordLeanDocument>()
+      .lean<TranslationRecordLeanDocument>()
       .exec();
 
     if (!updated) {
@@ -181,5 +183,51 @@ export class MongoTranslationRepository implements TranslationRepository {
     }
 
     return TranslationRepositoryMapper.toStoredTranslationRecord(updated);
+  }
+
+  private mapValidTranslationRecords(
+    docs: readonly TranslationRecordLeanDocument[],
+  ): readonly TranslationRecord[] {
+    const records: TranslationRecord[] = [];
+
+    for (const doc of docs) {
+      try {
+        records.push(TranslationRepositoryMapper.toTranslationRecord(doc));
+      } catch (e) {
+        if (!(e instanceof InvalidTranslationDocumentError)) {
+          throw e;
+        }
+
+        this.logger.error(
+          `Skipping invalid translation document during runtime cache loading. ${e.message}`,
+        );
+      }
+    }
+
+    return records;
+  }
+
+  private mapValidStoredTranslationRecords(
+    docs: readonly TranslationRecordLeanDocument[],
+  ): readonly StoredTranslationRecord[] {
+    const records: StoredTranslationRecord[] = [];
+
+    for (const doc of docs) {
+      try {
+        records.push(
+          TranslationRepositoryMapper.toStoredTranslationRecord(doc),
+        );
+      } catch (e) {
+        if (!(e instanceof InvalidTranslationDocumentError)) {
+          throw e;
+        }
+
+        this.logger.error(
+          `Skipping invalid stored translation document. ${e.message}`,
+        );
+      }
+    }
+
+    return records;
   }
 }

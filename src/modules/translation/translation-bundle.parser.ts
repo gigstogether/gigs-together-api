@@ -1,8 +1,6 @@
 import type { Logger } from '@nestjs/common';
-import {
-  isValidTranslationKey,
-  isValidTranslationNamespace,
-} from './translation-identifiers';
+import { parseTranslationRecord } from './translation-record.parser';
+export { parseTranslationBundleEntry } from './translation-record.parser';
 import type {
   TranslationBundleEntry,
   TranslationRecord,
@@ -12,86 +10,35 @@ import type {
   NamespaceLocaleRegistry,
   TranslationCacheIndex,
 } from './types/translation-cache.types';
-import { isRecord } from '../../shared/utils/is-record';
 
 export const TRANSLATION_CACHE_DEFAULT_LOCALE = 'en';
 
 export const TELEGRAM_TEMPLATE_NAMESPACE = 'telegram';
 
-export function parseTranslationBundleEntry(
-  value: unknown,
-): TranslationBundleEntry {
-  if (!isRecord(value)) {
-    throw new Error('Translation bundle entry must be an object.');
-  }
-
-  const namespace = value.namespace;
-  const key = value.key;
-  const entryValue = value.value;
-  const format = value.format;
-  const kind = value.kind;
-  const isActive = value.isActive;
-
-  if (typeof namespace !== 'string' || namespace.trim().length === 0) {
-    throw new Error(
-      'Translation bundle entry namespace must be a non-empty string.',
-    );
-  }
-  if (typeof key !== 'string' || key.trim().length === 0) {
-    throw new Error('Translation bundle entry key must be a non-empty string.');
-  }
-  if (typeof entryValue !== 'string') {
-    throw new Error(
-      `Translation bundle entry "${key}" value must be a string.`,
-    );
-  }
-  if (format !== 'plain' && format !== 'icu') {
-    throw new Error(`Translation bundle entry "${key}" format is invalid.`);
-  }
-  if (kind !== 'text' && kind !== 'template') {
-    throw new Error(`Translation bundle entry "${key}" kind is invalid.`);
-  }
-  if (typeof isActive !== 'boolean') {
-    throw new Error(
-      `Translation bundle entry "${key}" isActive must be a boolean.`,
-    );
-  }
-
-  const normalizedNamespace = namespace.trim();
-  const normalizedKey = key.trim();
-
-  if (!isValidTranslationNamespace(normalizedNamespace)) {
-    throw new Error(
-      `Translation bundle entry "${normalizedKey}" namespace must be camelCase.`,
-    );
-  }
-  if (!isValidTranslationKey(normalizedKey)) {
-    throw new Error(
-      `Translation bundle entry "${normalizedKey}" key must be camelCase.`,
-    );
-  }
-
-  return {
-    namespace: normalizedNamespace,
-    key: normalizedKey,
-    value: entryValue,
-    format,
-    kind,
-    isActive,
-  };
-}
-
-function tryParseTranslationBundleEntry(
+function tryParseTranslationRecord(
   value: unknown,
   logger: Logger,
-): TranslationBundleEntry | undefined {
+): TranslationRecord | undefined {
   try {
-    return parseTranslationBundleEntry(value);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.error(`Skipping invalid translation entry: ${message}`);
+    return parseTranslationRecord(value);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    logger.error(`Skipping invalid translation record: ${message}`);
     return undefined;
   }
+}
+
+function toTranslationBundleEntry(
+  record: TranslationRecord,
+): TranslationBundleEntry {
+  return {
+    namespace: record.namespace,
+    key: record.key,
+    value: record.value,
+    format: record.format,
+    kind: record.kind,
+    isActive: record.isActive,
+  };
 }
 
 function indexActiveTranslationEntries(
@@ -117,7 +64,12 @@ export function buildNamespaceLocaleRegistry(
   const byLocale = new Map<string, LocaleKeyRegistry>();
 
   const recordsByLocale = new Map<string, TranslationRecord[]>();
-  for (const record of records) {
+  for (const rawRecord of records) {
+    const record = tryParseTranslationRecord(rawRecord, logger);
+    if (record === undefined) {
+      continue;
+    }
+
     const existing = recordsByLocale.get(record.locale) ?? [];
     recordsByLocale.set(record.locale, [...existing, record]);
   }
@@ -127,10 +79,7 @@ export function buildNamespaceLocaleRegistry(
     const seenKeys = new Set<string>();
 
     for (const record of localeRecords) {
-      const parsed = tryParseTranslationBundleEntry(record, logger);
-      if (parsed === undefined) {
-        continue;
-      }
+      const parsed = toTranslationBundleEntry(record);
       if (parsed.namespace !== namespace) {
         logger.error(
           `Skipping translation key "${parsed.key}" for locale "${locale}": expected namespace "${namespace}", got "${parsed.namespace}".`,
@@ -179,17 +128,14 @@ export function buildTranslationCacheIndex(
 ): TranslationCacheIndex {
   const recordsByNamespace = new Map<string, TranslationRecord[]>();
 
-  for (const record of records) {
-    const namespace = record.namespace.trim();
-    if (namespace.length === 0) {
-      logger.error(
-        `Skipping translation record with missing namespace (key "${record.key}", locale "${record.locale}").`,
-      );
+  for (const rawRecord of records) {
+    const record = tryParseTranslationRecord(rawRecord, logger);
+    if (record === undefined) {
       continue;
     }
 
-    const existing = recordsByNamespace.get(namespace) ?? [];
-    recordsByNamespace.set(namespace, [...existing, record]);
+    const existing = recordsByNamespace.get(record.namespace) ?? [];
+    recordsByNamespace.set(record.namespace, [...existing, record]);
   }
 
   const index = new Map<string, NamespaceLocaleRegistry>();

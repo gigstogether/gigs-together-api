@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { isAxiosError } from 'axios';
+import { MissingTranslationError } from '../../translation/translation.errors';
 
 /**
  * Telegram webhook MUST always respond 200, otherwise Telegram retries.
@@ -25,6 +26,14 @@ export class TelegramWebhookExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+
+    if (exception instanceof MissingTranslationError) {
+      this.logger.error(
+        `Missing translation key="${exception.key}" namespace="${exception.namespace}" locale="${exception.locale}" while handling ${request.method} ${request.url}; responding 200 to suppress Telegram retries.`,
+      );
+      response.status(200).send();
+      return;
+    }
 
     const axiosPart = isAxiosError(exception)
       ? {
