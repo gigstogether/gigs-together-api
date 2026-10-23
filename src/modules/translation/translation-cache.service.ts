@@ -12,7 +12,10 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
+  TELEGRAM_TEMPLATE_NAMESPACE,
+  TRANSLATION_CACHE_DEFAULT_LOCALE,
 } from './translation-bundle.parser';
+import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
 import { isValidTranslationNamespace } from './translation-identifiers';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
@@ -23,6 +26,8 @@ import type {
 } from './types/translation-cache.types';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationBundleEntry } from './types/translation.types';
+
+const REQUIRED_TELEGRAM_TEMPLATE_KEYS = Object.values(TELEGRAM_TEMPLATE_KEYS);
 
 interface RevalidateTranslationNamespaceParams {
   readonly namespace: string;
@@ -166,8 +171,8 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   private async performFullReload(): Promise<void> {
     try {
       await this.loadFullCache();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       this.logger.error(
         `Translation cache full reload failed; keeping stale cache. ${message}`,
       );
@@ -176,8 +181,11 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
 
   private async loadFullCache(): Promise<void> {
     const records = await this.translationRepository.findAllActiveRecords();
+    const nextCache = buildTranslationCacheIndex(records, this.logger);
+    const telegramRegistry = nextCache.get(TELEGRAM_TEMPLATE_NAMESPACE);
 
-    this.cache = buildTranslationCacheIndex(records, this.logger);
+    this.assertRequiredTelegramTemplates(telegramRegistry);
+    this.cache = nextCache;
     this.logger.log(
       `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s).`,
     );
@@ -194,6 +202,10 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
         this.logger,
       );
 
+      if (namespace === TELEGRAM_TEMPLATE_NAMESPACE) {
+        this.assertRequiredTelegramTemplates(namespaceRegistry);
+      }
+
       const nextCache = new Map(this.cache);
       nextCache.set(namespace, namespaceRegistry);
       this.cache = nextCache;
@@ -201,11 +213,30 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Translation cache revalidated for namespace "${namespace}" (${records.length} record(s)).`,
       );
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       this.logger.error(
         `Translation cache namespace reload failed for "${namespace}"; keeping stale slice. ${message}`,
       );
     }
+  }
+
+  private assertRequiredTelegramTemplates(
+    registry: NamespaceLocaleRegistry | undefined,
+  ): void {
+    const defaultLocaleEntries = registry?.get(
+      TRANSLATION_CACHE_DEFAULT_LOCALE,
+    );
+    const missingKeys = REQUIRED_TELEGRAM_TEMPLATE_KEYS.filter(
+      (key) => !defaultLocaleEntries?.has(key),
+    );
+
+    if (missingKeys.length === 0) {
+      return;
+    }
+
+    throw new Error(
+      `Required translations are missing for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}" and locale "${TRANSLATION_CACHE_DEFAULT_LOCALE}": ${missingKeys.join(', ')}.`,
+    );
   }
 }

@@ -1,51 +1,69 @@
 import type { StoredTranslationRecord } from '../types/translation-record.types';
-import type {
-  TranslationFormat,
-  TranslationKind,
-  TranslationRecord,
-} from '../types/translation.types';
+import {
+  InvalidTranslationRecordError,
+  parseTranslationRecord,
+} from '../translation-record.parser';
+import type { TranslationRecordValidationIssue } from '../translation-record.parser';
+import type { TranslationRecord } from '../types/translation.types';
 
 export interface TranslationRecordLeanDocument {
-  readonly locale: string;
-  readonly namespace: string;
-  readonly key: string;
-  readonly value: string;
-  readonly format: TranslationFormat;
-  readonly kind: TranslationKind;
-  readonly isActive: boolean;
+  _id: { toString(): string } | string;
+  locale?: unknown;
+  namespace?: unknown;
+  key?: unknown;
+  value?: unknown;
+  format?: unknown;
+  kind?: unknown;
+  isActive?: unknown;
 }
 
-export interface StoredTranslationRecordLeanDocument extends TranslationRecordLeanDocument {
-  readonly _id: { toString(): string } | string;
+interface InvalidTranslationDocumentErrorParams {
+  documentId: string;
+  issues: readonly TranslationRecordValidationIssue[];
+}
+
+export class InvalidTranslationDocumentError extends Error {
+  documentId: string;
+  issues: readonly TranslationRecordValidationIssue[];
+
+  constructor(params: InvalidTranslationDocumentErrorParams) {
+    const details = params.issues
+      .map((issue) => `${issue.field} ${issue.reason}`)
+      .join('; ');
+
+    super(
+      `Translation document "${params.documentId}" is invalid: ${details}.`,
+    );
+    this.name = InvalidTranslationDocumentError.name;
+    this.documentId = params.documentId;
+    this.issues = [...params.issues];
+  }
 }
 
 export class TranslationRepositoryMapper {
   static toTranslationRecord(
     doc: TranslationRecordLeanDocument,
   ): TranslationRecord {
-    return {
-      locale: doc.locale.trim().toLowerCase(),
-      namespace: doc.namespace.trim(),
-      key: doc.key,
-      value: doc.value,
-      format: doc.format,
-      kind: doc.kind,
-      isActive: doc.isActive,
-    };
-  }
+    const id = TranslationRepositoryMapper.getDocumentId(doc);
 
-  static toTranslationRecords(
-    docs: readonly TranslationRecordLeanDocument[],
-  ): readonly TranslationRecord[] {
-    return docs.map((doc) =>
-      TranslationRepositoryMapper.toTranslationRecord(doc),
-    );
+    try {
+      return parseTranslationRecord(doc);
+    } catch (e) {
+      if (!(e instanceof InvalidTranslationRecordError)) {
+        throw e;
+      }
+
+      throw new InvalidTranslationDocumentError({
+        documentId: id,
+        issues: e.issues,
+      });
+    }
   }
 
   static toStoredTranslationRecord(
-    doc: StoredTranslationRecordLeanDocument,
+    doc: TranslationRecordLeanDocument,
   ): StoredTranslationRecord {
-    const id = typeof doc._id === 'string' ? doc._id : doc._id.toString();
+    const id = TranslationRepositoryMapper.getDocumentId(doc);
 
     return {
       id,
@@ -53,11 +71,7 @@ export class TranslationRepositoryMapper {
     };
   }
 
-  static toStoredTranslationRecords(
-    docs: readonly StoredTranslationRecordLeanDocument[],
-  ): readonly StoredTranslationRecord[] {
-    return docs.map((doc) =>
-      TranslationRepositoryMapper.toStoredTranslationRecord(doc),
-    );
+  private static getDocumentId(doc: TranslationRecordLeanDocument): string {
+    return typeof doc._id === 'string' ? doc._id : doc._id.toString();
   }
 }

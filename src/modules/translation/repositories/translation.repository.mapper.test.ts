@@ -1,10 +1,14 @@
-import { TranslationRepositoryMapper } from './translation.repository.mapper';
+import {
+  InvalidTranslationDocumentError,
+  TranslationRepositoryMapper,
+} from './translation.repository.mapper';
 
 describe('TranslationRepositoryMapper', () => {
   describe('toTranslationRecord', () => {
     it('should map a lean document to TranslationRecord with normalized locale', () => {
       expect(
         TranslationRepositoryMapper.toTranslationRecord({
+          _id: '64f1a2b3c4d5e6f7a8b9c0d0',
           locale: ' EN ',
           namespace: 'telegram',
           key: 'weeklyDigest.empty',
@@ -22,6 +26,30 @@ describe('TranslationRepositoryMapper', () => {
         kind: 'text',
         isActive: true,
       });
+    });
+
+    it('should throw a diagnostic error with the document id when locale is missing', () => {
+      expect(() =>
+        TranslationRepositoryMapper.toTranslationRecord({
+          _id: '64f1a2b3c4d5e6f7a8b9c0d0',
+          namespace: 'telegram',
+          key: 'weeklyDigest.empty',
+          value: 'There are no gigs scheduled for this week.',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        }),
+      ).toThrow(
+        new InvalidTranslationDocumentError({
+          documentId: '64f1a2b3c4d5e6f7a8b9c0d0',
+          issues: [
+            {
+              field: 'locale',
+              reason: 'must be a non-empty string',
+            },
+          ],
+        }),
+      );
     });
   });
 
