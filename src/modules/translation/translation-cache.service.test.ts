@@ -129,16 +129,19 @@ describe('TranslationCacheService', () => {
       expect(addIntervalMock).not.toHaveBeenCalled();
     });
 
-    it('should throw when a required default Telegram translation is missing', async () => {
+    it('should complete warm-up when a required default Telegram translation is missing', async () => {
       const requiredRecords = withRequiredTelegramTranslations([]).filter(
         (record) => record.key !== TELEGRAM_TEMPLATE_KEYS.commandStart,
       );
       findAllActiveRecordsMock.mockResolvedValue(requiredRecords);
 
-      await expect(service.onModuleInit()).rejects.toThrow(
-        `Required translations are missing for namespace "telegram" and locale "en": ${TELEGRAM_TEMPLATE_KEYS.commandStart}.`,
-      );
-      expect(addIntervalMock).not.toHaveBeenCalled();
+      await expect(service.onModuleInit()).resolves.toBeUndefined();
+      expect(addIntervalMock).toHaveBeenCalledTimes(1);
+      expect(
+        service
+          .getNamespaceEntries({ namespace: 'telegram', locale: 'en' })
+          .has(TELEGRAM_TEMPLATE_KEYS.commandStart),
+      ).toBe(false);
     });
   });
 
