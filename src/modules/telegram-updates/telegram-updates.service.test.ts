@@ -309,7 +309,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 124,
         date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
+        text: '/gig Radiohead in Barcelona',
         chat: privateChat,
         from: {
           id: 42,
@@ -338,7 +338,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 42,
         date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
+        text: '/gig Radiohead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         from: {
           id: 7,
@@ -379,7 +379,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 52,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        text: '/gig@GigsTogetherBot Massive Attack in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         sender_chat: {
           id: -100456,
@@ -421,7 +421,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 56,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot Portishead in Madrid',
+        text: '/gig@GigsTogetherBot Portishead in Madrid',
         chat: { id: -100999, type: 'supergroup' },
         sender_chat: {
           id: -100456,
@@ -447,7 +447,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 55,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot Portishead in Barcelona',
+        text: '/gig@GigsTogetherBot Portishead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         sender_chat: {
           id: -100789,
@@ -476,7 +476,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 43,
         date: Date.now(),
-        text: '/SuGgEsT@GigsTogetherBot   Band Name\n12 June',
+        text: '/GiG@GigsTogetherBot   Band Name\n12 June',
         chat: { id: -100123, type: 'group' },
         from: {
           id: 7,
@@ -502,7 +502,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 44,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot',
+        text: '/gig@GigsTogetherBot',
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
         reply_to_message: {
@@ -549,7 +549,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 53,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot',
+        text: '/gig@GigsTogetherBot',
         chat: { id: -100123, type: 'supergroup' },
         sender_chat: {
           id: -100789,
@@ -579,7 +579,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 54,
         date: Date.now(),
-        text: '/suggest@GigsTogetherBot Massive Attack in Barcelona',
+        text: '/gig@GigsTogetherBot Massive Attack in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         sender_chat: { id: -100123, type: 'supergroup' },
         from: {
@@ -617,7 +617,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 44,
         date: Date.now(),
-        text: '/suggest@AnotherBot Radiohead in Barcelona',
+        text: '/gig@AnotherBot Radiohead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         from: {
           id: 7,
@@ -641,7 +641,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 49,
         date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
+        text: '/gig Radiohead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
       };
@@ -664,7 +664,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 51,
         date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
+        text: '/gig Radiohead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
       };
@@ -690,7 +690,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 50,
         date: Date.now(),
-        text: '/suggest Radiohead in Barcelona',
+        text: '/gig Radiohead in Barcelona',
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
       };
@@ -726,14 +726,14 @@ describe('TelegramUpdatesService', () => {
         {
           message_id: 44,
           date: Date.now(),
-          text: '/suggest Wrong group',
+          text: '/gig Wrong group',
           chat: { id: -100456, type: 'supergroup' },
           from: { id: 7, is_bot: false, first_name: 'Arina' },
         },
         {
           message_id: 45,
           date: Date.now(),
-          text: '/suggest Private chat',
+          text: '/gig Private chat',
           chat: { id: -100123, type: 'private' },
           from: { id: 7, is_bot: false, first_name: 'Arina' },
         },
@@ -754,7 +754,7 @@ describe('TelegramUpdatesService', () => {
         {
           message_id: 46,
           date: Date.now(),
-          text: '/suggest   ',
+          text: '/gig   ',
           chat: { id: -100123, type: 'supergroup' },
           from: { id: 7, is_bot: false, first_name: 'Arina' },
         },
@@ -768,7 +768,7 @@ describe('TelegramUpdatesService', () => {
         {
           message_id: 48,
           date: Date.now(),
-          text: '/suggest@GigsTogetherBot',
+          text: '/gig@GigsTogetherBot',
           chat: { id: -100123, type: 'supergroup' },
           from: { id: 7, is_bot: false, first_name: 'Arina' },
           reply_to_message: {
@@ -840,6 +840,33 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockTelegramBotReplyService.sendUnknownCommandResponse,
       ).toHaveBeenCalledWith({ id: 12345, type: 'private' });
+    });
+
+    it('should treat the former suggest command as unknown', async () => {
+      const message: TGMessage = {
+        message_id: 124,
+        date: Date.now(),
+        text: '/suggest Radiohead in Barcelona',
+        chat: { id: -100123, type: 'supergroup' },
+        from: {
+          id: 42,
+          is_bot: false,
+          first_name: 'Arina',
+        },
+      };
+
+      mockTelegramBotReplyService.sendUnknownCommandResponse.mockResolvedValue(
+        undefined,
+      );
+
+      await service.handleMessage(message);
+
+      expect(
+        mockTelegramBotReplyService.sendUnknownCommandResponse,
+      ).toHaveBeenCalledWith({ id: -100123, type: 'supergroup' });
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
     });
 
     it('should ignore empty messages', async () => {
