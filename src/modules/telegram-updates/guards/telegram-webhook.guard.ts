@@ -1,5 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
+import { getRequiredConfigString } from '../../../shared/utils/env';
 
 export type TelegramWebhookRequest = Request & {
   telegramWebhook?:
@@ -21,14 +23,19 @@ export type TelegramWebhookRequest = Request & {
  */
 @Injectable()
 export class TelegramWebhookGuard implements CanActivate {
+  private readonly expectedSecret: string;
+
+  constructor(configService: ConfigService) {
+    this.expectedSecret = getRequiredConfigString(configService, 'BOT_SECRET');
+  }
+
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<TelegramWebhookRequest>();
 
     const secretHeader = request.headers['x-telegram-bot-api-secret-token'] as
       string | undefined;
 
-    const expectedSecret = process.env.BOT_SECRET;
-    if (!expectedSecret || secretHeader !== expectedSecret) {
+    if (secretHeader !== this.expectedSecret) {
       request.telegramWebhook = {
         isAuthenticated: false,
         reason: 'Invalid secret token',

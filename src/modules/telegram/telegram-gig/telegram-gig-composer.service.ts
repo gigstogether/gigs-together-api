@@ -26,6 +26,7 @@ import type {
   BuildGigModerationReplyMarkupParams,
   ComposeGigPostEditParams,
 } from './telegram-gig-composer.service.types';
+import { formatTelegramGigDates } from '../utils/telegram-date';
 
 /**
  * Composes Telegram Bot API payloads for gig-related channel/moderation posts
@@ -59,14 +60,14 @@ export class TelegramGigComposerService {
   }
 
   composeMainPost(gig: PlainGig): TGSendPhoto {
-    const chatId = (process.env.MAIN_CHANNEL_ID ?? '').trim();
-    if (chatId === '') {
+    const chatId = this.telegramService.getMainChannelId();
+    if (chatId === undefined) {
       throw new BadRequestException(
         'Cannot compose main channel post: MAIN_CHANNEL_ID is not configured.',
       );
     }
 
-    const caption = this.buildMainPostCaption(gig);
+    const caption = this.buildCaption(gig);
     const moderationPost = this.pickPost(gig.posts, PostType.Moderation);
     const poster =
       moderationPost?.fileId ??
@@ -193,7 +194,7 @@ export class TelegramGigComposerService {
 
     return actionLinks.length === 0
       ? titleLabel
-      : `${titleLabel}\n\n${actionLinks.join(' | ')}`;
+      : `${titleLabel}\n\n${actionLinks.join(' | ')}\n.`;
   }
 
   buildAdminUrl(publicId?: string): string | undefined {
@@ -228,7 +229,7 @@ export class TelegramGigComposerService {
       editGigUrl: this.buildEditUrl(gig.publicId),
     });
     const gigUrl = this.telegramComposer.buildGigPermalink({
-      baseUrl: this.getAppBaseUrl(),
+      baseUrl: this.telegramService.getAppBaseUrl(),
       publicId: gig.publicId,
     });
     const fullCaption = this.buildModerationCaption({
@@ -291,7 +292,7 @@ export class TelegramGigComposerService {
     params: ComposeGigPostEditParams,
   ): TelegramPostEditComposition {
     const { gig, post, isMediaUpdateRequired } = params;
-    const caption = this.buildMainPostCaption(gig);
+    const caption = this.buildCaption(gig);
 
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
@@ -339,23 +340,22 @@ export class TelegramGigComposerService {
     };
   }
 
-  private buildMainPostCaption(gig: PlainGig): string {
+  private buildCaption(gig: PlainGig): string {
     const url = this.telegramComposer.buildGigPermalink({
-      baseUrl: this.getAppBaseUrl(),
+      baseUrl: this.telegramService.getAppBaseUrl(),
       publicId: gig.publicId,
     });
+    const dates = formatTelegramGigDates(gig.date, gig.endDate);
+    const templateKey = url
+      ? TELEGRAM_TEMPLATE_KEYS.mainGigWithLink
+      : TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink;
 
-    return this.telegramComposer.buildCaption({
+    return this.telegramTemplates.render(templateKey, {
       url,
-      title: gig.title,
-      ticketsUrl: gig.ticketsUrl,
-      venue: gig.venue,
-      date: gig.date,
-      endDate: gig.endDate,
+      title: gig.title.trim(),
+      dates,
+      venue: gig.venue.trim(),
+      ticketsUrl: gig.ticketsUrl.trim(),
     });
-  }
-
-  private getAppBaseUrl(): string {
-    return (process.env.APP_BASE_URL ?? '').trim();
   }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { InternalServerErrorException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TranslationCacheService } from '../translation/translation-cache.service';
+import { MissingTranslationError } from '../translation/translation.errors';
 import { TranslationTemplateService } from '../translation/translation-template.service';
 import type { TranslationBundleEntry } from '../translation/types/translation.types';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
@@ -92,13 +92,15 @@ describe('TelegramTemplateService', () => {
 
   it('should throw when translation is missing from cache', () => {
     getEntryMock.mockImplementation(() => {
-      throw new InternalServerErrorException(
-        `Translation "${TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty}" is missing for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}" and locale "${TELEGRAM_TEMPLATE_DEFAULT_LOCALE}".`,
-      );
+      throw new MissingTranslationError({
+        namespace: TELEGRAM_TEMPLATE_NAMESPACE,
+        key: TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty,
+        locale: TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
+      });
     });
 
     expect(() =>
       service.getText(TELEGRAM_TEMPLATE_KEYS.weeklyDigestEmpty),
-    ).toThrow(InternalServerErrorException);
+    ).toThrow(MissingTranslationError);
   });
 });

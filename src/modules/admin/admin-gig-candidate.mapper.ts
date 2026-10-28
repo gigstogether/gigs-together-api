@@ -9,6 +9,9 @@ import type {
 } from '../gig-candidate/gig-candidate.service';
 import type { GigPosterFile } from '../gig/types/gig-poster.types';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
+import { isGigCandidateSourceMessengerUser } from '../gig-candidate/gig-candidate-source.guards';
 import type {
   AdminGigCandidateDetails,
   GetAdminGigCandidatesParams,
@@ -23,6 +26,8 @@ import type {
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
   V1AdminGigCandidateProviderReferenceResponseBody,
+  V1AdminGigCandidateIdentifiedUserSourceResponseBody,
+  V1AdminGigCandidateMessengerUserSourceResponseBody,
   V1AdminGigCandidateResponseBody,
   V1AdminGigCandidatesListResponseBody,
   V1AdminGigCandidateSourceResponseBody,
@@ -61,7 +66,7 @@ export function mapV1AdminGigCandidateResponse(
 ): V1AdminGigCandidateResponseBody {
   const { gigDraft } = gigCandidate;
 
-  return {
+  const response: V1AdminGigCandidateResponseBody = {
     id: gigCandidate.id,
     source: mapV1AdminGigCandidateSourceResponse(gigCandidate.source),
     gigDraft: {
@@ -88,6 +93,13 @@ export function mapV1AdminGigCandidateResponse(
     createdAt: gigCandidate.createdAt.toISOString(),
     updatedAt: gigCandidate.updatedAt.toISOString(),
   };
+  if (gigCandidate.originalMessage !== undefined) {
+    response.originalMessage = {
+      text: gigCandidate.originalMessage.text,
+      url: gigCandidate.originalMessage.url,
+    };
+  }
+  return response;
 }
 
 export function mapV1AdminCreateGigCandidateRequest(
@@ -169,9 +181,30 @@ function mapV1AdminGigCandidateGigDraftRequest(
 function mapV1AdminGigCandidateSourceResponse(
   source: AdminGigCandidateDetails['source'],
 ): V1AdminGigCandidateSourceResponseBody {
-  if (source.type === 'user') {
-    const response: V1AdminGigCandidateSourceResponseBody = {
-      type: 'user',
+  if (source.type === GigSourceType.User) {
+    if (isGigCandidateSourceMessengerUser(source)) {
+      const response: V1AdminGigCandidateMessengerUserSourceResponseBody = {
+        type: GigSourceType.User,
+        isCurrentlyAdmin: source.isCurrentlyAdmin,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: source.origin.messenger,
+        },
+      };
+      if (source.userId !== undefined) {
+        response.userId = source.userId;
+      }
+      if (source.displayName !== undefined) {
+        response.displayName = source.displayName;
+      }
+      if (source.telegramUsername !== undefined) {
+        response.telegramUsername = source.telegramUsername;
+      }
+      return response;
+    }
+
+    const response: V1AdminGigCandidateIdentifiedUserSourceResponseBody = {
+      type: GigSourceType.User,
       userId: source.userId,
       isCurrentlyAdmin: source.isCurrentlyAdmin,
       origin: { ...source.origin },
@@ -181,14 +214,6 @@ function mapV1AdminGigCandidateSourceResponse(
     }
     if (source.telegramUsername !== undefined) {
       response.telegramUsername = source.telegramUsername;
-    }
-    if (source.originalText !== undefined) {
-      response.originalText = source.originalText;
-    }
-    if (source.attachments !== undefined) {
-      response.attachments = source.attachments.map((attachment) => ({
-        ...attachment,
-      }));
     }
     return response;
   }
@@ -206,7 +231,7 @@ function mapV1AdminGigCandidateSourceResponse(
     provider.providerUpdatedAt =
       source.provider.providerUpdatedAt.toISOString();
   }
-  return { type: 'provider', provider };
+  return { type: GigSourceType.Provider, provider };
 }
 
 function mapV1AdminGigCandidatePosterFile(

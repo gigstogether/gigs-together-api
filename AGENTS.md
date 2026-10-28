@@ -16,6 +16,8 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and specifically matches the task at hand; a generic TODO may refer to different work.
 - For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with human-readable equivalents (at least days or hours, and minutes when useful).
 - Boolean variables and flags should preferably start with `is`/`has`/`can`, for example `isActive`, `isAdmin`, `isValid`.
+- When building an object with optional properties, prefer initializing a typed object and assigning optional properties in explicit `if` statements. Avoid conditional object spreads such as `...(condition ? { field: value } : {})` unless they are materially clearer than assignments. This rule applies only to conditional object spreads: do not use it to rewrite ordinary ternary expressions.
+- Narrow discriminated unions by their explicit discriminator field. Do not infer a variant from incidental payload fields with checks such as `'originalText' in source`; when TypeScript cannot narrow an outer union by a nested discriminator, add a named type guard.
 - In `catch` clauses, bind the caught value as `e`, not `error`, when a binding is needed (for example `catch (e) { ... }`).
 - Every `catch` block must have an observable, meaningful effect: rethrow or translate the error,
   return an explicit typed failure result, update user-visible state, or log actionable context at

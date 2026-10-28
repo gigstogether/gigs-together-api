@@ -5,6 +5,7 @@ import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
+import { TelegramService } from '../telegram.service';
 import type { TGChat } from '../types/chat.types';
 import { TGParseMode } from '../types/message.types';
 
@@ -33,6 +34,8 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
       'https://t.me/gigs_together?topic=help&source=bot',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Chat suggestions are unavailable in private messages. You can suggest a gig using <a href="{formUrl}">the form</a> or in <a href="https://t.me/gigs_together_chat">our community chat</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandStart]:
       'Start: <a href="{contactAdminsUrl}">contact admins</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandUnknown]:
@@ -55,6 +58,11 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
 
 describe('TelegramBotReplyComposerService', () => {
   let composer: TelegramBotReplyComposerService;
+  const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://gigs.example'),
+  };
   const privateChat = {
     id: 12345,
     type: 'private',
@@ -72,39 +80,23 @@ describe('TelegramBotReplyComposerService', () => {
           provide: TelegramTemplateService,
           useValue: createMockTelegramTemplates(),
         },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 
     composer = moduleRef.get(TelegramBotReplyComposerService);
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
+    telegramService.getAppBaseUrl.mockReturnValue('https://gigs.example');
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it.each([
-    {
-      name: 'start command',
-      compose: () => composer.composeStartCommandResponse(privateChat),
-      text: 'Start: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-    {
-      name: 'unknown command',
-      compose: () => composer.composeUnknownCommandResponse(privateChat),
-      text: 'Unknown: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-    {
-      name: 'unavailable incoming message',
-      compose: () => composer.composeIncomingMessageUnavailable(privateChat),
-      text: 'Unavailable: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
-    },
-  ])('should compose the $name response', ({ compose, text }) => {
-    expect(compose()).toEqual({
+  it('should compose the start-command response with a suggest-gig button', () => {
+    expect(composer.composeStartCommandResponse(privateChat)).toEqual({
       chat_id: 12345,
-      text,
+      text: 'Start: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
       parse_mode: TGParseMode.HTML,
       disable_web_page_preview: true,
       reply_markup: {
@@ -122,6 +114,37 @@ describe('TelegramBotReplyComposerService', () => {
     });
   });
 
+  it.each([
+    {
+      name: 'unknown command',
+      compose: () => composer.composeUnknownCommandResponse(privateChat),
+      text: 'Unknown: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
+    },
+    {
+      name: 'unavailable incoming message',
+      compose: () => composer.composeIncomingMessageUnavailable(privateChat),
+      text: 'Unavailable: <a href="https://t.me/gigs_together?topic=help&amp;source=bot">contact admins</a>.',
+    },
+  ])('should compose the $name response', ({ compose, text }) => {
+    expect(compose()).toEqual({
+      chat_id: 12345,
+      text,
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
+  });
+
+  it('should compose a private suggest-command response with form and chat links', () => {
+    expect(
+      composer.composeSuggestCommandUnavailableInPrivateChat(privateChat),
+    ).toEqual({
+      chat_id: 12345,
+      text: 'Chat suggestions are unavailable in private messages. You can suggest a gig using <a href="https://t.me/GigsTogetherStgBot/suggest">the form</a> or in <a href="https://t.me/gigs_together_chat">our community chat</a>.',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
+  });
+
   it('should compose a Mini App direct link for a shared chat', () => {
     const response = composer.composeStartCommandResponse(supergroupChat);
 
@@ -131,39 +154,8 @@ describe('TelegramBotReplyComposerService', () => {
     });
   });
 
-  it('should reject a user response when suggest Mini App URL is missing', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', '');
-
-    expect(() =>
-      composer.composeStartCommandResponse(supergroupChat),
-    ).toThrowError(
-      'Cannot compose user response: SUGGEST_GIG_URL is not configured.',
-    );
-  });
-
-  it('should reject a user response when suggest Mini App URL is invalid', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', 'not-a-url');
-
-    expect(() =>
-      composer.composeStartCommandResponse(supergroupChat),
-    ).toThrowError(
-      'Cannot compose user response: SUGGEST_GIG_URL must be a valid URL.',
-    );
-  });
-
-  it('should accept a valid non-Telegram suggest URL', () => {
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://example.com/suggest');
-
-    const response = composer.composeStartCommandResponse(supergroupChat);
-
-    expect(response.reply_markup?.inline_keyboard[0]?.[0]).toEqual({
-      text: 'Suggest a gig',
-      url: 'https://example.com/suggest',
-    });
-  });
-
   it('should reject a private response when app base URL is missing', () => {
-    vi.stubEnv('APP_BASE_URL', '');
+    telegramService.getAppBaseUrl.mockReturnValueOnce(undefined);
 
     expect(() =>
       composer.composeStartCommandResponse(privateChat),
@@ -173,7 +165,7 @@ describe('TelegramBotReplyComposerService', () => {
   });
 
   it('should reject a private response when app base URL is invalid', () => {
-    vi.stubEnv('APP_BASE_URL', 'not-a-url');
+    telegramService.getAppBaseUrl.mockReturnValueOnce('not-a-url');
 
     expect(() =>
       composer.composeStartCommandResponse(privateChat),

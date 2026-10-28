@@ -1,6 +1,14 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
+import {
+  getConfigPositiveSafeInteger,
+  getRequiredConfigString,
+} from '../../../shared/utils/env';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
+
+// 86_400 seconds = 24 hours = 1_440 minutes.
+const DEFAULT_TELEGRAM_INIT_DATA_MAX_AGE_SEC = 86_400;
 
 export interface TelegramInitDataParseResult {
   parsedData: Record<string, string>;
@@ -9,6 +17,18 @@ export interface TelegramInitDataParseResult {
 
 @Injectable()
 export class TelegramInitDataValidationService {
+  private readonly botToken: string;
+  private readonly maxAgeSec: number;
+
+  constructor(configService: ConfigService) {
+    this.botToken = getRequiredConfigString(configService, 'BOT_TOKEN');
+    this.maxAgeSec =
+      getConfigPositiveSafeInteger(
+        configService,
+        'TELEGRAM_INIT_DATA_MAX_AGE_SEC',
+      ) ?? DEFAULT_TELEGRAM_INIT_DATA_MAX_AGE_SEC;
+  }
+
   parseTelegramInitDataString(initData: string): TelegramInitDataParseResult {
     const pairs = initData.split('&');
     const parsedData: Record<string, string> = {};
@@ -34,14 +54,9 @@ export class TelegramInitDataValidationService {
     dataCheckString: string,
     receivedHash: string,
   ): void {
-    const botToken = process.env.BOT_TOKEN;
-    if (!botToken) {
-      throw new ForbiddenException('BOT_TOKEN is not configured');
-    }
-
     const secretKey = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(botToken)
+      .update(this.botToken)
       .digest();
 
     const computedHash = crypto
@@ -74,15 +89,8 @@ export class TelegramInitDataValidationService {
    * (default 86_400 s = 24 h = 1_440 min).
    */
   private rejectTelegramAuthDateIfExpired(authDateSec: number): void {
-    // Default 86_400 s = 24 h = 1_440 min
-    const maxAgeSec = Number(
-      process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC ?? 86_400,
-    );
-    if (!Number.isFinite(maxAgeSec) || maxAgeSec <= 0) {
-      throw new Error('Invalid TELEGRAM_INIT_DATA_MAX_AGE_SEC');
-    }
     const nowSec = Math.floor(Date.now() / 1000);
-    if (nowSec - authDateSec > maxAgeSec) {
+    if (nowSec - authDateSec > this.maxAgeSec) {
       throw new TelegramInitDataAuthExpiredError();
     }
   }

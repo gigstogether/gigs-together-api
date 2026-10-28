@@ -8,6 +8,7 @@ import type {
   V1AdminGigsListResponseBody,
 } from './types/requests/v1-admin-gigs-list-response';
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { PostType } from '../../shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
@@ -58,9 +59,10 @@ export class AdminGigService {
   ): Promise<GigFormData> {
     const posterUrl = this.gigService.resolveGigPosterPublicUrl(gig.poster);
     const user =
-      gig.source.type === 'user'
-        ? activeSourceUsersById.get(gig.source.userId.toString())
+      gig.source.type === GigSourceType.User && gig.source.userId !== undefined
+        ? activeSourceUsersById.get(gig.source.userId)
         : undefined;
+
     const userSourceProfile = getUserSourceProfile(user);
 
     const mainPost = this.telegramGigService.pickPost(gig.posts, PostType.Main);
@@ -93,8 +95,11 @@ export class AdminGigService {
     gigs: readonly PlainGig[],
   ): Promise<ReadonlyMap<string, User>> {
     const userIds = gigs.flatMap((gig) =>
-      gig.source.type === 'user' ? [gig.source.userId.toString()] : [],
+      gig.source.type === GigSourceType.User && gig.source.userId !== undefined
+        ? [gig.source.userId]
+        : [],
     );
+
     const users = await this.userService.findActiveUsersByIds(userIds);
     return new Map(users.map((user) => [user.id, user]));
   }

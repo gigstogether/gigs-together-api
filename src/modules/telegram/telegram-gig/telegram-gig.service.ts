@@ -167,7 +167,7 @@ export class TelegramGigService {
 
     const editGigUrl = this.telegramGigComposer.buildEditUrl(publicId);
     const gigUrl = this.telegramComposer.buildGigPermalink({
-      baseUrl: (process.env.APP_BASE_URL ?? '').trim(),
+      baseUrl: this.telegramService.getAppBaseUrl(),
       publicId,
     });
     const adminGigUrl = this.telegramGigComposer.buildAdminUrl(publicId);

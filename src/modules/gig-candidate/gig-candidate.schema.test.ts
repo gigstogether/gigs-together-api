@@ -1,4 +1,6 @@
 import { GigCandidateSchema } from './gig-candidate.schema';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 
 describe('GigCandidateSchema', () => {
   it('should keep source immutable at the persistence boundary', () => {
@@ -34,10 +36,25 @@ describe('GigCandidateSchema', () => {
     expect(validate(1.5)).toBe(false);
   });
 
-  it('should define only the implemented queue and Gig relationship indexes', () => {
+  it('should define queue, relationship, and messenger source indexes', () => {
     expect(GigCandidateSchema.indexes()).toEqual([
       [{ status: 1, createdAt: -1, _id: -1 }, {}],
       [{ gigId: 1 }, { unique: true, sparse: true }],
+      [
+        {
+          'source.origin.messenger': 1,
+          'source.origin.message.chatId': 1,
+          'source.origin.message.messageId': 1,
+        },
+        {
+          name: 'source_messenger_message_unique',
+          unique: true,
+          partialFilterExpression: {
+            'source.type': GigSourceType.User,
+            'source.origin.type': GigSourceUserOriginType.Messenger,
+          },
+        },
+      ],
     ]);
   });
 

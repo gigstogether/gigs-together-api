@@ -8,7 +8,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { AdminController } from './admin.controller';
 import type { AdminDashboardService } from './admin-dashboard.service';
 import type { AdminGigService } from './admin-gig.service';
-import type { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import type { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
 import type { GigService } from '../gig/gig.service';
 import type { DigestService } from '../digest/digest.service';
 import type { LocaleService } from '../locale/locale.service';
@@ -101,9 +101,9 @@ describe('AdminController', () => {
     revalidateAll: vi.fn().mockResolvedValue(undefined),
   } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
 
-  const feedRevalidateService = {
-    revalidateFeedOrThrow: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<FeedRevalidateService, 'revalidateFeedOrThrow'>;
+  const gigFeedRevalidationService = {
+    revalidateGigFeedOrThrow: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<GigFeedRevalidationService, 'revalidateGigFeedOrThrow'>;
 
   const digestService = {
     createPost: vi.fn().mockResolvedValue(undefined),
@@ -116,7 +116,7 @@ describe('AdminController', () => {
     translationService as unknown as TranslationService,
     translationRevalidateService as unknown as TranslationRevalidateService,
     gigService as unknown as GigService,
-    feedRevalidateService as unknown as FeedRevalidateService,
+    gigFeedRevalidationService as unknown as GigFeedRevalidationService,
     digestService as unknown as DigestService,
   );
 
@@ -233,22 +233,24 @@ describe('AdminController', () => {
     });
   });
 
-  describe('revalidateFeed', () => {
+  describe('revalidateGigFeed', () => {
     it('should strictly revalidate all feed paths via feed revalidate service', async () => {
-      await expect(controller.revalidateFeed()).resolves.toBeUndefined();
+      await expect(controller.revalidateGigFeed()).resolves.toBeUndefined();
 
-      expect(feedRevalidateService.revalidateFeedOrThrow).toHaveBeenCalledWith(
-        {},
-      );
+      expect(
+        gigFeedRevalidationService.revalidateGigFeedOrThrow,
+      ).toHaveBeenCalledWith({});
     });
 
     it('should propagate manual feed revalidation failure', async () => {
       const e = new ServiceUnavailableException(
         'Feed revalidation service is unavailable',
       );
-      feedRevalidateService.revalidateFeedOrThrow.mockRejectedValueOnce(e);
+      gigFeedRevalidationService.revalidateGigFeedOrThrow.mockRejectedValueOnce(
+        e,
+      );
 
-      await expect(controller.revalidateFeed()).rejects.toBe(e);
+      await expect(controller.revalidateGigFeed()).rejects.toBe(e);
     });
   });
 

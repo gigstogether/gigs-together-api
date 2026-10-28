@@ -48,7 +48,7 @@ import type { V1AdminTranslationNamespacesListResponseBody } from './types/reque
 import type { V1AdminTranslationsListResponseBody } from './types/requests/v1-admin-translations-list-response';
 import { V1GigByPublicIdGetRequestParams } from '../gig/types/requests/v1-gig-by-public-id-get-request';
 import type { GigFormData } from '../gig/types/gig.types';
-import { FeedRevalidateService } from '../gig/feed-revalidate.service';
+import { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../gig/gig.service';
 import { DigestService } from '../digest/digest.service';
 import { TranslationRevalidateService } from '../translation/translation-revalidate.service';
@@ -108,7 +108,7 @@ export class AdminController {
     private readonly translationService: TranslationService,
     private readonly translationRevalidateService: TranslationRevalidateService,
     private readonly gigService: GigService,
-    private readonly feedRevalidateService: FeedRevalidateService,
+    private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly digestService: DigestService,
   ) {}
 
@@ -194,8 +194,8 @@ export class AdminController {
   @Post('feed/revalidate')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  revalidateFeed(): Promise<void> {
-    return this.feedRevalidateService.revalidateFeedOrThrow({});
+  revalidateGigFeed(): Promise<void> {
+    return this.gigFeedRevalidationService.revalidateGigFeedOrThrow({});
   }
 
   @Version('1')

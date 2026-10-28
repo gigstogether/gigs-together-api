@@ -5,8 +5,38 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
+import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
 import { TranslationCacheService } from './translation-cache.service';
+import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
+import type { TranslationRecord } from './types/translation.types';
+
+function withRequiredTelegramTranslations(
+  records: readonly TranslationRecord[],
+): readonly TranslationRecord[] {
+  const providedTelegramKeys = new Set(
+    records
+      .filter(
+        (record) => record.namespace === 'telegram' && record.locale === 'en',
+      )
+      .map((record) => record.key),
+  );
+  const requiredRecords: TranslationRecord[] = Object.values(
+    TELEGRAM_TEMPLATE_KEYS,
+  )
+    .filter((key) => !providedTelegramKeys.has(key))
+    .map((key) => ({
+      locale: 'en',
+      namespace: 'telegram',
+      key,
+      value: `Test translation for ${key}`,
+      format: 'plain',
+      kind: 'template',
+      isActive: true,
+    }));
+
+  return [...records, ...requiredRecords];
+}
 
 describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
@@ -61,17 +91,19 @@ describe('TranslationCacheService', () => {
 
   describe('onModuleInit', () => {
     it('should warm up cache from all active records and register TTL interval', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
 
       await service.onModuleInit();
 
@@ -97,36 +129,62 @@ describe('TranslationCacheService', () => {
       );
       expect(addIntervalMock).not.toHaveBeenCalled();
     });
+
+    it('should complete warm-up when a required default Telegram translation is missing', async () => {
+      const requiredRecords = withRequiredTelegramTranslations([]).filter(
+        (record) => record.key !== TELEGRAM_TEMPLATE_KEYS.commandStart,
+      );
+      findAllActiveRecordsMock.mockResolvedValue(requiredRecords);
+
+      await expect(service.onModuleInit()).resolves.toBeUndefined();
+      expect(addIntervalMock).toHaveBeenCalledTimes(1);
+      expect(
+        service
+          .getNamespaceEntries({ namespace: 'telegram', locale: 'en' })
+          .has(TELEGRAM_TEMPLATE_KEYS.commandStart),
+      ).toBe(false);
+      expect(() =>
+        service.getEntry({
+          namespace: 'telegram',
+          key: TELEGRAM_TEMPLATE_KEYS.commandStart,
+          locale: 'en',
+        }),
+      ).toThrow(MissingTranslationError);
+    });
   });
 
   describe('TTL full reload', () => {
     it('should refresh cache when scheduled reload succeeds', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
 
       vi.useFakeTimers();
       await service.onModuleInit();
 
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'Updated about',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'Updated about',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await vi.advanceTimersByTimeAsync(TRANSLATION_CACHE_DEFAULT_TTL_MS);
       await vi.runOnlyPendingTimersAsync();
 
@@ -143,17 +201,19 @@ describe('TranslationCacheService', () => {
     });
 
     it('should keep stale cache when scheduled reload fails', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
 
       vi.useFakeTimers();
       await service.onModuleInit();
@@ -174,17 +234,19 @@ describe('TranslationCacheService', () => {
 
   describe('revalidateNamespace', () => {
     it('should reload only the requested namespace slice', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
       findActiveByNamespaceMock.mockResolvedValue([
@@ -221,39 +283,43 @@ describe('TranslationCacheService', () => {
     });
 
     it('should reload full cache when revalidateAll is called', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About refreshed',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-        {
-          locale: 'en',
-          namespace: 'common',
-          key: 'ok',
-          value: 'OK',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About refreshed',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+          {
+            locale: 'en',
+            namespace: 'common',
+            key: 'ok',
+            value: 'OK',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
 
       await service.revalidateAll();
 
@@ -265,21 +331,23 @@ describe('TranslationCacheService', () => {
           locale: 'en',
         }).value,
       ).toBe('About refreshed');
-      expect(service.listNamespaces()).toEqual(['about', 'common']);
+      expect(service.listNamespaces()).toEqual(['about', 'common', 'telegram']);
     });
 
     it('should serialize concurrent namespace reloads', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
       let releaseFirstReload!: () => void;
@@ -304,7 +372,7 @@ describe('TranslationCacheService', () => {
             ];
           }
 
-          return [
+          return withRequiredTelegramTranslations([
             {
               locale: 'en',
               namespace: 'telegram',
@@ -314,7 +382,7 @@ describe('TranslationCacheService', () => {
               kind: 'text',
               isActive: true,
             },
-          ];
+          ]);
         },
       );
 
@@ -356,17 +424,19 @@ describe('TranslationCacheService', () => {
 
   describe('getNamespaceEntries', () => {
     it('should return locale registry slice when locale is provided', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -378,17 +448,19 @@ describe('TranslationCacheService', () => {
     });
 
     it('should return all locale registries when locale is omitted', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'telegram',
-          key: 'weeklyDigest.empty',
-          value: 'There are no gigs scheduled for this week.',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'telegram',
+            key: 'weeklyDigest.empty',
+            value: 'There are no gigs scheduled for this week.',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
       const entries = service.getNamespaceEntries({
@@ -403,35 +475,39 @@ describe('TranslationCacheService', () => {
 
   describe('listNamespaces', () => {
     it('should return sorted namespace keys from the warm cache', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([
-        {
-          locale: 'en',
-          namespace: 'home',
-          key: 'cta',
-          value: 'Join',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-        {
-          locale: 'en',
-          namespace: 'about',
-          key: 'title',
-          value: 'About',
-          format: 'plain',
-          kind: 'text',
-          isActive: true,
-        },
-      ]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([
+          {
+            locale: 'en',
+            namespace: 'home',
+            key: 'cta',
+            value: 'Join',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+          {
+            locale: 'en',
+            namespace: 'about',
+            key: 'title',
+            value: 'About',
+            format: 'plain',
+            kind: 'text',
+            isActive: true,
+          },
+        ]),
+      );
       await service.onModuleInit();
 
-      expect(service.listNamespaces()).toEqual(['about', 'home']);
+      expect(service.listNamespaces()).toEqual(['about', 'home', 'telegram']);
     });
   });
 
   describe('onModuleDestroy', () => {
     it('should delete TTL interval from scheduler registry', async () => {
-      findAllActiveRecordsMock.mockResolvedValue([]);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([]),
+      );
       await service.onModuleInit();
 
       service.onModuleDestroy();

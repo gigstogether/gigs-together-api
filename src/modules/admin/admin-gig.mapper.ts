@@ -5,6 +5,8 @@ import type {
   PlainGig,
 } from '../gig/types/gig.types';
 import type { UserSourceProfile } from './admin-user-source-profile';
+import { GigSourceType } from '../gig/types/gig-source-type.enum';
+import { isGigSourceMessengerUser } from '../gig/gig-source.guards';
 
 export interface MapGigToFormData {
   readonly gig: PlainGig;
@@ -33,18 +35,7 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   }
 
   const ticketsUrl = (gig.ticketsUrl ?? '').trim();
-  const source: GigSourceForAdminView =
-    gig.source.type === 'user'
-      ? {
-          type: 'user',
-          userId: gig.source.userId.toString(),
-          origin: { type: gig.source.origin.type },
-          ...userSourceProfile,
-        }
-      : {
-          type: 'provider',
-          provider: { ...gig.source.provider },
-        };
+  const source = mapGigSource(gig, userSourceProfile);
 
   return {
     publicId: gig.publicId,
@@ -64,4 +55,37 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
     moderationPostUrl,
     moderationPostDate,
   };
+}
+
+function mapGigSource(
+  gig: PlainGig,
+  userSourceProfile: UserSourceProfile,
+): GigSourceForAdminView {
+  switch (gig.source.type) {
+    case GigSourceType.User:
+      if (isGigSourceMessengerUser(gig.source)) {
+        const source: GigSourceForAdminView = {
+          type: GigSourceType.User,
+          origin: { ...gig.source.origin },
+          ...userSourceProfile,
+        };
+        if (gig.source.userId !== undefined) {
+          source.userId = gig.source.userId;
+        }
+        return source;
+      }
+      return {
+        type: GigSourceType.User,
+        userId: gig.source.userId,
+        origin: { ...gig.source.origin },
+        ...userSourceProfile,
+      };
+    case GigSourceType.Provider:
+      return {
+        type: GigSourceType.Provider,
+        provider: { ...gig.source.provider },
+      };
+    default:
+      throw new Error('Unsupported Gig source type.');
+  }
 }

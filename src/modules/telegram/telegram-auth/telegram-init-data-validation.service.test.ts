@@ -1,21 +1,47 @@
 import * as crypto from 'crypto';
+import { ConfigService } from '@nestjs/config';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TelegramInitDataValidationService } from './telegram-init-data-validation.service';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 describe('TelegramInitDataValidationService', () => {
+  const botToken = 'unit-test-bot-token';
   let service: TelegramInitDataValidationService;
 
   beforeEach(() => {
-    service = new TelegramInitDataValidationService();
-    process.env.BOT_TOKEN = 'unit-test-bot-token';
-    delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
+    service = new TelegramInitDataValidationService(
+      new ConfigService({
+        BOT_TOKEN: botToken,
+        TELEGRAM_INIT_DATA_MAX_AGE_SEC: '',
+      }),
+    );
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    delete process.env.BOT_TOKEN;
-    delete process.env.TELEGRAM_INIT_DATA_MAX_AGE_SEC;
+  });
+
+  it('should reject construction when BOT_TOKEN is missing', () => {
+    vi.stubEnv('BOT_TOKEN', '');
+
+    expect(
+      () => new TelegramInitDataValidationService(new ConfigService()),
+    ).toThrowError('BOT_TOKEN is not configured.');
+  });
+
+  it('should reject construction when max age is invalid', () => {
+    expect(
+      () =>
+        new TelegramInitDataValidationService(
+          new ConfigService({
+            BOT_TOKEN: botToken,
+            TELEGRAM_INIT_DATA_MAX_AGE_SEC: 'invalid',
+          }),
+        ),
+    ).toThrowError(
+      'TELEGRAM_INIT_DATA_MAX_AGE_SEC must be a positive safe integer.',
+    );
   });
 
   describe('parseTelegramInitDataString', () => {
@@ -34,7 +60,7 @@ describe('TelegramInitDataValidationService', () => {
       const dataCheckString = 'auth_date=1\nuser={"id":1}';
       const secretKey = crypto
         .createHmac('sha256', 'WebAppData')
-        .update(process.env.BOT_TOKEN ?? '')
+        .update(botToken)
         .digest();
       const hash = crypto
         .createHmac('sha256', secretKey)
@@ -76,6 +102,21 @@ describe('TelegramInitDataValidationService', () => {
       expect(() =>
         service.validateTelegramInitDataAuthDate(String(authDateSec)),
       ).not.toThrow();
+    });
+
+    it('should use the configured max age', () => {
+      const configuredService = new TelegramInitDataValidationService(
+        new ConfigService({
+          BOT_TOKEN: botToken,
+          TELEGRAM_INIT_DATA_MAX_AGE_SEC: '60',
+        }),
+      );
+      const authDateSec = 1_700_000_000;
+      vi.spyOn(Date, 'now').mockReturnValue((authDateSec + 61) * 1000);
+
+      expect(() =>
+        configuredService.validateTelegramInitDataAuthDate(String(authDateSec)),
+      ).toThrow(TelegramInitDataAuthExpiredError);
     });
   });
 });

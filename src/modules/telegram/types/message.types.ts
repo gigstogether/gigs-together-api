@@ -35,6 +35,18 @@ export interface TGSendMessage {
   reply_markup?: TGInlineKeyboardMarkup;
 }
 
+interface TGReactionTypeEmoji {
+  type: 'emoji';
+  emoji: string;
+}
+
+export interface TGSetMessageReaction {
+  chat_id: TGChatId;
+  message_id: number;
+  reaction: TGReactionTypeEmoji[];
+  is_big?: boolean;
+}
+
 export interface TGInaccessibleMessage {
   chat: TGChat;
   message_id: number;

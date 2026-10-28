@@ -1,7 +1,9 @@
-import { Messenger } from '../../shared/types/messenger.enum';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
+import { Messenger } from '../../../shared/types/messenger.enum';
 import {
   GigCandidateApprovalValidationError,
-  projectGigCandidateSource,
+  mapGigCandidateSourceToGigSource,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
 
@@ -105,23 +107,24 @@ describe('validateGigCandidateDraftForApproval', () => {
   });
 });
 
-describe('projectGigCandidateSource', () => {
-  it('should exclude messenger identifiers and original submission fields', () => {
+describe('mapGigCandidateSourceToGigSource', () => {
+  it('should keep only messenger provenance', () => {
     expect(
-      projectGigCandidateSource({
-        type: 'user',
-        userId: '507f1f77bcf86cd799439088',
+      mapGigCandidateSourceToGigSource({
+        type: GigSourceType.User,
         origin: {
-          type: 'messenger',
+          type: GigSourceUserOriginType.Messenger,
           messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
         },
         originalText: 'Private text',
-        attachments: [{ bucketPath: 'private/source.png' }],
       }),
     ).toEqual({
       type: 'user',
-      userId: '507f1f77bcf86cd799439088',
-      origin: { type: 'messenger' },
+      origin: {
+        type: 'messenger',
+        messenger: Messenger.Telegram,
+      },
     });
   });
 
@@ -129,8 +132,8 @@ describe('projectGigCandidateSource', () => {
     const fetchedAt = new Date('2026-08-30T10:00:00.000Z');
 
     expect(
-      projectGigCandidateSource({
-        type: 'provider',
+      mapGigCandidateSourceToGigSource({
+        type: GigSourceType.Provider,
         provider: {
           name: 'exampleProvider',
           externalEventId: 'provider-event-42',

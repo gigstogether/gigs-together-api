@@ -1,22 +1,52 @@
+import type { PostType } from '../../../shared/types/post-type.enum';
 import type {
   GigCandidate,
   GigCandidatePost,
 } from '../../gig-candidate/types/gig-candidate.types';
 import type { TGChatId, TGInlineKeyboardMarkup } from '../types/message.types';
 
-export interface GigCandidateFeedbackMessageWithTitleContent {
-  kind: 'submitted' | 'acceptedForModeration' | 'rejected';
+export interface GigCandidateFeedbackGigTitleSubject {
+  type: 'gigTitle';
   title: string;
 }
+
+export interface GigCandidateFeedbackChatMessageSubject {
+  type: 'chatMessage';
+  chatId: number;
+  messageId: number;
+}
+
+type GigCandidateFeedbackSubject =
+  GigCandidateFeedbackGigTitleSubject | GigCandidateFeedbackChatMessageSubject;
+
+interface GigCandidateSubmittedFeedbackMessageContent {
+  kind: 'submitted';
+  subject: GigCandidateFeedbackGigTitleSubject;
+}
+
+interface GigCandidateAcceptedForModerationFeedbackMessageContent {
+  kind: 'acceptedForModeration';
+  subject: GigCandidateFeedbackSubject;
+}
+
+interface GigCandidateRejectedFeedbackMessageContent {
+  kind: 'rejected';
+  subject: GigCandidateFeedbackSubject;
+}
+
+export type GigCandidateLifecycleFeedbackMessageContent =
+  | GigCandidateSubmittedFeedbackMessageContent
+  | GigCandidateAcceptedForModerationFeedbackMessageContent
+  | GigCandidateRejectedFeedbackMessageContent;
 
 export interface GigCandidateFeedbackMessageWithPublicLinkContent {
   kind: 'acceptedWithPublicLink';
   publicId: string;
-  title: string;
+  subject: GigCandidateFeedbackGigTitleSubject;
 }
 
 export type GigCandidateFeedbackMessageContent =
-  | GigCandidateFeedbackMessageWithTitleContent
+  | GigCandidateLifecycleFeedbackMessageContent
   | GigCandidateFeedbackMessageWithPublicLinkContent;
 
 export type ComposeGigCandidateFeedbackMessageParams =
@@ -41,18 +71,41 @@ export interface ComposeRejectedGigCandidatePostEditParams {
   post: GigCandidatePost;
 }
 
-export interface ComposeGigCandidateChannelPostParams {
+interface ComposeGigCandidateChannelPostBaseParams {
   gigCandidate: GigCandidate;
   chatId: string;
-  channelPurpose: 'intake' | 'moderation';
   replyMarkup: TGInlineKeyboardMarkup;
 }
 
-export interface BuildGigCandidateCaptionParams {
+interface ComposeGigCandidateIntakeChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
+  postType: PostType.Intake;
+}
+
+interface ComposeGigCandidateModerationChannelPostParams extends ComposeGigCandidateChannelPostBaseParams {
+  postType: PostType.Moderation;
+}
+
+export type ComposeGigCandidateChannelPostParams =
+  | ComposeGigCandidateIntakeChannelPostParams
+  | ComposeGigCandidateModerationChannelPostParams;
+
+interface BuildGigCandidateCaptionBaseParams {
   gigCandidate: GigCandidate;
-  channelPurpose: 'intake' | 'moderation';
+}
+
+interface BuildGigCandidateIntakeCaptionParams extends BuildGigCandidateCaptionBaseParams {
+  postType: PostType.Intake;
   moderationPost?: GigCandidatePost;
 }
+
+interface BuildGigCandidateModerationCaptionParams extends BuildGigCandidateCaptionBaseParams {
+  postType: PostType.Moderation;
+  moderationPost?: never;
+}
+
+export type BuildGigCandidateCaptionParams =
+  | BuildGigCandidateIntakeCaptionParams
+  | BuildGigCandidateModerationCaptionParams;
 
 export interface BuildGigCandidateModerationReplyMarkupParams {
   gigCandidate: GigCandidate;

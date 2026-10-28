@@ -1,34 +1,45 @@
 import type { GigCandidateStatus } from '../../../gig-candidate/types/gig-candidate-status.enum';
 import type { Messenger } from '../../../../shared/types/messenger.enum';
+import type { GigSourceType } from '../../../gig/types/gig-source-type.enum';
+import type { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
 
-export interface V1AdminGigCandidateUserFormOriginResponseBody {
-  type: 'form';
+interface V1AdminGigCandidateUserFormOriginResponseBody {
+  type: GigSourceUserOriginType.Form;
 }
 
-export interface V1AdminGigCandidateUserAdminOriginResponseBody {
-  type: 'admin';
+interface V1AdminGigCandidateUserAdminOriginResponseBody {
+  type: GigSourceUserOriginType.Admin;
 }
 
-export interface V1AdminGigCandidateUserMessengerOriginResponseBody {
-  type: 'messenger';
+interface V1AdminGigCandidateUserMessengerOriginResponseBody {
+  type: GigSourceUserOriginType.Messenger;
   messenger: Messenger;
 }
 
-export type V1AdminGigCandidateUserOriginResponseBody =
+type V1AdminGigCandidateIdentifiedUserOriginResponseBody =
   | V1AdminGigCandidateUserFormOriginResponseBody
-  | V1AdminGigCandidateUserAdminOriginResponseBody
-  | V1AdminGigCandidateUserMessengerOriginResponseBody;
+  | V1AdminGigCandidateUserAdminOriginResponseBody;
 
-export interface V1AdminGigCandidateUserSourceResponseBody {
-  type: 'user';
-  userId: string;
+interface V1AdminGigCandidateUserSourceResponseBodyBase {
+  type: GigSourceType.User;
   displayName?: string;
   isCurrentlyAdmin: boolean;
   telegramUsername?: string;
-  origin: V1AdminGigCandidateUserOriginResponseBody;
-  originalText?: string;
-  attachments?: Record<string, unknown>[];
 }
+
+export interface V1AdminGigCandidateIdentifiedUserSourceResponseBody extends V1AdminGigCandidateUserSourceResponseBodyBase {
+  userId: string;
+  origin: V1AdminGigCandidateIdentifiedUserOriginResponseBody;
+}
+
+export interface V1AdminGigCandidateMessengerUserSourceResponseBody extends V1AdminGigCandidateUserSourceResponseBodyBase {
+  userId?: string;
+  origin: V1AdminGigCandidateUserMessengerOriginResponseBody;
+}
+
+type V1AdminGigCandidateUserSourceResponseBody =
+  | V1AdminGigCandidateIdentifiedUserSourceResponseBody
+  | V1AdminGigCandidateMessengerUserSourceResponseBody;
 
 export interface V1AdminGigCandidateProviderReferenceResponseBody {
   name: string;
@@ -39,8 +50,8 @@ export interface V1AdminGigCandidateProviderReferenceResponseBody {
   providerUpdatedAt?: string;
 }
 
-export interface V1AdminGigCandidateProviderSourceResponseBody {
-  type: 'provider';
+interface V1AdminGigCandidateProviderSourceResponseBody {
+  type: GigSourceType.Provider;
   provider: V1AdminGigCandidateProviderReferenceResponseBody;
 }
 
@@ -48,7 +59,7 @@ export type V1AdminGigCandidateSourceResponseBody =
   | V1AdminGigCandidateUserSourceResponseBody
   | V1AdminGigCandidateProviderSourceResponseBody;
 
-export interface V1AdminGigCandidateGigDraftResponseBody {
+interface V1AdminGigCandidateGigDraftResponseBody {
   title?: string;
   date?: string;
   endDate?: string;
@@ -59,12 +70,18 @@ export interface V1AdminGigCandidateGigDraftResponseBody {
   posterUrl?: string;
 }
 
+export interface V1AdminGigCandidateOriginalMessageResponseBody {
+  text: string;
+  url: string;
+}
+
 export interface V1AdminGigCandidateResponseBody {
   id: string;
   source: V1AdminGigCandidateSourceResponseBody;
   gigDraft: V1AdminGigCandidateGigDraftResponseBody;
   status: GigCandidateStatus;
   version: number;
+  originalMessage?: V1AdminGigCandidateOriginalMessageResponseBody;
   intakePostUrl?: string;
   intakePostDate?: number;
   moderationPostUrl?: string;

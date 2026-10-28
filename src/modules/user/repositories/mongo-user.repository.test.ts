@@ -253,6 +253,41 @@ describe('MongoUserRepository', () => {
     });
   });
 
+  it('should find an active User by messenger identity', async () => {
+    findOne.mockReturnValue(queryResult(storedUser()));
+
+    await expect(
+      repository.findActiveUserByMessengerIdentity({
+        messenger: Messenger.Telegram,
+        externalUserId: '42',
+      }),
+    ).resolves.toMatchObject({
+      id: '66a000000000000000000001',
+      status: 'active',
+    });
+    expect(findOne).toHaveBeenCalledWith({
+      identities: {
+        $elemMatch: {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
+          externalUserId: '42',
+        },
+      },
+      status: 'active',
+    });
+  });
+
+  it('should return null when no active User has the messenger identity', async () => {
+    findOne.mockReturnValue(queryResult(null));
+
+    await expect(
+      repository.findActiveUserByMessengerIdentity({
+        messenger: Messenger.Telegram,
+        externalUserId: '42',
+      }),
+    ).resolves.toBeNull();
+  });
+
   it('should not return an inactive User by internal id', async () => {
     findOne.mockReturnValue(queryResult(null));
 

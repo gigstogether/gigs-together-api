@@ -6,6 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type {
   GigCalendarSource,
   GigFormInput,
@@ -14,9 +15,9 @@ import type {
   GigPoster,
   PlainGig,
 } from './types/gig.types';
-import { envBool } from '../../shared/utils/env';
+import { getConfigBoolean } from '../../shared/utils/env';
 import type { CalendarishEvent } from '../calendar/calendar.service';
-import { GigPosterService } from './gig.poster.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
   EditGigPostsParams,
@@ -35,7 +36,7 @@ import type {
   GigRepository,
   UpdateGigByPublicIdRecordParams,
 } from './repositories/gig.repository';
-import { FeedRevalidateService } from './feed-revalidate.service';
+import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import type {
@@ -146,6 +147,7 @@ export interface GetGigsParams {
 export class GigService {
   private static readonly MAX_PUBLIC_ID_LEN = 64;
   private static readonly MAX_LIMIT = 100;
+  private readonly isExternalPosterUrlFallbackEnabled: boolean;
 
   constructor(
     @Inject(GIG_REPOSITORY)
@@ -153,8 +155,13 @@ export class GigService {
     private readonly gigPosterService: GigPosterService,
     private readonly bucketService: BucketService,
     private readonly telegramGigService: TelegramGigService,
-    private readonly feedRevalidateService: FeedRevalidateService,
-  ) {}
+    private readonly gigFeedRevalidationService: GigFeedRevalidationService,
+    configService: ConfigService,
+  ) {
+    this.isExternalPosterUrlFallbackEnabled =
+      getConfigBoolean(configService, 'EXTERNAL_POSTER_URL_FALLBACK_ENABLED') ??
+      true;
+  }
 
   private readonly logger = new Logger(GigService.name);
 
@@ -306,16 +313,13 @@ export class GigService {
   }
 
   resolveGigPosterPublicUrl(poster: GigPoster | undefined): string | undefined {
-    const externalFallbackEnabled = envBool(
-      'EXTERNAL_POSTER_URL_FALLBACK_ENABLED',
-      true,
-    );
-
     return (
       (poster?.bucketPath
         ? this.bucketService.getPublicFileUrl(poster.bucketPath)
         : undefined) ??
-      (externalFallbackEnabled ? poster?.externalUrl : undefined)
+      (this.isExternalPosterUrlFallbackEnabled
+        ? poster?.externalUrl
+        : undefined)
     );
   }
 
@@ -723,7 +727,7 @@ export class GigService {
   }
 
   private revalidateGigFeed(gig: PlainGig): Promise<void> {
-    return this.feedRevalidateService.revalidateFeed({
+    return this.gigFeedRevalidationService.revalidateGigFeed({
       country: gig.country,
       city: gig.city,
     });

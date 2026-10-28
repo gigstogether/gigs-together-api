@@ -1,5 +1,9 @@
+import { Types } from 'mongoose';
 import { Messenger } from '../../../shared/types/messenger.enum';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
+import type { GigCandidateSourceMessengerUser } from '../types/gig-candidate.types';
 import { GigCandidateRepositoryMapper } from './gig-candidate.repository.mapper';
 import type { GigCandidateLeanDocument } from './gig-candidate.repository.mapper';
 
@@ -13,9 +17,9 @@ function buildTargetDocument(
   return {
     _id: GIG_CANDIDATE_ID,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: USER_ID,
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {},
     version: 0,
@@ -37,6 +41,62 @@ const completeGigDraft = {
 };
 
 describe('GigCandidateRepositoryMapper', () => {
+  describe('toStoredSource', () => {
+    it('should convert a user id to ObjectId', () => {
+      const source = GigCandidateRepositoryMapper.toStoredSource({
+        type: GigSourceType.User,
+        userId: USER_ID,
+        origin: { type: GigSourceUserOriginType.Form },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        userId: expect.any(Types.ObjectId),
+        origin: { type: GigSourceUserOriginType.Form },
+      });
+    });
+
+    it('should preserve an anonymous messenger source', () => {
+      const source = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Unchanged text',
+      } satisfies GigCandidateSourceMessengerUser;
+
+      expect(GigCandidateRepositoryMapper.toStoredSource(source)).toEqual(
+        source,
+      );
+    });
+
+    it('should convert an optional messenger user id to ObjectId', () => {
+      const source = GigCandidateRepositoryMapper.toStoredSource({
+        type: GigSourceType.User,
+        userId: USER_ID,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Unchanged text',
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        userId: expect.any(Types.ObjectId),
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Unchanged text',
+      });
+    });
+  });
+
   describe('toGigCandidate', () => {
     it.each([
       {
@@ -167,17 +227,16 @@ describe('GigCandidateRepositoryMapper', () => {
       ).toThrowError(/GigCandidate/);
     });
 
-    it('should parse user messenger source and preserve original input', () => {
+    it('should parse messenger source and preserve original text', () => {
       const document = buildTargetDocument({
         source: {
-          type: 'user',
-          userId: USER_ID,
+          type: GigSourceType.User,
           origin: {
-            type: 'messenger',
+            type: GigSourceUserOriginType.Messenger,
             messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
           },
           originalText: 'Unchanged text',
-          attachments: [{ bucketPath: 'gigCandidate/screenshot.jpg' }],
         },
       });
 
@@ -187,47 +246,50 @@ describe('GigCandidateRepositoryMapper', () => {
       expect(gigCandidate.source).toEqual(document.source);
     });
 
-    it('should reject obsolete messenger message identifiers', () => {
+    it('should reject an invalid messenger message reference', () => {
       const document = buildTargetDocument({
         source: {
-          type: 'user',
-          userId: USER_ID,
+          type: GigSourceType.User,
           origin: {
-            type: 'messenger',
+            type: GigSourceUserOriginType.Messenger,
             messenger: Messenger.Telegram,
-            chatId: 'chat-1',
-            messageId: 'message-1',
+            message: { chatId: -100123, messageId: 0 },
           },
-        } as unknown as GigCandidateLeanDocument['source'],
+          originalText: 'Unchanged text',
+        },
       });
 
       expect(() =>
         GigCandidateRepositoryMapper.toGigCandidate(document),
-      ).toThrowError(/messenger origin is inconsistent/);
+      ).toThrowError(/messenger source is inconsistent/);
     });
 
-    it('should reject messenger origin fields outside the target contract', () => {
+    it('should reject messenger fields outside the target contract', () => {
+      const source: GigCandidateSourceMessengerUser & {
+        unexpectedField: string;
+      } = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        originalText: 'Unchanged text',
+        unexpectedField: 'unexpected',
+      };
       const document = buildTargetDocument({
-        source: {
-          type: 'user',
-          userId: USER_ID,
-          origin: {
-            type: 'messenger',
-            messenger: Messenger.Telegram,
-            unexpectedField: 'unexpected',
-          },
-        } as unknown as GigCandidateLeanDocument['source'],
+        source,
       });
 
       expect(() =>
         GigCandidateRepositoryMapper.toGigCandidate(document),
-      ).toThrowError(/messenger origin is inconsistent/);
+      ).toThrowError(/messenger source is inconsistent/);
     });
 
     it('should parse provider source without flat user fields', () => {
       const document = buildTargetDocument({
         source: {
-          type: 'provider',
+          type: GigSourceType.Provider,
           provider: {
             name: 'exampleProvider',
             externalEventId: 'event-1',
@@ -247,7 +309,7 @@ describe('GigCandidateRepositoryMapper', () => {
     it('should reject source-specific fields outside the selected union member', () => {
       const document = buildTargetDocument({
         source: {
-          type: 'provider',
+          type: GigSourceType.Provider,
           userId: USER_ID,
           provider: {
             name: 'exampleProvider',

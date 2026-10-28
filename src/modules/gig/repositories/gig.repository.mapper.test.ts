@@ -2,6 +2,8 @@ import { Types } from 'mongoose';
 
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
+import { GigSourceType } from '../types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import { GigRepositoryMapper } from './gig.repository.mapper';
 import type { GigLeanDocument } from './gig.repository.mapper';
 
@@ -22,7 +24,7 @@ function buildDocument(
     source: {
       type: 'user',
       userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [
       {
@@ -40,6 +42,124 @@ function buildDocument(
 }
 
 describe('GigRepositoryMapper', () => {
+  describe('toStoredSource', () => {
+    it('should convert an identified user id to ObjectId', () => {
+      const source = GigRepositoryMapper.toStoredSource({
+        type: GigSourceType.User,
+        userId: '507f1f77bcf86cd799439012',
+        origin: { type: GigSourceUserOriginType.Admin },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+        origin: { type: GigSourceUserOriginType.Admin },
+      });
+    });
+
+    it('should preserve an anonymous messenger source', () => {
+      const source = GigRepositoryMapper.toStoredSource({
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      });
+    });
+
+    it('should convert an optional messenger user id to ObjectId', () => {
+      const source = GigRepositoryMapper.toStoredSource({
+        type: GigSourceType.User,
+        userId: '507f1f77bcf86cd799439012',
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      });
+    });
+
+    it('should copy a provider source', () => {
+      const fetchedAt = new Date('2026-05-01T10:00:00.000Z');
+
+      const source = GigRepositoryMapper.toStoredSource({
+        type: GigSourceType.Provider,
+        provider: {
+          name: 'provider',
+          externalEventId: 'event-1',
+          sourceUrl: 'https://provider.example/events/1',
+          fetchedAt,
+        },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.Provider,
+        provider: {
+          name: 'provider',
+          externalEventId: 'event-1',
+          sourceUrl: 'https://provider.example/events/1',
+          fetchedAt,
+        },
+      });
+    });
+
+    it('should reject an invalid user id', () => {
+      const mapSource = () =>
+        GigRepositoryMapper.toStoredSource({
+          type: GigSourceType.User,
+          userId: 'invalid',
+          origin: { type: GigSourceUserOriginType.Form },
+        });
+
+      expect(mapSource).toThrowError(Error);
+      expect(mapSource).toThrowError('Invalid Gig source user id: invalid');
+    });
+  });
+
+  describe('fromStoredSource', () => {
+    it('should convert a stored user ObjectId to a domain id', () => {
+      const source = GigRepositoryMapper.fromStoredSource({
+        type: GigSourceType.User,
+        userId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+        origin: { type: GigSourceUserOriginType.Form },
+      });
+
+      expect(source).toEqual({
+        type: GigSourceType.User,
+        userId: '507f1f77bcf86cd799439012',
+        origin: { type: GigSourceUserOriginType.Form },
+      });
+    });
+
+    it('should reject a stored user id that is not an ObjectId', () => {
+      const mapSource = () =>
+        GigRepositoryMapper.fromStoredSource({
+          type: GigSourceType.User,
+          userId: '507f1f77bcf86cd799439012',
+          origin: { type: GigSourceUserOriginType.Form },
+        });
+
+      expect(mapSource).toThrowError(Error);
+      expect(mapSource).toThrowError('Gig user source userId is invalid.');
+    });
+  });
+
   describe('toGig', () => {
     it('should map Mongo identifiers to domain strings', () => {
       const gig = GigRepositoryMapper.toGig(buildDocument());
@@ -49,7 +169,7 @@ describe('GigRepositoryMapper', () => {
         source: {
           type: 'user',
           userId: '507f1f77bcf86cd799439012',
-          origin: { type: 'admin' },
+          origin: { type: GigSourceUserOriginType.Admin },
         },
       });
     });
@@ -83,6 +203,28 @@ describe('GigRepositoryMapper', () => {
           sourceUrl: 'https://provider.example/events/1',
           fetchedAt,
           providerUpdatedAt,
+        },
+      });
+    });
+
+    it('should map a messenger source', () => {
+      const gig = GigRepositoryMapper.toGig(
+        buildDocument({
+          source: {
+            type: 'user',
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: Messenger.Telegram,
+            },
+          },
+        }),
+      );
+
+      expect(gig.source).toEqual({
+        type: 'user',
+        origin: {
+          type: 'messenger',
+          messenger: Messenger.Telegram,
         },
       });
     });

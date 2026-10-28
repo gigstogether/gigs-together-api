@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   OnModuleDestroy,
   OnModuleInit,
@@ -14,6 +13,7 @@ import {
   buildTranslationCacheIndex,
 } from './translation-bundle.parser';
 import { isValidTranslationNamespace } from './translation-identifiers';
+import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import type {
@@ -116,9 +116,11 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       ?.get(params.key);
 
     if (entry === undefined) {
-      throw new InternalServerErrorException(
-        `Translation "${params.key}" is missing for namespace "${namespace}" and locale "${normalizedLocale}".`,
-      );
+      throw new MissingTranslationError({
+        namespace,
+        key: params.key,
+        locale: normalizedLocale,
+      });
     }
 
     return entry;
@@ -166,8 +168,8 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   private async performFullReload(): Promise<void> {
     try {
       await this.loadFullCache();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       this.logger.error(
         `Translation cache full reload failed; keeping stale cache. ${message}`,
       );
@@ -176,8 +178,9 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
 
   private async loadFullCache(): Promise<void> {
     const records = await this.translationRepository.findAllActiveRecords();
+    const nextCache = buildTranslationCacheIndex(records, this.logger);
 
-    this.cache = buildTranslationCacheIndex(records, this.logger);
+    this.cache = nextCache;
     this.logger.log(
       `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s).`,
     );
@@ -201,8 +204,8 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(
         `Translation cache revalidated for namespace "${namespace}" (${records.length} record(s)).`,
       );
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       this.logger.error(
         `Translation cache namespace reload failed for "${namespace}"; keeping stale slice. ${message}`,
       );

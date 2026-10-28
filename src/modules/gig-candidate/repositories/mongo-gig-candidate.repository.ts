@@ -69,10 +69,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
 
     const created = await this.gigCandidateModel.create({
       _id: new Types.ObjectId(params.gigCandidateId),
-      source: {
-        ...params.source,
-        userId: new Types.ObjectId(params.source.userId),
-      },
+      source: GigCandidateRepositoryMapper.toStoredSource(params.source),
       gigDraft: params.gigDraft,
       version: 0,
       status: params.status,

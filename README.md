@@ -42,7 +42,12 @@ src/
   main.ts                  Nest bootstrap
   app.module.ts            root module and environment loading
   modules/
-    gig/                   public gig API and gig lookup
+    gig/                   gig persistence, public API, and Gig feed ownership
+      gig-feed/            Gig feed queries, response mapping, and frontend cache revalidation
+      gig-poster/          Gig poster validation, download, and storage
+    gig-candidate/         submission and moderation workflow
+      gig-candidate-approval/  candidate-to-Gig approval transaction and persistence mapping
+      gig-candidate-poster/    candidate poster selection and defaulting
     telegram-updates/      inbound Telegram webhook update handling
     telegram/              Telegram Bot API client, outbound messaging, and message composition
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
@@ -121,14 +126,16 @@ Depending on which flows you want to exercise, you may also need:
 The GigCandidate workflow requires one Telegram bot per environment with the following BotFather and channel configuration:
 
 1. Create two named Mini App direct links for the same bot:
-   - `suggest` uses frontend URL `https://<frontend-host>/suggest/launch` and opens the universal suggestion entry point.
-   - `admin` uses frontend URL `https://<frontend-host>/admin/telegram` and dispatches Gig and GigCandidate edit actions from moderation posts.
+   - the short name configured in `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` uses frontend URL `https://<frontend-host>/suggest/launch` and opens the universal suggestion entry point;
+   - the short name configured in `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME` uses frontend URL `https://<frontend-host>/admin/telegram` and dispatches Gig and GigCandidate edit actions from moderation posts.
 2. Keep Same-Origin Restriction enabled for the Mini Apps. Main App and Menu Button are optional entry points; backend-generated edit links do not depend on them.
 3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
 4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
 5. Register `https://<api-host>/v1/telegram/updates` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
-6. Set `SUGGEST_GIG_URL=https://t.me/<bot_username>/suggest`. Shared-chat suggestion buttons use this named Mini App direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
-7. Set `EDIT_GIG_URL=https://t.me/<bot_username>/admin`. Do not include `startapp`; the backend appends the typed action and identifier.
+6. Set `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` to the BotFather short name for the suggestion Direct Mini App. Shared-chat suggestion buttons use the resulting direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
+7. Set `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME` to the BotFather short name for the admin Direct Mini App. The backend obtains the bot username through `getMe` and appends the typed `startapp` action and identifier.
+
+The backend validates that both short-name variables are non-empty, but it cannot verify through the HTTP Bot API that the corresponding Direct Mini Apps exist or belong to the bot. Telegram exposes [`messages.getBotApp`](https://core.telegram.org/method/messages.getBotApp) for this purpose only through the user-only MTProto API. After configuring an environment, verify both generated `https://t.me/<bot_username>/<short_name>` links in a Telegram client. A misspelled or missing BotFather short name is otherwise detected only when a user opens the link.
 
 The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
 
@@ -150,6 +157,8 @@ Current variables defined in `.env.example`:
 | `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
 | `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
 | `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                      |
+| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME`          | For shared-chat bot responses                | BotFather short name for the suggestion Direct Mini App.                 |
+| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`            | For admin Telegram actions                   | BotFather short name for the admin Direct Mini App.                      |
 | `TELEGRAM_OIDC_CLIENT_ID`                       | For browser auth                             | Telegram Login Client ID from BotFather > Bot Settings > Web Login.      |
 | `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`.                                 |
 | `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                               |
@@ -165,12 +174,11 @@ Current variables defined in `.env.example`:
 | `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | SameSite mode for the refresh cookie.                                    |
 | `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
 | `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
+| `MAIN_CHAT_ID`                                  | For Telegram webhook flows                   | Group or supergroup that accepts `/gig` commands.                        |
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
 | `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Also sends submission feedback DM to admins when `true`.                 |
-| `SUGGEST_GIG_URL`                               | For shared-chat bot responses                | Named suggest Mini App direct link used outside private bot chats.       |
-| `EDIT_GIG_URL`                                  | For edit flows                               | Named admin Mini App URL, without a `startapp` query parameter.          |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
 | `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |
@@ -189,10 +197,10 @@ Current variables defined in `.env.example`:
 | `AI_API_KEY`                                    | Optional                                     | AI service key.                                                          |
 | `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                     |
 | `AI_LOOKUP_DEBUG`                               | Optional                                     | Enables extra lookup diagnostics.                                        |
-| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/gig/lookup`.                                 |
+| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Dev-only stub mode for `/v1/admin/gig-candidates/lookup`.                |
 | `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                           |
 | `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                       |
-| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend feed revalidation.                                   |
+| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend Gig feed cache revalidation.                         |
 
 ### CORS behavior
 
@@ -551,7 +559,7 @@ Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is availab
 - GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
 - admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
 - manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the Gig feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
 - translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 

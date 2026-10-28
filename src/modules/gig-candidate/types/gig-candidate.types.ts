@@ -3,6 +3,8 @@ import type { PostType } from '../../../shared/types/post-type.enum';
 import type { Messenger } from '../../../shared/types/messenger.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
 import type { ProviderReference } from '../../../shared/types/provider-reference.types';
+import type { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import type { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 
 interface GigCandidatePostBase {
   to: Messenger;
@@ -23,38 +25,46 @@ export interface GigCandidatePhotoPost extends GigCandidatePostBase {
 
 export type GigCandidatePost = GigCandidateTextPost | GigCandidatePhotoPost;
 
-export type GigCandidateAttachment = Record<string, unknown>;
-
-export interface GigCandidateSourceUserFormOrigin {
-  type: 'form';
+interface GigCandidateSourceUserFormOrigin {
+  type: GigSourceUserOriginType.Form;
 }
 
-export interface GigCandidateSourceUserAdminOrigin {
-  type: 'admin';
+interface GigCandidateSourceUserAdminOrigin {
+  type: GigSourceUserOriginType.Admin;
 }
 
-export interface GigCandidateSourceUserMessengerOrigin {
-  type: 'messenger';
-  messenger: Messenger;
-  // chatId: string;
-  // messageId: string;
-}
+type GigCandidateSourceIdentifiedUserOrigin =
+  GigCandidateSourceUserFormOrigin | GigCandidateSourceUserAdminOrigin;
 
-export type GigCandidateSourceUserOrigin =
-  | GigCandidateSourceUserFormOrigin
-  | GigCandidateSourceUserAdminOrigin
-  | GigCandidateSourceUserMessengerOrigin;
-
-export interface GigCandidateSourceUser {
-  type: 'user';
+export interface GigCandidateSourceIdentifiedUser {
+  type: GigSourceType.User;
   userId: string;
-  origin: GigCandidateSourceUserOrigin;
-  originalText?: string;
-  attachments?: GigCandidateAttachment[];
+  origin: GigCandidateSourceIdentifiedUserOrigin;
 }
+
+interface GigCandidateSourceMessengerMessage {
+  chatId: number;
+  messageId: number;
+}
+
+interface GigCandidateSourceUserMessengerOrigin {
+  type: GigSourceUserOriginType.Messenger;
+  messenger: Messenger;
+  message: GigCandidateSourceMessengerMessage;
+}
+
+export interface GigCandidateSourceMessengerUser {
+  type: GigSourceType.User;
+  userId?: string;
+  origin: GigCandidateSourceUserMessengerOrigin;
+  originalText: string;
+}
+
+export type GigCandidateSourceUser =
+  GigCandidateSourceIdentifiedUser | GigCandidateSourceMessengerUser;
 
 export interface GigCandidateSourceProvider {
-  type: 'provider';
+  type: GigSourceType.Provider;
   provider: ProviderReference;
 }
 

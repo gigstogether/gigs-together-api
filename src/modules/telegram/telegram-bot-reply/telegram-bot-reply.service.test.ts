@@ -8,6 +8,7 @@ import { TelegramBotClient } from '../telegram-bot.client';
 import type { TGMessage, TGSendMessage } from '../types/message.types';
 import { TGParseMode } from '../types/message.types';
 import { TelegramBotReplyService } from './telegram-bot-reply.service';
+import { TelegramService } from '../telegram.service';
 
 type MockTelegramTemplates = Pick<
   TelegramTemplateService,
@@ -20,6 +21,8 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
     [TELEGRAM_TEMPLATE_KEYS.linkContactAdmins]: 'https://t.me/admins',
   };
   const templates: Partial<Record<TelegramTemplateKey, string>> = {
+    [TELEGRAM_TEMPLATE_KEYS.commandSuggestPrivateUnavailable]:
+      'Private suggestions unavailable. Use <a href="{formUrl}">the form</a> or <a href="https://t.me/gigs_together_chat">the chat</a>.',
     [TELEGRAM_TEMPLATE_KEYS.commandStart]: 'Start {contactAdminsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.commandUnknown]: 'Unknown {contactAdminsUrl}',
     [TELEGRAM_TEMPLATE_KEYS.incomingMessageUnavailable]:
@@ -30,11 +33,11 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
     getText: vi.fn((key: TelegramTemplateKey) => texts[key] ?? ''),
     render: vi.fn(
       (key: TelegramTemplateKey, params: Record<string, unknown>) => {
-        const template = templates[key] ?? '';
-        return template.replace(
-          '{contactAdminsUrl}',
-          String(params.contactAdminsUrl ?? ''),
-        );
+        let rendered = templates[key] ?? '';
+        for (const [paramKey, value] of Object.entries(params)) {
+          rendered = rendered.replaceAll(`{${paramKey}}`, String(value ?? ''));
+        }
+        return rendered;
       },
     ),
   };
@@ -43,10 +46,14 @@ function createMockTelegramTemplates(): MockTelegramTemplates {
 describe('TelegramBotReplyService', () => {
   let service: TelegramBotReplyService;
   const sendMessage = vi.fn<(message: TGSendMessage) => Promise<TGMessage>>();
+  const telegramService = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getSuggestMiniAppShortName: vi.fn().mockReturnValue('suggest'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://gigs.example'),
+  };
 
   beforeEach(async () => {
-    vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-    vi.stubEnv('SUGGEST_GIG_URL', 'https://t.me/GigsTogetherStgBot/suggest');
+    telegramService.getAppBaseUrl.mockReturnValue('https://gigs.example');
     sendMessage.mockResolvedValue({
       message_id: 1,
       chat: { id: 12345, type: 'private' },
@@ -65,6 +72,7 @@ describe('TelegramBotReplyService', () => {
           provide: TelegramBotClient,
           useValue: { sendMessage },
         },
+        { provide: TelegramService, useValue: telegramService },
       ],
     }).compile();
 
@@ -73,7 +81,6 @@ describe('TelegramBotReplyService', () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    vi.unstubAllEnvs();
   });
 
   it('should send the start response to a private chat', async () => {
@@ -100,12 +107,26 @@ describe('TelegramBotReplyService', () => {
   it('should send the unknown-command response to a private chat', async () => {
     await service.sendUnknownCommandResponse({ id: 12345, type: 'private' });
 
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: 12345,
-        text: 'Unknown https://t.me/admins',
-      }),
-    );
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: 12345,
+      text: 'Unknown https://t.me/admins',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
+  });
+
+  it('should send the private suggest-command response', async () => {
+    await service.sendSuggestCommandUnavailableInPrivateChat({
+      id: 12345,
+      type: 'private',
+    });
+
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: 12345,
+      text: 'Private suggestions unavailable. Use <a href="https://t.me/GigsTogetherStgBot/suggest">the form</a> or <a href="https://t.me/gigs_together_chat">the chat</a>.',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
   });
 
   it('should send the unavailable response to a shared chat', async () => {
@@ -114,21 +135,11 @@ describe('TelegramBotReplyService', () => {
       type: 'supergroup',
     });
 
-    expect(sendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({
-        chat_id: -100123,
-        text: 'Unavailable https://t.me/admins',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: 'Suggest a gig',
-                url: 'https://t.me/GigsTogetherStgBot/suggest',
-              },
-            ],
-          ],
-        },
-      }),
-    );
+    expect(sendMessage).toHaveBeenCalledWith({
+      chat_id: -100123,
+      text: 'Unavailable https://t.me/admins',
+      parse_mode: TGParseMode.HTML,
+      disable_web_page_preview: true,
+    });
   });
 });

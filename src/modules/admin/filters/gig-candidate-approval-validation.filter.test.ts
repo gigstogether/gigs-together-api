@@ -1,6 +1,6 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
-import { GigCandidateApprovalValidationError } from '../../gig-candidate/gig-candidate-approval';
+import { GigCandidateApprovalValidationError } from '../../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import {
   GIG_CANDIDATE_APPROVAL_VALIDATION_CODE,
   GigCandidateApprovalValidationFilter,

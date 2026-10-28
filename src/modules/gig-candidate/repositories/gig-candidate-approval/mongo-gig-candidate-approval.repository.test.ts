@@ -2,11 +2,13 @@ import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { Gig } from '../../gig/gig.schema';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
-import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import { GigCandidate } from '../gig-candidate.schema';
+import { Gig } from '../../../gig/gig.schema';
+import { GigSourceType } from '../../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
+import { Messenger } from '../../../../shared/types/messenger.enum';
+import { PostType } from '../../../../shared/types/post-type.enum';
+import { GigCandidateStatus } from '../../types/gig-candidate-status.enum';
+import { GigCandidate } from '../../gig-candidate.schema';
 import { MongoGigCandidateApprovalRepository } from './mongo-gig-candidate-approval.repository';
 
 describe('MongoGigCandidateApprovalRepository', () => {
@@ -106,9 +108,11 @@ describe('MongoGigCandidateApprovalRepository', () => {
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           source: {
-            type: 'user',
-            userId: new Types.ObjectId('507f1f77bcf86cd799439088'),
-            origin: { type: 'messenger' },
+            type: GigSourceType.User,
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: Messenger.Telegram,
+            },
           },
           version: 0,
           isVisible: true,
@@ -147,9 +151,11 @@ describe('MongoGigCandidateApprovalRepository', () => {
         venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         source: {
-          type: 'user',
-          userId: '507f1f77bcf86cd799439088',
-          origin: { type: 'messenger' },
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+          },
         },
         moderationPost,
       });
@@ -197,9 +203,11 @@ describe('MongoGigCandidateApprovalRepository', () => {
       version: 0,
       isVisible: true,
       source: {
-        type: 'user',
-        userId: expect.any(Types.ObjectId),
-        origin: { type: 'messenger' },
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
       },
       posts: [moderationPost],
     });
@@ -223,7 +231,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         version: 0,
         isVisible: true,
         source: {
-          type: 'provider',
+          type: GigSourceType.Provider,
           provider: {
             name: 'exampleProvider',
             externalEventId: 'event-42',
@@ -239,7 +247,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     );
 
     expect(result?.source).toEqual({
-      type: 'provider',
+      type: GigSourceType.Provider,
       provider: {
         name: 'exampleProvider',
         externalEventId: 'event-42',
@@ -264,7 +272,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         version: 0,
         isVisible: true,
         source: {
-          type: 'provider',
+          type: GigSourceType.Provider,
           provider: {
             name: '',
             externalEventId: 'event-42',
@@ -341,9 +349,9 @@ describe('MongoGigCandidateApprovalRepository', () => {
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           source: {
-            type: 'user',
+            type: GigSourceType.User,
             userId: '507f1f77bcf86cd799439088',
-            origin: { type: 'admin' },
+            origin: { type: GigSourceUserOriginType.Admin },
           },
           moderationPost,
         });
@@ -400,9 +408,9 @@ function buildGigCandidateDocument(
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439099'),
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: new Types.ObjectId('507f1f77bcf86cd799439088'),
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     gigDraft: {
       title: 'Radiohead',

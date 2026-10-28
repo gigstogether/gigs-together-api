@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { TGUser } from '../types/user.types';
+import { getConfigPositiveSafeInteger } from '../../../shared/utils/env';
 import { isRecord } from '../../../shared/utils/is-record';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';
 
@@ -15,14 +16,23 @@ const TELEGRAM_OIDC_ERROR_CONTEXT_KEYS = ['code', 'claim', 'reason'];
 @Injectable()
 export class TelegramOidcAuthService {
   private readonly logger = new Logger(TelegramOidcAuthService.name);
+  private readonly clientId: string;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(configService: ConfigService) {
+    const clientId = getConfigPositiveSafeInteger(
+      configService,
+      'TELEGRAM_OIDC_CLIENT_ID',
+    );
+    if (clientId === undefined) {
+      throw new Error('TELEGRAM_OIDC_CLIENT_ID is not configured.');
+    }
+    this.clientId = String(clientId);
+  }
 
   async resolveUserFromIdToken(
     idToken: string,
   ): Promise<TelegramAuthenticationResult> {
-    const clientId = this.requireClientId();
-    const tgUser = await this.verifyIdToken(idToken, clientId);
+    const tgUser = await this.verifyIdToken(idToken, this.clientId);
     return { tgUser };
   }
 
@@ -89,21 +99,6 @@ export class TelegramOidcAuthService {
       throw new Error(`Telegram ID token has an invalid ${claim} claim`);
     }
     return value.trim();
-  }
-
-  private requireClientId(): string {
-    const clientId = this.configService
-      .get<string>('TELEGRAM_OIDC_CLIENT_ID')
-      ?.trim();
-    const numericClientId = Number(clientId);
-    if (
-      !clientId ||
-      !Number.isSafeInteger(numericClientId) ||
-      numericClientId <= 0
-    ) {
-      throw new Error('TELEGRAM_OIDC_CLIENT_ID must be a positive integer');
-    }
-    return clientId;
   }
 
   private logVerificationFailure(event: string, e: unknown): void {

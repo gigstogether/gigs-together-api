@@ -3,6 +3,8 @@ import { Test } from '@nestjs/testing';
 import { Messenger } from '../../../shared/types/messenger.enum';
 import { PostType } from '../../../shared/types/post-type.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import type {
   GigCandidate,
   GigCandidatePhotoPost,
@@ -23,9 +25,9 @@ function createGigCandidate(): GigCandidate {
   return {
     id: '507f1f77bcf86cd799439099',
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '66a000000000000000000000042',
-      origin: { type: 'form' },
+      origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
       title: 'Band',
@@ -93,17 +95,17 @@ describe('TelegramGigCandidateService', () => {
   };
 
   const telegramServiceMock = {
+    getBotUsername: vi.fn().mockReturnValue('GigsTogetherStgBot'),
+    getAdminMiniAppShortName: vi.fn().mockReturnValue('admin'),
+    getIntakeChannelId: vi.fn().mockReturnValue('-100'),
+    getModerationChannelId: vi.fn().mockReturnValue('-200'),
+    getAppBaseUrl: vi.fn().mockReturnValue('https://app.example'),
     resolvePosterUrl: vi.fn(
       (poster: GigCandidate['gigDraft']['poster']) => poster?.externalUrl,
     ),
   };
 
   beforeEach(async () => {
-    vi.stubEnv('INTAKE_CHANNEL_ID', '-100');
-    vi.stubEnv('MODERATION_CHANNEL_ID', '-200');
-    vi.stubEnv('EDIT_GIG_URL', 'https://app.example/admin');
-    vi.stubEnv('APP_BASE_URL', 'https://app.example');
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelegramGigCandidateService,
@@ -209,7 +211,7 @@ describe('TelegramGigCandidateService', () => {
     const result = await service.sendFeedback({
       kind: 'submitted',
       chatId: 42,
-      title: 'Band',
+      subject: { type: 'gigTitle', title: 'Band' },
     });
 
     expect(result).toBe(sentMessage);

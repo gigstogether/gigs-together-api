@@ -1,8 +1,8 @@
 import type {
   GigCandidate,
   GigCandidatePost,
-} from '../types/gig-candidate.types';
-import type { GigData, GigSource } from '../../gig/types/gig.types';
+} from '../../types/gig-candidate.types';
+import type { GigData, GigSource } from '../../../gig/types/gig.types';
 
 export const GIG_CANDIDATE_APPROVAL_REPOSITORY = Symbol(
   'GIG_CANDIDATE_APPROVAL_REPOSITORY',

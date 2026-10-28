@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -7,8 +8,10 @@ import { PostType } from '../../shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
-import { FeedRevalidateService } from './feed-revalidate.service';
-import { GigPosterService } from './gig.poster.service';
+import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
+import { GigPosterService } from './gig-poster/gig-poster.service';
+import { GigSourceType } from './types/gig-source-type.enum';
+import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 import { GigService } from './gig.service';
 import { GIG_REPOSITORY } from './repositories/gig.repository';
 import type { GigRepository } from './repositories/gig.repository';
@@ -35,9 +38,9 @@ function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
     isVisible: true,
     version: 3,
     source: {
-      type: 'user',
+      type: GigSourceType.User,
       userId: '507f1f77bcf86cd799439012',
-      origin: { type: 'admin' },
+      origin: { type: GigSourceUserOriginType.Admin },
     },
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),
@@ -72,7 +75,36 @@ describe('GigService', () => {
   const sendMainPost = vi.fn();
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
-  const revalidateFeed = vi.fn();
+  const revalidateGigFeed = vi.fn();
+  const getPublicFileUrl = vi.fn();
+
+  async function createService(
+    configService: ConfigService,
+  ): Promise<GigService> {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigService,
+        { provide: GIG_REPOSITORY, useValue: gigRepository },
+        { provide: GigPosterService, useValue: { upload: uploadPoster } },
+        {
+          provide: TelegramGigService,
+          useValue: {
+            sendMainPost,
+            editPostsBestEffort: editGigPostsBestEffort,
+            updateModerationPost: updateGigModerationPost,
+          },
+        },
+        { provide: BucketService, useValue: { getPublicFileUrl } },
+        {
+          provide: GigFeedRevalidationService,
+          useValue: { revalidateGigFeed },
+        },
+        { provide: ConfigService, useValue: configService },
+      ],
+    }).compile();
+
+    return module.get(GigService);
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -93,25 +125,33 @@ describe('GigService', () => {
     uploadPoster.mockResolvedValue(undefined);
     editGigPostsBestEffort.mockResolvedValue({});
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GigService,
-        { provide: GIG_REPOSITORY, useValue: gigRepository },
-        { provide: GigPosterService, useValue: { upload: uploadPoster } },
-        {
-          provide: TelegramGigService,
-          useValue: {
-            sendMainPost,
-            editPostsBestEffort: editGigPostsBestEffort,
-            updateModerationPost: updateGigModerationPost,
-          },
-        },
-        { provide: BucketService, useValue: { getPublicFileUrl: vi.fn() } },
-        { provide: FeedRevalidateService, useValue: { revalidateFeed } },
-      ],
-    }).compile();
+    service = await createService(
+      new ConfigService({ EXTERNAL_POSTER_URL_FALLBACK_ENABLED: '' }),
+    );
+  });
 
-    service = module.get(GigService);
+  describe('resolveGigPosterPublicUrl', () => {
+    it('should use an external poster URL by default', () => {
+      expect(
+        service.resolveGigPosterPublicUrl({
+          externalUrl: 'https://cdn.example/poster.jpg',
+        }),
+      ).toBe('https://cdn.example/poster.jpg');
+    });
+
+    it('should omit an external poster URL when fallback is disabled', async () => {
+      service = await createService(
+        new ConfigService({
+          EXTERNAL_POSTER_URL_FALLBACK_ENABLED: 'false',
+        }),
+      );
+
+      expect(
+        service.resolveGigPosterPublicUrl({
+          externalUrl: 'https://cdn.example/poster.jpg',
+        }),
+      ).toBeUndefined();
+    });
   });
 
   describe('generateUniquePublicId', () => {
@@ -279,7 +319,7 @@ describe('GigService', () => {
           posterFile: undefined,
         }),
       ).resolves.toEqual({ publicId: updated.publicId });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });
@@ -601,7 +641,7 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });
@@ -628,7 +668,7 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateFeed).toHaveBeenCalledWith({
+      expect(revalidateGigFeed).toHaveBeenCalledWith({
         country: updated.country,
         city: updated.city,
       });

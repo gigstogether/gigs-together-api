@@ -8,20 +8,20 @@ import type {
   GetVisibleGigsResult,
   GigFeedItem,
 } from './gig-feed.service';
-import type { V1GetGigsResponseBodyGig } from './types/gig.types';
+import type { V1GetGigsResponseBodyGig } from '../types/gig.types';
 import type {
   V1GigAroundGetRequestQuery,
   V1GigAroundGetResponseBody,
-} from './types/requests/v1-gig-around-get-request';
+} from '../types/requests/v1-gig-around-get-request';
 import type {
   V1GigDatesGetRequestQuery,
   V1GigDatesGetResponseBody,
-} from './types/requests/v1-gig-dates-get-request';
+} from '../types/requests/v1-gig-dates-get-request';
 import type {
   V1GetGigsResponseBody,
   V1GigGetRequestQuery,
-} from './types/requests/v1-gig-get-request';
-import type { V1GigByPublicIdGetResponseBody } from './types/requests/v1-gig-by-public-id-get-request';
+} from '../types/requests/v1-gig-get-request';
+import type { V1GigByPublicIdGetResponseBody } from '../types/requests/v1-gig-by-public-id-get-request';
 
 function mapGigFeedItemToV1(item: GigFeedItem): V1GetGigsResponseBodyGig {
   const mapped: V1GetGigsResponseBodyGig = {

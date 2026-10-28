@@ -21,11 +21,16 @@ export const TELEGRAM_TEMPLATE_KEYS = {
   linkContactAdmins: 'link.contactAdmins',
   incomingMessageUnavailable: 'incomingMessage.unavailable',
   commandStart: 'command.start',
+  commandSuggestPrivateUnavailable: 'command.suggest.privateUnavailable',
   commandUnknown: 'command.unknown',
   gigCandidateFeedbackSubmitted: 'gigCandidateFeedback.submitted',
   gigCandidateFeedbackAcceptedForModeration:
     'gigCandidateFeedback.acceptedForModeration',
+  gigCandidateFeedbackAcceptedForModerationChatMessage:
+    'gigCandidateFeedback.acceptedForModeration.chatMessage',
   gigCandidateFeedbackRejected: 'gigCandidateFeedback.rejected',
+  gigCandidateFeedbackRejectedChatMessage:
+    'gigCandidateFeedback.rejected.chatMessage',
   gigCandidateFeedbackAcceptedWithPublicLink:
     'gigCandidateFeedback.acceptedWithPublicLink',
   gigCandidateLinkOpenAdmin: 'gigCandidateLink.openAdmin',

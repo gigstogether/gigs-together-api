@@ -23,6 +23,14 @@ export class TelegramBotReplyService {
     return this.telegramBotClient.sendMessage(message);
   }
 
+  sendSuggestCommandUnavailableInPrivateChat(chat: TGChat): Promise<TGMessage> {
+    const message =
+      this.telegramBotReplyComposer.composeSuggestCommandUnavailableInPrivateChat(
+        chat,
+      );
+    return this.telegramBotClient.sendMessage(message);
+  }
+
   sendUnknownCommandResponse(chat: TGChat): Promise<TGMessage> {
     const message =
       this.telegramBotReplyComposer.composeUnknownCommandResponse(chat);

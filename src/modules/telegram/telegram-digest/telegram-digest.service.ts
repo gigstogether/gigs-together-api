@@ -8,6 +8,7 @@ import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramBotClient } from '../telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
+import { TelegramService } from '../telegram.service';
 
 export interface WeeklyDigestPostResult {
   postUrl: string;
@@ -24,13 +25,14 @@ export class TelegramDigestService {
     private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramDigestComposer: TelegramDigestComposerService,
     private readonly telegramComposer: TelegramComposerService,
+    private readonly telegramService: TelegramService,
   ) {}
 
   async sendWeeklyDigestPost(
     gigs: PlainGig[],
   ): Promise<WeeklyDigestPostResult | undefined> {
-    const chatId = (process.env.MAIN_CHANNEL_ID ?? '').trim();
-    if (chatId === '') {
+    const chatId = this.telegramService.getMainChannelId();
+    if (chatId === undefined) {
       this.logger.warn(
         'sendWeeklyDigestPost skipped: MAIN_CHANNEL_ID is empty',
       );

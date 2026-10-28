@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { ConfigService } from '@nestjs/config';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '../../../shared/types/messenger.enum';
@@ -88,6 +89,7 @@ describe('TelegramDigestComposerService', () => {
   };
 
   beforeEach(async () => {
+    vi.stubEnv('APP_BASE_URL', '');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     telegramTemplates = createMockTelegramTemplates();
 
@@ -104,6 +106,7 @@ describe('TelegramDigestComposerService', () => {
         { provide: BucketService, useValue: bucketService },
         { provide: TelegramBotClient, useValue: telegramBotClient },
         { provide: CACHE_MANAGER, useValue: chatLookupCache },
+        ConfigService,
       ],
     }).compile();
 
@@ -113,7 +116,7 @@ describe('TelegramDigestComposerService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
-    delete process.env.APP_BASE_URL;
+    vi.unstubAllEnvs();
   });
 
   it('should compose an empty-week message when no gigs exist', () => {
