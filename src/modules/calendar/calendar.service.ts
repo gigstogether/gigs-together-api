@@ -6,16 +6,29 @@ export interface CalendarishEvent {
   title: string;
   description: string;
   location: string;
-  start: Date;
-  end: Date;
+  startLocalDateTime: string;
+  endLocalDateTime: string;
   timeZone: string;
 }
 
-function gcalDateUTC(date: Date): string {
-  return date
-    .toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\.\d{3}Z$/, 'Z');
+function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
+  // Append Z only for validation so Date parses the components as UTC rather
+  // than in the server's local time zone.
+  const validationDate = new Date(`${localDateTime}Z`);
+  // Round-trip through canonical ISO to reject normalized invalid dates and
+  // non-canonical input without changing the event's actual time zone.
+  const isValid =
+    !Number.isNaN(validationDate.getTime()) &&
+    validationDate.toISOString().slice(0, 19) === localDateTime;
+
+  if (!isValid) {
+    throw new Error(
+      'Google Calendar local date-time must be a valid YYYY-MM-DDTHH:mm:ss value',
+    );
+  }
+
+  // Google Calendar template URLs require the compact YYYYMMDDTHHmmss format.
+  return localDateTime.replaceAll('-', '').replaceAll(':', '');
 }
 
 @Injectable()
@@ -95,11 +108,11 @@ export class CalendarService {
           description: event.description,
           location: event.location,
           start: {
-            dateTime: event.start.toISOString(),
+            dateTime: event.startLocalDateTime,
             timeZone: event.timeZone,
           },
           end: {
-            dateTime: event.end.toISOString(),
+            dateTime: event.endLocalDateTime,
             timeZone: event.timeZone,
           },
         },
@@ -119,8 +132,8 @@ export class CalendarService {
    * for the *user's* calendar (client-side flow).
    */
   getCreateCalendarEventUrl(event: CalendarishEvent): string {
-    const startDate = gcalDateUTC(event.start);
-    const endDate = gcalDateUTC(event.end);
+    const startDate = formatGoogleCalendarUrlDateTime(event.startLocalDateTime);
+    const endDate = formatGoogleCalendarUrlDateTime(event.endLocalDateTime);
 
     const searchParams = new URLSearchParams({
       action: 'TEMPLATE',

@@ -44,6 +44,15 @@ import type {
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
 
+function formatCalendarDate(value: number, field: 'date' | 'endDate'): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Gig ${field} must be a valid timestamp`);
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 export interface UpdateGigByPublicIdParams {
   publicId: string;
   expectedVersion: number;
@@ -736,27 +745,18 @@ export class GigService {
   gigToCalendarPayload(gig: GigCalendarSource): CalendarishEvent {
     const timeZone = 'Europe/Madrid';
 
-    // Set start time to 8:00 PM
-    const startDateTime = new Date(gig.date);
-    startDateTime.setHours(20, 0, 0, 0); // 20:00
+    // Use an evening window from 20:00 to 22:00 in the event's local time
+    // zone. Google resolves the UTC offset from the IANA time zone.
+    const startDate = formatCalendarDate(gig.date, 'date');
 
-    // Calculate end time (2 hours later)
-    const getDefaultEndDateTime = () =>
-      new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
-
-    // If `endDate` exists (multi-day event), end on the last day.
-    // We still default to an evening time window.
-    const endDateTime = (() => {
-      if (!gig.endDate) return getDefaultEndDateTime();
-
-      const end = new Date(gig.endDate);
-      end.setHours(22, 0, 0, 0); // 22:00 (20:00 + 2h)
-
-      // Safety: never return an end before the start.
-      return end.getTime() > startDateTime.getTime()
-        ? end
-        : getDefaultEndDateTime();
-    })();
+    // Multi-day events end at 22:00 on the final day. Clamp an invalid
+    // earlier end date to the start day so the end never precedes the start.
+    const requestedEndDate =
+      gig.endDate !== undefined
+        ? formatCalendarDate(gig.endDate, 'endDate')
+        : startDate;
+    const endDate =
+      requestedEndDate >= startDate ? requestedEndDate : startDate;
 
     return {
       title: gig.title,
@@ -764,8 +764,8 @@ export class GigService {
       location: [gig.venue, gig.city, gig.country] // TODO: add country name?
         .filter((str) => !!str)
         .join(', '),
-      start: startDateTime,
-      end: endDateTime,
+      startLocalDateTime: `${startDate}T20:00:00`,
+      endLocalDateTime: `${endDate}T22:00:00`,
       timeZone,
     };
   }

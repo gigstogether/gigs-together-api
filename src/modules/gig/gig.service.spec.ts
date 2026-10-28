@@ -154,6 +154,35 @@ describe('GigService', () => {
     });
   });
 
+  describe('gigToCalendarPayload', () => {
+    it('should preserve local event time without a UTC suffix', () => {
+      const result = service.gigToCalendarPayload(buildGig());
+
+      expect(result).toEqual({
+        title: 'Radiohead',
+        description: 'Tickets: https://tickets.example/radiohead',
+        location: 'Palau Sant Jordi, barcelona, ES',
+        startLocalDateTime: '2026-06-12T20:00:00',
+        endLocalDateTime: '2026-06-12T22:00:00',
+        timeZone: 'Europe/Madrid',
+      });
+    });
+
+    it('should use the final local day for a multi-day event', () => {
+      const result = service.gigToCalendarPayload(
+        buildGig({ endDate: Date.UTC(2026, 5, 14) }),
+      );
+
+      expect(result.endLocalDateTime).toBe('2026-06-14T22:00:00');
+    });
+
+    it('should reject an invalid start date', () => {
+      expect(() =>
+        service.gigToCalendarPayload(buildGig({ date: Number.NaN })),
+      ).toThrow('Gig date must be a valid timestamp');
+    });
+  });
+
   describe('generateUniquePublicId', () => {
     it('should use the repository uniqueness check by default', async () => {
       await expect(
