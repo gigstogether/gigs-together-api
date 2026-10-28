@@ -16,7 +16,7 @@ import type {
   PlainGig,
 } from './types/gig.types';
 import { getConfigBoolean } from '../../shared/utils/env';
-import type { CalendarishEvent } from '../calendar/calendar.service';
+import type { CalendarEvent } from '../calendar/calendar.types';
 import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
@@ -742,7 +742,7 @@ export class GigService {
     });
   }
 
-  gigToCalendarPayload(gig: GigCalendarSource): CalendarishEvent {
+  gigToCalendarPayload(gig: GigCalendarSource): CalendarEvent {
     const timeZone = 'Europe/Madrid';
 
     // Use an evening window from 20:00 to 22:00 in the event's local time

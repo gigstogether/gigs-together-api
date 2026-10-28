@@ -1,105 +1,42 @@
-import * as fs from 'fs';
-
 import { CalendarService } from './calendar.service';
-import type { CalendarishEvent } from './calendar.service';
+import type { CalendarEvent } from './calendar.types';
+import type { CalendarProvider } from './providers/calendar.provider';
 
-const googleApisMocks = vi.hoisted(() => ({
-  insert: vi.fn(),
-}));
-
-vi.mock('fs', () => ({
-  existsSync: vi.fn(() => true),
-  writeFileSync: vi.fn(),
-}));
-
-vi.mock('googleapis', () => ({
-  google: {
-    auth: {
-      GoogleAuth: vi.fn(),
-    },
-    calendar: vi.fn(() => ({
-      events: {
-        insert: googleApisMocks.insert,
-      },
-    })),
-  },
-}));
-
-function buildEvent(
-  overrides: Partial<CalendarishEvent> = {},
-): CalendarishEvent {
-  return {
-    title: 'The Strokes',
-    description: 'Tickets: https://tickets.example/the-strokes',
-    location: 'Palau Sant Jordi, Barcelona, ES',
-    startLocalDateTime: '2026-10-20T20:00:00',
-    endLocalDateTime: '2026-10-20T22:00:00',
-    timeZone: 'Europe/Madrid',
-    ...overrides,
-  };
-}
+const event: CalendarEvent = {
+  title: 'The Strokes',
+  description: 'Tickets: https://tickets.example/the-strokes',
+  location: 'Palau Sant Jordi, Barcelona, ES',
+  startLocalDateTime: '2026-10-20T20:00:00',
+  endLocalDateTime: '2026-10-20T22:00:00',
+  timeZone: 'Europe/Madrid',
+};
 
 describe('CalendarService', () => {
+  const addEvent = vi.fn<CalendarProvider['addEvent']>();
+  const getCreateEventUrl = vi.fn<CalendarProvider['getCreateEventUrl']>();
+  const calendarProvider: CalendarProvider = {
+    addEvent,
+    getCreateEventUrl,
+  };
   let service: CalendarService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    googleApisMocks.insert.mockResolvedValue({ data: { id: 'event-id' } });
-    service = new CalendarService();
+    addEvent.mockResolvedValue(undefined);
+    service = new CalendarService(calendarProvider);
   });
 
-  it('should send local date-times with their IANA time zone', async () => {
-    await service.addEvent(buildEvent());
+  it('should delegate event creation to the configured provider', async () => {
+    await service.addEvent(event);
 
-    expect(googleApisMocks.insert).toHaveBeenCalledWith({
-      calendarId: undefined,
-      requestBody: {
-        colorId: '5',
-        summary: 'The Strokes',
-        description: 'Tickets: https://tickets.example/the-strokes',
-        location: 'Palau Sant Jordi, Barcelona, ES',
-        start: {
-          dateTime: '2026-10-20T20:00:00',
-          timeZone: 'Europe/Madrid',
-        },
-        end: {
-          dateTime: '2026-10-20T22:00:00',
-          timeZone: 'Europe/Madrid',
-        },
-      },
-    });
+    expect(addEvent).toHaveBeenCalledWith(event);
   });
 
-  it('should build a template URL with local date-times and ctz', () => {
-    const url = new URL(service.getCreateCalendarEventUrl(buildEvent()));
+  it('should return the create-event URL from the configured provider', () => {
+    getCreateEventUrl.mockReturnValue('https://calendar.example/event');
 
-    expect({
-      dates: url.searchParams.get('dates'),
-      timeZone: url.searchParams.get('ctz'),
-    }).toEqual({
-      dates: '20261020T200000/20261020T220000',
-      timeZone: 'Europe/Madrid',
-    });
-  });
-
-  it('should reject a malformed local date-time in a template URL', () => {
-    expect(() =>
-      service.getCreateCalendarEventUrl(
-        buildEvent({ startLocalDateTime: '2026-10-20T20:00:00Z' }),
-      ),
-    ).toThrow(
-      'Google Calendar local date-time must be a valid YYYY-MM-DDTHH:mm:ss value',
-    );
-  });
-
-  it('should reject a nonexistent local date-time in a template URL', () => {
-    expect(() =>
-      service.getCreateCalendarEventUrl(
-        buildEvent({ startLocalDateTime: '2026-02-31T20:00:00' }),
-      ),
-    ).toThrow(
-      'Google Calendar local date-time must be a valid YYYY-MM-DDTHH:mm:ss value',
+    expect(service.getCreateCalendarEventUrl(event)).toBe(
+      'https://calendar.example/event',
     );
   });
 });
