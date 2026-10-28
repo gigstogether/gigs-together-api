@@ -26,7 +26,7 @@ import type { TGUser } from '../telegram/types/user.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
-  Suggest = 'suggest',
+  Suggest = 'gig',
   Start = 'start',
 }
 
