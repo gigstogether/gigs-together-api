@@ -1,10 +1,12 @@
 import * as fs from 'fs';
+import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { CalendarEvent } from '../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
 
 const googleApisMocks = vi.hoisted(() => ({
+  getCalendar: vi.fn(),
   insert: vi.fn(),
   jwt: vi.fn(),
 }));
@@ -18,6 +20,9 @@ vi.mock('@googleapis/calendar', () => ({
     JWT: googleApisMocks.jwt,
   },
   calendar: vi.fn(() => ({
+    calendars: {
+      get: googleApisMocks.getCalendar,
+    },
     events: {
       insert: googleApisMocks.insert,
     },
@@ -61,12 +66,48 @@ describe('GoogleCalendarProvider', () => {
     vi.stubEnv('GOOGLE_AUTH_JSON', '');
     vi.stubEnv('GOOGLE_APPLICATION_CREDENTIALS', '');
     vi.clearAllMocks();
+    googleApisMocks.getCalendar.mockResolvedValue({
+      data: { id: 'calendar-id' },
+    });
     googleApisMocks.insert.mockResolvedValue({ data: { id: 'event-id' } });
     provider = new GoogleCalendarProvider(createConfigService());
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
+  });
+
+  it('should verify access to the configured calendar with a timeout', async () => {
+    provider.onApplicationBootstrap();
+
+    await vi.waitFor(() => {
+      expect(googleApisMocks.getCalendar).toHaveBeenCalledWith(
+        { calendarId: 'calendar-id' },
+        { timeout: 10_000 },
+      );
+    });
+  });
+
+  it('should log a connection failure without rejecting', async () => {
+    const connectionFailure = new Error('Calendar API unavailable');
+    const loggerErrorSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    googleApisMocks.getCalendar.mockRejectedValueOnce(connectionFailure);
+
+    provider.onApplicationBootstrap();
+
+    await vi.waitFor(() => {
+      expect(loggerErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          note: 'Google Calendar connection check failed; application will continue running',
+          message: connectionFailure.message,
+        }),
+        connectionFailure.stack,
+        GoogleCalendarProvider.name,
+      );
+    });
   });
 
   it('should send local date-times and trimmed calendar ID', async () => {

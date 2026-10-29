@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import type { OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { auth, calendar } from '@googleapis/calendar';
 import type { calendar_v3 } from '@googleapis/calendar';
@@ -14,6 +15,7 @@ import type { CalendarProvider } from './calendar.provider';
 
 // Scope for full calendar access.
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
+const GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS = 10_000; // 10 seconds
 
 interface GoogleServiceAccountCredentials {
   type: 'service_account';
@@ -142,7 +144,9 @@ function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
 }
 
 @Injectable()
-export class GoogleCalendarProvider implements CalendarProvider {
+export class GoogleCalendarProvider
+  implements CalendarProvider, OnApplicationBootstrap
+{
   private readonly calendar: calendar_v3.Calendar;
   private readonly calendarId: string;
   private readonly logger = new Logger(GoogleCalendarProvider.name);
@@ -160,6 +164,26 @@ export class GoogleCalendarProvider implements CalendarProvider {
 
     // Initialize Google Calendar API client
     this.calendar = calendar({ version: 'v3', auth: authClient });
+  }
+
+  onApplicationBootstrap(): void {
+    void this.checkConnection();
+  }
+
+  /** Verify that the configured credentials can access the target calendar. */
+  private async checkConnection(): Promise<void> {
+    try {
+      await this.calendar.calendars.get(
+        { calendarId: this.calendarId },
+        { timeout: GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS },
+      );
+    } catch (e) {
+      logError(this.logger, {
+        error: e,
+        note: 'Google Calendar connection check failed; application will continue running',
+        context: GoogleCalendarProvider.name,
+      });
+    }
   }
 
   /** Add a new event to Google Calendar. */
