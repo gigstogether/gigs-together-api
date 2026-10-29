@@ -1,11 +1,15 @@
 default_permissions = "secret-safe"
 
-[permissions.secret-safe]
-extends = ":workspace"
-
 [permissions.secret-safe.filesystem]
+":root" = "read"
+":tmpdir" = "write"
+":slash_tmp" = "write"
 glob_scan_max_depth = 6
 
 [permissions.secret-safe.filesystem.":workspace_roots"]
+"." = "write"
 "**/.env*" = "deny"
-".env.example" = "read"
+".env.example" = "write"
+
+[permissions.secret-safe.network]
+enabled = true
