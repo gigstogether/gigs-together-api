@@ -20,18 +20,7 @@ interface GoogleServiceAccountCredentials {
   client_email: string;
   private_key: string;
   private_key_id?: string;
-  project_id?: string;
-  client_id?: string;
-  quota_project_id?: string;
-  universe_domain?: string;
 }
-
-type OptionalGoogleServiceAccountCredentialField =
-  | 'private_key_id'
-  | 'project_id'
-  | 'client_id'
-  | 'quota_project_id'
-  | 'universe_domain';
 
 function getRequiredServiceAccountField(
   value: Record<string, unknown>,
@@ -43,17 +32,6 @@ function getRequiredServiceAccountField(
     throw new Error(`${sourceName} must contain a non-empty ${field}.`);
   }
   return field === 'client_email' ? fieldValue.trim() : fieldValue;
-}
-
-function copyOptionalServiceAccountField(
-  credentials: GoogleServiceAccountCredentials,
-  value: Record<string, unknown>,
-  field: OptionalGoogleServiceAccountCredentialField,
-): void {
-  const fieldValue = value[field];
-  if (typeof fieldValue === 'string' && fieldValue.trim() !== '') {
-    credentials[field] = fieldValue.trim();
-  }
 }
 
 function parseGoogleServiceAccountCredentials(
@@ -87,15 +65,11 @@ function parseGoogleServiceAccountCredentials(
       sourceName,
     ),
   };
-  const optionalFields: OptionalGoogleServiceAccountCredentialField[] = [
-    'private_key_id',
-    'project_id',
-    'client_id',
-    'quota_project_id',
-    'universe_domain',
-  ];
-  for (const field of optionalFields) {
-    copyOptionalServiceAccountField(credentials, parsed, field);
+  if (
+    typeof parsed.private_key_id === 'string' &&
+    parsed.private_key_id.trim() !== ''
+  ) {
+    credentials.private_key_id = parsed.private_key_id.trim();
   }
   return credentials;
 }
@@ -177,13 +151,15 @@ export class GoogleCalendarProvider implements CalendarProvider {
     this.calendarId = getRequiredConfigString(configService, 'CALENDAR_ID');
     const credentials = loadGoogleServiceAccountCredentials(configService);
 
-    const googleAuth = new auth.GoogleAuth({
-      credentials,
+    const authClient = new auth.JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      keyId: credentials.private_key_id,
       scopes: [GOOGLE_CALENDAR_SCOPE],
     });
 
     // Initialize Google Calendar API client
-    this.calendar = calendar({ version: 'v3', auth: googleAuth });
+    this.calendar = calendar({ version: 'v3', auth: authClient });
   }
 
   /** Add a new event to Google Calendar. */

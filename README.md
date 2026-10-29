@@ -143,7 +143,7 @@ GOOGLE_APPLICATION_CREDENTIALS=
 GOOGLE_AUTH_JSON={"type":"service_account",...}
 ```
 
-The provider validates the configured JSON and passes the credentials directly to the Google auth client without writing them to disk. Share the target Google Calendar with the service account's `client_email`; the service account must have permission to create events in that calendar.
+The provider validates the configured JSON and constructs a JWT service account auth client in memory without writing credentials to disk. Share the target Google Calendar with the service account's `client_email`; the service account must have permission to create events in that calendar.
 
 ### Required Telegram setup
 

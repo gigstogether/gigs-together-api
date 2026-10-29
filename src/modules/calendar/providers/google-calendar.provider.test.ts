@@ -6,7 +6,7 @@ import { GoogleCalendarProvider } from './google-calendar.provider';
 
 const googleApisMocks = vi.hoisted(() => ({
   insert: vi.fn(),
-  googleAuth: vi.fn(),
+  jwt: vi.fn(),
 }));
 
 vi.mock('fs', () => ({
@@ -15,7 +15,7 @@ vi.mock('fs', () => ({
 
 vi.mock('@googleapis/calendar', () => ({
   auth: {
-    GoogleAuth: googleApisMocks.googleAuth,
+    JWT: googleApisMocks.jwt,
   },
   calendar: vi.fn(() => ({
     events: {
@@ -28,6 +28,7 @@ const serviceAccountCredentials = {
   type: 'service_account',
   client_email: 'calendar@example.iam.gserviceaccount.com',
   private_key: 'private-key',
+  private_key_id: 'private-key-id',
   project_id: 'calendar-project',
 };
 
@@ -97,9 +98,11 @@ describe('GoogleCalendarProvider', () => {
     ).toThrow('CALENDAR_ID is not configured.');
   });
 
-  it('should pass raw service account credentials directly to GoogleAuth', () => {
-    expect(googleApisMocks.googleAuth).toHaveBeenLastCalledWith({
-      credentials: serviceAccountCredentials,
+  it('should construct a JWT client from raw service account credentials', () => {
+    expect(googleApisMocks.jwt).toHaveBeenLastCalledWith({
+      email: serviceAccountCredentials.client_email,
+      key: serviceAccountCredentials.private_key,
+      keyId: serviceAccountCredentials.private_key_id,
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
   });
@@ -114,8 +117,10 @@ describe('GoogleCalendarProvider', () => {
       createConfigService({ GOOGLE_AUTH_JSON: encodedCredentials }),
     );
 
-    expect(googleApisMocks.googleAuth).toHaveBeenLastCalledWith({
-      credentials: serviceAccountCredentials,
+    expect(googleApisMocks.jwt).toHaveBeenLastCalledWith({
+      email: serviceAccountCredentials.client_email,
+      key: serviceAccountCredentials.private_key,
+      keyId: serviceAccountCredentials.private_key_id,
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
   });
@@ -133,8 +138,10 @@ describe('GoogleCalendarProvider', () => {
     );
 
     expect(fs.readFileSync).toHaveBeenCalledWith('./google-auth.json', 'utf8');
-    expect(googleApisMocks.googleAuth).toHaveBeenLastCalledWith({
-      credentials: serviceAccountCredentials,
+    expect(googleApisMocks.jwt).toHaveBeenLastCalledWith({
+      email: serviceAccountCredentials.client_email,
+      key: serviceAccountCredentials.private_key,
+      keyId: serviceAccountCredentials.private_key_id,
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
   });
