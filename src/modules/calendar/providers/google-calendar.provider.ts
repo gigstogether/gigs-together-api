@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { google } from 'googleapis';
-import type { calendar_v3 } from 'googleapis';
+import { auth, calendar } from '@googleapis/calendar';
+import type { calendar_v3 } from '@googleapis/calendar';
 import * as fs from 'fs';
 import { formatErrorMessage, logError } from '../../../shared/utils/logging';
 import { isRecord } from '../../../shared/utils/is-record';
@@ -35,14 +35,14 @@ export class GoogleCalendarProvider implements CalendarProvider {
   constructor() {
     this.ensureGoogleAuthKeyFile();
 
-    const auth = new google.auth.GoogleAuth({
+    const googleAuth = new auth.GoogleAuth({
       keyFile: 'google-auth.json',
       // Scope for full calendar access
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
 
     // Initialize Google Calendar API client
-    this.calendar = google.calendar({ version: 'v3', auth });
+    this.calendar = calendar({ version: 'v3', auth: googleAuth });
   }
 
   private ensureGoogleAuthKeyFile(): void {

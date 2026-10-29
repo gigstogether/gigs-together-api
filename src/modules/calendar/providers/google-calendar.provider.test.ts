@@ -12,17 +12,15 @@ vi.mock('fs', () => ({
   writeFileSync: vi.fn(),
 }));
 
-vi.mock('googleapis', () => ({
-  google: {
-    auth: {
-      GoogleAuth: vi.fn(),
-    },
-    calendar: vi.fn(() => ({
-      events: {
-        insert: googleApisMocks.insert,
-      },
-    })),
+vi.mock('@googleapis/calendar', () => ({
+  auth: {
+    GoogleAuth: vi.fn(),
   },
+  calendar: vi.fn(() => ({
+    events: {
+      insert: googleApisMocks.insert,
+    },
+  })),
 }));
 
 function buildEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
