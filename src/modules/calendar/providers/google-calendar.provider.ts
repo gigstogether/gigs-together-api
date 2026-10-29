@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { auth, calendar } from '@googleapis/calendar';
 import type { calendar_v3 } from '@googleapis/calendar';
 import * as fs from 'fs';
+import { getRequiredConfigString } from '../../../shared/utils/env';
 import { formatErrorMessage, logError } from '../../../shared/utils/logging';
 import { isRecord } from '../../../shared/utils/is-record';
 import type { CalendarEvent } from '../calendar.types';
@@ -30,9 +32,11 @@ function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
 @Injectable()
 export class GoogleCalendarProvider implements CalendarProvider {
   private readonly calendar: calendar_v3.Calendar;
+  private readonly calendarId: string;
   private readonly logger = new Logger(GoogleCalendarProvider.name);
 
-  constructor() {
+  constructor(configService: ConfigService) {
+    this.calendarId = getRequiredConfigString(configService, 'CALENDAR_ID');
     this.ensureGoogleAuthKeyFile();
 
     const googleAuth = new auth.GoogleAuth({
@@ -96,7 +100,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
   async addEvent(event: CalendarEvent): Promise<void> {
     try {
       await this.calendar.events.insert({
-        calendarId: process.env.CALENDAR_ID,
+        calendarId: this.calendarId,
         requestBody: {
           colorId: '5',
           summary: event.title,

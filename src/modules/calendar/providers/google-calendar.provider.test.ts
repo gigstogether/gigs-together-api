@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { ConfigService } from '@nestjs/config';
 
 import type { CalendarEvent } from '../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
@@ -42,14 +43,16 @@ describe('GoogleCalendarProvider', () => {
     vi.clearAllMocks();
     vi.mocked(fs.existsSync).mockReturnValue(true);
     googleApisMocks.insert.mockResolvedValue({ data: { id: 'event-id' } });
-    provider = new GoogleCalendarProvider();
+    provider = new GoogleCalendarProvider(
+      new ConfigService({ CALENDAR_ID: '  calendar-id  ' }),
+    );
   });
 
-  it('should send local date-times with their IANA time zone', async () => {
+  it('should send local date-times and trimmed calendar ID', async () => {
     await provider.addEvent(buildEvent());
 
     expect(googleApisMocks.insert).toHaveBeenCalledWith({
-      calendarId: undefined,
+      calendarId: 'calendar-id',
       requestBody: {
         colorId: '5',
         summary: 'The Strokes',
@@ -65,6 +68,12 @@ describe('GoogleCalendarProvider', () => {
         },
       },
     });
+  });
+
+  it('should reject missing calendar ID when creating the provider', () => {
+    expect(
+      () => new GoogleCalendarProvider(new ConfigService({ CALENDAR_ID: '' })),
+    ).toThrow('CALENDAR_ID is not configured.');
   });
 
   it('should build a create-event URL with local date-times and ctz', () => {
