@@ -19,6 +19,7 @@ import { DigestModule } from './modules/digest/digest.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { GigCandidateModule } from './modules/gig-candidate/gig-candidate.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
+import { getRequiredConfigString } from './shared/utils/env';
 
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();
 const envFilePath = [`.env.${nodeEnv}`, '.env'];
@@ -35,7 +36,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGO_URI'),
+        uri: getRequiredConfigString(configService, 'MONGO_URI'),
       }),
       inject: [ConfigService],
     }),
