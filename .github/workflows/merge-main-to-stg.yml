@@ -34,5 +34,5 @@ jobs:
           fi
 
           git checkout stg
-          git merge main -m "chore: merge main into stg [automated]: $source_title"
+          git merge main -m "Merge main into stg: $source_title"
           git push origin stg
