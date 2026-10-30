@@ -3,6 +3,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import type { AccessTokenIdentityPayload } from './types/access-token-identity.types';
+import { AUTH_CONFIG, createAuthConfig } from './auth-config.module';
+import type { AuthConfig } from './auth-config.module';
 import { AuthenticationService } from './authentication.service';
 import { AuthorizationService } from './authorization.service';
 import { UserService } from '../user/user.service';
@@ -11,6 +13,27 @@ import { UserRole } from '../user/types/user-role.enum';
 const ADMIN_USER_ID = '66a000000000000000000001';
 const SECOND_ADMIN_USER_ID = '66a000000000000000000002';
 const NON_ADMIN_USER_ID = '66a000000000000000000009';
+
+function createTestAuthConfig(adminCacheTtlMs = ''): AuthConfig {
+  return createAuthConfig(
+    new ConfigService({
+      JWT_SECRET: 'test-access-secret',
+      JWT_REFRESH_SECRET: 'test-refresh-secret',
+      JWT_ACCESS_EXPIRES_IN_SEC: '',
+      JWT_REFRESH_EXPIRES_IN_SEC: '',
+      ADMIN_CACHE_TTL_MS: adminCacheTtlMs,
+      ACCESS_TOKEN_COOKIE_NAME: '',
+      ACCESS_TOKEN_COOKIE_SECURE: '',
+      ACCESS_TOKEN_COOKIE_SAMESITE: '',
+      ACCESS_TOKEN_COOKIE_DOMAIN: '',
+      REFRESH_TOKEN_COOKIE_NAME: '',
+      REFRESH_TOKEN_COOKIE_SECURE: '',
+      REFRESH_TOKEN_COOKIE_SAMESITE: '',
+      REFRESH_TOKEN_COOKIE_DOMAIN: '',
+      NODE_ENV: 'dev',
+    }),
+  );
+}
 
 describe('AuthorizationService', () => {
   let service: AuthorizationService;
@@ -24,16 +47,9 @@ describe('AuthorizationService', () => {
       .mockResolvedValue([ADMIN_USER_ID, SECOND_ADMIN_USER_ID]),
   };
 
-  const configServiceMock = {
-    get: vi.fn().mockReturnValue(undefined),
-  };
-
-  beforeEach(async () => {
-    authenticationService = {
-      authenticateAccessToken: vi.fn(),
-      authenticateRefreshToken: vi.fn(),
-    };
-
+  async function createService(
+    authConfig = createTestAuthConfig(),
+  ): Promise<AuthorizationService> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthorizationService,
@@ -42,8 +58,8 @@ describe('AuthorizationService', () => {
           useValue: authenticationService,
         },
         {
-          provide: ConfigService,
-          useValue: configServiceMock,
+          provide: AUTH_CONFIG,
+          useValue: authConfig,
         },
         {
           provide: UserService,
@@ -52,7 +68,16 @@ describe('AuthorizationService', () => {
       ],
     }).compile();
 
-    service = module.get<AuthorizationService>(AuthorizationService);
+    return module.get<AuthorizationService>(AuthorizationService);
+  }
+
+  beforeEach(async () => {
+    authenticationService = {
+      authenticateAccessToken: vi.fn(),
+      authenticateRefreshToken: vi.fn(),
+    };
+
+    service = await createService();
     userService.findActiveUserIdsByRole.mockResolvedValue([
       ADMIN_USER_ID,
       SECOND_ADMIN_USER_ID,
@@ -122,6 +147,19 @@ describe('AuthorizationService', () => {
 
       virtualNow += 1;
       await service.isAdmin(ADMIN_USER_ID);
+      expect(userService.findActiveUserIdsByRole).toHaveBeenCalledTimes(2);
+    });
+
+    it('should reload after configured TTL elapses', async () => {
+      const configuredService = await createService(createTestAuthConfig('25'));
+
+      await configuredService.isAdmin(ADMIN_USER_ID);
+      virtualNow += 24;
+      await configuredService.isAdmin(ADMIN_USER_ID);
+      expect(userService.findActiveUserIdsByRole).toHaveBeenCalledTimes(1);
+
+      virtualNow += 1;
+      await configuredService.isAdmin(ADMIN_USER_ID);
       expect(userService.findActiveUserIdsByRole).toHaveBeenCalledTimes(2);
     });
   });

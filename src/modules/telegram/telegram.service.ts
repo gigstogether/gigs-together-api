@@ -18,8 +18,8 @@ import type { TGSetMessageReaction } from './types/message.types';
 export class TelegramService implements OnModuleInit {
   private readonly logger = new Logger(TelegramService.name);
   private botUsername: string | undefined;
-  private adminMiniAppShortName: string | undefined;
-  private suggestMiniAppShortName: string | undefined;
+  private readonly adminMiniAppShortName: string;
+  private readonly suggestMiniAppShortName: string;
   private readonly mainChannelId: string | undefined;
   private readonly intakeChannelId: string | undefined;
   private readonly moderationChannelId: string | undefined;
@@ -31,7 +31,7 @@ export class TelegramService implements OnModuleInit {
     @Inject(CACHE_MANAGER) private readonly chatLookupCache: Cache,
     private readonly telegramBotClient: TelegramBotClient,
     private readonly bucketService: BucketService,
-    private readonly configService: ConfigService,
+    configService: ConfigService,
   ) {
     this.mainChannelId = getConfigString(configService, 'MAIN_CHANNEL_ID');
     this.intakeChannelId = getConfigString(configService, 'INTAKE_CHANNEL_ID');
@@ -40,26 +40,23 @@ export class TelegramService implements OnModuleInit {
       'MODERATION_CHANNEL_ID',
     );
     this.appBaseUrl = getConfigString(configService, 'APP_BASE_URL');
+    this.adminMiniAppShortName = getRequiredConfigString(
+      configService,
+      'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
+    );
+    this.suggestMiniAppShortName = getRequiredConfigString(
+      configService,
+      'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
+    );
   }
 
   async onModuleInit(): Promise<void> {
-    const adminMiniAppShortName = getRequiredConfigString(
-      this.configService,
-      'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
-    );
-    const suggestMiniAppShortName = getRequiredConfigString(
-      this.configService,
-      'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
-    );
-
     const bot = await this.telegramBotClient.getMe();
     if (bot.username === undefined) {
       throw new Error('Telegram getMe did not return a bot username.');
     }
 
     this.botUsername = bot.username;
-    this.adminMiniAppShortName = adminMiniAppShortName;
-    this.suggestMiniAppShortName = suggestMiniAppShortName;
   }
 
   getBotUsername(): string {
@@ -67,17 +64,11 @@ export class TelegramService implements OnModuleInit {
   }
 
   getAdminMiniAppShortName(): string {
-    return this.getInitializedValue(
-      this.adminMiniAppShortName,
-      'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
-    );
+    return this.adminMiniAppShortName;
   }
 
   getSuggestMiniAppShortName(): string {
-    return this.getInitializedValue(
-      this.suggestMiniAppShortName,
-      'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME',
-    );
+    return this.suggestMiniAppShortName;
   }
 
   getMainChannelId(): string | undefined {

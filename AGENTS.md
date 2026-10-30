@@ -49,6 +49,18 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Use `.env.example` (or documented variable names) for configuration guidance instead of reading real secret files.
 - If a task cannot be completed without secret values, stop and ask the user to provide only the required variable names or masked values.
 
+## Environment Configuration
+
+- Outside the pre-Nest bootstrap phase, do not read `process.env` directly. Inject `ConfigService` and access configuration through it.
+- A direct `process.env` read before `ConfigModule` initialization is allowed only when the value is required to initialize that module. Add an English comment explaining why the early read is necessary.
+- Reuse the parsers and validators in `src/shared/utils/env.ts`. Do not duplicate trimming, boolean or numeric parsing, required-value checks, or fallback logic at call sites.
+- Parse and validate a value once at its owning boundary. Store the normalized typed value when configuration is immutable for the process lifetime; do not retain `ConfigService` as a class field when it is used only during construction.
+- Use `getRequiredConfigString` for required strings and fail during initialization when they are missing. Use the optional helpers only when absence is part of the contract.
+- Apply defaults only when an optional value is absent or blank. Keep defaults as named constants near the owning feature. If a value is explicitly configured but malformed, throw a variable-specific error instead of silently using the default.
+- Do not log secret configuration values. Error messages may identify the missing or malformed variable, but must not include its value.
+- Keep feature configuration with its owner. When multiple independent consumers need the same normalized configuration, introduce a focused configuration provider instead of adding getters to an unrelated service or creating a global catch-all configuration service.
+- In tests, configure values before constructing the provider or module. Do not rely on mutating `process.env` after a service has cached its normalized configuration.
+
 ## Testing Rules
 
 - Use Vitest for unit and integration tests in this repository.

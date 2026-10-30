@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { BucketService } from '../../bucket/bucket.service';
+import { getConfigString } from '../../../shared/utils/env';
 import {
   InvalidRemoteImageUrlError,
   RemoteImageContentTypeError,
@@ -34,10 +36,17 @@ const SVG_POSTER_ERROR_MESSAGE =
 
 @Injectable()
 export class GigPosterService {
+  private readonly bucketPrefix: string;
+
   constructor(
     private readonly bucketService: BucketService,
     private readonly remoteImageService: RemoteImageService,
-  ) {}
+    configService: ConfigService,
+  ) {
+    this.bucketPrefix = this.parseBucketPrefix(
+      getConfigString(configService, 'S3_POSTERS_PREFIX'),
+    );
+  }
 
   private async download(url: string): Promise<PreparedGigPosterFile> {
     try {
@@ -101,13 +110,21 @@ export class GigPosterService {
     return `poster.${extension}`;
   }
 
-  private getBucketPrefix(): string {
-    const raw = (process.env.S3_POSTERS_PREFIX ?? 'gigs').trim();
+  private parseBucketPrefix(value: string | undefined): string {
+    if (value === undefined) {
+      return 'gigs';
+    }
+
     // Normalize: remove leading/trailing slashes so callers can safely do `${prefix}/...`.
-    const normalized = raw.replace(/^\/+/, '').replace(/\/+$/, '');
-    if (!normalized) return 'gigs';
-    // Hardening: prevent weird traversal-ish values.
-    if (normalized.includes('..') || normalized.includes('\\')) return 'gigs';
+    const normalized = value.replace(/^\/+/, '').replace(/\/+$/, '');
+    // Hardening: prevent traversal-like or Windows-style path values.
+    if (
+      normalized === '' ||
+      normalized.includes('..') ||
+      normalized.includes('\\')
+    ) {
+      throw new Error('S3_POSTERS_PREFIX is invalid.');
+    }
     return normalized;
   }
 
@@ -134,7 +151,7 @@ export class GigPosterService {
         : 'unknown';
     // Last segment is publicId only (no file extension); Content-Type is set on upload.
     const key = [
-      this.getBucketPrefix(),
+      this.bucketPrefix,
       year,
       context.country.toLowerCase(),
       city,

@@ -6,9 +6,12 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { LocaleService } from './locale.service';
 import { LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS } from './locale-cache.constants';
 import { LOCALE_REPOSITORY } from './repositories/locale.repository';
+import type { LocaleRepository } from './repositories/locale.repository';
 
 describe('LocaleService', () => {
   let service: LocaleService;
+  let localeRepository: LocaleRepository;
+  let schedulerRegistry: SchedulerRegistry;
 
   const findActiveLocalesOrderedMock = vi.fn();
   const findAllLocalesOrderedMock = vi.fn();
@@ -60,6 +63,8 @@ describe('LocaleService', () => {
     }).compile();
 
     service = module.get<LocaleService>(LocaleService);
+    localeRepository = module.get<LocaleRepository>(LOCALE_REPOSITORY);
+    schedulerRegistry = module.get<SchedulerRegistry>(SchedulerRegistry);
   });
 
   afterEach(() => {
@@ -88,6 +93,39 @@ describe('LocaleService', () => {
           error instanceof Error && error.message === 'mongo down',
       );
       expect(addIntervalMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cache TTL configuration', () => {
+    it('should use configured positive safe integer as cache TTL', async () => {
+      findActiveLocalesOrderedMock.mockResolvedValue([
+        { iso: 'en', nativeName: 'English', isActive: true, order: 0 },
+      ]);
+      vi.useFakeTimers();
+      const configuredService = new LocaleService(
+        localeRepository,
+        new ConfigService({ LOCALE_ACTIVE_CACHE_TTL_MS: '25' }),
+        schedulerRegistry,
+      );
+
+      await configuredService.onModuleInit();
+      await vi.advanceTimersByTimeAsync(24);
+      expect(findActiveLocalesOrderedMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(findActiveLocalesOrderedMock).toHaveBeenCalledTimes(2);
+      configuredService.onModuleDestroy();
+    });
+
+    it('should throw when configured cache TTL is invalid', () => {
+      expect(
+        () =>
+          new LocaleService(
+            localeRepository,
+            new ConfigService({ LOCALE_ACTIVE_CACHE_TTL_MS: '0' }),
+            schedulerRegistry,
+          ),
+      ).toThrow('LOCALE_ACTIVE_CACHE_TTL_MS must be a positive safe integer.');
     });
   });
 

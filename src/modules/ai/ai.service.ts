@@ -10,22 +10,26 @@ import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import type { GigFormInput } from '../gig/types/gig.types';
 import { isRecord } from '../../shared/utils/is-record';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai/openai-gig-lookup.request';
+import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+  /** When true, logs non-sensitive lookup diagnostics (set AI_LOOKUP_DEBUG=1). */
+  private readonly isLookupDebugEnabled: boolean;
+  private readonly apiKey: string | undefined;
+  private readonly model: string | undefined;
+  private readonly baseUrl: string | undefined;
 
   constructor(
-    private readonly configService: ConfigService,
+    configService: ConfigService,
     private readonly aiLookupDevStubService: AiLookupDevStubService,
-  ) {}
-
-  /** When true, logs non-sensitive lookup diagnostics (set AI_LOOKUP_DEBUG=1). */
-  private isAiLookupDebugEnabled(): boolean {
-    const raw =
-      this.configService.get<string>('AI_LOOKUP_DEBUG') ??
-      process.env.AI_LOOKUP_DEBUG;
-    return raw === '1' || raw === 'true' || raw === 'yes';
+  ) {
+    this.isLookupDebugEnabled =
+      getConfigBoolean(configService, 'AI_LOOKUP_DEBUG') ?? false;
+    this.apiKey = getConfigString(configService, 'AI_API_KEY');
+    this.model = getConfigString(configService, 'AI_MODEL');
+    this.baseUrl = getConfigString(configService, 'AI_URL');
   }
 
   private getAiEndpointOriginForLog(url: string): string {
@@ -93,25 +97,19 @@ export class AiService {
       return stubGig;
     }
 
-    const apiKey =
-      this.configService.get<string>('AI_API_KEY') ?? process.env.AI_API_KEY;
-    if (!apiKey) {
+    if (this.apiKey === undefined) {
       throw new InternalServerErrorException(
         'AI_API_KEY is not set on the server',
       );
     }
 
-    const model =
-      this.configService.get<string>('AI_MODEL') ?? process.env.AI_MODEL;
-    if (!model) {
+    if (this.model === undefined) {
       throw new InternalServerErrorException(
         'AI_MODEL is not set on the server',
       );
     }
 
-    const aiBaseUrl =
-      this.configService.get<string>('AI_URL') ?? process.env.AI_URL;
-    if (!aiBaseUrl) {
+    if (this.baseUrl === undefined) {
       throw new InternalServerErrorException('AI_URL is not set on the server');
     }
 
@@ -122,13 +120,13 @@ export class AiService {
     });
 
     const client = new OpenAI({
-      apiKey,
-      baseURL: aiBaseUrl,
+      apiKey: this.apiKey,
+      baseURL: this.baseUrl,
     });
 
     try {
       const response = await client.responses.create({
-        model,
+        model: this.model,
         tools: [{ type: 'web_search' }],
         input: prompt,
         text: {
@@ -143,7 +141,7 @@ export class AiService {
 
       const text: unknown = response.output_text;
 
-      if (this.isAiLookupDebugEnabled()) {
+      if (this.isLookupDebugEnabled) {
         const contentForLog =
           typeof text === 'string'
             ? text
@@ -156,7 +154,7 @@ export class AiService {
             ? `${contentForLog.slice(0, maxLen)}…(truncated)`
             : contentForLog;
         this.logger.log(
-          `[AI lookup debug] model=${model} endpoint=${this.getAiEndpointOriginForLog(aiBaseUrl)} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
+          `[AI lookup debug] model=${this.model} endpoint=${this.getAiEndpointOriginForLog(this.baseUrl)} name=${JSON.stringify(params.name)} place=${JSON.stringify(params.location)} content_type=${typeof text} raw_content=${clipped}`,
         );
       }
 
@@ -183,7 +181,7 @@ export class AiService {
 
       if (isRecord(parsed) && typeof parsed.isFound === 'boolean') {
         if (!parsed.isFound) {
-          if (this.isAiLookupDebugEnabled()) {
+          if (this.isLookupDebugEnabled) {
             this.logger.log(
               '[AI lookup debug] not_found_reason=model_set_isFound_false',
             );
@@ -191,7 +189,7 @@ export class AiService {
           return null;
         }
       } else if (parsed === null) {
-        if (this.isAiLookupDebugEnabled()) {
+        if (this.isLookupDebugEnabled) {
           this.logger.log(
             '[AI lookup debug] not_found_reason=model_returned_json_null (prompt allows null when no matching future gig)',
           );
@@ -203,7 +201,7 @@ export class AiService {
 
       const dateRaw = (gig.date ?? '').trim();
       if (!dateRaw) {
-        if (this.isAiLookupDebugEnabled()) {
+        if (this.isLookupDebugEnabled) {
           this.logger.log(
             '[AI lookup debug] not_found_reason=empty_date_after_normalize',
           );
@@ -213,7 +211,7 @@ export class AiService {
 
       const ts = new Date(dateRaw).getTime();
       if (Number.isNaN(ts) || ts <= Date.now()) {
-        if (this.isAiLookupDebugEnabled()) {
+        if (this.isLookupDebugEnabled) {
           this.logger.log(
             `[AI lookup debug] not_found_reason=invalid_or_past_date dateRaw=${JSON.stringify(dateRaw)} ts=${ts}`,
           );
@@ -222,16 +220,16 @@ export class AiService {
       }
 
       return gig;
-    } catch (err: unknown) {
-      if (err instanceof OpenAI.APIError) {
-        const status = err.status;
-        const nested = this.getAxiosNestedErrorMessage(err.error) ?? undefined;
-        const message = nested ?? err.message ?? 'AI request failed';
+    } catch (e: unknown) {
+      if (e instanceof OpenAI.APIError) {
+        const status = e.status;
+        const nested = this.getAxiosNestedErrorMessage(e.error) ?? undefined;
+        const message = nested ?? e.message ?? 'AI request failed';
         throw new InternalServerErrorException(
           `AI request failed${status ? ` (HTTP ${status})` : ''}: ${message}`,
         );
       }
-      throw err;
+      throw e;
     }
   }
 }

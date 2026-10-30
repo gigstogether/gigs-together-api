@@ -18,6 +18,7 @@ import {
 } from './locale-cache.constants';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { getConfigPositiveSafeInteger } from '../../shared/utils/env';
 import { LOCALE_REPOSITORY } from './repositories/locale.repository';
 import type { LocaleRepository } from './repositories/locale.repository';
 
@@ -43,16 +44,15 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(LOCALE_REPOSITORY)
     private readonly localeRepository: LocaleRepository,
-    private readonly configService: ConfigService,
+    configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
-    const raw = this.configService.get<string>('LOCALE_ACTIVE_CACHE_TTL_MS');
-    const parsed = raw?.trim() ? Number.parseInt(raw.trim(), 10) : Number.NaN;
     // Default 3_600_000 ms (1 hour). Override LOCALE_ACTIVE_CACHE_TTL_MS for shorter windows in dev.
     this.cacheTtlMs =
-      Number.isFinite(parsed) && parsed > 0
-        ? parsed
-        : LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS;
+      getConfigPositiveSafeInteger(
+        configService,
+        'LOCALE_ACTIVE_CACHE_TTL_MS',
+      ) ?? LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS;
   }
 
   async onModuleInit(): Promise<void> {
@@ -231,8 +231,8 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   private async performScheduledActiveLocaleRefresh(): Promise<void> {
     try {
       await this.refreshActiveLocaleCacheFromMongo();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       this.logger.error(
         `Active locales cache refresh failed; keeping stale set. ${message}`,
       );

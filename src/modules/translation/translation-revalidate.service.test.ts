@@ -1,3 +1,4 @@
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TranslationCacheService } from './translation-cache.service';
@@ -11,15 +12,9 @@ describe('TranslationRevalidateService', () => {
   const listNamespacesMock = vi.fn();
   const fetchMock = vi.fn();
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.stubGlobal('fetch', fetchMock);
-    vi.stubEnv('APP_BASE_URL', '');
-    vi.stubEnv('TRANSLATIONS_REVALIDATE_SECRET', '');
-    revalidateNamespaceMock.mockResolvedValue(undefined);
-    revalidateAllMock.mockResolvedValue(undefined);
-    listNamespacesMock.mockReturnValue([]);
-
+  async function createService(
+    config: Record<string, unknown> = {},
+  ): Promise<TranslationRevalidateService> {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TranslationRevalidateService,
@@ -31,17 +26,31 @@ describe('TranslationRevalidateService', () => {
             listNamespaces: listNamespacesMock,
           },
         },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({
+            APP_BASE_URL: '',
+            TRANSLATIONS_REVALIDATE_SECRET: '',
+            ...config,
+          }),
+        },
       ],
     }).compile();
 
-    service = module.get<TranslationRevalidateService>(
-      TranslationRevalidateService,
-    );
+    return module.get(TranslationRevalidateService);
+  }
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.stubGlobal('fetch', fetchMock);
+    revalidateNamespaceMock.mockResolvedValue(undefined);
+    revalidateAllMock.mockResolvedValue(undefined);
+    listNamespacesMock.mockReturnValue([]);
+    service = await createService();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
   });
 
   describe('revalidateAfterWrite', () => {
@@ -55,8 +64,10 @@ describe('TranslationRevalidateService', () => {
     });
 
     it('should POST front translation revalidate request when env is configured', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('TRANSLATIONS_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        TRANSLATIONS_REVALIDATE_SECRET: 'secret',
+      });
       fetchMock.mockResolvedValue({
         ok: true,
         status: 204,
@@ -97,8 +108,10 @@ describe('TranslationRevalidateService', () => {
     });
 
     it('should POST front revalidate for each cached namespace when env is configured', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('TRANSLATIONS_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        TRANSLATIONS_REVALIDATE_SECRET: 'secret',
+      });
       listNamespacesMock.mockReturnValue(['about', 'common']);
       fetchMock.mockResolvedValue({
         ok: true,

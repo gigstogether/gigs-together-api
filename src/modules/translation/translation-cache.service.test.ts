@@ -41,6 +41,7 @@ function withRequiredTelegramTranslations(
 describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
   let translationRepository: TranslationRepository;
+  let schedulerRegistry: SchedulerRegistry;
 
   const findAllActiveRecordsMock = vi.fn();
   const findActiveByNamespaceMock = vi.fn();
@@ -83,6 +84,7 @@ describe('TranslationCacheService', () => {
     translationRepository = module.get<TranslationRepository>(
       TRANSLATION_REPOSITORY,
     );
+    schedulerRegistry = module.get<SchedulerRegistry>(SchedulerRegistry);
   });
 
   afterEach(() => {
@@ -150,6 +152,39 @@ describe('TranslationCacheService', () => {
           locale: 'en',
         }),
       ).toThrow(MissingTranslationError);
+    });
+  });
+
+  describe('cache TTL configuration', () => {
+    it('should use configured positive safe integer as cache TTL', async () => {
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([]),
+      );
+      vi.useFakeTimers();
+      const configuredService = new TranslationCacheService(
+        translationRepository,
+        new ConfigService({ TRANSLATION_CACHE_TTL_MS: '25' }),
+        schedulerRegistry,
+      );
+
+      await configuredService.onModuleInit();
+      await vi.advanceTimersByTimeAsync(24);
+      expect(findAllActiveRecordsMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(findAllActiveRecordsMock).toHaveBeenCalledTimes(2);
+      configuredService.onModuleDestroy();
+    });
+
+    it('should throw when configured cache TTL is invalid', () => {
+      expect(
+        () =>
+          new TranslationCacheService(
+            translationRepository,
+            new ConfigService({ TRANSLATION_CACHE_TTL_MS: '0' }),
+            schedulerRegistry,
+          ),
+      ).toThrow('TRANSLATION_CACHE_TTL_MS must be a positive safe integer.');
     });
   });
 

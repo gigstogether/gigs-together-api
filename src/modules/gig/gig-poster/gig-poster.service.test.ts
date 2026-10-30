@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -26,6 +27,10 @@ describe('GigPosterService', () => {
         GigPosterService,
         { provide: BucketService, useValue: bucketService },
         { provide: RemoteImageService, useValue: remoteImageService },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ S3_POSTERS_PREFIX: 'gigs' }),
+        },
       ],
     }).compile();
 
@@ -104,6 +109,58 @@ describe('GigPosterService', () => {
       mimetype: 'image/png',
       key: 'gigs/2026/es/barcelona/gc-1',
     });
+  });
+
+  it('should normalize the configured bucket prefix', async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigPosterService,
+        { provide: BucketService, useValue: bucketService },
+        { provide: RemoteImageService, useValue: remoteImageService },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ S3_POSTERS_PREFIX: '/posters/' }),
+        },
+      ],
+    }).compile();
+    const service = module.get(GigPosterService);
+
+    await service.upload({
+      file: {
+        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        mimetype: 'image/png',
+      },
+      context: {
+        date: '2026-09-17',
+        country: 'ES',
+        city: 'Barcelona',
+        publicId: 'gc-1',
+      },
+    });
+
+    expect(bucketService.upload).toHaveBeenCalledWith({
+      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      mimetype: 'image/png',
+      key: 'posters/2026/es/barcelona/gc-1',
+    });
+  });
+
+  it('should reject an invalid configured bucket prefix', async () => {
+    const module = Test.createTestingModule({
+      providers: [
+        GigPosterService,
+        { provide: BucketService, useValue: bucketService },
+        { provide: RemoteImageService, useValue: remoteImageService },
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({ S3_POSTERS_PREFIX: '../posters' }),
+        },
+      ],
+    });
+
+    await expect(module.compile()).rejects.toThrow(
+      'S3_POSTERS_PREFIX is invalid.',
+    );
   });
 
   it('should return downloaded poster bytes after uploading an external URL', async () => {
