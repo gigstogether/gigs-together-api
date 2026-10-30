@@ -138,7 +138,7 @@ describe('GigCandidateApprovalService', () => {
     vi.clearAllMocks();
   });
 
-  function arrangeCalendarFailureAfterApproval(): void {
+  function arrangeCalendarFailureAfterApproval() {
     gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
       gig: approvedGig,
       gigCandidate: approvedGigCandidate,
@@ -148,6 +148,9 @@ describe('GigCandidateApprovalService', () => {
       new Error('Calendar is unavailable'),
     );
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    return vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
   }
 
   it('should reject an invalid expected version before opening a transaction', async () => {
@@ -200,6 +203,34 @@ describe('GigCandidateApprovalService', () => {
         gigPublicId: approvedGig.publicId,
       },
     });
+  });
+
+  it('should log structured alert context when Calendar event creation fails', async () => {
+    const loggerErrorSpy = arrangeCalendarFailureAfterApproval();
+
+    await service.approveGigCandidate({
+      gigCandidateId: approvedGigCandidate.id,
+      expectedVersion: 1,
+      approvedByUserId: 'admin-user-id',
+    });
+
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        note: 'Calendar event creation failed after gig candidate approval',
+        context: GigCandidateApprovalService.name,
+        meta: {
+          alertCode: AlertCode.GigCalendarEventCreationFailed,
+          severity: AlertSeverity.Warning,
+          operation: 'gigCandidateApproval',
+          gigCandidateId: approvedGigCandidate.id,
+          gigId: approvedGig.id,
+          gigPublicId: approvedGig.publicId,
+        },
+        message: 'Calendar is unavailable',
+      }),
+      expect.any(String),
+      GigCandidateApprovalService.name,
+    );
   });
 
   it('should preserve approval when Calendar event creation fails', async () => {

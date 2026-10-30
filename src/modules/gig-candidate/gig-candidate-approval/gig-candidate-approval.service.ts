@@ -1,8 +1,9 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
-import { formatErrorMessage } from '@shared/utils/logging';
+import { formatErrorMessage, logError } from '@shared/utils/logging';
 import { AlertCode, AlertSeverity } from '../../alerting/alert-delivery';
+import type { SendAlertParams } from '../../alerting/alert-delivery';
 import { AlertingService } from '../../alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
@@ -181,13 +182,7 @@ export class GigCandidateApprovalService {
         this.gigService.gigToCalendarPayload(gig),
       );
     } catch (e) {
-      this.logIntegrationFailure(
-        'addCalendarEvent',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
-      await this.alertingService.sendBestEffort({
+      const alert: SendAlertParams = {
         code: AlertCode.GigCalendarEventCreationFailed,
         severity: AlertSeverity.Warning,
         summary: 'Calendar event was not created for the gig.',
@@ -197,7 +192,18 @@ export class GigCandidateApprovalService {
           gigId: gig.id,
           gigPublicId: gig.publicId,
         },
+      };
+      logError(this.logger, {
+        error: e,
+        note: 'Calendar event creation failed after gig candidate approval',
+        context: GigCandidateApprovalService.name,
+        meta: {
+          alertCode: alert.code,
+          severity: alert.severity,
+          ...alert.attributes,
+        },
       });
+      await this.alertingService.sendBestEffort(alert);
     }
 
     await this.gigCandidateFeedbackService.sendBestEffort(gigCandidate, {
