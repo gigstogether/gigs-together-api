@@ -11,10 +11,11 @@ import { isRecord } from '@shared/utils/is-record';
 import type { GigFormInput } from '../../../gig/types/gig.types';
 import type { AiGigLookupParams } from '../../ai-lookup.types';
 import { buildV1FutureGigLookupPrompt } from '../../prompts/v1-gig-lookup-prompt';
+import type { AiGigLookupProvider } from '../ai-gig-lookup.provider';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai-gig-lookup.request';
 
 @Injectable()
-export class OpenAiGigLookupProvider {
+export class OpenAiGigLookupProvider implements AiGigLookupProvider {
   private readonly logger = new Logger(OpenAiGigLookupProvider.name);
   /** When true, logs non-sensitive lookup diagnostics (set AI_LOOKUP_DEBUG=1). */
   private readonly isLookupDebugEnabled: boolean;

@@ -3,11 +3,12 @@ import { Test } from '@nestjs/testing';
 
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { AiService } from './ai.service';
-import { OpenAiGigLookupProvider } from './providers/openai/openai-gig-lookup.provider';
+import { AI_GIG_LOOKUP_PROVIDER } from './providers/ai-gig-lookup.provider';
+import type { AiGigLookupProvider } from './providers/ai-gig-lookup.provider';
 
 describe('AiService', () => {
   const resolveGigOrNull = vi.fn<AiLookupDevStubService['resolveGigOrNull']>();
-  const lookupGig = vi.fn<OpenAiGigLookupProvider['lookupGig']>();
+  const lookupGig = vi.fn<AiGigLookupProvider['lookupGig']>();
   let service: AiService;
 
   beforeEach(async () => {
@@ -23,7 +24,7 @@ describe('AiService', () => {
           useValue: { resolveGigOrNull },
         },
         {
-          provide: OpenAiGigLookupProvider,
+          provide: AI_GIG_LOOKUP_PROVIDER,
           useValue: { lookupGig },
         },
       ],
@@ -31,7 +32,7 @@ describe('AiService', () => {
     service = module.get(AiService);
   });
 
-  it('should delegate a lookup to the OpenAI provider', async () => {
+  it('should delegate a lookup to the configured provider', async () => {
     const params = { name: 'Band', location: 'Barcelona' };
 
     await service.lookupGig(params);
@@ -39,7 +40,7 @@ describe('AiService', () => {
     expect(lookupGig).toHaveBeenCalledWith(params);
   });
 
-  it('should return a dev stub without calling the OpenAI provider', async () => {
+  it('should return a dev stub without calling the configured provider', async () => {
     const stubGig = {
       title: 'Stub Gig',
       date: '2099-12-01T19:00:00.000Z',

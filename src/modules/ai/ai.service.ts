@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import type { AiGigLookupParams } from './ai-lookup.types';
-import { OpenAiGigLookupProvider } from './providers/openai/openai-gig-lookup.provider';
+import { AI_GIG_LOOKUP_PROVIDER } from './providers/ai-gig-lookup.provider';
+import type { AiGigLookupProvider } from './providers/ai-gig-lookup.provider';
 import type { GigFormInput } from '../gig/types/gig.types';
 
 /** Stable facade used by application modules regardless of AI provider. */
@@ -10,7 +11,8 @@ import type { GigFormInput } from '../gig/types/gig.types';
 export class AiService {
   constructor(
     private readonly aiLookupDevStubService: AiLookupDevStubService,
-    private readonly openAiGigLookupProvider: OpenAiGigLookupProvider,
+    @Inject(AI_GIG_LOOKUP_PROVIDER)
+    private readonly gigLookupProvider: AiGigLookupProvider,
   ) {}
 
   lookupGig(params: AiGigLookupParams): Promise<GigFormInput | null> {
@@ -19,6 +21,6 @@ export class AiService {
       return Promise.resolve(stubGig);
     }
 
-    return this.openAiGigLookupProvider.lookupGig(params);
+    return this.gigLookupProvider.lookupGig(params);
   }
 }
