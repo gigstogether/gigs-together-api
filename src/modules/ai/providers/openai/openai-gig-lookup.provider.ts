@@ -9,13 +9,9 @@ import OpenAI from 'openai';
 import { getConfigBoolean, getConfigString } from '@shared/utils/env';
 import { isRecord } from '@shared/utils/is-record';
 import type { GigFormInput } from '../../../gig/types/gig.types';
+import type { AiGigLookupParams } from '../../ai-lookup.types';
 import { buildV1FutureGigLookupPrompt } from '../../prompts/v1-gig-lookup-prompt';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai-gig-lookup.request';
-
-export interface OpenAiGigLookupParams {
-  name: string;
-  location: string;
-}
 
 @Injectable()
 export class OpenAiGigLookupProvider {
@@ -34,7 +30,7 @@ export class OpenAiGigLookupProvider {
     this.baseUrl = getConfigString(configService, 'AI_URL');
   }
 
-  async lookupGig(params: OpenAiGigLookupParams): Promise<GigFormInput | null> {
+  async lookupGig(params: AiGigLookupParams): Promise<GigFormInput | null> {
     if (this.apiKey === undefined) {
       throw new InternalServerErrorException(
         'AI_API_KEY is not set on the server',

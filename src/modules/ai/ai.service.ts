@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
+import type { AiGigLookupParams } from './ai-lookup.types';
 import { OpenAiGigLookupProvider } from './providers/openai/openai-gig-lookup.provider';
 import type { GigFormInput } from '../gig/types/gig.types';
 
@@ -12,10 +13,7 @@ export class AiService {
     private readonly openAiGigLookupProvider: OpenAiGigLookupProvider,
   ) {}
 
-  lookupGigV1(params: {
-    name: string;
-    location: string;
-  }): Promise<GigFormInput | null> {
+  lookupGig(params: AiGigLookupParams): Promise<GigFormInput | null> {
     const stubGig = this.aiLookupDevStubService.resolveGigOrNull(params);
     if (stubGig) {
       return Promise.resolve(stubGig);

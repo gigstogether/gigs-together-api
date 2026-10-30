@@ -351,7 +351,7 @@ export class GigCandidateService {
   async lookupGigCandidateDraft(
     params: LookupGigCandidateDraftParams,
   ): Promise<GigCandidateDraftLookupResult | null> {
-    const gigDraft = await this.aiService.lookupGigV1({
+    const gigDraft = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
     });

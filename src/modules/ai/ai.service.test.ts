@@ -34,7 +34,7 @@ describe('AiService', () => {
   it('should delegate a lookup to the OpenAI provider', async () => {
     const params = { name: 'Band', location: 'Barcelona' };
 
-    await service.lookupGigV1(params);
+    await service.lookupGig(params);
 
     expect(lookupGig).toHaveBeenCalledWith(params);
   });
@@ -51,7 +51,7 @@ describe('AiService', () => {
     resolveGigOrNull.mockReturnValue(stubGig);
 
     await expect(
-      service.lookupGigV1({ name: 'Band', location: 'Barcelona' }),
+      service.lookupGig({ name: 'Band', location: 'Barcelona' }),
     ).resolves.toEqual(stubGig);
     expect(lookupGig).not.toHaveBeenCalled();
   });

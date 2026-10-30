@@ -100,7 +100,7 @@ describe('GigCandidateService', () => {
   };
 
   const aiServiceMock = {
-    lookupGigV1: vi.fn(),
+    lookupGig: vi.fn(),
   };
 
   const calendarServiceMock = { addEvent: vi.fn() };
@@ -1260,7 +1260,7 @@ describe('GigCandidateService', () => {
         venue: 'Venue',
         ticketsUrl: 'https://tickets.example/gig',
       };
-      aiServiceMock.lookupGigV1.mockResolvedValue(lookupResult);
+      aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
       await expect(
         service.lookupGigCandidateDraft({
@@ -1268,7 +1268,7 @@ describe('GigCandidateService', () => {
           location: 'Barcelona, ES',
         }),
       ).resolves.toEqual(lookupResult);
-      expect(aiServiceMock.lookupGigV1).toHaveBeenCalledWith({
+      expect(aiServiceMock.lookupGig).toHaveBeenCalledWith({
         name: 'Band',
         location: 'Barcelona, ES',
       });
