@@ -142,6 +142,25 @@ describe('TelegramService', () => {
     download: vi.fn(),
   };
 
+  function createMinimalTelegramServiceModule(): Promise<TestingModule> {
+    return Test.createTestingModule({
+      providers: [
+        TelegramService,
+        {
+          provide: TelegramBotClient,
+          useValue: {
+            sendMessage: vi.fn(),
+            sendPhoto: vi.fn(),
+            answerCallbackQuery: vi.fn(),
+          },
+        },
+        { provide: BucketService, useValue: mockBucketService },
+        { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
+        ConfigService,
+      ],
+    }).compile();
+  }
+
   beforeEach(async () => {
     vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
     vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
@@ -278,14 +297,18 @@ describe('TelegramService', () => {
       );
     });
 
-    it('should return configured Mini App short names', () => {
+    it('should return configured Mini App short names before module initialization', async () => {
+      const uninitializedModule = await createMinimalTelegramServiceModule();
+      const uninitializedService =
+        uninitializedModule.get<TelegramService>(TelegramService);
+
       expect({
-        suggest: service.getSuggestMiniAppShortName(),
-        admin: service.getAdminMiniAppShortName(),
+        suggest: uninitializedService.getSuggestMiniAppShortName(),
+        admin: uninitializedService.getAdminMiniAppShortName(),
       }).toEqual({ suggest: 'suggest', admin: 'admin' });
     });
 
-    it('should keep Mini App short names loaded during module initialization', () => {
+    it('should keep Mini App short names loaded during service construction', () => {
       vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'changed-suggest');
       vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'changed-admin');
 
@@ -303,64 +326,25 @@ describe('TelegramService', () => {
         envName: 'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME',
       },
     ])(
-      'should reject initialization when $envName is missing',
+      'should reject service construction when $envName is missing',
       async ({ envName }) => {
         vi.stubEnv(envName, '');
 
-        await expect(service.onModuleInit()).rejects.toThrowError(
+        await expect(createMinimalTelegramServiceModule()).rejects.toThrowError(
           `${envName} is not configured.`,
         );
       },
     );
 
-    it.each([
-      {
-        name: 'bot username',
-        getValue: (uninitializedService: TelegramService) =>
-          uninitializedService.getBotUsername(),
-        expectedMessage: 'Telegram bot username has not been initialized.',
-      },
-      {
-        name: 'admin Mini App short name',
-        getValue: (uninitializedService: TelegramService) =>
-          uninitializedService.getAdminMiniAppShortName(),
-        expectedMessage:
-          'TELEGRAM_ADMIN_MINI_APP_SHORT_NAME has not been initialized.',
-      },
-      {
-        name: 'suggest Mini App short name',
-        getValue: (uninitializedService: TelegramService) =>
-          uninitializedService.getSuggestMiniAppShortName(),
-        expectedMessage:
-          'TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME has not been initialized.',
-      },
-    ])(
-      'should reject access to $name before initialization',
-      async ({ getValue, expectedMessage }) => {
-        const uninitializedModule = await Test.createTestingModule({
-          providers: [
-            TelegramService,
-            {
-              provide: TelegramBotClient,
-              useValue: {
-                sendMessage: vi.fn(),
-                sendPhoto: vi.fn(),
-                answerCallbackQuery: vi.fn(),
-              },
-            },
-            { provide: BucketService, useValue: mockBucketService },
-            { provide: CACHE_MANAGER, useValue: mockChatLookupCache },
-            ConfigService,
-          ],
-        }).compile();
-        const uninitializedService =
-          uninitializedModule.get<TelegramService>(TelegramService);
+    it('should reject access to bot username before module initialization', async () => {
+      const uninitializedModule = await createMinimalTelegramServiceModule();
+      const uninitializedService =
+        uninitializedModule.get<TelegramService>(TelegramService);
 
-        expect(() => getValue(uninitializedService)).toThrowError(
-          expectedMessage,
-        );
-      },
-    );
+      expect(() => uninitializedService.getBotUsername()).toThrowError(
+        'Telegram bot username has not been initialized.',
+      );
+    });
   });
 
   describe('resolvePosterUrl', () => {
