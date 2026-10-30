@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
-import { getRequiredConfigString } from '../../../shared/utils/env';
+import { getRequiredConfigString } from '@shared/utils/env';
 
 export type TelegramWebhookRequest = Request & {
   telegramWebhook?:

@@ -1,4 +1,4 @@
-import type { Messenger } from '../../../shared/types/messenger.enum';
+import type { Messenger } from '@shared/types/messenger.enum';
 import type { UserRole } from './user-role.enum';
 
 export type UserStatus = 'active' | 'anonymized';

@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigService } from '../gig/gig.service';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { isGigCandidateSourceMessengerUser } from '../gig-candidate/gig-candidate-source.guards';
-import { PostType } from '../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';

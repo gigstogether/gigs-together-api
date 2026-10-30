@@ -1,6 +1,6 @@
-import type { Messenger } from '../../../shared/types/messenger.enum';
-import type { PostType } from '../../../shared/types/post-type.enum';
-import type { ProviderReference } from '../../../shared/types/provider-reference.types';
+import type { Messenger } from '@shared/types/messenger.enum';
+import type { PostType } from '@shared/types/post-type.enum';
+import type { ProviderReference } from '@shared/types/provider-reference.types';
 import type { GigSourceType } from './gig-source-type.enum';
 import type { GigSourceUserOriginType } from './gig-source-user-origin-type.enum';
 

@@ -5,7 +5,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getConfigString } from '../../../shared/utils/env';
+import { getConfigString } from '@shared/utils/env';
 
 interface BuildGigFeedPathParams {
   country: string;

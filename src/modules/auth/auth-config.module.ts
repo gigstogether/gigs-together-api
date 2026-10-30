@@ -5,7 +5,7 @@ import {
   getConfigPositiveSafeInteger,
   getConfigString,
   getRequiredConfigString,
-} from '../../shared/utils/env';
+} from '@shared/utils/env';
 
 /** Default access JWT TTL: 3_600 s = 1 h = 60 min. */
 const DEFAULT_ACCESS_EXPIRES_IN_SECONDS = 3_600;

@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { S3ClientConfig } from '@aws-sdk/client-s3';
-import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
+import { getConfigBoolean, getConfigString } from '@shared/utils/env';
 
 export interface BucketUploadInput {
   key: string;

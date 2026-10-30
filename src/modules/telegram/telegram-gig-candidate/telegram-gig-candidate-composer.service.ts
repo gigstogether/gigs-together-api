@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { PostType } from '../../../shared/types/post-type.enum';
-import { Messenger } from '../../../shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
 import type {
   GigCandidate,

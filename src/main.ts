@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import {
   getConfigPositiveSafeInteger,
   getConfigString,
-} from './shared/utils/env';
+} from '@shared/utils/env';
 
 const DEFAULT_PORT = 3000;
 

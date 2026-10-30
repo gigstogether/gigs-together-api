@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import { Messenger } from '../../../../shared/types/messenger.enum';
-import { PostType } from '../../../../shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { GigSourceType } from '../../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
 import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval.repository.mapper';

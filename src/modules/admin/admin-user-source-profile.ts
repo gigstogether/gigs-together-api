@@ -1,4 +1,4 @@
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import type { User } from '../user/types/user.types';
 import { UserRole } from '../user/types/user-role.enum';
 

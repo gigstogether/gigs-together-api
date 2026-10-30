@@ -1,6 +1,6 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getConfigString } from '../../../shared/utils/env';
+import { getConfigString } from '@shared/utils/env';
 import { GigPosterService } from '../../gig/gig-poster/gig-poster.service';
 import type {
   GigPosterFile,

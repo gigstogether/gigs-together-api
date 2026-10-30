@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';

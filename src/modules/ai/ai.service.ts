@@ -8,9 +8,9 @@ import OpenAI from 'openai';
 import { AiLookupDevStubService } from './ai-lookup-dev-stub.service';
 import { buildV1FutureGigLookupPrompt } from './prompts/v1-gig-lookup-prompt';
 import type { GigFormInput } from '../gig/types/gig.types';
-import { isRecord } from '../../shared/utils/is-record';
+import { isRecord } from '@shared/utils/is-record';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai/openai-gig-lookup.request';
-import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
+import { getConfigBoolean, getConfigString } from '@shared/utils/env';
 
 @Injectable()
 export class AiService {

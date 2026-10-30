@@ -18,7 +18,7 @@ import {
 } from './locale-cache.constants';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { getConfigPositiveSafeInteger } from '../../shared/utils/env';
+import { getConfigPositiveSafeInteger } from '@shared/utils/env';
 import { LOCALE_REPOSITORY } from './repositories/locale.repository';
 import type { LocaleRepository } from './repositories/locale.repository';
 

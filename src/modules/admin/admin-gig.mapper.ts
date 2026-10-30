@@ -1,4 +1,4 @@
-import { msToYmd } from '../../shared/utils/date-formatter';
+import { msToYmd } from '@shared/utils/date-formatter';
 import type {
   GigFormData,
   GigSourceForAdminView,

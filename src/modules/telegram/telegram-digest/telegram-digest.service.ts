@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { PlainGig } from '../../gig/types/gig.types';
-import { isRecord } from '../../../shared/utils/is-record';
-import { logError } from '../../../shared/utils/logging';
+import { isRecord } from '@shared/utils/is-record';
+import { logError } from '@shared/utils/logging';
 import { TelegramDigestComposerService } from './telegram-digest-composer.service';
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';

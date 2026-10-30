@@ -1,7 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import {
   AdminGigCandidateListSortBy,
@@ -12,7 +12,7 @@ import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { GigService } from '../gig/gig.service';
-import { PostType } from '../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';

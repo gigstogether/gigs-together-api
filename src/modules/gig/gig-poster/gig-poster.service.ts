@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BucketService } from '../../bucket/bucket.service';
-import { getConfigString } from '../../../shared/utils/env';
+import { getConfigString } from '@shared/utils/env';
 import {
   InvalidRemoteImageUrlError,
   RemoteImageContentTypeError,

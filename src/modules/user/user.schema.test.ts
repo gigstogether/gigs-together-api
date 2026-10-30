@@ -1,6 +1,6 @@
 import { model } from 'mongoose';
 
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { UserSchema } from './user.schema';
 
 const UserValidationModel = model('UserValidation', UserSchema);

@@ -1,11 +1,11 @@
 import { Types } from 'mongoose';
-import { Messenger } from '../../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import type {
   User,
   UserMessengerIdentity,
   UserStatus,
 } from '../types/user.types';
-import { isRecord } from '../../../shared/utils/is-record';
+import { isRecord } from '@shared/utils/is-record';
 import { UserRole } from '../types/user-role.enum';
 
 export interface UserLeanDocument {

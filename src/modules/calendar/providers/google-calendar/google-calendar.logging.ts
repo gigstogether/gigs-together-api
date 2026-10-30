@@ -1,5 +1,5 @@
 import type { LoggerService } from '@nestjs/common';
-import { logError } from '../../../../shared/utils/logging';
+import { logError } from '@shared/utils/logging';
 
 const GAXIOS_ERROR_SYMBOL = Symbol.for('gaxios-gaxios-error');
 const GOOGLE_CALENDAR_NOT_FOUND_HINT =

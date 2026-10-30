@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { GigSchema } from './gig.schema';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 

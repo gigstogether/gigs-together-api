@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { GigFormInput } from '../gig/types/gig.types';
-import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
+import { getConfigBoolean, getConfigString } from '@shared/utils/env';
 
 interface AiLookupParams {
   readonly name: string;
