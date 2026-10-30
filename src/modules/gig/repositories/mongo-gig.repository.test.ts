@@ -3,8 +3,8 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { Types } from 'mongoose';
 
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { Gig } from '../gig.schema';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import {

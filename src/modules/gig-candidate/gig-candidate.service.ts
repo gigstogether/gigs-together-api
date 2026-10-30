@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { User } from '../auth/types/user.types';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service.types';
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
@@ -33,7 +33,7 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from '../gig/types/gig-poster.types';
-import { PostType } from '../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type {
   AdminGigCandidateListSortBy,
@@ -351,7 +351,7 @@ export class GigCandidateService {
   async lookupGigCandidateDraft(
     params: LookupGigCandidateDraftParams,
   ): Promise<GigCandidateDraftLookupResult | null> {
-    const gigDraft = await this.aiService.lookupGigV1({
+    const gigDraft = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
     });

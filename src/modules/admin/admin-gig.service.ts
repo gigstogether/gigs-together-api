@@ -9,7 +9,7 @@ import type {
 } from './types/requests/v1-admin-gigs-list-response';
 import type { GigFormData, PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
-import { PostType } from '../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '../telegram/telegram-composer.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { UserService } from '../user/user.service';

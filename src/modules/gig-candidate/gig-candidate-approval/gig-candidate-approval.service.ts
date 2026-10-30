@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
-import { formatErrorMessage } from '../../../shared/utils/logging';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
+import { formatErrorMessage } from '@shared/utils/logging';
 import { CalendarService } from '../../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';

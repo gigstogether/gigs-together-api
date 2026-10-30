@@ -1,12 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { GigFormInput } from '../gig/types/gig.types';
-import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
-
-interface AiLookupParams {
-  readonly name: string;
-  readonly location: string;
-}
+import { getConfigBoolean, getConfigString } from '@shared/utils/env';
+import type { AiGigLookupParams } from './ai-lookup.types';
 
 @Injectable()
 export class AiLookupDevStubService {
@@ -36,7 +32,7 @@ export class AiLookupDevStubService {
     );
   }
 
-  resolveGigOrNull(params: AiLookupParams): GigFormInput | null {
+  resolveGigOrNull(params: AiGigLookupParams): GigFormInput | null {
     if (!this.shouldUseStub(params)) {
       return null;
     }
@@ -52,7 +48,7 @@ export class AiLookupDevStubService {
     return this.nodeEnv !== 'prod' && this.nodeEnv !== 'production';
   }
 
-  private shouldUseStub(params: AiLookupParams): boolean {
+  private shouldUseStub(params: AiGigLookupParams): boolean {
     if (!this.isNonProductionEnvironment()) {
       return false;
     }
@@ -69,7 +65,7 @@ export class AiLookupDevStubService {
     return haystack.includes(this.stubKeyword);
   }
 
-  private buildStubGig(params: AiLookupParams): GigFormInput {
+  private buildStubGig(params: AiGigLookupParams): GigFormInput {
     const now = new Date();
     const futureDate = new Date(
       Date.UTC(

@@ -11,7 +11,9 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer correctness and maintainability over implementation speed.
 - Prefer explicit, strict typing. Keep types narrow and avoid widening to `string | number | ...` when the domain is known.
 - Comments must be in English using the Latin alphabet only. Do not write comments in Cyrillic.
-- Do not remove existing comments during refactoring unless they are factually outdated or the documented behavior is intentionally removed. When moving code, move its relevant comments with it. If a comment becomes inaccurate, update it instead of silently deleting it.
+- Do not remove existing comments during any code change unless they are factually outdated or the documented behavior, rationale, constraint, or context no longer exists. This applies to feature work, bug fixes, cleanup, refactoring, and all other code changes.
+- When changing, moving, inlining, or deleting code, treat its comments as part of that code. Preserve their underlying rationale, constraints, third-party behavior, safety notes, and compatibility context near the new owner. Changing or removing a helper, symbol, or implementation is not by itself a reason to remove its comments. If a comment becomes inaccurate but its underlying information remains relevant, rewrite it instead of silently deleting it.
+- Before completing any code change, inspect the diff specifically for removed comments and TODOs. Account for every removal: move or rewrite the comment near the replacement code, or verify that the documented behavior or rationale no longer exists. When uncertain, preserve and update the comment.
 - Do not remove `TODO` comments (for example `// TODO: ...`) unless you are explicitly completing that TODO as part of the current task. Leave unrelated TODOs untouched.
 - Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and specifically matches the task at hand; a generic TODO may refer to different work.
 - For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with human-readable equivalents (at least days or hours, and minutes when useful).
@@ -36,6 +38,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## Execution Rules
 
+- Do not create Git commits unless the user explicitly asks for a commit. A request to implement, finish, or validate changes does not authorize committing them.
 - Do not run `build`, `dev`, or start watchers or servers unless the user explicitly asks.
 - If command execution is needed to validate a change, ask first instead of running it proactively.
 - After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.

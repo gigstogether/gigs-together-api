@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model, QueryFilter, UpdateQuery } from 'mongoose';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { PostType } from '../../../shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { Gig } from '../gig.schema';
 import type { GigDocument } from '../gig.schema';
 import {

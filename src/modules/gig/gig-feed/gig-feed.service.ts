@@ -17,7 +17,7 @@ import type {
 import { GigService } from '../gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { CalendarService } from '../../calendar/calendar.service';
-import { PostType } from '../../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 
 export interface GigVisibleInclusiveMsRangeParams {
   fromMs: number;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { PlainGig } from '../../gig/types/gig.types';
-import { PostType } from '../../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from '../telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { TELEGRAM_DATE_LOCALE } from '../telegram.constants';

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getRequiredConfigString } from '../../shared/utils/env';
+import { getRequiredConfigString } from '@shared/utils/env';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
@@ -9,7 +9,7 @@ import { GigService } from '../gig/gig.service';
 import { AuthorizationService } from '../auth/authorization.service';
 import { UserService } from '../user/user.service';
 import type { User } from '../user/types/user.types';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import {
   CallbackScope,
   GigCandidateCallbackAction,

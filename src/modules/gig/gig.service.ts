@@ -15,7 +15,7 @@ import type {
   GigPoster,
   PlainGig,
 } from './types/gig.types';
-import { getConfigBoolean } from '../../shared/utils/env';
+import { getConfigBoolean } from '@shared/utils/env';
 import type { CalendarEvent } from '../calendar/calendar.types';
 import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
@@ -24,8 +24,8 @@ import type {
   UpdateGigModerationPostPayload,
 } from '../telegram/telegram-gig/telegram-gig.service.types';
 import { BucketService } from '../bucket/bucket.service';
-import { PostType } from '../../shared/types/post-type.enum';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import {
   AdminGigListSortBy,
   AdminGigListSortOrder,

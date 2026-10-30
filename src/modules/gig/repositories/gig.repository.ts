@@ -1,4 +1,4 @@
-import type { PostType } from '../../../shared/types/post-type.enum';
+import type { PostType } from '@shared/types/post-type.enum';
 import type {
   AdminGigListSortBy,
   AdminGigListSortOrder,

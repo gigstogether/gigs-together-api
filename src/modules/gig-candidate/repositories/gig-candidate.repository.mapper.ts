@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { isRecord } from '../../../shared/utils/is-record';
+import { Messenger } from '@shared/types/messenger.enum';
+import { isRecord } from '@shared/utils/is-record';
 import type { GigData } from '../../gig/types/gig.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import type { GigCandidateStoredSource } from '../gig-candidate.schema';

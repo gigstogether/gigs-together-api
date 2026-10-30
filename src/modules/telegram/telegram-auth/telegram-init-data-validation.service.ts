@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import {
   getConfigPositiveSafeInteger,
   getRequiredConfigString,
-} from '../../../shared/utils/env';
+} from '@shared/utils/env';
 import { TelegramInitDataAuthExpiredError } from './telegram-init-data.errors';
 
 // 86_400 seconds = 24 hours = 1_440 minutes.

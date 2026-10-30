@@ -5,8 +5,8 @@ import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigData } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { PostType } from '../../shared/types/post-type.enum';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type {
   GigCandidateSourceIdentifiedUser,

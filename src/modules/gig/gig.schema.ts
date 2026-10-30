@@ -1,13 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import type {
   GigSourceIdentifiedUser,
   GigSourceMessengerUser,
   GigSourceProvider,
 } from './types/gig.types';
-import { PostType } from '../../shared/types/post-type.enum';
-import { isRecord } from '../../shared/utils/is-record';
+import { PostType } from '@shared/types/post-type.enum';
+import { isRecord } from '@shared/utils/is-record';
 import { GIG_TITLE_MAX_LENGTH } from './gig.constants';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';

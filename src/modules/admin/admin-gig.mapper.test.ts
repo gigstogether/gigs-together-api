@@ -1,7 +1,7 @@
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { mapGigToFormData } from './admin-gig.mapper';
 
 describe('mapGigToFormData', () => {

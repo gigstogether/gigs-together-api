@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
-import { logError } from '../shared/utils/logging';
+import { logError } from '@shared/utils/logging';
 
 function getClientIp(request: Request): string {
   const forwarded = request.headers['x-forwarded-for'];

@@ -33,6 +33,9 @@ export default defineConfig({
       jsc: swcJscForNestTests,
     }),
   ],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     globals: true,
     environment: 'node',

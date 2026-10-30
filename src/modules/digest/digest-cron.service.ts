@@ -5,7 +5,7 @@ import {
   DIGEST_POST_CRON_EXPRESSION,
   DIGEST_POST_TIMEZONE,
 } from './digest.service';
-import { logError } from '../../shared/utils/logging';
+import { logError } from '@shared/utils/logging';
 
 @Injectable()
 export class DigestCronService implements OnModuleInit {

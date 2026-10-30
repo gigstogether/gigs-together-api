@@ -18,7 +18,7 @@ import type {
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import type { TGUser } from './types/user.types';
-import { formatErrorMessage } from '../../shared/utils/logging';
+import { formatErrorMessage } from '@shared/utils/logging';
 import { RemoteImageService } from '../remote-image/remote-image.service';
 import type { DownloadedRemoteImage } from '../remote-image/remote-image.service';
 

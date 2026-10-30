@@ -6,8 +6,8 @@ import type {
   GigSourceMessengerUser,
   PlainGig,
 } from '../types/gig.types';
-import { Messenger } from '../../../shared/types/messenger.enum';
-import { isRecord } from '../../../shared/utils/is-record';
+import { Messenger } from '@shared/types/messenger.enum';
+import { isRecord } from '@shared/utils/is-record';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import type { GigStoredSource } from '../gig.schema';
