@@ -1,19 +1,28 @@
 import type { LoggerService } from '@nestjs/common';
-import { logError, toShortJson } from '../../../../shared/utils/logging';
-import { isRecord } from '../../../../shared/utils/is-record';
+import { logError } from '../../../../shared/utils/logging';
 
 const GAXIOS_ERROR_SYMBOL = Symbol.for('gaxios-gaxios-error');
+const GOOGLE_CALENDAR_NOT_FOUND_HINT =
+  'Calendar does not exist or the service account has no access';
 
 interface GaxiosErrorLike extends Error {
   code?: unknown;
-  config?: unknown;
-  response?: unknown;
   status?: unknown;
 }
 
 interface GoogleCalendarErrorLogParams {
   error: unknown;
-  note: string;
+  event: string;
+  operation: string;
+}
+
+interface GoogleCalendarErrorLogEntry {
+  event: string;
+  operation: string;
+  message: string;
+  status?: number;
+  code?: string | number;
+  hint?: string;
 }
 
 function isGaxiosError(e: unknown): e is GaxiosErrorLike {
@@ -28,30 +37,28 @@ export function logGoogleCalendarError(
   logger: Pick<LoggerService, 'error'>,
   params: GoogleCalendarErrorLogParams,
 ): void {
-  const { error, note } = params;
+  const { error, event, operation } = params;
   if (!isGaxiosError(error)) {
-    logError(logger, { error, note });
+    logError(logger, { error, note: event });
     return;
   }
 
-  const config = isRecord(error.config) ? error.config : undefined;
-  const response = isRecord(error.response) ? error.response : undefined;
-  logger.error({
-    note,
-    upstream: {
-      client: 'gaxios',
-      code: isStringOrNumber(error.code) ? error.code : null,
-      status: typeof error.status === 'number' ? error.status : null,
-      message: error.message,
-      request: {
-        method: typeof config?.method === 'string' ? config.method : undefined,
-        timeout:
-          typeof config?.timeout === 'number' ? config.timeout : undefined,
-      },
-      response: {
-        data: toShortJson(response?.data ?? null),
-      },
-    },
-    timestamp: new Date().toISOString(),
-  });
+  const logEntry: GoogleCalendarErrorLogEntry = {
+    event,
+    operation,
+    message: error.message,
+  };
+  if (typeof error.status === 'number') {
+    logEntry.status = error.status;
+  }
+  const hasDuplicateNumericCode =
+    typeof error.code === 'number' && error.code === error.status;
+  if (isStringOrNumber(error.code) && !hasDuplicateNumericCode) {
+    logEntry.code = error.code;
+  }
+  if (error.status === 404) {
+    logEntry.hint = GOOGLE_CALENDAR_NOT_FOUND_HINT;
+  }
+
+  logger.error(logEntry);
 }

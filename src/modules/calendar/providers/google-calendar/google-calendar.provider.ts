@@ -221,7 +221,6 @@ export class GoogleCalendarProvider
       this.logger.error({
         note: 'Google Calendar integration is unavailable; application will continue running',
         reason: this.integration.reason,
-        timestamp: new Date().toISOString(),
       });
       return;
     }
@@ -234,7 +233,8 @@ export class GoogleCalendarProvider
     } catch (e) {
       logGoogleCalendarError(this.logger, {
         error: e,
-        note: 'Google Calendar connection check failed; application will continue running',
+        event: 'google_calendar_connection_check_failed',
+        operation: 'calendars.get',
       });
     }
   }
@@ -266,7 +266,8 @@ export class GoogleCalendarProvider
     } catch (e) {
       logGoogleCalendarError(this.logger, {
         error: e,
-        note: 'Google Calendar event creation failed',
+        event: 'google_calendar_event_creation_failed',
+        operation: 'events.insert',
       });
       throw new Error('Failed to create calendar event.');
     }

@@ -123,7 +123,7 @@ describe('GoogleCalendarProvider', () => {
     });
   });
 
-  it('should log a structured Gaxios error without a stack trace', async () => {
+  it('should log a concise structured Gaxios error', async () => {
     const connectionFailure = createGaxiosError();
     const loggerErrorSpy = vi
       .spyOn(Logger.prototype, 'error')
@@ -133,17 +133,13 @@ describe('GoogleCalendarProvider', () => {
     provider.onApplicationBootstrap();
 
     await vi.waitFor(() => {
-      expect(loggerErrorSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          note: 'Google Calendar connection check failed; application will continue running',
-          upstream: expect.objectContaining({
-            client: 'gaxios',
-            code: 404,
-            status: 404,
-            message: 'Not Found',
-          }),
-        }),
-      );
+      expect(loggerErrorSpy).toHaveBeenCalledWith({
+        event: 'google_calendar_connection_check_failed',
+        operation: 'calendars.get',
+        status: 404,
+        message: 'Not Found',
+        hint: 'Calendar does not exist or the service account has no access',
+      });
     });
   });
 
