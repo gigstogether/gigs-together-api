@@ -1,0 +1,120 @@
+import { ConfigService } from '@nestjs/config';
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { TelegramService } from '../telegram/telegram.service';
+import { AlertCode, AlertSeverity } from './alert-delivery';
+import type { DeliverAlertParams } from './alert-delivery';
+import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service';
+
+describe('TelegramAlertDeliveryService', () => {
+  let service: TelegramAlertDeliveryService;
+
+  const sendMessageMock = vi.fn<TelegramService['sendMessage']>();
+  const params: DeliverAlertParams = {
+    code: AlertCode.GigCandidateApprovalCalendarSyncFailed,
+    severity: AlertSeverity.Warning,
+    summary: 'Calendar synchronization failed.',
+    occurredAt: new Date('2026-10-30T12:30:00.000Z'),
+    attributes: {
+      gigId: 'gig-id',
+      attempt: 2,
+      isRetryable: true,
+    },
+  };
+
+  beforeEach(async () => {
+    vi.stubEnv('ALERTS_TELEGRAM_CHANNEL_ID', '-1001234567890');
+    sendMessageMock.mockResolvedValue({
+      message_id: 42,
+      chat: {
+        id: -1001234567890,
+        type: 'channel',
+      },
+      date: Date.parse('2026-10-30T12:30:00.000Z') / 1_000,
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TelegramAlertDeliveryService,
+        {
+          provide: TelegramService,
+          useValue: {
+            sendMessage: sendMessageMock,
+          },
+        },
+        ConfigService,
+      ],
+    }).compile();
+
+    service = module.get<TelegramAlertDeliveryService>(
+      TelegramAlertDeliveryService,
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it('should send a warning alert to the configured Telegram channel', async () => {
+    await service.send(params);
+
+    expect(sendMessageMock).toHaveBeenCalledWith({
+      chat_id: '-1001234567890',
+      text: [
+        '⚠️ WARNING',
+        '',
+        'Calendar synchronization failed.',
+        '',
+        'Code: gigCandidateApprovalCalendarSyncFailed',
+        'Time: 2026-10-30T12:30:00.000Z',
+        'attempt: 2',
+        'gigId: gig-id',
+        'isRetryable: true',
+      ].join('\n'),
+    });
+  });
+
+  it('should send a critical alert with a critical header', async () => {
+    await service.send({
+      ...params,
+      severity: AlertSeverity.Critical,
+      attributes: undefined,
+    });
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringMatching(/^🔴 CRITICAL\n/),
+      }),
+    );
+  });
+
+  it('should propagate a Telegram delivery failure', async () => {
+    const deliveryFailure = new Error('Telegram is unavailable');
+    sendMessageMock.mockRejectedValueOnce(deliveryFailure);
+
+    await expect(service.send(params)).rejects.toBe(deliveryFailure);
+  });
+
+  it('should reject missing Telegram alert channel configuration', async () => {
+    vi.stubEnv('ALERTS_TELEGRAM_CHANNEL_ID', '');
+
+    const modulePromise = Test.createTestingModule({
+      providers: [
+        TelegramAlertDeliveryService,
+        {
+          provide: TelegramService,
+          useValue: {
+            sendMessage: sendMessageMock,
+          },
+        },
+        ConfigService,
+      ],
+    }).compile();
+
+    await expect(modulePromise).rejects.toThrow(
+      'ALERTS_TELEGRAM_CHANNEL_ID is not configured.',
+    );
+  });
+});

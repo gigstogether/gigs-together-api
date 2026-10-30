@@ -173,6 +173,23 @@ Main files:
 
 ### Integration and infrastructure modules
 
+#### `AlertingModule`
+
+Responsibilities:
+
+- exposes the provider-neutral `AlertingService` application boundary
+- models actionable internal alerts with stable codes, severity, summaries, and safe attributes
+- delegates delivery through the `ALERT_DELIVERY` port
+- uses `TelegramAlertDeliveryService` as the initial delivery adapter
+- logs best-effort delivery failures without changing the originating application operation
+
+Main files:
+
+- `src/modules/alerting/alerting.module.ts`
+- `src/modules/alerting/alerting.service.ts`
+- `src/modules/alerting/alert-delivery.ts`
+- `src/modules/alerting/telegram-alert-delivery.service.ts`
+
 #### `TelegramModule`
 
 Responsibilities:
