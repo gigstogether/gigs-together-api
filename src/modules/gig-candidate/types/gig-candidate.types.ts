@@ -1,8 +1,8 @@
 import type { GigData } from '../../gig/types/gig.types';
-import type { PostType } from '../../../shared/types/post-type.enum';
-import type { Messenger } from '../../../shared/types/messenger.enum';
+import type { PostType } from '@shared/types/post-type.enum';
+import type { Messenger } from '@shared/types/messenger.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
-import type { ProviderReference } from '../../../shared/types/provider-reference.types';
+import type { ProviderReference } from '@shared/types/provider-reference.types';
 import type { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import type { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 

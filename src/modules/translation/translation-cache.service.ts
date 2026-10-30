@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
-import { getConfigPositiveSafeInteger } from '../../shared/utils/env';
+import { getConfigPositiveSafeInteger } from '@shared/utils/env';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,

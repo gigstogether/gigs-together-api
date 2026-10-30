@@ -1,13 +1,12 @@
-export type GigLookupPromptMode = 'plain-json' | 'structured';
-
-export function buildV1FutureGigLookupPrompt(params: {
+export interface GigLookupPromptParams {
   name: string;
   place: string;
-  mode?: GigLookupPromptMode;
-}): string {
-  const { name, place } = params;
-  const mode: GigLookupPromptMode = params.mode ?? 'plain-json';
+}
 
+export function buildV1FutureGigLookupPrompt(
+  params: GigLookupPromptParams,
+): string {
+  const { name, place } = params;
   const sharedRules = [
     '## Rules',
     '- Fill fields from what you find. Use "" for any value you cannot support.',
@@ -25,51 +24,18 @@ export function buildV1FutureGigLookupPrompt(params: {
     '- Do not make up specific dates, venue names, or URLs. Use "" when unsure rather than inventing.',
   ];
 
-  if (mode === 'structured') {
-    return [
-      'You are an assistant helping to create a gig draft for an app.',
-      'Your task: find gig details for the query using current web search results.',
-      'Prefer information that your search sources support. You may normalize artist/title spelling and obvious name variants when the query clearly refers to a known act.',
-      '',
-      'Set `isFound` to true only if you find a plausible FUTURE concert that matches the name and place.',
-      'Set `isFound` to false if there is no upcoming match, you are unsure, or you only find past dates. When `isFound` is false, set every string field to "".',
-      'When `isFound` is true, fill the object as completely as you can; use "" for unknown strings (never omit required keys).',
-      '',
-      '## Input',
-      `Name: ${name}`,
-      `Place: ${place}`,
-      '',
-      ...sharedRules,
-    ].join('\n');
-  }
-
-  // Prompt for extracting a future gig draft (plain JSON body: object or null).
-  // Deprecated
   return [
     'You are an assistant helping to create a gig draft for an app.',
-    'Your task: find gig details for the query using current information (e.g. web search when available).',
-    'Prefer information that your tools or sources support. You may normalize artist/title spelling and obvious name variants when the query clearly refers to a known act.',
-    'If you find a plausible FUTURE concert that matches the query, return a JSON object even when some fields are unknown (use "" for missing strings).',
-    'Return JSON null only when you are confident there is no upcoming concert that matches, or you only find past dates.',
+    'Your task: find gig details for the query using current web search results.',
+    'Prefer information that your search sources support. You may normalize artist/title spelling and obvious name variants when the query clearly refers to a known act.',
+    '',
+    'Set `isFound` to true only if you find a plausible FUTURE concert that matches the name and place.',
+    'Set `isFound` to false if there is no upcoming match, you are unsure, or you only find past dates. When `isFound` is false, set every string field to "".',
+    'When `isFound` is true, fill the object as completely as you can; use "" for unknown strings (never omit required keys).',
     '',
     '## Input',
     `Name: ${name}`,
     `Place: ${place}`,
-    '',
-    '## Output format (STRICT)',
-    '- Return ONLY valid JSON. No markdown, no code fences, no extra text.',
-    '- If there is no matching FUTURE concert, return the JSON literal: null',
-    '- Otherwise, return a single JSON object that matches this schema exactly:',
-    '{',
-    '  "title": string;',
-    '  "date": string;',
-    '  "endDate"?: string;',
-    '  "city": string;',
-    '  "country": string;',
-    '  "venue": string;',
-    '  "ticketsUrl": string;',
-    '  "posterUrl"?: string;',
-    '}',
     '',
     ...sharedRules,
   ].join('\n');

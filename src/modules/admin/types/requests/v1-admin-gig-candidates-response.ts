@@ -1,5 +1,5 @@
 import type { GigCandidateStatus } from '../../../gig-candidate/types/gig-candidate-status.enum';
-import type { Messenger } from '../../../../shared/types/messenger.enum';
+import type { Messenger } from '@shared/types/messenger.enum';
 import type { GigSourceType } from '../../../gig/types/gig-source-type.enum';
 import type { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
 

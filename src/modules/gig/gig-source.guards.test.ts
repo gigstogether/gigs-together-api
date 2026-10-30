@@ -1,4 +1,4 @@
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { isGigSourceMessengerUser } from './gig-source.guards';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Messenger } from '../../shared/types/messenger.enum';
-import { getConfigBoolean } from '../../shared/utils/env';
+import { Messenger } from '@shared/types/messenger.enum';
+import { getConfigBoolean } from '@shared/utils/env';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';

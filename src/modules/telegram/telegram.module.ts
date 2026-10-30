@@ -24,7 +24,7 @@ import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-e
 import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
-import { getRequiredConfigString } from '../../shared/utils/env';
+import { getRequiredConfigString } from '@shared/utils/env';
 
 @Module({
   imports: [

@@ -6,10 +6,10 @@ import { Test } from '@nestjs/testing';
 import { GigPosterService } from '../gig/gig-poster/gig-poster.service';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
-import { PostType } from '../../shared/types/post-type.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
-import { Messenger } from '../../shared/types/messenger.enum';
+import { Messenger } from '@shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
@@ -100,7 +100,7 @@ describe('GigCandidateService', () => {
   };
 
   const aiServiceMock = {
-    lookupGigV1: vi.fn(),
+    lookupGig: vi.fn(),
   };
 
   const calendarServiceMock = { addEvent: vi.fn() };
@@ -1260,7 +1260,7 @@ describe('GigCandidateService', () => {
         venue: 'Venue',
         ticketsUrl: 'https://tickets.example/gig',
       };
-      aiServiceMock.lookupGigV1.mockResolvedValue(lookupResult);
+      aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
       await expect(
         service.lookupGigCandidateDraft({
@@ -1268,7 +1268,7 @@ describe('GigCandidateService', () => {
           location: 'Barcelona, ES',
         }),
       ).resolves.toEqual(lookupResult);
-      expect(aiServiceMock.lookupGigV1).toHaveBeenCalledWith({
+      expect(aiServiceMock.lookupGig).toHaveBeenCalledWith({
         name: 'Band',
         location: 'Barcelona, ES',
       });

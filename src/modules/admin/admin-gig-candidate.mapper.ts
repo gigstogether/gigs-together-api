@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 
-import { msToYmd } from '../../shared/utils/date-formatter';
+import { msToYmd } from '@shared/utils/date-formatter';
 import { ADMIN_GIG_CANDIDATE_LIST_DEFAULT_LIMIT } from '../gig-candidate/gig-candidate-list-sort';
 import type {
   CreateAdminGigCandidateParams,

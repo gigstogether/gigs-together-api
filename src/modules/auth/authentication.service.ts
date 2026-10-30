@@ -5,7 +5,7 @@ import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
 } from './types/access-token-identity.types';
-import { isRecord } from '../../shared/utils/is-record';
+import { isRecord } from '@shared/utils/is-record';
 import { AUTH_CONFIG } from './auth-config.module';
 import type { AuthConfig } from './auth-config.module';
 

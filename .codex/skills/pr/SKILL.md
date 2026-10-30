@@ -18,7 +18,7 @@ description: Create or reuse GitHub pull requests for the Gigs Together backend 
   - For connector failures, suggest connecting or reconnecting GitHub and granting access to the target repository plus pull-request write permission.
   - Ask the user to retry the skill after the applicable access issue is resolved.
 
-1. Read [PULL_REQUEST_RULES.md](../../../PULL_REQUEST_RULES.md) completely and follow it as the authoritative workflow policy.
+1. Read [PULL_REQUEST_RULES.md](../../../PULL_REQUEST_RULES.md) completely and follow it as the authoritative workflow policy. Resolve this link relative to this `SKILL.md`; it points to `PULL_REQUEST_RULES.md` in the repository root. When the shell is already in the repository root, read `PULL_REQUEST_RULES.md` directly without prepending `..`.
 2. Read the applicable `AGENTS.md` in every repository included in the request.
 3. Apply repository, branch, and other options supplied by the user; otherwise use the defaults from the shared rules.
 4. Inspect the relevant remote diffs and create or reuse the required pull requests through an allowed GitHub access channel.

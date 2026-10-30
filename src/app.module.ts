@@ -19,7 +19,7 @@ import { DigestModule } from './modules/digest/digest.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { GigCandidateModule } from './modules/gig-candidate/gig-candidate.module';
 import { GlobalExceptionFilter } from './filters/global-exception.filter';
-import { getRequiredConfigString } from './shared/utils/env';
+import { getRequiredConfigString } from '@shared/utils/env';
 
 // NODE_ENV must be read before ConfigModule initialization to select the env file.
 const nodeEnv = (process.env.NODE_ENV ?? 'dev').trim();

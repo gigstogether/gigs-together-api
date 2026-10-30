@@ -1,6 +1,6 @@
 import { isAxiosError } from 'axios';
-import { isRecord } from '../../../shared/utils/is-record';
-import { formatErrorMessage } from '../../../shared/utils/logging';
+import { isRecord } from '@shared/utils/is-record';
+import { formatErrorMessage } from '@shared/utils/logging';
 
 const TELEGRAM_CHAT_NOT_FOUND_DESCRIPTION = 'Bad Request: chat not found';
 

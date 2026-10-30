@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
-import { Messenger } from '../../shared/types/messenger.enum';
-import { PostType } from '../../shared/types/post-type.enum';
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';

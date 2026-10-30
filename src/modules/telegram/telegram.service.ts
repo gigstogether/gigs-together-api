@@ -3,11 +3,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Cache } from 'cache-manager';
-import {
-  getConfigString,
-  getRequiredConfigString,
-} from '../../shared/utils/env';
-import { logError } from '../../shared/utils/logging';
+import { getConfigString, getRequiredConfigString } from '@shared/utils/env';
+import { logError } from '@shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
 import { TelegramBotClient } from './telegram-bot.client';

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { getConfigString } from '../../shared/utils/env';
+import { getConfigString } from '@shared/utils/env';
 import { TranslationCacheService } from './translation-cache.service';
 
 export interface RevalidateTranslationAfterWriteParams {
