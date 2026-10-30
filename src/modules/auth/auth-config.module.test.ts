@@ -12,6 +12,7 @@ function createConfigService(
     JWT_REFRESH_SECRET: REFRESH_SECRET,
     JWT_ACCESS_EXPIRES_IN_SEC: '',
     JWT_REFRESH_EXPIRES_IN_SEC: '',
+    ADMIN_CACHE_TTL_MS: '',
     ACCESS_TOKEN_COOKIE_NAME: '',
     ACCESS_TOKEN_COOKIE_SECURE: '',
     ACCESS_TOKEN_COOKIE_SAMESITE: '',
@@ -39,6 +40,7 @@ describe('createAuthConfig', () => {
       accessExpiresInSeconds: 3_600,
       refreshSecret: REFRESH_SECRET,
       refreshExpiresInSeconds: 2_592_000,
+      adminCacheTtlMs: 3_600_000,
       accessCookie: {
         name: 'gt_access',
         secure: false,
@@ -60,6 +62,7 @@ describe('createAuthConfig', () => {
         NODE_ENV: 'prod',
         JWT_ACCESS_EXPIRES_IN_SEC: '7200',
         JWT_REFRESH_EXPIRES_IN_SEC: '86400',
+        ADMIN_CACHE_TTL_MS: '1800000',
         ACCESS_TOKEN_COOKIE_NAME: 'custom_access',
         ACCESS_TOKEN_COOKIE_SECURE: 'false',
         ACCESS_TOKEN_COOKIE_SAMESITE: 'strict',
@@ -74,6 +77,7 @@ describe('createAuthConfig', () => {
     expect(config).toMatchObject({
       accessExpiresInSeconds: 7_200,
       refreshExpiresInSeconds: 86_400,
+      adminCacheTtlMs: 1_800_000,
       accessCookie: {
         name: 'custom_access',
         secure: false,
@@ -113,6 +117,7 @@ describe('createAuthConfig', () => {
   it.each([
     ['JWT_ACCESS_EXPIRES_IN_SEC', '0'],
     ['JWT_REFRESH_EXPIRES_IN_SEC', '1.5'],
+    ['ADMIN_CACHE_TTL_MS', 'invalid'],
   ])('should throw when integer value %s is invalid', (variableName, value) => {
     expect(() =>
       createAuthConfig(createConfigService({ [variableName]: value })),

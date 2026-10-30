@@ -13,6 +13,9 @@ const DEFAULT_ACCESS_EXPIRES_IN_SECONDS = 3_600;
 /** Default refresh JWT TTL: 2_592_000 s = 30 d = 720 h. */
 const DEFAULT_REFRESH_EXPIRES_IN_SECONDS = 2_592_000;
 
+/** Default admin cache TTL: 3_600_000 ms = 1 h = 60 min. */
+const DEFAULT_ADMIN_CACHE_TTL_MS = 3_600_000;
+
 type AuthCookieSameSite = 'lax' | 'strict' | 'none';
 type AuthCookieKind = 'access' | 'refresh';
 
@@ -29,6 +32,7 @@ export interface AuthConfig {
   readonly accessExpiresInSeconds: number;
   readonly refreshSecret: string;
   readonly refreshExpiresInSeconds: number;
+  readonly adminCacheTtlMs: number;
   readonly accessCookie: AuthCookieConfig;
   readonly refreshCookie: AuthCookieConfig;
 }
@@ -85,6 +89,9 @@ export function createAuthConfig(configService: ConfigService): AuthConfig {
         configService,
         'JWT_REFRESH_EXPIRES_IN_SEC',
       ) ?? DEFAULT_REFRESH_EXPIRES_IN_SECONDS,
+    adminCacheTtlMs:
+      getConfigPositiveSafeInteger(configService, 'ADMIN_CACHE_TTL_MS') ??
+      DEFAULT_ADMIN_CACHE_TTL_MS,
     accessCookie: createCookieConfig(configService, 'access', isProduction),
     refreshCookie: createCookieConfig(configService, 'refresh', isProduction),
   };
