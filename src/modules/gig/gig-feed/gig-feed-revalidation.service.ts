@@ -4,6 +4,8 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { getConfigString } from '../../../shared/utils/env';
 
 interface BuildGigFeedPathParams {
   country: string;
@@ -17,13 +19,22 @@ interface RevalidateGigFeedParams {
 
 interface PostGigFeedRevalidationRequestParams {
   url: string;
-  secret: string;
   path: string | undefined;
 }
 
 @Injectable()
 export class GigFeedRevalidationService {
   private readonly logger = new Logger(GigFeedRevalidationService.name);
+  private readonly appBaseUrl: string | undefined;
+  private readonly revalidationSecret: string | undefined;
+
+  constructor(configService: ConfigService) {
+    this.appBaseUrl = getConfigString(configService, 'APP_BASE_URL');
+    this.revalidationSecret = getConfigString(
+      configService,
+      'FEED_REVALIDATE_SECRET',
+    );
+  }
 
   async revalidateGigFeed(params: RevalidateGigFeedParams): Promise<void> {
     try {
@@ -38,24 +49,25 @@ export class GigFeedRevalidationService {
   async revalidateGigFeedOrThrow(
     params: RevalidateGigFeedParams,
   ): Promise<void> {
-    const baseUrl = (process.env.APP_BASE_URL ?? '').trim();
-    const secret = (process.env.FEED_REVALIDATE_SECRET ?? '').trim();
-    if (!baseUrl || !secret) {
+    if (
+      this.appBaseUrl === undefined ||
+      this.revalidationSecret === undefined
+    ) {
       throw new ServiceUnavailableException(
         'Gig feed revalidation service is not configured',
       );
     }
 
-    if (!/^https?:\/\//i.test(baseUrl)) {
+    if (!/^https?:\/\//i.test(this.appBaseUrl)) {
       this.logger.warn(
-        `APP_BASE_URL must be an absolute http(s) URL for Gig feed revalidation (got "${baseUrl}")`,
+        `APP_BASE_URL must be an absolute http(s) URL for Gig feed revalidation (got "${this.appBaseUrl}")`,
       );
       throw new ServiceUnavailableException(
         'Gig feed revalidation service is not configured correctly',
       );
     }
 
-    const url = new URL('/api/revalidate/feed', baseUrl).toString();
+    const url = new URL('/api/revalidate/feed', this.appBaseUrl).toString();
     let path: string | undefined;
     if (params.country && params.city) {
       path = this.buildGigFeedPath({
@@ -64,7 +76,7 @@ export class GigFeedRevalidationService {
       });
     }
 
-    await this.postGigFeedRevalidationRequest({ url, secret, path });
+    await this.postGigFeedRevalidationRequest({ url, path });
   }
 
   buildGigFeedPath(params: BuildGigFeedPathParams): string {
@@ -79,7 +91,11 @@ export class GigFeedRevalidationService {
   private async postGigFeedRevalidationRequest(
     params: PostGigFeedRevalidationRequestParams,
   ): Promise<void> {
-    const { url, secret, path } = params;
+    if (!this.revalidationSecret) {
+      this.logger.warn('FEED_REVALIDATE_SECRET is not set');
+      return;
+    }
+    const { url, path } = params;
 
     let res: Response;
     try {
@@ -87,7 +103,7 @@ export class GigFeedRevalidationService {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-revalidate-secret': secret,
+          'x-revalidate-secret': this.revalidationSecret,
         },
         body: JSON.stringify(path ? { paths: [path] } : {}),
       });

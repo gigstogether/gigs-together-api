@@ -2,6 +2,7 @@ import {
   BadGatewayException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -11,24 +12,34 @@ describe('GigFeedRevalidationService', () => {
   let service: GigFeedRevalidationService;
   const fetchMock = vi.fn();
 
+  async function createService(
+    config: Record<string, unknown> = {},
+  ): Promise<GigFeedRevalidationService> {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GigFeedRevalidationService,
+        {
+          provide: ConfigService,
+          useValue: new ConfigService({
+            APP_BASE_URL: '',
+            FEED_REVALIDATE_SECRET: '',
+            ...config,
+          }),
+        },
+      ],
+    }).compile();
+
+    return module.get(GigFeedRevalidationService);
+  }
+
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
-    vi.stubEnv('APP_BASE_URL', '');
-    vi.stubEnv('FEED_REVALIDATE_SECRET', '');
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [GigFeedRevalidationService],
-    }).compile();
-
-    service = module.get<GigFeedRevalidationService>(
-      GigFeedRevalidationService,
-    );
+    service = await createService();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.unstubAllEnvs();
   });
 
   describe('buildGigFeedPath', () => {
@@ -53,8 +64,10 @@ describe('GigFeedRevalidationService', () => {
     });
 
     it('should POST Gig feed revalidation request when env is configured', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        FEED_REVALIDATE_SECRET: 'secret',
+      });
       fetchMock.mockResolvedValue({
         ok: true,
         status: 204,
@@ -77,8 +90,10 @@ describe('GigFeedRevalidationService', () => {
     });
 
     it('should skip request when APP_BASE_URL is not absolute http(s)', async () => {
-      vi.stubEnv('APP_BASE_URL', 'gigs.example');
-      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'gigs.example',
+        FEED_REVALIDATE_SECRET: 'secret',
+      });
 
       await service.revalidateGigFeed({ country: 'ES', city: 'barcelona' });
 
@@ -86,8 +101,10 @@ describe('GigFeedRevalidationService', () => {
     });
 
     it('should POST empty body when country and city are omitted', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        FEED_REVALIDATE_SECRET: 'secret',
+      });
       fetchMock.mockResolvedValue({
         ok: true,
         status: 204,
@@ -118,8 +135,10 @@ describe('GigFeedRevalidationService', () => {
     });
 
     it('should expose request failure to the caller', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        FEED_REVALIDATE_SECRET: 'secret',
+      });
       fetchMock.mockRejectedValue(new Error('Network unavailable'));
 
       await expect(
@@ -131,8 +150,10 @@ describe('GigFeedRevalidationService', () => {
     });
 
     it('should reject when the frontend rejects revalidation', async () => {
-      vi.stubEnv('APP_BASE_URL', 'https://gigs.example');
-      vi.stubEnv('FEED_REVALIDATE_SECRET', 'secret');
+      service = await createService({
+        APP_BASE_URL: 'https://gigs.example',
+        FEED_REVALIDATE_SECRET: 'secret',
+      });
       fetchMock.mockResolvedValue({
         ok: false,
         status: 503,
