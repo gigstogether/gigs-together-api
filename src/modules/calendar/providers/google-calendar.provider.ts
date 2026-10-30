@@ -1,11 +1,127 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { google } from 'googleapis';
-import type { calendar_v3 } from 'googleapis';
+import type { OnApplicationBootstrap } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { auth, calendar } from '@googleapis/calendar';
+import type { calendar_v3 } from '@googleapis/calendar';
 import * as fs from 'fs';
+import {
+  getConfigString,
+  getRequiredConfigString,
+} from '../../../shared/utils/env';
 import { formatErrorMessage, logError } from '../../../shared/utils/logging';
 import { isRecord } from '../../../shared/utils/is-record';
 import type { CalendarEvent } from '../calendar.types';
 import type { CalendarProvider } from './calendar.provider';
+
+// Scope for full calendar access.
+const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
+const GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS = 10_000; // 10 seconds
+
+interface GoogleServiceAccountCredentials {
+  type: 'service_account';
+  client_email: string;
+  private_key: string;
+  private_key_id?: string;
+}
+
+function getRequiredServiceAccountField(
+  value: Record<string, unknown>,
+  field: 'client_email' | 'private_key',
+  sourceName: string,
+): string {
+  const fieldValue = value[field];
+  if (typeof fieldValue !== 'string' || fieldValue.trim() === '') {
+    throw new Error(`${sourceName} must contain a non-empty ${field}.`);
+  }
+  return field === 'client_email' ? fieldValue.trim() : fieldValue;
+}
+
+function parseGoogleServiceAccountCredentials(
+  serializedCredentials: string,
+  sourceName: string,
+): GoogleServiceAccountCredentials {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(serializedCredentials);
+  } catch {
+    throw new Error(`${sourceName} must contain valid JSON.`);
+  }
+
+  if (!isRecord(parsed)) {
+    throw new Error(`${sourceName} must contain a JSON object.`);
+  }
+  if (parsed.type !== 'service_account') {
+    throw new Error(`${sourceName} must contain service account credentials.`);
+  }
+
+  const credentials: GoogleServiceAccountCredentials = {
+    type: 'service_account',
+    client_email: getRequiredServiceAccountField(
+      parsed,
+      'client_email',
+      sourceName,
+    ),
+    private_key: getRequiredServiceAccountField(
+      parsed,
+      'private_key',
+      sourceName,
+    ),
+  };
+  if (
+    typeof parsed.private_key_id === 'string' &&
+    parsed.private_key_id.trim() !== ''
+  ) {
+    credentials.private_key_id = parsed.private_key_id.trim();
+  }
+  return credentials;
+}
+
+function decodeGoogleAuthJson(raw: string): string {
+  if (raw.startsWith('{')) {
+    return raw;
+  }
+  return Buffer.from(raw, 'base64').toString('utf8');
+}
+
+function loadGoogleServiceAccountCredentials(
+  configService: ConfigService,
+): GoogleServiceAccountCredentials {
+  const rawCredentials = getConfigString(configService, 'GOOGLE_AUTH_JSON');
+  const credentialsFilePath = getConfigString(
+    configService,
+    'GOOGLE_APPLICATION_CREDENTIALS',
+  );
+
+  if (rawCredentials !== undefined && credentialsFilePath !== undefined) {
+    throw new Error(
+      'Configure only one Google service account source: GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS.',
+    );
+  }
+  if (rawCredentials !== undefined) {
+    return parseGoogleServiceAccountCredentials(
+      decodeGoogleAuthJson(rawCredentials),
+      'GOOGLE_AUTH_JSON',
+    );
+  }
+  if (credentialsFilePath === undefined) {
+    throw new Error(
+      'GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS must be configured.',
+    );
+  }
+
+  let serializedCredentials: string;
+  try {
+    serializedCredentials = fs.readFileSync(credentialsFilePath, 'utf8');
+  } catch (e) {
+    throw new Error(
+      `Failed to read the GOOGLE_APPLICATION_CREDENTIALS file: ${formatErrorMessage(e)}`,
+    );
+  }
+  return parseGoogleServiceAccountCredentials(
+    serializedCredentials,
+    'GOOGLE_APPLICATION_CREDENTIALS file',
+  );
+}
 
 function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
   // Append Z only for validation so Date parses the components as UTC rather
@@ -28,67 +144,45 @@ function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
 }
 
 @Injectable()
-export class GoogleCalendarProvider implements CalendarProvider {
+export class GoogleCalendarProvider
+  implements CalendarProvider, OnApplicationBootstrap
+{
   private readonly calendar: calendar_v3.Calendar;
+  private readonly calendarId: string;
   private readonly logger = new Logger(GoogleCalendarProvider.name);
 
-  constructor() {
-    this.ensureGoogleAuthKeyFile();
+  constructor(configService: ConfigService) {
+    this.calendarId = getRequiredConfigString(configService, 'CALENDAR_ID');
+    const credentials = loadGoogleServiceAccountCredentials(configService);
 
-    const auth = new google.auth.GoogleAuth({
-      keyFile: 'google-auth.json',
-      // Scope for full calendar access
-      scopes: ['https://www.googleapis.com/auth/calendar'],
+    const authClient = new auth.JWT({
+      email: credentials.client_email,
+      key: credentials.private_key,
+      keyId: credentials.private_key_id,
+      scopes: [GOOGLE_CALENDAR_SCOPE],
     });
 
     // Initialize Google Calendar API client
-    this.calendar = google.calendar({ version: 'v3', auth });
+    this.calendar = calendar({ version: 'v3', auth: authClient });
   }
 
-  private ensureGoogleAuthKeyFile(): void {
-    const keyFile = 'google-auth.json';
-    if (fs.existsSync(keyFile)) return;
+  onApplicationBootstrap(): void {
+    void this.checkConnection();
+  }
 
-    const raw = process.env.GOOGLE_AUTH_JSON ?? '';
-
-    if (!raw) {
-      throw new Error(
-        `Missing "${keyFile}". Provide GOOGLE_AUTH_JSON env var so the service can create it on startup.`,
-      );
-    }
-
-    const tryParseJson = (text: string): Record<string, unknown> => {
-      const parsed: unknown = JSON.parse(text.trim());
-      if (!isRecord(parsed)) {
-        throw new Error('Google auth JSON must contain an object');
-      }
-      return parsed;
-    };
-
-    let json: Record<string, unknown>;
+  /** Verify that the configured credentials can access the target calendar. */
+  private async checkConnection(): Promise<void> {
     try {
-      if (raw.trim().startsWith('{')) {
-        json = tryParseJson(raw);
-      } else {
-        // Allow base64-encoded JSON as well (common for CI/hosting providers).
-        const decoded = Buffer.from(raw.trim(), 'base64').toString('utf8');
-        json = tryParseJson(decoded);
-      }
+      await this.calendar.calendars.get(
+        { calendarId: this.calendarId },
+        { timeout: GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS },
+      );
     } catch (e) {
-      throw new Error(
-        `Invalid GOOGLE_AUTH_JSON: expected JSON string or base64-encoded JSON (${formatErrorMessage(e)})`,
-      );
-    }
-
-    try {
-      fs.writeFileSync(keyFile, JSON.stringify(json, null, 2), {
-        encoding: 'utf8',
+      logError(this.logger, {
+        error: e,
+        note: 'Google Calendar connection check failed; application will continue running',
+        context: GoogleCalendarProvider.name,
       });
-      this.logger.log(`Created ${keyFile} from env (GOOGLE_AUTH_JSON)`);
-    } catch (e) {
-      throw new Error(
-        `Failed to write ${keyFile} from env: ${formatErrorMessage(e)}`,
-      );
     }
   }
 
@@ -96,7 +190,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
   async addEvent(event: CalendarEvent): Promise<void> {
     try {
       await this.calendar.events.insert({
-        calendarId: process.env.CALENDAR_ID,
+        calendarId: this.calendarId,
         requestBody: {
           colorId: '5',
           summary: event.title,
