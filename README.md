@@ -113,13 +113,37 @@ Depending on which flows you want to exercise, you may also need:
 
 - Telegram: `BOT_*`, channel IDs, URLs
 - Auth/admin: `JWT_*`, cookie settings, `ADMIN_*`
-- Google: `CALENDAR_ID`, `GOOGLE_AUTH_JSON`
+- Google Calendar: `CALENDAR_ID` and exactly one of `GOOGLE_APPLICATION_CREDENTIALS` or `GOOGLE_AUTH_JSON`
 - S3 storage: `S3_*`
 - AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
 - Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`, `TRANSLATIONS_REVALIDATE_SECRET`
 - CORS: `CORS_ORIGINS`
 
 `APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
+
+### Google Calendar credentials
+
+The Calendar integration accepts service account credentials only. Configure `CALENDAR_ID` and exactly one credential source. The application rejects missing credentials, multiple credential sources, and credentials whose `type` is not `service_account`.
+
+For local development, keep the service account file outside version control and configure its path:
+
+```env
+CALENDAR_ID=<google-calendar-id>
+GOOGLE_APPLICATION_CREDENTIALS=./google-auth.json
+GOOGLE_AUTH_JSON=
+```
+
+`google-auth.json` is ignored by Git. The application reads this file but never creates or modifies it.
+
+For production environments that provide secrets as environment variables, configure raw or base64-encoded service account JSON:
+
+```env
+CALENDAR_ID=<google-calendar-id>
+GOOGLE_APPLICATION_CREDENTIALS=
+GOOGLE_AUTH_JSON={"type":"service_account",...}
+```
+
+The provider validates the configured JSON and constructs a JWT service account auth client in memory without writing credentials to disk. Share the target Google Calendar with the service account's `client_email`; the service account must have permission to create events in that calendar.
 
 ### Required Telegram setup
 
@@ -182,8 +206,9 @@ Current variables defined in `.env.example`:
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
 | `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |
-| `CALENDAR_ID`                                   | Optional                                     | Google Calendar id.                                                      |
-| `GOOGLE_AUTH_JSON`                              | Optional                                     | Base64-encoded or raw Google auth JSON.                                  |
+| `CALENDAR_ID`                                   | Yes                                          | Target Google Calendar id.                                               |
+| `GOOGLE_APPLICATION_CREDENTIALS`                | One Google credential source                 | Local path to a service account JSON file.                               |
+| `GOOGLE_AUTH_JSON`                              | One Google credential source                 | Base64-encoded or raw service account JSON.                              |
 | `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                          |
 | `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                       |
 | `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                      |
