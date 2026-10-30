@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import type { CalendarEvent } from '../calendar.types';
+import type { CalendarEvent } from '../../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
 
 const googleApisMocks = vi.hoisted(() => ({
@@ -47,6 +47,40 @@ function createConfigService(
   });
 }
 
+function createGaxiosError(): Error {
+  return Object.assign(new Error('Not Found'), {
+    [Symbol.for('gaxios-gaxios-error')]: '8.3.2',
+    code: 404,
+    status: 404,
+    config: {
+      method: 'GET',
+      timeout: 10_000,
+    },
+    response: {
+      data: {
+        error: {
+          message: 'Not Found',
+        },
+      },
+    },
+  });
+}
+
+function getUnavailableIntegrationLog(
+  config: Record<string, unknown>,
+): unknown {
+  const loggerErrorSpy = vi
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined);
+  const unavailableProvider = new GoogleCalendarProvider(
+    createConfigService(config),
+  );
+
+  unavailableProvider.onApplicationBootstrap();
+
+  return loggerErrorSpy.mock.calls[0]?.[0];
+}
+
 function buildEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
     title: 'The Strokes',
@@ -89,8 +123,8 @@ describe('GoogleCalendarProvider', () => {
     });
   });
 
-  it('should log a connection failure without rejecting', async () => {
-    const connectionFailure = new Error('Calendar API unavailable');
+  it('should log a structured Gaxios error without a stack trace', async () => {
+    const connectionFailure = createGaxiosError();
     const loggerErrorSpy = vi
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
@@ -102,10 +136,13 @@ describe('GoogleCalendarProvider', () => {
       expect(loggerErrorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           note: 'Google Calendar connection check failed; application will continue running',
-          message: connectionFailure.message,
+          upstream: expect.objectContaining({
+            client: 'gaxios',
+            code: 404,
+            status: 404,
+            message: 'Not Found',
+          }),
         }),
-        connectionFailure.stack,
-        GoogleCalendarProvider.name,
       );
     });
   });
@@ -132,11 +169,15 @@ describe('GoogleCalendarProvider', () => {
     });
   });
 
-  it('should reject missing calendar ID when creating the provider', () => {
-    expect(
-      () =>
-        new GoogleCalendarProvider(createConfigService({ CALENDAR_ID: '' })),
-    ).toThrow('CALENDAR_ID is not configured.');
+  it('should log an unavailable integration when calendar ID is missing', () => {
+    const logEntry = getUnavailableIntegrationLog({ CALENDAR_ID: '' });
+
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason: 'CALENDAR_ID is not configured.',
+      }),
+    );
   });
 
   it('should construct a JWT client from raw service account credentials', () => {
@@ -187,87 +228,116 @@ describe('GoogleCalendarProvider', () => {
     });
   });
 
-  it('should reject missing service account configuration', () => {
-    expect(
-      () =>
-        new GoogleCalendarProvider(
-          createConfigService({ GOOGLE_AUTH_JSON: '' }),
-        ),
-    ).toThrow(
-      'GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS must be configured.',
+  it('should log an unavailable integration when credentials are missing', () => {
+    const logEntry = getUnavailableIntegrationLog({ GOOGLE_AUTH_JSON: '' });
+
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason:
+          'GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS must be configured.',
+      }),
     );
   });
 
-  it('should reject multiple service account sources', () => {
-    expect(
-      () =>
-        new GoogleCalendarProvider(
-          createConfigService({
-            GOOGLE_APPLICATION_CREDENTIALS: './google-auth.json',
-          }),
-        ),
-    ).toThrow(
-      'Configure only one Google service account source: GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS.',
+  it('should log an unavailable integration for multiple credential sources', () => {
+    const logEntry = getUnavailableIntegrationLog({
+      GOOGLE_APPLICATION_CREDENTIALS: './google-auth.json',
+    });
+
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason:
+          'Configure only one Google service account source: GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS.',
+      }),
     );
   });
 
-  it('should reject invalid GOOGLE_AUTH_JSON', () => {
-    expect(
-      () =>
-        new GoogleCalendarProvider(
-          createConfigService({ GOOGLE_AUTH_JSON: '{invalid-json' }),
-        ),
-    ).toThrow('GOOGLE_AUTH_JSON must contain valid JSON.');
+  it('should log an unavailable integration for invalid credentials JSON', () => {
+    const logEntry = getUnavailableIntegrationLog({
+      GOOGLE_AUTH_JSON: '{invalid-json',
+    });
+
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason: 'GOOGLE_AUTH_JSON must contain valid JSON.',
+      }),
+    );
   });
 
-  it('should reject non-service-account credentials', () => {
-    expect(
-      () =>
-        new GoogleCalendarProvider(
-          createConfigService({
-            GOOGLE_AUTH_JSON: JSON.stringify({
-              ...serviceAccountCredentials,
-              type: 'authorized_user',
-            }),
-          }),
-        ),
-    ).toThrow('GOOGLE_AUTH_JSON must contain service account credentials.');
+  it('should log an unavailable integration for non-service-account credentials', () => {
+    const logEntry = getUnavailableIntegrationLog({
+      GOOGLE_AUTH_JSON: JSON.stringify({
+        ...serviceAccountCredentials,
+        type: 'authorized_user',
+      }),
+    });
+
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason: 'GOOGLE_AUTH_JSON must contain service account credentials.',
+      }),
+    );
   });
 
   it.each(['client_email', 'private_key'] as const)(
-    'should reject service account credentials without %s',
+    'should log an unavailable integration for credentials without %s',
     (field) => {
       const invalidCredentials: Record<string, unknown> = {
         ...serviceAccountCredentials,
       };
       invalidCredentials[field] = '';
+      const logEntry = getUnavailableIntegrationLog({
+        GOOGLE_AUTH_JSON: JSON.stringify(invalidCredentials),
+      });
 
-      expect(
-        () =>
-          new GoogleCalendarProvider(
-            createConfigService({
-              GOOGLE_AUTH_JSON: JSON.stringify(invalidCredentials),
-            }),
-          ),
-      ).toThrow(`GOOGLE_AUTH_JSON must contain a non-empty ${field}.`);
+      expect(logEntry).toEqual(
+        expect.objectContaining({
+          note: 'Google Calendar integration is unavailable; application will continue running',
+          reason: `GOOGLE_AUTH_JSON must contain a non-empty ${field}.`,
+        }),
+      );
     },
   );
 
-  it('should report a configured credentials file read failure', () => {
+  it('should log an unavailable integration for a credentials file read failure', () => {
     vi.mocked(fs.readFileSync).mockImplementation(() => {
       throw new Error('file unavailable');
     });
+    const logEntry = getUnavailableIntegrationLog({
+      GOOGLE_AUTH_JSON: '',
+      GOOGLE_APPLICATION_CREDENTIALS: './google-auth.json',
+    });
 
-    expect(
-      () =>
-        new GoogleCalendarProvider(
-          createConfigService({
-            GOOGLE_AUTH_JSON: '',
-            GOOGLE_APPLICATION_CREDENTIALS: './google-auth.json',
-          }),
-        ),
-    ).toThrow(
-      'Failed to read the GOOGLE_APPLICATION_CREDENTIALS file: file unavailable',
+    expect(logEntry).toEqual(
+      expect.objectContaining({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason:
+          'Failed to read the GOOGLE_APPLICATION_CREDENTIALS file: file unavailable',
+      }),
+    );
+  });
+
+  it('should reject event creation when the integration is unavailable', async () => {
+    const unavailableProvider = new GoogleCalendarProvider(
+      createConfigService({ CALENDAR_ID: '' }),
+    );
+
+    await expect(unavailableProvider.addEvent(buildEvent())).rejects.toThrow(
+      'Google Calendar integration is unavailable.',
+    );
+  });
+
+  it('should build a create-event URL when the integration is unavailable', () => {
+    const unavailableProvider = new GoogleCalendarProvider(
+      createConfigService({ CALENDAR_ID: '' }),
+    );
+
+    expect(unavailableProvider.getCreateEventUrl(buildEvent())).toContain(
+      'https://calendar.google.com/calendar/render?',
     );
   });
 

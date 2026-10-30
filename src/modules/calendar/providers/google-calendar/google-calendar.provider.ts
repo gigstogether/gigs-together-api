@@ -4,14 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { auth, calendar } from '@googleapis/calendar';
 import type { calendar_v3 } from '@googleapis/calendar';
 import * as fs from 'fs';
-import {
-  getConfigString,
-  getRequiredConfigString,
-} from '../../../shared/utils/env';
-import { formatErrorMessage, logError } from '../../../shared/utils/logging';
-import { isRecord } from '../../../shared/utils/is-record';
-import type { CalendarEvent } from '../calendar.types';
-import type { CalendarProvider } from './calendar.provider';
+import { getConfigString } from '../../../../shared/utils/env';
+import { formatErrorMessage } from '../../../../shared/utils/logging';
+import { isRecord } from '../../../../shared/utils/is-record';
+import type { CalendarEvent } from '../../calendar.types';
+import type { CalendarProvider } from '../calendar.provider';
+import { logGoogleCalendarError } from './google-calendar.logging';
 
 // Scope for full calendar access.
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
@@ -24,6 +22,22 @@ interface GoogleServiceAccountCredentials {
   private_key_id?: string;
 }
 
+interface ReadyGoogleCalendarIntegration {
+  status: 'ready';
+  calendar: calendar_v3.Calendar;
+  calendarId: string;
+}
+
+interface UnavailableGoogleCalendarIntegration {
+  status: 'unavailable';
+  reason: string;
+}
+
+type GoogleCalendarIntegration =
+  ReadyGoogleCalendarIntegration | UnavailableGoogleCalendarIntegration;
+
+class GoogleCalendarConfigurationError extends Error {}
+
 function getRequiredServiceAccountField(
   value: Record<string, unknown>,
   field: 'client_email' | 'private_key',
@@ -31,7 +45,9 @@ function getRequiredServiceAccountField(
 ): string {
   const fieldValue = value[field];
   if (typeof fieldValue !== 'string' || fieldValue.trim() === '') {
-    throw new Error(`${sourceName} must contain a non-empty ${field}.`);
+    throw new GoogleCalendarConfigurationError(
+      `${sourceName} must contain a non-empty ${field}.`,
+    );
   }
   return field === 'client_email' ? fieldValue.trim() : fieldValue;
 }
@@ -44,14 +60,20 @@ function parseGoogleServiceAccountCredentials(
   try {
     parsed = JSON.parse(serializedCredentials);
   } catch {
-    throw new Error(`${sourceName} must contain valid JSON.`);
+    throw new GoogleCalendarConfigurationError(
+      `${sourceName} must contain valid JSON.`,
+    );
   }
 
   if (!isRecord(parsed)) {
-    throw new Error(`${sourceName} must contain a JSON object.`);
+    throw new GoogleCalendarConfigurationError(
+      `${sourceName} must contain a JSON object.`,
+    );
   }
   if (parsed.type !== 'service_account') {
-    throw new Error(`${sourceName} must contain service account credentials.`);
+    throw new GoogleCalendarConfigurationError(
+      `${sourceName} must contain service account credentials.`,
+    );
   }
 
   const credentials: GoogleServiceAccountCredentials = {
@@ -93,7 +115,7 @@ function loadGoogleServiceAccountCredentials(
   );
 
   if (rawCredentials !== undefined && credentialsFilePath !== undefined) {
-    throw new Error(
+    throw new GoogleCalendarConfigurationError(
       'Configure only one Google service account source: GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS.',
     );
   }
@@ -104,7 +126,7 @@ function loadGoogleServiceAccountCredentials(
     );
   }
   if (credentialsFilePath === undefined) {
-    throw new Error(
+    throw new GoogleCalendarConfigurationError(
       'GOOGLE_AUTH_JSON or GOOGLE_APPLICATION_CREDENTIALS must be configured.',
     );
   }
@@ -113,7 +135,7 @@ function loadGoogleServiceAccountCredentials(
   try {
     serializedCredentials = fs.readFileSync(credentialsFilePath, 'utf8');
   } catch (e) {
-    throw new Error(
+    throw new GoogleCalendarConfigurationError(
       `Failed to read the GOOGLE_APPLICATION_CREDENTIALS file: ${formatErrorMessage(e)}`,
     );
   }
@@ -147,13 +169,32 @@ function formatGoogleCalendarUrlDateTime(localDateTime: string): string {
 export class GoogleCalendarProvider
   implements CalendarProvider, OnApplicationBootstrap
 {
-  private readonly calendar: calendar_v3.Calendar;
-  private readonly calendarId: string;
+  private readonly integration: GoogleCalendarIntegration;
   private readonly logger = new Logger(GoogleCalendarProvider.name);
 
   constructor(configService: ConfigService) {
-    this.calendarId = getRequiredConfigString(configService, 'CALENDAR_ID');
-    const credentials = loadGoogleServiceAccountCredentials(configService);
+    const calendarId = getConfigString(configService, 'CALENDAR_ID');
+    if (calendarId === undefined) {
+      this.integration = {
+        status: 'unavailable',
+        reason: 'CALENDAR_ID is not configured.',
+      };
+      return;
+    }
+
+    let credentials: GoogleServiceAccountCredentials;
+    try {
+      credentials = loadGoogleServiceAccountCredentials(configService);
+    } catch (e) {
+      if (!(e instanceof GoogleCalendarConfigurationError)) {
+        throw e;
+      }
+      this.integration = {
+        status: 'unavailable',
+        reason: e.message,
+      };
+      return;
+    }
 
     const authClient = new auth.JWT({
       email: credentials.client_email,
@@ -163,7 +204,11 @@ export class GoogleCalendarProvider
     });
 
     // Initialize Google Calendar API client
-    this.calendar = calendar({ version: 'v3', auth: authClient });
+    this.integration = {
+      status: 'ready',
+      calendar: calendar({ version: 'v3', auth: authClient }),
+      calendarId,
+    };
   }
 
   onApplicationBootstrap(): void {
@@ -172,25 +217,37 @@ export class GoogleCalendarProvider
 
   /** Verify that the configured credentials can access the target calendar. */
   private async checkConnection(): Promise<void> {
+    if (this.integration.status === 'unavailable') {
+      this.logger.error({
+        note: 'Google Calendar integration is unavailable; application will continue running',
+        reason: this.integration.reason,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
     try {
-      await this.calendar.calendars.get(
-        { calendarId: this.calendarId },
+      await this.integration.calendar.calendars.get(
+        { calendarId: this.integration.calendarId },
         { timeout: GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS },
       );
     } catch (e) {
-      logError(this.logger, {
+      logGoogleCalendarError(this.logger, {
         error: e,
         note: 'Google Calendar connection check failed; application will continue running',
-        context: GoogleCalendarProvider.name,
       });
     }
   }
 
   /** Add a new event to Google Calendar. */
   async addEvent(event: CalendarEvent): Promise<void> {
+    if (this.integration.status === 'unavailable') {
+      throw new Error('Google Calendar integration is unavailable.');
+    }
+
     try {
-      await this.calendar.events.insert({
-        calendarId: this.calendarId,
+      await this.integration.calendar.events.insert({
+        calendarId: this.integration.calendarId,
         requestBody: {
           colorId: '5',
           summary: event.title,
@@ -207,7 +264,7 @@ export class GoogleCalendarProvider
         },
       });
     } catch (e) {
-      logError(this.logger, {
+      logGoogleCalendarError(this.logger, {
         error: e,
         note: 'Google Calendar event creation failed',
       });
