@@ -36,6 +36,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## Execution Rules
 
+- Do not create Git commits unless the user explicitly asks for a commit. A request to implement, finish, or validate changes does not authorize committing them.
 - Do not run `build`, `dev`, or start watchers or servers unless the user explicitly asks.
 - If command execution is needed to validate a change, ask first instead of running it proactively.
 - After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.
