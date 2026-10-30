@@ -116,7 +116,6 @@ export class AiService {
     const prompt = buildV1FutureGigLookupPrompt({
       name: params.name,
       place: params.location,
-      mode: 'structured',
     });
 
     const client = new OpenAI({
