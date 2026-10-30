@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { GigFormInput } from '../gig/types/gig.types';
+import { getConfigBoolean, getConfigString } from '../../shared/utils/env';
 
 interface AiLookupParams {
   readonly name: string;
@@ -14,8 +15,26 @@ export class AiLookupDevStubService {
   private static readonly DEV_STUB_CITY = 'barcelona';
   private static readonly DEV_STUB_VENUE = 'Sala Razzmatazz';
   private static readonly DEV_STUB_TICKETS_URL = 'https://example.com/dev-stub';
+  private readonly nodeEnv: string;
+  private readonly isStubEnabled: boolean;
+  private readonly stubKeyword: string | undefined;
+  private readonly defaultGigPosterUrl: string | undefined;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(configService: ConfigService) {
+    this.nodeEnv = (
+      getConfigString(configService, 'NODE_ENV') ?? 'dev'
+    ).toLowerCase();
+    this.isStubEnabled =
+      getConfigBoolean(configService, 'AI_LOOKUP_DEV_STUB') ?? false;
+    this.stubKeyword = getConfigString(
+      configService,
+      'AI_LOOKUP_DEV_STUB_KEYWORD',
+    )?.toLowerCase();
+    this.defaultGigPosterUrl = getConfigString(
+      configService,
+      'DEFAULT_GIG_POSTER_URL',
+    );
+  }
 
   resolveGigOrNull(params: AiLookupParams): GigFormInput | null {
     if (!this.shouldUseStub(params)) {
@@ -29,34 +48,8 @@ export class AiLookupDevStubService {
     return this.buildStubGig(params);
   }
 
-  private getNodeEnv(): string {
-    return (
-      this.configService.get<string>('NODE_ENV') ??
-      process.env.NODE_ENV ??
-      'dev'
-    )
-      .trim()
-      .toLowerCase();
-  }
-
   private isNonProductionEnvironment(): boolean {
-    const nodeEnv = this.getNodeEnv();
-    return nodeEnv !== 'prod' && nodeEnv !== 'production';
-  }
-
-  private isStubEnabled(): boolean {
-    const raw =
-      this.configService.get<string>('AI_LOOKUP_DEV_STUB') ??
-      process.env.AI_LOOKUP_DEV_STUB;
-    return raw === '1' || raw === 'true' || raw === 'yes';
-  }
-
-  private getStubKeyword(): string | undefined {
-    const raw =
-      this.configService.get<string>('AI_LOOKUP_DEV_STUB_KEYWORD') ??
-      process.env.AI_LOOKUP_DEV_STUB_KEYWORD;
-    const keyword = raw?.trim().toLowerCase();
-    return keyword ? keyword : undefined;
+    return this.nodeEnv !== 'prod' && this.nodeEnv !== 'production';
   }
 
   private shouldUseStub(params: AiLookupParams): boolean {
@@ -64,17 +57,16 @@ export class AiLookupDevStubService {
       return false;
     }
 
-    if (this.isStubEnabled()) {
+    if (this.isStubEnabled) {
       return true;
     }
 
-    const keyword = this.getStubKeyword();
-    if (!keyword) {
+    if (this.stubKeyword === undefined) {
       return false;
     }
 
     const haystack = `${params.name} ${params.location}`.toLowerCase();
-    return haystack.includes(keyword);
+    return haystack.includes(this.stubKeyword);
   }
 
   private buildStubGig(params: AiLookupParams): GigFormInput {
@@ -99,11 +91,6 @@ export class AiLookupDevStubService {
     const venue = normalizedLocation
       ? `${AiLookupDevStubService.DEV_STUB_VENUE} (${normalizedLocation})`
       : AiLookupDevStubService.DEV_STUB_VENUE;
-    const posterUrl =
-      this.configService.get<string>('DEFAULT_GIG_POSTER_URL') ??
-      process.env.DEFAULT_GIG_POSTER_URL;
-    const normalizedPosterUrl = posterUrl?.trim() || undefined;
-
     return {
       title,
       date: futureDate.toISOString(),
@@ -111,7 +98,7 @@ export class AiLookupDevStubService {
       country: AiLookupDevStubService.DEV_STUB_COUNTRY,
       venue,
       ticketsUrl: AiLookupDevStubService.DEV_STUB_TICKETS_URL,
-      posterUrl: normalizedPosterUrl,
+      posterUrl: this.defaultGigPosterUrl,
     };
   }
 }

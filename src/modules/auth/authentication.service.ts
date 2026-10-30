@@ -1,12 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   AccessTokenPayload,
 } from './types/access-token-identity.types';
 import { isRecord } from '../../shared/utils/is-record';
+import { AUTH_CONFIG } from './auth-config.module';
+import type { AuthConfig } from './auth-config.module';
 
 /** Payload shape returned by `verifyAsync` before narrowing to {@link AccessTokenPayload}. */
 interface AccessTokenPayloadShape {
@@ -31,10 +32,10 @@ interface ParsedTelegramIdentitySnapshot {
 
 /** Shared Express `res.cookie` options except `maxAge` / value. */
 interface AuthCookieSharedOptions {
-  readonly secure: boolean;
-  readonly sameSite: 'lax' | 'strict' | 'none';
-  readonly path: string;
-  readonly domain?: string;
+  secure: boolean;
+  sameSite: 'lax' | 'strict' | 'none';
+  path: string;
+  domain?: string;
 }
 
 type CookieKind = 'access' | 'refresh';
@@ -44,52 +45,25 @@ type CookieKind = 'access' | 'refresh';
  */
 @Injectable()
 export class AuthenticationService {
-  /** Default access JWT TTL: 3_600 s = 1 h = 60 min. */
-  private static readonly DEFAULT_ACCESS_EXPIRES_IN_SEC = 3_600;
-
-  /** Default refresh JWT TTL: 2_592_000 s = 30 d = 720 h. */
-  private static readonly DEFAULT_REFRESH_EXPIRES_IN_SEC = 2_592_000;
-
   constructor(
     private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    @Inject(AUTH_CONFIG) private readonly authConfig: AuthConfig,
   ) {}
 
-  static resolveAccessExpiresInSeconds(config: ConfigService): number {
-    return AuthenticationService.resolveExpiresInSeconds(
-      config,
-      'JWT_ACCESS_EXPIRES_IN_SEC',
-      AuthenticationService.DEFAULT_ACCESS_EXPIRES_IN_SEC,
-    );
-  }
-
-  static resolveRefreshExpiresInSeconds(config: ConfigService): number {
-    return AuthenticationService.resolveExpiresInSeconds(
-      config,
-      'JWT_REFRESH_EXPIRES_IN_SEC',
-      AuthenticationService.DEFAULT_REFRESH_EXPIRES_IN_SEC,
-    );
-  }
-
   getAccessExpiresInSeconds(): number {
-    return AuthenticationService.resolveAccessExpiresInSeconds(
-      this.configService,
-    );
+    return this.authConfig.accessExpiresInSeconds;
   }
 
   getRefreshExpiresInSeconds(): number {
-    return AuthenticationService.resolveRefreshExpiresInSeconds(
-      this.configService,
-    );
+    return this.authConfig.refreshExpiresInSeconds;
   }
 
   async signAccessToken(identity: AccessTokenIdentityPayload): Promise<string> {
-    const secret = this.requireAccessSecret();
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: AccessTokenPayload = { sub, typ: 'access', identity };
     const expiresIn = this.getAccessExpiresInSeconds();
     return this.jwtService.signAsync(payload, {
-      secret,
+      secret: this.authConfig.accessSecret,
       expiresIn,
       algorithm: 'HS256',
     });
@@ -98,13 +72,12 @@ export class AuthenticationService {
   async authenticateAccessToken(
     token: string,
   ): Promise<AccessTokenIdentityPayload> {
-    const secret = this.requireAccessSecret();
     let payload: AccessTokenPayloadShape;
     try {
       payload = await this.jwtService.verifyAsync<AccessTokenPayloadShape>(
         token,
         {
-          secret,
+          secret: this.authConfig.accessSecret,
           algorithms: ['HS256'],
         },
       );
@@ -130,10 +103,9 @@ export class AuthenticationService {
   ): Promise<string> {
     const sub = this.subjectFromAccessIdentity(identity);
     const payload: RefreshTokenJwtPayload = { sub, typ: 'refresh', identity };
-    const secret = this.requireRefreshSecret();
     const expiresIn = this.getRefreshExpiresInSeconds();
     return this.jwtService.signAsync(payload, {
-      secret,
+      secret: this.authConfig.refreshSecret,
       expiresIn,
       algorithm: 'HS256',
     });
@@ -142,13 +114,12 @@ export class AuthenticationService {
   async authenticateRefreshToken(
     token: string,
   ): Promise<AccessTokenIdentityPayload> {
-    const secret = this.requireRefreshSecret();
     let payload: AccessTokenPayloadShape;
     try {
       payload = await this.jwtService.verifyAsync<AccessTokenPayloadShape>(
         token,
         {
-          secret,
+          secret: this.authConfig.refreshSecret,
           algorithms: ['HS256'],
         },
       );
@@ -170,13 +141,11 @@ export class AuthenticationService {
   }
 
   getAccessCookieName(): string {
-    const raw = this.configService.get<string>('ACCESS_TOKEN_COOKIE_NAME');
-    return raw?.trim() || 'gt_access';
+    return this.authConfig.accessCookie.name;
   }
 
   getRefreshCookieName(): string {
-    const raw = this.configService.get<string>('REFRESH_TOKEN_COOKIE_NAME');
-    return raw?.trim() || 'gt_refresh';
+    return this.authConfig.refreshCookie.name;
   }
 
   setAccessTokenCookie(
@@ -225,35 +194,6 @@ export class AuthenticationService {
   clearAllAuthCookies(res: Response): void {
     this.clearAccessTokenCookie(res);
     this.clearRefreshTokenCookie(res);
-  }
-
-  private requireAccessSecret(): string {
-    const secret = this.configService.get<string>('JWT_SECRET');
-    if (!secret?.trim()) {
-      throw new Error('JWT_SECRET is required');
-    }
-    return secret.trim();
-  }
-
-  private static resolveExpiresInSeconds(
-    config: ConfigService,
-    envKey: string,
-    defaultSeconds: number,
-  ): number {
-    const raw = config.get<string>(envKey);
-    const n = raw ? Number(raw) : Number.NaN;
-    if (Number.isFinite(n) && n > 0) {
-      return Math.floor(n);
-    }
-    return defaultSeconds;
-  }
-
-  private requireRefreshSecret(): string {
-    const secret = this.configService.get<string>('JWT_REFRESH_SECRET');
-    if (!secret?.trim()) {
-      throw new Error('JWT_REFRESH_SECRET is required');
-    }
-    return secret.trim();
   }
 
   private subjectFromAccessIdentity(
@@ -322,56 +262,18 @@ export class AuthenticationService {
   }
 
   private getSharedCookieOptions(kind: CookieKind): AuthCookieSharedOptions {
-    const secure = this.resolveCookieSecure(kind);
-    const sameSite = this.resolveCookieSameSite(kind);
-    const path = '/';
-    const domain = this.resolveCookieDomain(kind);
-    return {
-      secure,
-      sameSite,
-      path,
-      ...(domain ? { domain } : {}),
+    const cookieConfig =
+      kind === 'access'
+        ? this.authConfig.accessCookie
+        : this.authConfig.refreshCookie;
+    const options: AuthCookieSharedOptions = {
+      secure: cookieConfig.secure,
+      sameSite: cookieConfig.sameSite,
+      path: '/',
     };
-  }
-
-  private resolveCookieSecure(kind: CookieKind): boolean {
-    const key =
-      kind === 'refresh'
-        ? 'REFRESH_TOKEN_COOKIE_SECURE'
-        : 'ACCESS_TOKEN_COOKIE_SECURE';
-    const raw = this.configService.get<string>(key);
-    if (raw === 'true') {
-      return true;
+    if (cookieConfig.domain !== undefined) {
+      options.domain = cookieConfig.domain;
     }
-    if (raw === 'false') {
-      return false;
-    }
-    return (
-      (this.configService.get<string>('NODE_ENV') ?? '').toLowerCase() ===
-      'prod'
-    );
-  }
-
-  private resolveCookieSameSite(kind: CookieKind): 'lax' | 'strict' | 'none' {
-    const key =
-      kind === 'refresh'
-        ? 'REFRESH_TOKEN_COOKIE_SAMESITE'
-        : 'ACCESS_TOKEN_COOKIE_SAMESITE';
-    const raw = (this.configService.get<string>(key) ?? 'lax')
-      .trim()
-      .toLowerCase();
-    if (raw === 'strict' || raw === 'none') {
-      return raw;
-    }
-    return 'lax';
-  }
-
-  private resolveCookieDomain(kind: CookieKind): string | undefined {
-    const key =
-      kind === 'refresh'
-        ? 'REFRESH_TOKEN_COOKIE_DOMAIN'
-        : 'ACCESS_TOKEN_COOKIE_DOMAIN';
-    const raw = this.configService.get<string>(key)?.trim();
-    return raw || undefined;
+    return options;
   }
 }

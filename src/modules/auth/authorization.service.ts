@@ -1,10 +1,10 @@
 import {
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type {
   AccessTokenIdentityPayload,
   VerifiedAccessToken,
@@ -12,6 +12,8 @@ import type {
 import { AuthenticationService } from './authentication.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
+import { AUTH_CONFIG } from './auth-config.module';
+import type { AuthConfig } from './auth-config.module';
 
 /**
  * Admin list from MongoDB (cached). Used for JWT `isAdmin` and webhook checks.
@@ -27,14 +29,10 @@ export class AuthorizationService {
 
   constructor(
     private readonly authenticationService: AuthenticationService,
-    private readonly configService: ConfigService,
+    @Inject(AUTH_CONFIG) authConfig: AuthConfig,
     private readonly userService: UserService,
   ) {
-    const raw = this.configService.get<string>('ADMIN_CACHE_TTL_MS');
-    const parsed = raw?.trim() ? Number.parseInt(raw.trim(), 10) : Number.NaN;
-    // Default 3_600_000 ms (1 hour). Override ADMIN_CACHE_TTL_MS for shorter windows in dev.
-    this.cacheTtlMs =
-      Number.isFinite(parsed) && parsed > 0 ? parsed : 3_600_000;
+    this.cacheTtlMs = authConfig.adminCacheTtlMs;
   }
 
   private async pullAdmins(): Promise<void> {

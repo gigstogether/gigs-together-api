@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { getConfigPositiveSafeInteger } from '../../shared/utils/env';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
@@ -52,16 +53,13 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(TRANSLATION_REPOSITORY)
     private readonly translationRepository: TranslationRepository,
-    private readonly configService: ConfigService,
+    configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
   ) {
-    const raw = this.configService.get<string>('TRANSLATION_CACHE_TTL_MS');
-    const parsed = raw?.trim() ? Number.parseInt(raw.trim(), 10) : Number.NaN;
     // Default 3_600_000 ms (1 hour). Override TRANSLATION_CACHE_TTL_MS for shorter windows in dev.
     this.cacheTtlMs =
-      Number.isFinite(parsed) && parsed > 0
-        ? parsed
-        : TRANSLATION_CACHE_DEFAULT_TTL_MS;
+      getConfigPositiveSafeInteger(configService, 'TRANSLATION_CACHE_TTL_MS') ??
+      TRANSLATION_CACHE_DEFAULT_TTL_MS;
   }
 
   async onModuleInit(): Promise<void> {

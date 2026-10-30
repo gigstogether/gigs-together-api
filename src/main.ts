@@ -1,12 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { VersioningType } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
+import {
+  getConfigPositiveSafeInteger,
+  getConfigString,
+} from './shared/utils/env';
+
+const DEFAULT_PORT = 3000;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
   app.use(cookieParser());
-  const port = process.env.PORT ?? 3000;
+  const port =
+    getConfigPositiveSafeInteger(configService, 'PORT') ?? DEFAULT_PORT;
 
   // CORS (needed when a separate frontend domain calls this API or uses presigned URLs).
   //
@@ -15,7 +24,7 @@ async function bootstrap() {
   // - Else if CORS_ORIGINS="*" → allow all origins, no credentials
   // - Else if CORS_ORIGINS is a comma-separated list → allow those origins, with credentials
   // - Else (unset) → keep permissive (reflect request origin) so public pages work out of the box
-  const corsOriginsRaw = (process.env.CORS_ORIGINS ?? '').trim();
+  const corsOriginsRaw = getConfigString(configService, 'CORS_ORIGINS') ?? '';
   const corsOriginsMode = corsOriginsRaw.toLowerCase();
 
   if (corsOriginsMode === 'reflect' || corsOriginsMode === 'all') {
