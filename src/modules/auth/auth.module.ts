@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthenticationService } from './authentication.service';
+import { AUTH_CONFIG, AuthConfigModule } from './auth-config.module';
+import type { AuthConfig } from './auth-config.module';
 import { AccessJwtAuthGuard } from './guards/access-jwt-auth.guard';
 import { AuthenticatedUserGuard } from './guards/authenticated-user.guard';
 import { AdminGuard } from './guards/admin.guard';
@@ -12,24 +13,17 @@ import { UserModule } from '../user/user.module';
 @Module({
   imports: [
     UserModule,
+    AuthConfigModule,
     JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const secret = configService.get<string>('JWT_SECRET');
-        if (!secret?.trim()) {
-          throw new Error('JWT_SECRET is required');
-        }
-        const expiresIn =
-          AuthenticationService.resolveAccessExpiresInSeconds(configService);
-        return {
-          secret,
-          signOptions: {
-            expiresIn,
-            algorithm: 'HS256',
-          },
-        };
-      },
+      imports: [AuthConfigModule],
+      inject: [AUTH_CONFIG],
+      useFactory: (authConfig: AuthConfig) => ({
+        secret: authConfig.accessSecret,
+        signOptions: {
+          expiresIn: authConfig.accessExpiresInSeconds,
+          algorithm: 'HS256',
+        },
+      }),
     }),
   ],
   controllers: [AuthController],

@@ -1,20 +1,37 @@
 import { UnauthorizedException } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Response } from 'express';
 import type {
   AccessTokenIdentityPayload,
   TelegramAccessTokenIdentity,
 } from './types/access-token-identity.types';
+import { createAuthConfig } from './auth-config.module';
+import type { AuthConfig } from './auth-config.module';
 import { AuthenticationService } from './authentication.service';
 
 const ACCESS_SECRET = 'test-access-secret-at-least-32-chars!!';
 const REFRESH_SECRET = 'test-refresh-secret-at-least-32-chars!!';
 
-function mockConfig(map: Record<string, string>): ConfigService {
-  return {
-    get: (key: string) => map[key],
-  } as ConfigService;
+function testAuthConfig(overrides: Record<string, string> = {}): AuthConfig {
+  return createAuthConfig(
+    new ConfigService({
+      JWT_SECRET: ACCESS_SECRET,
+      JWT_REFRESH_SECRET: REFRESH_SECRET,
+      JWT_ACCESS_EXPIRES_IN_SEC: '',
+      JWT_REFRESH_EXPIRES_IN_SEC: '',
+      ACCESS_TOKEN_COOKIE_NAME: '',
+      ACCESS_TOKEN_COOKIE_SECURE: '',
+      ACCESS_TOKEN_COOKIE_SAMESITE: '',
+      ACCESS_TOKEN_COOKIE_DOMAIN: '',
+      REFRESH_TOKEN_COOKIE_NAME: '',
+      REFRESH_TOKEN_COOKIE_SECURE: '',
+      REFRESH_TOKEN_COOKIE_SAMESITE: '',
+      REFRESH_TOKEN_COOKIE_DOMAIN: '',
+      NODE_ENV: 'dev',
+      ...overrides,
+    }),
+  );
 }
 
 function telegramIdentity(
@@ -40,14 +57,12 @@ function refreshTelegramIdentity(): AccessTokenIdentityPayload {
 
 describe('AuthenticationService', () => {
   let jwtService: JwtService;
-  let config: ConfigService;
+  let config: AuthConfig;
   let sut: AuthenticationService;
 
   beforeEach(() => {
-    config = mockConfig({
-      JWT_SECRET: ACCESS_SECRET,
+    config = testAuthConfig({
       JWT_ACCESS_EXPIRES_IN_SEC: '3600',
-      JWT_REFRESH_SECRET: REFRESH_SECRET,
       JWT_REFRESH_EXPIRES_IN_SEC: '86400',
     });
     jwtService = new JwtService({
@@ -59,57 +74,33 @@ describe('AuthenticationService', () => {
 
   describe('JWT expires', () => {
     it('should return default access TTL when unset', () => {
+      const service = new AuthenticationService(jwtService, testAuthConfig());
+
+      expect(service.getAccessExpiresInSeconds()).toBe(3_600);
+    });
+
+    it('should return configured access TTL', () => {
       const service = new AuthenticationService(
         jwtService,
-        mockConfig({ JWT_SECRET: ACCESS_SECRET }),
+        testAuthConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '7200' }),
       );
-      expect(service.getAccessExpiresInSeconds()).toBe(3_600);
-      expect(
-        AuthenticationService.resolveAccessExpiresInSeconds(mockConfig({})),
-      ).toBe(3_600);
-    });
 
-    it('should parse positive access TTL from env', () => {
-      expect(
-        AuthenticationService.resolveAccessExpiresInSeconds(
-          mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '7200' }),
-        ),
-      ).toBe(7_200);
-    });
-
-    it('should floor non-integer access TTL strings', () => {
-      expect(
-        AuthenticationService.resolveAccessExpiresInSeconds(
-          mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '90.7' }),
-        ),
-      ).toBe(90);
-    });
-
-    it('should fall back when access TTL is zero or invalid', () => {
-      expect(
-        AuthenticationService.resolveAccessExpiresInSeconds(
-          mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: '0' }),
-        ),
-      ).toBe(3_600);
-      expect(
-        AuthenticationService.resolveAccessExpiresInSeconds(
-          mockConfig({ JWT_ACCESS_EXPIRES_IN_SEC: 'nope' }),
-        ),
-      ).toBe(3_600);
+      expect(service.getAccessExpiresInSeconds()).toBe(7_200);
     });
 
     it('should return default refresh TTL when unset', () => {
-      expect(
-        AuthenticationService.resolveRefreshExpiresInSeconds(mockConfig({})),
-      ).toBe(2_592_000);
+      const service = new AuthenticationService(jwtService, testAuthConfig());
+
+      expect(service.getRefreshExpiresInSeconds()).toBe(2_592_000);
     });
 
-    it('should parse positive refresh TTL from env', () => {
-      expect(
-        AuthenticationService.resolveRefreshExpiresInSeconds(
-          mockConfig({ JWT_REFRESH_EXPIRES_IN_SEC: '86400' }),
-        ),
-      ).toBe(86_400);
+    it('should return configured refresh TTL', () => {
+      const service = new AuthenticationService(
+        jwtService,
+        testAuthConfig({ JWT_REFRESH_EXPIRES_IN_SEC: '86400' }),
+      );
+
+      expect(service.getRefreshExpiresInSeconds()).toBe(86_400);
     });
   });
 
@@ -125,19 +116,9 @@ describe('AuthenticationService', () => {
       expect(authenticated).toEqual(identity);
     });
 
-    it('throws when JWT_SECRET is missing on sign', () => {
-      const badConfig = mockConfig({
-        JWT_REFRESH_SECRET: REFRESH_SECRET,
-      });
-      const service = new AuthenticationService(jwtService, badConfig);
-      return expect(
-        service.signAccessToken(telegramIdentity()),
-      ).rejects.toThrow('JWT_SECRET is required');
-    });
-
     it('rejects token signed with a different secret', async () => {
       const otherSecret = 'other-access-secret-at-least-32-chars-x!!';
-      const otherConfig = mockConfig({
+      const otherConfig = testAuthConfig({
         JWT_SECRET: otherSecret,
         JWT_ACCESS_EXPIRES_IN_SEC: '3600',
       });
@@ -266,16 +247,6 @@ describe('AuthenticationService', () => {
       expect(out).toEqual(identity);
     });
 
-    it('throws when JWT_REFRESH_SECRET is missing on sign', () => {
-      const badConfig = mockConfig({
-        JWT_SECRET: ACCESS_SECRET,
-      });
-      const service = new AuthenticationService(jwtService, badConfig);
-      return expect(
-        service.signRefreshToken(refreshTelegramIdentity()),
-      ).rejects.toThrow('JWT_REFRESH_SECRET is required');
-    });
-
     it('rejects refresh-shaped token signed with a non-refresh secret', async () => {
       const wrongSecret = 'wrong-signing-secret-not-jwt-refresh-32chars!!';
       const wrongSigner = new JwtService({
@@ -367,7 +338,7 @@ describe('AuthenticationService', () => {
 
   describe('auth cookies', () => {
     beforeEach(() => {
-      sut = new AuthenticationService(jwtService, mockConfig({}));
+      sut = new AuthenticationService(jwtService, testAuthConfig());
     });
 
     it('defaults access cookie name to gt_access', () => {
@@ -381,7 +352,7 @@ describe('AuthenticationService', () => {
     it('uses trimmed custom cookie names from env', () => {
       const service = new AuthenticationService(
         jwtService,
-        mockConfig({
+        testAuthConfig({
           ACCESS_TOKEN_COOKIE_NAME: '  my_access  ',
           REFRESH_TOKEN_COOKIE_NAME: 'my_refresh',
         }),
@@ -393,7 +364,7 @@ describe('AuthenticationService', () => {
     it('setAccessTokenCookie sets maxAge from expiresInSec (seconds → ms)', () => {
       const service = new AuthenticationService(
         jwtService,
-        mockConfig({ NODE_ENV: 'dev' }),
+        testAuthConfig({ NODE_ENV: 'dev' }),
       );
       const res = { cookie: vi.fn() } as unknown as Response;
       service.setAccessTokenCookie(res, 'tok', 120);
