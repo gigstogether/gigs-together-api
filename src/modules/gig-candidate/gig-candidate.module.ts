@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
+import { AlertingModule } from '../alerting/alerting.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
@@ -23,6 +24,7 @@ import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-
     MongooseModule.forFeature([
       { name: GigCandidate.name, schema: GigCandidateSchema },
     ]),
+    AlertingModule,
     GigModule,
     CalendarModule,
     TelegramModule,

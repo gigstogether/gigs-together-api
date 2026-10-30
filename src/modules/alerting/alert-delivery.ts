@@ -6,7 +6,7 @@ export enum AlertSeverity {
 }
 
 export enum AlertCode {
-  GigCandidateApprovalCalendarSyncFailed = 'gigCandidateApprovalCalendarSyncFailed',
+  GigCalendarEventCreationFailed = 'gigCalendarEventCreationFailed',
 }
 
 export type AlertAttributeValue = string | number | boolean;

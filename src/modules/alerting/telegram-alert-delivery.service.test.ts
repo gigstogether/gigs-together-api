@@ -11,7 +11,7 @@ describe('TelegramAlertDeliveryService', () => {
 
   const sendMessageMock = vi.fn<TelegramService['sendMessage']>();
   const params: DeliverAlertParams = {
-    code: AlertCode.GigCandidateApprovalCalendarSyncFailed,
+    code: AlertCode.GigCalendarEventCreationFailed,
     severity: AlertSeverity.Warning,
     summary: 'Calendar synchronization failed.',
     occurredAt: new Date('2026-10-30T12:30:00.000Z'),
@@ -67,7 +67,7 @@ describe('TelegramAlertDeliveryService', () => {
         '',
         'Calendar synchronization failed.',
         '',
-        'Code: gigCandidateApprovalCalendarSyncFailed',
+        'Code: gigCalendarEventCreationFailed',
         'Time: 2026-10-30T12:30:00.000Z',
         'attempt: 2',
         'gigId: gig-id',

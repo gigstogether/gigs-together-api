@@ -10,7 +10,7 @@ describe('AlertingService', () => {
 
   const alertDeliverySendMock = vi.fn<AlertDelivery['send']>();
   const params: SendAlertParams = {
-    code: AlertCode.GigCandidateApprovalCalendarSyncFailed,
+    code: AlertCode.GigCalendarEventCreationFailed,
     severity: AlertSeverity.Warning,
     summary: 'Calendar synchronization failed.',
     attributes: {
