@@ -155,6 +155,25 @@ Main files:
 - `src/modules/locale/locale.controller.ts`
 - `src/modules/locale/locale.service.ts`
 
+#### `TranslationModule`
+
+Responsibilities:
+
+- owns translation persistence, runtime cache, and template rendering
+- reports runtime cache misses through `AlertingModule`
+- deduplicates identical namespace, key, and locale misses until the relevant cache is successfully revalidated
+
+Dependencies:
+
+- `LocaleModule`
+- `AlertingModule`
+
+Main files:
+
+- `src/modules/translation/translation.module.ts`
+- `src/modules/translation/translation-cache.service.ts`
+- `src/modules/translation/translation.service.ts`
+
 #### `LocationModule`
 
 Responsibilities:

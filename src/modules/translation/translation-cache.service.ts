@@ -9,6 +9,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { getConfigPositiveSafeInteger } from '@shared/utils/env';
+import { AlertSeverity } from '../alerting/alert-delivery';
+import type {
+  AlertDefinition,
+  SendAlertParams,
+} from '../alerting/alert-delivery';
+import { AlertingService } from '../alerting/alerting.service';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
@@ -24,6 +30,12 @@ import type {
 } from './types/translation-cache.types';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationBundleEntry } from './types/translation.types';
+
+const TRANSLATION_ENTRY_MISSING_ALERT = {
+  code: 'translationEntryMissing',
+  severity: AlertSeverity.Warning,
+  summary: 'Requested translation is missing from the active cache.',
+} satisfies AlertDefinition;
 
 interface RevalidateTranslationNamespaceParams {
   readonly namespace: string;
@@ -49,12 +61,14 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   private cache: TranslationCacheIndex = new Map();
   private reloadInFlight: Promise<void> | undefined;
   private readonly cacheTtlMs: number;
+  private readonly reportedMissingEntries = new Map<string, Set<string>>();
 
   constructor(
     @Inject(TRANSLATION_REPOSITORY)
     private readonly translationRepository: TranslationRepository,
     configService: ConfigService,
     private readonly schedulerRegistry: SchedulerRegistry,
+    private readonly alertingService: AlertingService,
   ) {
     // Default 3_600_000 ms (1 hour). Override TRANSLATION_CACHE_TTL_MS for shorter windows in dev.
     this.cacheTtlMs =
@@ -114,11 +128,13 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       ?.get(params.key);
 
     if (entry === undefined) {
-      throw new MissingTranslationError({
+      const e = new MissingTranslationError({
         namespace,
         key: params.key,
         locale: normalizedLocale,
       });
+      this.reportMissingTranslation(e);
+      throw e;
     }
 
     return entry;
@@ -179,6 +195,7 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
     const nextCache = buildTranslationCacheIndex(records, this.logger);
 
     this.cache = nextCache;
+    this.reportedMissingEntries.clear();
     this.logger.log(
       `Translation cache refreshed: ${records.length} record(s), ${this.cache.size} namespace(s).`,
     );
@@ -198,6 +215,7 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       const nextCache = new Map(this.cache);
       nextCache.set(namespace, namespaceRegistry);
       this.cache = nextCache;
+      this.reportedMissingEntries.delete(namespace);
 
       this.logger.log(
         `Translation cache revalidated for namespace "${namespace}" (${records.length} record(s)).`,
@@ -208,5 +226,33 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
         `Translation cache namespace reload failed for "${namespace}"; keeping stale slice. ${message}`,
       );
     }
+  }
+
+  private reportMissingTranslation(e: MissingTranslationError): void {
+    const fingerprint = JSON.stringify([e.locale, e.key]);
+    const namespaceFingerprints =
+      this.reportedMissingEntries.get(e.namespace) ?? new Set<string>();
+    if (namespaceFingerprints.has(fingerprint)) {
+      return;
+    }
+
+    namespaceFingerprints.add(fingerprint);
+    this.reportedMissingEntries.set(e.namespace, namespaceFingerprints);
+
+    const alert: SendAlertParams = {
+      ...TRANSLATION_ENTRY_MISSING_ALERT,
+      attributes: {
+        operation: 'getTranslation',
+        namespace: e.namespace,
+        key: e.key,
+        locale: e.locale,
+      },
+    };
+    void this.alertingService.reportFailureBestEffort({
+      alert,
+      error: e,
+      logContext: TranslationCacheService.name,
+      logNote: 'Requested translation is missing from the active cache',
+    });
   }
 }

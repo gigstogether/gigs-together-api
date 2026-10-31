@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
+import { AlertSeverity } from '../alerting/alert-delivery';
+import { AlertingService } from '../alerting/alerting.service';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
@@ -10,6 +12,28 @@ import { TranslationCacheService } from './translation-cache.service';
 import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationRecord } from './types/translation.types';
+
+interface MissingTranslationAccessParams {
+  namespace: string;
+  key: string;
+  locale: string;
+}
+
+function accessMissingTranslation(
+  service: TranslationCacheService,
+  params: MissingTranslationAccessParams,
+): void {
+  try {
+    service.getEntry(params);
+  } catch (e) {
+    if (e instanceof MissingTranslationError) {
+      return;
+    }
+    throw e;
+  }
+
+  throw new Error('Expected MissingTranslationError to be thrown.');
+}
 
 function withRequiredTelegramTranslations(
   records: readonly TranslationRecord[],
@@ -42,17 +66,22 @@ describe('TranslationCacheService', () => {
   let service: TranslationCacheService;
   let translationRepository: TranslationRepository;
   let schedulerRegistry: SchedulerRegistry;
+  let alertingService: AlertingService;
 
   const findAllActiveRecordsMock = vi.fn();
   const findActiveByNamespaceMock = vi.fn();
   const addIntervalMock = vi.fn();
   const deleteIntervalMock = vi.fn();
+  const reportFailureBestEffortMock =
+    vi.fn<AlertingService['reportFailureBestEffort']>();
 
   beforeEach(async () => {
     findAllActiveRecordsMock.mockReset();
     findActiveByNamespaceMock.mockReset();
     addIntervalMock.mockReset();
     deleteIntervalMock.mockReset();
+    reportFailureBestEffortMock.mockReset();
+    reportFailureBestEffortMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -77,6 +106,12 @@ describe('TranslationCacheService', () => {
             deleteInterval: deleteIntervalMock,
           },
         },
+        {
+          provide: AlertingService,
+          useValue: {
+            reportFailureBestEffort: reportFailureBestEffortMock,
+          },
+        },
       ],
     }).compile();
 
@@ -85,6 +120,7 @@ describe('TranslationCacheService', () => {
       TRANSLATION_REPOSITORY,
     );
     schedulerRegistry = module.get<SchedulerRegistry>(SchedulerRegistry);
+    alertingService = module.get<AlertingService>(AlertingService);
   });
 
   afterEach(() => {
@@ -165,6 +201,7 @@ describe('TranslationCacheService', () => {
         translationRepository,
         new ConfigService({ TRANSLATION_CACHE_TTL_MS: '25' }),
         schedulerRegistry,
+        alertingService,
       );
 
       await configuredService.onModuleInit();
@@ -183,6 +220,7 @@ describe('TranslationCacheService', () => {
             translationRepository,
             new ConfigService({ TRANSLATION_CACHE_TTL_MS: '0' }),
             schedulerRegistry,
+            alertingService,
           ),
       ).toThrow('TRANSLATION_CACHE_TTL_MS must be a positive safe integer.');
     });
@@ -454,6 +492,112 @@ describe('TranslationCacheService', () => {
           locale: 'en',
         }).value,
       ).toBe('No gigs this week.');
+    });
+  });
+
+  describe('getEntry missing translation alert', () => {
+    const missingTranslation = {
+      namespace: 'about',
+      key: 'subtitle',
+      locale: 'en',
+    };
+
+    it('should report a normalized missing translation once per cache version', () => {
+      accessMissingTranslation(service, {
+        ...missingTranslation,
+        namespace: ' about ',
+        locale: 'EN',
+      });
+      accessMissingTranslation(service, missingTranslation);
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(1);
+      expect(reportFailureBestEffortMock).toHaveBeenCalledWith({
+        alert: {
+          code: 'translationEntryMissing',
+          severity: AlertSeverity.Warning,
+          summary: 'Requested translation is missing from the active cache.',
+          attributes: {
+            operation: 'getTranslation',
+            namespace: 'about',
+            key: 'subtitle',
+            locale: 'en',
+          },
+        },
+        error: expect.objectContaining({
+          name: MissingTranslationError.name,
+          namespace: 'about',
+          key: 'subtitle',
+          locale: 'en',
+        }),
+        logContext: TranslationCacheService.name,
+        logNote: 'Requested translation is missing from the active cache',
+      });
+    });
+
+    it('should report different namespace, key, or locale combinations independently', () => {
+      accessMissingTranslation(service, missingTranslation);
+      accessMissingTranslation(service, {
+        ...missingTranslation,
+        key: 'title',
+      });
+      accessMissingTranslation(service, {
+        ...missingTranslation,
+        locale: 'es',
+      });
+      accessMissingTranslation(service, {
+        ...missingTranslation,
+        namespace: 'home',
+      });
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('should report the same missing translation after full revalidation succeeds', async () => {
+      accessMissingTranslation(service, missingTranslation);
+      findAllActiveRecordsMock.mockResolvedValue(
+        withRequiredTelegramTranslations([]),
+      );
+
+      await service.revalidateAll();
+      accessMissingTranslation(service, missingTranslation);
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should preserve deduplication when full revalidation fails', async () => {
+      accessMissingTranslation(service, missingTranslation);
+      findAllActiveRecordsMock.mockRejectedValue(new Error('mongo down'));
+
+      await expect(service.revalidateAll()).rejects.toThrow('mongo down');
+      accessMissingTranslation(service, missingTranslation);
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should reset deduplication only for a successfully revalidated namespace', async () => {
+      const otherNamespaceMissingTranslation = {
+        ...missingTranslation,
+        namespace: 'home',
+      };
+      accessMissingTranslation(service, missingTranslation);
+      accessMissingTranslation(service, otherNamespaceMissingTranslation);
+      findActiveByNamespaceMock.mockResolvedValue([]);
+
+      await service.revalidateNamespace({ namespace: 'about' });
+      accessMissingTranslation(service, missingTranslation);
+      accessMissingTranslation(service, otherNamespaceMissingTranslation);
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('should preserve deduplication when namespace revalidation fails', async () => {
+      accessMissingTranslation(service, missingTranslation);
+      findActiveByNamespaceMock.mockRejectedValue(new Error('mongo down'));
+
+      await service.revalidateNamespace({ namespace: 'about' });
+      accessMissingTranslation(service, missingTranslation);
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledTimes(1);
     });
   });
 
