@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { TelegramModule } from '../telegram/telegram.module';
+import { TelegramBotClientModule } from '../telegram/telegram-bot-client/telegram-bot-client.module';
 import { ALERT_DELIVERY } from './alert-delivery';
 import { AlertingService } from './alerting.service';
 import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service';
 
 @Module({
-  imports: [TelegramModule],
+  imports: [TelegramBotClientModule],
   providers: [
     AlertingService,
     TelegramAlertDeliveryService,

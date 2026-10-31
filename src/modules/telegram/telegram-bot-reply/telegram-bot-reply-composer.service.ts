@@ -3,12 +3,12 @@ import { TELEGRAM_WEB_BASE_URL } from '../telegram.constants';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramService } from '../telegram.service';
-import type { TGChat } from '../types/chat.types';
+import type { TGChat } from '../telegram-bot-client/types/chat.types';
 import type {
   TGInlineKeyboardButton,
   TGSendMessage,
-} from '../types/message.types';
-import { TGParseMode } from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
+import { TGParseMode } from '../telegram-bot-client/types/message.types';
 
 const SUGGEST_GIG_PATH = '/suggest/launch';
 

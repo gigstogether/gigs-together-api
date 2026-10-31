@@ -4,7 +4,7 @@ import type {
   TGSendMediaGroup,
   TGSendMessage,
   TGSendPhoto,
-} from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
 
 export enum WeeklyDigestSendKind {
   SendMessage = 'sendMessage',

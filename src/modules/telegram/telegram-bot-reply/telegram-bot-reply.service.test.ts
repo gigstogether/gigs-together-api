@@ -4,9 +4,12 @@ import { TelegramBotReplyComposerService } from './telegram-bot-reply-composer.s
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import { TelegramTemplateService } from '../telegram-template.service';
-import { TelegramBotClient } from '../telegram-bot.client';
-import type { TGMessage, TGSendMessage } from '../types/message.types';
-import { TGParseMode } from '../types/message.types';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
+import type {
+  TGMessage,
+  TGSendMessage,
+} from '../telegram-bot-client/types/message.types';
+import { TGParseMode } from '../telegram-bot-client/types/message.types';
 import { TelegramBotReplyService } from './telegram-bot-reply.service';
 import { TelegramService } from '../telegram.service';
 

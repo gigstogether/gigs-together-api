@@ -6,7 +6,7 @@ import { logError } from '@shared/utils/logging';
 import { TelegramDigestComposerService } from './telegram-digest-composer.service';
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { TelegramService } from '../telegram.service';
 

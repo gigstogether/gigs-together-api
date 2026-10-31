@@ -10,14 +10,17 @@ import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramComposerService } from './telegram-composer.service';
-import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramBotClient } from './telegram-bot-client/telegram-bot.client';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigComposerService } from './telegram-gig/telegram-gig-composer.service';
 import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
 import { TelegramTemplateService } from './telegram-template.service';
-import { TGInputMediaType, TGParseMode } from './types/message.types';
+import {
+  TGInputMediaType,
+  TGParseMode,
+} from './telegram-bot-client/types/message.types';
 import {
   CallbackScope,
   encodeCallbackData,

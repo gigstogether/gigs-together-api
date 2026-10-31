@@ -118,6 +118,7 @@ Responsibilities:
 Dependencies:
 
 - `GigModule`
+- `TelegramBotClientModule`
 - `TelegramModule`
 - `AuthModule`
 - `GigCandidateModule`
@@ -190,12 +191,27 @@ Main files:
 - `src/modules/alerting/alert-delivery.ts`
 - `src/modules/alerting/telegram-alert-delivery.service.ts`
 
+#### `TelegramBotClientModule`
+
+Responsibilities:
+
+- owns the low-level Telegram Bot API HTTP client and its wire types
+- configures the Telegram Bot API HTTP client with `BOT_TOKEN`
+- exports `TelegramBotClient` to modules that need direct Bot API operations
+- remains independent from higher-level Telegram workflows and application features
+
+Main files:
+
+- `src/modules/telegram/telegram-bot-client/telegram-bot-client.module.ts`
+- `src/modules/telegram/telegram-bot-client/telegram-bot.client.ts`
+- `src/modules/telegram/telegram-bot-client/types/`
+
 #### `TelegramModule`
 
 Responsibilities:
 
-- wraps Telegram Bot API calls
-- configures an HTTP client with `BOT_TOKEN`
+- owns higher-level Telegram workflows, composers, and authentication
+- uses `TelegramBotClientModule` for low-level Telegram Bot API calls
 - uses cache for Telegram-related operations
 - can interact with bucket storage
 - validates Web App `initData` and Telegram OIDC ID tokens, then exchanges them for application JWTs (with `AuthModule` services)

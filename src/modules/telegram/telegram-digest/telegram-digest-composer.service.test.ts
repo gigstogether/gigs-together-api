@@ -10,14 +10,17 @@ import { TELEGRAM_TEMPLATE_KEYS } from '../telegram-template-keys';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
-import { TGInputMediaType, TGParseMode } from '../types/message.types';
+import {
+  TGInputMediaType,
+  TGParseMode,
+} from '../telegram-bot-client/types/message.types';
 import {
   TELEGRAM_DIGEST_CAPTION_MAX_CHARS,
   TelegramDigestComposerService,
 } from './telegram-digest-composer.service';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramService } from '../telegram.service';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;

@@ -1,4 +1,4 @@
-import type { TGUser } from '../../types/user.types';
+import type { TGUser } from '../../telegram-bot-client/types/user.types';
 
 export interface TelegramAuthenticationResult {
   tgUser: TGUser;

@@ -1,7 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
 import { AlertCode, AlertSeverity } from './alert-delivery';
 import type { DeliverAlertParams } from './alert-delivery';
 import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service';
@@ -9,7 +9,7 @@ import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service'
 describe('TelegramAlertDeliveryService', () => {
   let service: TelegramAlertDeliveryService;
 
-  const sendMessageMock = vi.fn<TelegramService['sendMessage']>();
+  const sendMessageMock = vi.fn<TelegramBotClient['sendMessage']>();
   const params: DeliverAlertParams = {
     code: AlertCode.GigCalendarEventCreationFailed,
     severity: AlertSeverity.Warning,
@@ -37,7 +37,7 @@ describe('TelegramAlertDeliveryService', () => {
       providers: [
         TelegramAlertDeliveryService,
         {
-          provide: TelegramService,
+          provide: TelegramBotClient,
           useValue: {
             sendMessage: sendMessageMock,
           },
@@ -104,7 +104,7 @@ describe('TelegramAlertDeliveryService', () => {
       providers: [
         TelegramAlertDeliveryService,
         {
-          provide: TelegramService,
+          provide: TelegramBotClient,
           useValue: {
             sendMessage: sendMessageMock,
           },

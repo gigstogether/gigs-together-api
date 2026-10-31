@@ -3,7 +3,7 @@ import type {
   InputFileData,
   TGChatId,
   TGMessage,
-} from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
 import type { PostEditKind } from '../telegram-composer.service.types';
 
 export interface TelegramGigPostEditResult {

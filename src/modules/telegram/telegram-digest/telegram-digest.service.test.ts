@@ -3,9 +3,9 @@ import { Test } from '@nestjs/testing';
 import { TelegramDigestComposerService } from './telegram-digest-composer.service';
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
-import { TGInputMediaType } from '../types/message.types';
+import { TGInputMediaType } from '../telegram-bot-client/types/message.types';
 import { TelegramDigestService } from './telegram-digest.service';
 import { TelegramService } from '../telegram.service';
 

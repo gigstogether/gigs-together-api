@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRequiredConfigString } from '@shared/utils/env';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
 import { AlertSeverity } from './alert-delivery';
 import type {
   AlertAttributeValue,
@@ -19,7 +19,7 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
   private readonly alertsChannelId: string;
 
   constructor(
-    private readonly telegramService: TelegramService,
+    private readonly telegramBotClient: TelegramBotClient,
     configService: ConfigService,
   ) {
     this.alertsChannelId = getRequiredConfigString(
@@ -29,7 +29,7 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
   }
 
   async send(params: DeliverAlertParams): Promise<void> {
-    await this.telegramService.sendMessage({
+    await this.telegramBotClient.sendMessage({
       chat_id: this.alertsChannelId,
       text: this.composeMessage(params),
     });
