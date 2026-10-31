@@ -37,7 +37,8 @@ describe('GigCandidateApprovalService', () => {
     vi.fn<GigFeedRevalidationService['revalidateGigFeedOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
   const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
-  const sendAlertBestEffortMock = vi.fn<AlertingService['sendBestEffort']>();
+  const reportFailureBestEffortMock =
+    vi.fn<AlertingService['reportFailureBestEffort']>();
   const sendFeedbackBestEffortMock =
     vi.fn<GigCandidateFeedbackService['sendBestEffort']>();
   const calendarEvent: CalendarEvent = {
@@ -48,6 +49,7 @@ describe('GigCandidateApprovalService', () => {
     endLocalDateTime: '2026-10-30T22:00:00',
     timeZone: 'Europe/Madrid',
   };
+  const calendarFailure = new Error('Calendar is unavailable');
   const approvedGigCandidate: GigCandidate = {
     id: 'gig-candidate-id',
     status: GigCandidateStatus.Approved,
@@ -94,7 +96,7 @@ describe('GigCandidateApprovalService', () => {
     revalidateGigFeedOrThrowMock.mockResolvedValue(undefined);
     calendarAddEventMock.mockResolvedValue(undefined);
     gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
-    sendAlertBestEffortMock.mockResolvedValue(undefined);
+    reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -120,7 +122,9 @@ describe('GigCandidateApprovalService', () => {
         },
         {
           provide: AlertingService,
-          useValue: { sendBestEffort: sendAlertBestEffortMock },
+          useValue: {
+            reportFailureBestEffort: reportFailureBestEffortMock,
+          },
         },
         { provide: TelegramGigService, useValue: {} },
         {
@@ -144,13 +148,8 @@ describe('GigCandidateApprovalService', () => {
       gigCandidate: approvedGigCandidate,
       isNewApproval: true,
     });
-    calendarAddEventMock.mockRejectedValueOnce(
-      new Error('Calendar is unavailable'),
-    );
+    calendarAddEventMock.mockRejectedValueOnce(calendarFailure);
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    return vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
   }
 
   it('should reject an invalid expected version before opening a transaction', async () => {
@@ -183,7 +182,7 @@ describe('GigCandidateApprovalService', () => {
     expect(approvalTransactionMock.createGigId).not.toHaveBeenCalled();
   });
 
-  it('should send an alert when Calendar event creation fails', async () => {
+  it('should report an alert when Calendar event creation fails', async () => {
     arrangeCalendarFailureAfterApproval();
 
     await service.approveGigCandidate({
@@ -192,45 +191,22 @@ describe('GigCandidateApprovalService', () => {
       approvedByUserId: 'admin-user-id',
     });
 
-    expect(sendAlertBestEffortMock).toHaveBeenCalledWith({
-      code: 'gigCalendarEventCreationFailed',
-      severity: AlertSeverity.Warning,
-      summary: 'Calendar event was not created for the gig.',
-      attributes: {
-        operation: 'gigCandidateApproval',
-        gigCandidateId: approvedGigCandidate.id,
-        gigId: approvedGig.id,
-        gigPublicId: approvedGig.publicId,
-      },
-    });
-  });
-
-  it('should log structured alert context when Calendar event creation fails', async () => {
-    const loggerErrorSpy = arrangeCalendarFailureAfterApproval();
-
-    await service.approveGigCandidate({
-      gigCandidateId: approvedGigCandidate.id,
-      expectedVersion: 1,
-      approvedByUserId: 'admin-user-id',
-    });
-
-    expect(loggerErrorSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        note: 'Calendar event creation failed after gig candidate approval',
-        context: GigCandidateApprovalService.name,
-        meta: {
-          alertCode: 'gigCalendarEventCreationFailed',
-          severity: AlertSeverity.Warning,
+    expect(reportFailureBestEffortMock).toHaveBeenCalledWith({
+      alert: {
+        code: 'gigCalendarEventCreationFailed',
+        severity: AlertSeverity.Warning,
+        summary: 'Calendar event was not created for the gig.',
+        attributes: {
           operation: 'gigCandidateApproval',
           gigCandidateId: approvedGigCandidate.id,
           gigId: approvedGig.id,
           gigPublicId: approvedGig.publicId,
         },
-        message: 'Calendar is unavailable',
-      }),
-      expect.any(String),
-      GigCandidateApprovalService.name,
-    );
+      },
+      error: calendarFailure,
+      logContext: GigCandidateApprovalService.name,
+      logNote: 'Calendar event creation failed after gig candidate approval',
+    });
   });
 
   it('should preserve approval when Calendar event creation fails', async () => {

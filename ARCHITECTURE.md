@@ -183,6 +183,7 @@ Responsibilities:
 - keeps alert definitions in the feature modules that own the reported conditions
 - delegates delivery through the `ALERT_DELIVERY` port
 - uses `TelegramAlertDeliveryService` as the initial delivery adapter
+- centralizes structured failure logging from ready feature-owned alerts
 - logs best-effort delivery failures without changing the originating application operation
 
 Main files:

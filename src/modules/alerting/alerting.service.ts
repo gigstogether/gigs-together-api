@@ -3,6 +3,13 @@ import { logError } from '@shared/utils/logging';
 import { ALERT_DELIVERY } from './alert-delivery';
 import type { AlertDelivery, SendAlertParams } from './alert-delivery';
 
+export interface ReportFailureBestEffortParams {
+  alert: SendAlertParams;
+  error: unknown;
+  logContext: string;
+  logNote: string;
+}
+
 @Injectable()
 export class AlertingService {
   private readonly logger = new Logger(AlertingService.name);
@@ -33,5 +40,24 @@ export class AlertingService {
         },
       });
     }
+  }
+
+  async reportFailureBestEffort(
+    params: ReportFailureBestEffortParams,
+  ): Promise<void> {
+    const { alert, error, logContext, logNote } = params;
+
+    logError(this.logger, {
+      error,
+      note: logNote,
+      context: logContext,
+      meta: {
+        ...alert.attributes,
+        alertCode: alert.code,
+        severity: alert.severity,
+      },
+    });
+
+    await this.sendBestEffort(alert);
   }
 }

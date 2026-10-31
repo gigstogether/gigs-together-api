@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
-import { formatErrorMessage, logError } from '@shared/utils/logging';
+import { formatErrorMessage } from '@shared/utils/logging';
 import { AlertSeverity } from '../../alerting/alert-delivery';
 import type {
   AlertDefinition,
@@ -200,17 +200,12 @@ export class GigCandidateApprovalService {
           gigPublicId: gig.publicId,
         },
       };
-      logError(this.logger, {
+      await this.alertingService.reportFailureBestEffort({
+        alert,
         error: e,
-        note: 'Calendar event creation failed after gig candidate approval',
-        context: GigCandidateApprovalService.name,
-        meta: {
-          alertCode: alert.code,
-          severity: alert.severity,
-          ...alert.attributes,
-        },
+        logContext: GigCandidateApprovalService.name,
+        logNote: 'Calendar event creation failed after gig candidate approval',
       });
-      await this.alertingService.sendBestEffort(alert);
     }
 
     await this.gigCandidateFeedbackService.sendBestEffort(gigCandidate, {
