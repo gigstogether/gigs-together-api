@@ -2,7 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
-import { AlertCode, AlertSeverity } from './alert-delivery';
+import { AlertSeverity } from './alert-delivery';
 import type { DeliverAlertParams } from './alert-delivery';
 import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service';
 
@@ -11,9 +11,9 @@ describe('TelegramAlertDeliveryService', () => {
 
   const sendMessageMock = vi.fn<TelegramBotClient['sendMessage']>();
   const params: DeliverAlertParams = {
-    code: AlertCode.GigCalendarEventCreationFailed,
+    code: 'testTelegramAlertDelivery',
     severity: AlertSeverity.Warning,
-    summary: 'Calendar synchronization failed.',
+    summary: 'Test Telegram alert delivery.',
     occurredAt: new Date('2026-10-30T12:30:00.000Z'),
     attributes: {
       gigId: 'gig-id',
@@ -65,9 +65,9 @@ describe('TelegramAlertDeliveryService', () => {
       text: [
         '⚠️ WARNING',
         '',
-        'Calendar synchronization failed.',
+        'Test Telegram alert delivery.',
         '',
-        'Code: gigCalendarEventCreationFailed',
+        'Code: testTelegramAlertDelivery',
         'Time: 2026-10-30T12:30:00.000Z',
         'attempt: 2',
         'gigId: gig-id',

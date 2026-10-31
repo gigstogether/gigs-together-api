@@ -179,7 +179,8 @@ Main files:
 Responsibilities:
 
 - exposes the provider-neutral `AlertingService` application boundary
-- models actionable internal alerts with stable codes, severity, summaries, and safe attributes
+- models actionable internal alerts with opaque codes, severity, summaries, and safe attributes
+- keeps alert definitions in the feature modules that own the reported conditions
 - delegates delivery through the `ALERT_DELIVERY` port
 - uses `TelegramAlertDeliveryService` as the initial delivery adapter
 - logs best-effort delivery failures without changing the originating application operation

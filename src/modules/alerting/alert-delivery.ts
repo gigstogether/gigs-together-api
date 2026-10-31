@@ -5,16 +5,15 @@ export enum AlertSeverity {
   Critical = 'critical',
 }
 
-export enum AlertCode {
-  GigCalendarEventCreationFailed = 'gigCalendarEventCreationFailed',
-}
-
 export type AlertAttributeValue = string | number | boolean;
 
-export interface SendAlertParams {
-  code: AlertCode;
+export interface AlertDefinition {
+  code: string;
   severity: AlertSeverity;
   summary: string;
+}
+
+export interface SendAlertParams extends AlertDefinition {
   attributes?: Record<string, AlertAttributeValue>;
 }
 

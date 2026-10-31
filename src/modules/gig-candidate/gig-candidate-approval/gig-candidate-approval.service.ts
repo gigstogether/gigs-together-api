@@ -2,8 +2,11 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { formatErrorMessage, logError } from '@shared/utils/logging';
-import { AlertCode, AlertSeverity } from '../../alerting/alert-delivery';
-import type { SendAlertParams } from '../../alerting/alert-delivery';
+import { AlertSeverity } from '../../alerting/alert-delivery';
+import type {
+  AlertDefinition,
+  SendAlertParams,
+} from '../../alerting/alert-delivery';
 import { AlertingService } from '../../alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
@@ -28,6 +31,12 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+
+const GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT = {
+  code: 'gigCalendarEventCreationFailed',
+  severity: AlertSeverity.Warning,
+  summary: 'Calendar event was not created for the gig.',
+} satisfies AlertDefinition;
 
 export interface ApproveGigCandidateParams {
   gigCandidateId: string;
@@ -183,9 +192,7 @@ export class GigCandidateApprovalService {
       );
     } catch (e) {
       const alert: SendAlertParams = {
-        code: AlertCode.GigCalendarEventCreationFailed,
-        severity: AlertSeverity.Warning,
-        summary: 'Calendar event was not created for the gig.',
+        ...GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT,
         attributes: {
           operation: 'gigCandidateApproval',
           gigCandidateId: gigCandidate.id,

@@ -1,7 +1,7 @@
 import { Logger, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { AlertCode, AlertSeverity } from '../../alerting/alert-delivery';
+import { AlertSeverity } from '../../alerting/alert-delivery';
 import { AlertingService } from '../../alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import type { CalendarEvent } from '../../calendar/calendar.types';
@@ -193,7 +193,7 @@ describe('GigCandidateApprovalService', () => {
     });
 
     expect(sendAlertBestEffortMock).toHaveBeenCalledWith({
-      code: AlertCode.GigCalendarEventCreationFailed,
+      code: 'gigCalendarEventCreationFailed',
       severity: AlertSeverity.Warning,
       summary: 'Calendar event was not created for the gig.',
       attributes: {
@@ -219,7 +219,7 @@ describe('GigCandidateApprovalService', () => {
         note: 'Calendar event creation failed after gig candidate approval',
         context: GigCandidateApprovalService.name,
         meta: {
-          alertCode: AlertCode.GigCalendarEventCreationFailed,
+          alertCode: 'gigCalendarEventCreationFailed',
           severity: AlertSeverity.Warning,
           operation: 'gigCandidateApproval',
           gigCandidateId: approvedGigCandidate.id,

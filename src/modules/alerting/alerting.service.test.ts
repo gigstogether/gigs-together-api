@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { ALERT_DELIVERY, AlertCode, AlertSeverity } from './alert-delivery';
+import { ALERT_DELIVERY, AlertSeverity } from './alert-delivery';
 import type { AlertDelivery, SendAlertParams } from './alert-delivery';
 import { AlertingService } from './alerting.service';
 
@@ -10,12 +10,11 @@ describe('AlertingService', () => {
 
   const alertDeliverySendMock = vi.fn<AlertDelivery['send']>();
   const params: SendAlertParams = {
-    code: AlertCode.GigCalendarEventCreationFailed,
+    code: 'testAlertDelivery',
     severity: AlertSeverity.Warning,
-    summary: 'Calendar synchronization failed.',
+    summary: 'Test alert delivery.',
     attributes: {
-      gigCandidateId: 'candidate-id',
-      gigId: 'gig-id',
+      entityId: 'entity-id',
     },
   };
 
