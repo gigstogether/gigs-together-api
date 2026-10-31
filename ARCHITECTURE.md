@@ -106,6 +106,27 @@ Main files:
 - `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
 - `src/modules/gig-candidate/repositories/gig-candidate-approval/`
 
+#### `DigestModule`
+
+Responsibilities:
+
+- owns weekly digest scheduling, eligibility, and successful-post state
+- delegates Telegram composition and delivery through `TelegramModule`
+- reports unattended scheduled and startup catch-up failures through `AlertingModule`
+
+Dependencies:
+
+- `GigModule`
+- `TelegramModule`
+- `AlertingModule`
+- local `DigestPostState` Mongoose model
+
+Main files:
+
+- `src/modules/digest/digest.module.ts`
+- `src/modules/digest/digest-cron.service.ts`
+- `src/modules/digest/digest.service.ts`
+
 #### `TelegramUpdatesModule`
 
 Responsibilities:

@@ -5,13 +5,31 @@ import {
   DIGEST_POST_CRON_EXPRESSION,
   DIGEST_POST_TIMEZONE,
 } from './digest.service';
-import { logError } from '@shared/utils/logging';
+import { AlertSeverity } from '../alerting/alert-delivery';
+import type { AlertDefinition } from '../alerting/alert-delivery';
+import { AlertingService } from '../alerting/alerting.service';
+
+const WEEKLY_DIGEST_POST_FAILED_ALERT = {
+  code: 'weeklyDigestPostFailed',
+  severity: AlertSeverity.Warning,
+  summary: 'Weekly digest post failed.',
+} satisfies AlertDefinition;
+
+type WeeklyDigestRunTrigger = 'scheduled' | 'startupCatchUp';
+
+interface ReportWeeklyDigestFailureParams {
+  error: unknown;
+  trigger: WeeklyDigestRunTrigger;
+}
 
 @Injectable()
 export class DigestCronService implements OnModuleInit {
   private readonly logger = new Logger(DigestCronService.name);
 
-  constructor(private readonly digestService: DigestService) {}
+  constructor(
+    private readonly digestService: DigestService,
+    private readonly alertingService: AlertingService,
+  ) {}
 
   onModuleInit(): void {
     void this.createWeeklyDigestPostOnStartup();
@@ -23,18 +41,49 @@ export class DigestCronService implements OnModuleInit {
   })
   async createWeeklyDigestPostScheduled(): Promise<void> {
     this.logger.log('Scheduled weekly digest post started');
-    await this.digestService.createPostIfEligible();
+    try {
+      await this.digestService.createPostIfEligible();
+    } catch (e) {
+      await this.reportWeeklyDigestFailure({
+        error: e,
+        trigger: 'scheduled',
+      });
+      throw e;
+    }
   }
 
   private async createWeeklyDigestPostOnStartup(): Promise<void> {
     try {
       await this.digestService.createPostIfEligible();
-    } catch (e: unknown) {
-      logError(this.logger, {
+    } catch (e) {
+      await this.reportWeeklyDigestFailure({
         error: e,
-        note: 'Startup weekly digest catch-up failed; application will continue running',
-        context: DigestCronService.name,
+        trigger: 'startupCatchUp',
       });
     }
+  }
+
+  private reportWeeklyDigestFailure(
+    params: ReportWeeklyDigestFailureParams,
+  ): Promise<void> {
+    const logNote =
+      params.trigger === 'startupCatchUp'
+        ? 'Startup weekly digest catch-up failed; application will continue running'
+        : 'Scheduled weekly digest post failed';
+
+    return this.alertingService.reportFailureBestEffort({
+      alert: {
+        ...WEEKLY_DIGEST_POST_FAILED_ALERT,
+        attributes: {
+          operation: 'createPostIfEligible',
+          trigger: params.trigger,
+          cronExpression: DIGEST_POST_CRON_EXPRESSION,
+          timeZone: DIGEST_POST_TIMEZONE,
+        },
+      },
+      error: params.error,
+      logContext: DigestCronService.name,
+      logNote,
+    });
   }
 }

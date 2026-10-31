@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AlertingModule } from '../alerting/alerting.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { DigestCronService } from './digest-cron.service';
@@ -16,6 +17,7 @@ import { MongoDigestPostStateRepository } from './repositories/mongo-digest-post
  */
 @Module({
   imports: [
+    AlertingModule,
     MongooseModule.forFeature([
       {
         name: DigestPostState.name,
