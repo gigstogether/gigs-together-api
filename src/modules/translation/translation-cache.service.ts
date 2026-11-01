@@ -20,6 +20,7 @@ import {
   buildTranslationCacheIndex,
 } from './translation-bundle.parser';
 import { isValidTranslationNamespace } from './translation-identifiers';
+import type { InvalidTranslationDocumentError } from './translation.errors';
 import { MissingTranslationError } from './translation.errors';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
@@ -35,6 +36,12 @@ const TRANSLATION_ENTRY_MISSING_ALERT = {
   code: 'translationEntryMissing',
   severity: AlertSeverity.Warning,
   summary: 'Requested translation is missing from the active cache.',
+} satisfies AlertDefinition;
+
+const TRANSLATION_DOCUMENT_INVALID_ALERT = {
+  code: 'translationDocumentInvalid',
+  severity: AlertSeverity.Warning,
+  summary: 'Invalid translation document was skipped during cache loading.',
 } satisfies AlertDefinition;
 
 interface RevalidateTranslationNamespaceParams {
@@ -191,7 +198,9 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async loadFullCache(): Promise<void> {
-    const records = await this.translationRepository.findAllActiveRecords();
+    const { records, invalidDocuments } =
+      await this.translationRepository.findAllActiveRecords();
+    this.reportInvalidTranslationDocuments(invalidDocuments);
     const nextCache = buildTranslationCacheIndex(records, this.logger);
 
     this.cache = nextCache;
@@ -203,9 +212,9 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
 
   private async performNamespaceReload(namespace: string): Promise<void> {
     try {
-      const records = await this.translationRepository.findActiveByNamespace({
-        namespace,
-      });
+      const { records, invalidDocuments } =
+        await this.translationRepository.findActiveByNamespace({ namespace });
+      this.reportInvalidTranslationDocuments(invalidDocuments);
       const namespaceRegistry = buildNamespaceLocaleRegistry(
         records,
         namespace,
@@ -254,5 +263,31 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       logContext: TranslationCacheService.name,
       logNote: 'Requested translation is missing from the active cache',
     });
+  }
+
+  private reportInvalidTranslationDocuments(
+    invalidDocuments: readonly InvalidTranslationDocumentError[],
+  ): void {
+    for (const e of invalidDocuments) {
+      const alert: SendAlertParams = {
+        ...TRANSLATION_DOCUMENT_INVALID_ALERT,
+        attributes: {
+          operation: 'loadRuntimeTranslationCache',
+          documentId: e.documentId,
+          namespace: e.namespace,
+          key: e.key,
+          locale: e.locale,
+          invalidFields: [...new Set(e.issues.map((issue) => issue.field))]
+            .sort()
+            .join(','),
+        },
+      };
+      void this.alertingService.reportFailureBestEffort({
+        alert,
+        error: e,
+        logContext: TranslationCacheService.name,
+        logNote: 'Invalid translation document skipped during cache loading',
+      });
+    }
   }
 }

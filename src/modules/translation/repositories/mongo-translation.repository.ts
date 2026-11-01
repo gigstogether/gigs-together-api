@@ -8,11 +8,10 @@ import type {
 } from '../types/translation-record.types';
 import { Translation, TranslationDocument } from '../translation.schema';
 import type { TranslationRecordLeanDocument } from './translation.repository.mapper';
-import {
-  InvalidTranslationDocumentError,
-  TranslationRepositoryMapper,
-} from './translation.repository.mapper';
+import { InvalidTranslationDocumentError } from '../translation.errors';
+import { TranslationRepositoryMapper } from './translation.repository.mapper';
 import type {
+  ActiveTranslationRecordsResult,
   FindActiveByNamespaceParams,
   FindAllTranslationsParams,
   FindByNamespaceParams,
@@ -54,7 +53,7 @@ export class MongoTranslationRepository implements TranslationRepository {
 
   async findActiveByNamespace(
     params: FindActiveByNamespaceParams,
-  ): Promise<readonly TranslationRecord[]> {
+  ): Promise<ActiveTranslationRecordsResult> {
     const docs = await this.translationModel
       .find(
         { namespace: params.namespace, isActive: true },
@@ -67,7 +66,7 @@ export class MongoTranslationRepository implements TranslationRepository {
     return this.mapValidTranslationRecords(docs);
   }
 
-  async findAllActiveRecords(): Promise<readonly TranslationRecord[]> {
+  async findAllActiveRecords(): Promise<ActiveTranslationRecordsResult> {
     const docs = await this.translationModel
       .find({ isActive: true }, TRANSLATION_RECORD_PROJECTION)
       .sort({ namespace: 1, locale: 1, key: 1 })
@@ -187,8 +186,9 @@ export class MongoTranslationRepository implements TranslationRepository {
 
   private mapValidTranslationRecords(
     docs: readonly TranslationRecordLeanDocument[],
-  ): readonly TranslationRecord[] {
+  ): ActiveTranslationRecordsResult {
     const records: TranslationRecord[] = [];
+    const invalidDocuments: InvalidTranslationDocumentError[] = [];
 
     for (const doc of docs) {
       try {
@@ -198,13 +198,11 @@ export class MongoTranslationRepository implements TranslationRepository {
           throw e;
         }
 
-        this.logger.error(
-          `Skipping invalid translation document during runtime cache loading. ${e.message}`,
-        );
+        invalidDocuments.push(e);
       }
     }
 
-    return records;
+    return { records, invalidDocuments };
   }
 
   private mapValidStoredTranslationRecords(

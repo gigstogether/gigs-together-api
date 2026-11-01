@@ -9,7 +9,10 @@ import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
 import { TranslationCacheService } from './translation-cache.service';
-import { MissingTranslationError } from './translation.errors';
+import {
+  InvalidTranslationDocumentError,
+  MissingTranslationError,
+} from './translation.errors';
 import { TRANSLATION_CACHE_DEFAULT_TTL_MS } from './types/translation-cache.types';
 import type { TranslationRecord } from './types/translation.types';
 
@@ -70,18 +73,36 @@ describe('TranslationCacheService', () => {
 
   const findAllActiveRecordsMock = vi.fn();
   const findActiveByNamespaceMock = vi.fn();
+  const repositoryFindAllActiveRecordsMock =
+    vi.fn<TranslationRepository['findAllActiveRecords']>();
+  const repositoryFindActiveByNamespaceMock =
+    vi.fn<TranslationRepository['findActiveByNamespace']>();
   const addIntervalMock = vi.fn();
   const deleteIntervalMock = vi.fn();
   const reportFailureBestEffortMock =
     vi.fn<AlertingService['reportFailureBestEffort']>();
+  let fullLoadInvalidDocuments: InvalidTranslationDocumentError[];
+  let namespaceLoadInvalidDocuments: InvalidTranslationDocumentError[];
 
   beforeEach(async () => {
     findAllActiveRecordsMock.mockReset();
     findActiveByNamespaceMock.mockReset();
+    repositoryFindAllActiveRecordsMock.mockReset();
+    repositoryFindActiveByNamespaceMock.mockReset();
     addIntervalMock.mockReset();
     deleteIntervalMock.mockReset();
     reportFailureBestEffortMock.mockReset();
     reportFailureBestEffortMock.mockResolvedValue(undefined);
+    fullLoadInvalidDocuments = [];
+    namespaceLoadInvalidDocuments = [];
+    repositoryFindAllActiveRecordsMock.mockImplementation(async () => ({
+      records: await findAllActiveRecordsMock(),
+      invalidDocuments: fullLoadInvalidDocuments,
+    }));
+    repositoryFindActiveByNamespaceMock.mockImplementation(async (params) => ({
+      records: await findActiveByNamespaceMock(params),
+      invalidDocuments: namespaceLoadInvalidDocuments,
+    }));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -89,8 +110,8 @@ describe('TranslationCacheService', () => {
         {
           provide: TRANSLATION_REPOSITORY,
           useValue: {
-            findAllActiveRecords: findAllActiveRecordsMock,
-            findActiveByNamespace: findActiveByNamespaceMock,
+            findAllActiveRecords: repositoryFindAllActiveRecordsMock,
+            findActiveByNamespace: repositoryFindActiveByNamespaceMock,
           },
         },
         {
@@ -492,6 +513,47 @@ describe('TranslationCacheService', () => {
           locale: 'en',
         }).value,
       ).toBe('No gigs this week.');
+    });
+  });
+
+  describe('cache loading invalid translation alert', () => {
+    it('should report an invalid document skipped during a full cache load', async () => {
+      const invalidDocument = new InvalidTranslationDocumentError({
+        documentId: '69b9d66b2ce32c3d060a30d8',
+        namespace: 'about',
+        key: 'content',
+        locale: undefined,
+        issues: [
+          {
+            field: 'locale',
+            reason: 'must be a non-empty string',
+          },
+        ],
+      });
+      fullLoadInvalidDocuments = [invalidDocument];
+      findAllActiveRecordsMock.mockResolvedValue([]);
+
+      await service.revalidateAll();
+
+      expect(reportFailureBestEffortMock).toHaveBeenCalledWith({
+        alert: {
+          code: 'translationDocumentInvalid',
+          severity: AlertSeverity.Warning,
+          summary:
+            'Invalid translation document was skipped during cache loading.',
+          attributes: {
+            operation: 'loadRuntimeTranslationCache',
+            documentId: '69b9d66b2ce32c3d060a30d8',
+            namespace: 'about',
+            key: 'content',
+            locale: '<missing>',
+            invalidFields: 'locale',
+          },
+        },
+        error: invalidDocument,
+        logContext: TranslationCacheService.name,
+        logNote: 'Invalid translation document skipped during cache loading',
+      });
     });
   });
 

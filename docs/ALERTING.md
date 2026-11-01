@@ -39,6 +39,15 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 - **Application behavior:** the original `MissingTranslationError` is still thrown; alert logging and delivery run asynchronously on a best-effort basis.
 - **Deduplication:** one alert for each normalized `namespace + key + locale` combination per cache version. A successful full cache revalidation resets all fingerprints. A successful namespace revalidation resets only that namespace. Failed revalidation preserves the fingerprints.
 
+### `translationDocumentInvalid`
+
+- **Owner:** `TranslationCacheService`
+- **Severity:** `warning`
+- **Condition:** an active translation document fails validation and is skipped while loading the runtime cache.
+- **Attributes:** `operation`, `documentId`, `namespace`, `key`, `locale`, `invalidFields`
+- **Application behavior:** valid translation documents continue loading; alert logging and delivery are best-effort.
+- **Deduplication:** none; an invalid document is reported during every full or matching namespace cache load.
+
 ### `weeklyDigestPostFailed`
 
 - **Owner:** `DigestCronService`
