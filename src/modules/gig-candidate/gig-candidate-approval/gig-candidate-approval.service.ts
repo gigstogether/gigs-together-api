@@ -7,7 +7,10 @@ import type {
   AlertDefinition,
   SendAlertParams,
 } from '../../alerting/alert-delivery';
-import { AlertingService } from '../../alerting/alerting.service';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '../../alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
@@ -205,6 +208,8 @@ export class GigCandidateApprovalService {
         error: e,
         logContext: GigCandidateApprovalService.name,
         logNote: 'Calendar event creation failed after gig candidate approval',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: true,
       });
     }
 

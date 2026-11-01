@@ -15,7 +15,7 @@ feature-owned alert definition
 
 `AlertingModule` must not import or maintain a registry of its consumers. Alert codes are opaque camelCase strings defined next to the condition that produces them.
 
-`AlertingService.reportFailureBestEffort` always records the original failure with the alert code, severity, safe attributes, and feature context. Warning alerts use the `warn` log level without a stack trace, while critical alerts use `error` and include the stack trace when available. A delivery failure produces an additional error log and does not replace the original application result.
+`AlertingService.reportFailureBestEffort` always records the original failure with the alert code, alert severity, safe attributes, and feature context. Alert severity controls delivery urgency and presentation; the application log level and stack-trace policy are configured independently for each reported failure. A delivery failure produces an additional error log and does not replace the original application result.
 
 The initial delivery adapter sends alerts to the Telegram channel configured by `ALERTS_TELEGRAM_CHANNEL_ID`.
 
@@ -25,6 +25,7 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `GigCandidateApprovalService`
 - **Severity:** `warning`
+- **Log level:** `error`, with stack trace
 - **Condition:** Calendar event creation fails after a GigCandidate has already been approved and converted into a Gig.
 - **Attributes:** `operation`, `gigCandidateId`, `gigId`, `gigPublicId`
 - **Application behavior:** approval remains successful; alert logging and delivery are best-effort.
@@ -34,6 +35,7 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `TranslationCacheService`
 - **Severity:** `warning`
+- **Log level:** `error`, without stack trace
 - **Condition:** runtime code requests a translation entry that is absent from the active cache.
 - **Attributes:** `operation`, `namespace`, `key`, `locale`
 - **Application behavior:** the original `MissingTranslationError` is still thrown; alert logging and delivery run asynchronously on a best-effort basis.
@@ -43,6 +45,7 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `TranslationCacheService`
 - **Severity:** `warning`
+- **Log level:** `error`, without stack trace
 - **Condition:** an active translation document fails validation and is skipped while loading the runtime cache.
 - **Attributes:** `operation`, `documentId`, `namespace`, `key`, `locale`, `invalidFields`
 - **Application behavior:** valid translation documents continue loading; alert logging and delivery are best-effort.
@@ -52,6 +55,7 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `DigestCronService`
 - **Severity:** `warning`
+- **Log level:** `error`, with stack trace
 - **Condition:** an unattended scheduled weekly digest or startup catch-up run fails while checking eligibility, loading Gigs, or creating the Telegram post.
 - **Attributes:** `operation`, `trigger`, `cronExpression`, `timeZone`
 - **Application behavior:** scheduled failures are reported and rethrown; startup catch-up failures are reported and contained so application startup can continue.

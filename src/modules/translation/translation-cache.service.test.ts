@@ -4,7 +4,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { AlertSeverity } from '../alerting/alert-delivery';
-import { AlertingService } from '../alerting/alerting.service';
+import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';
@@ -553,6 +553,8 @@ describe('TranslationCacheService', () => {
         error: invalidDocument,
         logContext: TranslationCacheService.name,
         logNote: 'Invalid translation document skipped during cache loading',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
     });
   });
@@ -593,6 +595,8 @@ describe('TranslationCacheService', () => {
         }),
         logContext: TranslationCacheService.name,
         logNote: 'Requested translation is missing from the active cache',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
     });
 

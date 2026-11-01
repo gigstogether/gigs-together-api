@@ -1,7 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { AlertSeverity } from '../alerting/alert-delivery';
-import { AlertingService } from '../alerting/alerting.service';
+import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
 import { DigestCronService } from './digest-cron.service';
 import {
   DigestService,
@@ -78,6 +78,8 @@ describe('DigestCronService', () => {
         logContext: DigestCronService.name,
         logNote:
           'Startup weekly digest catch-up failed; application will continue running',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: true,
       });
     });
   });
@@ -111,6 +113,8 @@ describe('DigestCronService', () => {
         error: scheduledFailure,
         logContext: DigestCronService.name,
         logNote: 'Scheduled weekly digest post failed',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: true,
       });
     });
   });

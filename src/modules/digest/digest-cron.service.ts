@@ -7,7 +7,7 @@ import {
 } from './digest.service';
 import { AlertSeverity } from '../alerting/alert-delivery';
 import type { AlertDefinition } from '../alerting/alert-delivery';
-import { AlertingService } from '../alerting/alerting.service';
+import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
 
 const WEEKLY_DIGEST_POST_FAILED_ALERT = {
   code: 'weeklyDigestPostFailed',
@@ -84,6 +84,8 @@ export class DigestCronService implements OnModuleInit {
       error: params.error,
       logContext: DigestCronService.name,
       logNote,
+      logLevel: AlertLogLevel.Error,
+      isStackTraceIncluded: true,
     });
   }
 }

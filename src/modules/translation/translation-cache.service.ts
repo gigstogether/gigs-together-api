@@ -14,7 +14,7 @@ import type {
   AlertDefinition,
   SendAlertParams,
 } from '../alerting/alert-delivery';
-import { AlertingService } from '../alerting/alerting.service';
+import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
@@ -262,6 +262,8 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
       error: e,
       logContext: TranslationCacheService.name,
       logNote: 'Requested translation is missing from the active cache',
+      logLevel: AlertLogLevel.Error,
+      isStackTraceIncluded: false,
     });
   }
 
@@ -287,6 +289,8 @@ export class TranslationCacheService implements OnModuleInit, OnModuleDestroy {
         error: e,
         logContext: TranslationCacheService.name,
         logNote: 'Invalid translation document skipped during cache loading',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
     }
   }

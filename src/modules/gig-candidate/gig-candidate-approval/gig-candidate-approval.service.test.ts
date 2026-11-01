@@ -2,7 +2,10 @@ import { Logger, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { AlertSeverity } from '../../alerting/alert-delivery';
-import { AlertingService } from '../../alerting/alerting.service';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '../../alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import type { CalendarEvent } from '../../calendar/calendar.types';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
@@ -206,6 +209,8 @@ describe('GigCandidateApprovalService', () => {
       error: calendarFailure,
       logContext: GigCandidateApprovalService.name,
       logNote: 'Calendar event creation failed after gig candidate approval',
+      logLevel: AlertLogLevel.Error,
+      isStackTraceIncluded: true,
     });
   });
 

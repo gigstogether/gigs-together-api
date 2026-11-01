@@ -1,13 +1,20 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { logError } from '@shared/utils/logging';
-import { ALERT_DELIVERY, AlertSeverity } from './alert-delivery';
+import { ALERT_DELIVERY } from './alert-delivery';
 import type { AlertDelivery, SendAlertParams } from './alert-delivery';
+
+export enum AlertLogLevel {
+  Warning = 'warning',
+  Error = 'error',
+}
 
 export interface ReportFailureBestEffortParams {
   alert: SendAlertParams;
   error: unknown;
   logContext: string;
   logNote: string;
+  logLevel: AlertLogLevel;
+  isStackTraceIncluded: boolean;
 }
 
 interface ReportedFailureError {
@@ -58,7 +65,14 @@ export class AlertingService {
   async reportFailureBestEffort(
     params: ReportFailureBestEffortParams,
   ): Promise<void> {
-    const { alert, error, logContext, logNote } = params;
+    const {
+      alert,
+      error,
+      logContext,
+      logNote,
+      logLevel,
+      isStackTraceIncluded,
+    } = params;
 
     const errorDetails: ReportedFailureError = {
       name: error instanceof Error ? error.name : 'UnknownError',
@@ -70,7 +84,7 @@ export class AlertingService {
             : 'Unknown error',
     };
     if (
-      alert.severity === AlertSeverity.Critical &&
+      isStackTraceIncluded &&
       error instanceof Error &&
       error.stack !== undefined
     ) {
@@ -88,16 +102,16 @@ export class AlertingService {
       error: errorDetails,
     };
 
-    switch (alert.severity) {
-      case AlertSeverity.Warning:
+    switch (logLevel) {
+      case AlertLogLevel.Warning:
         this.logger.warn(logEntry);
         break;
-      case AlertSeverity.Critical:
+      case AlertLogLevel.Error:
         this.logger.error(logEntry);
         break;
       default: {
-        const unsupportedSeverity: never = alert.severity;
-        throw new Error(`Unsupported alert severity: ${unsupportedSeverity}`);
+        const unsupportedLogLevel: never = logLevel;
+        throw new Error(`Unsupported alert log level: ${unsupportedLogLevel}`);
       }
     }
 

@@ -3,7 +3,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { ALERT_DELIVERY, AlertSeverity } from './alert-delivery';
 import type { AlertDelivery, SendAlertParams } from './alert-delivery';
-import { AlertingService } from './alerting.service';
+import { AlertingService, AlertLogLevel } from './alerting.service';
 
 describe('AlertingService', () => {
   let service: AlertingService;
@@ -94,6 +94,8 @@ describe('AlertingService', () => {
       error: applicationFailure,
       logContext: 'TestApplicationService',
       logNote: 'Test application operation failed',
+      logLevel: AlertLogLevel.Warning,
+      isStackTraceIncluded: false,
     });
 
     expect(loggerWarnSpy).toHaveBeenCalledWith({
@@ -111,23 +113,19 @@ describe('AlertingService', () => {
     });
   });
 
-  it('should log a critical application failure at error level', async () => {
+  it('should log at error level with a stack independently from alert severity', async () => {
     const loggerErrorSpy = vi
       .spyOn(Logger.prototype, 'error')
       .mockImplementation(() => undefined);
-    const criticalParams: SendAlertParams = {
-      ...params,
-      severity: AlertSeverity.Critical,
-    };
-    const applicationFailure = new Error(
-      'Critical application operation failed',
-    );
+    const applicationFailure = new Error('Application operation failed');
 
     await service.reportFailureBestEffort({
-      alert: criticalParams,
+      alert: params,
       error: applicationFailure,
       logContext: 'TestApplicationService',
-      logNote: 'Critical application operation failed',
+      logNote: 'Application operation failed',
+      logLevel: AlertLogLevel.Error,
+      isStackTraceIncluded: true,
     });
 
     expect(loggerErrorSpy).toHaveBeenCalledOnce();
@@ -135,8 +133,8 @@ describe('AlertingService', () => {
       expect.objectContaining({
         source: 'TestApplicationService',
         meta: expect.objectContaining({
-          alertCode: criticalParams.code,
-          severity: AlertSeverity.Critical,
+          alertCode: params.code,
+          severity: AlertSeverity.Warning,
         }),
         error: {
           name: applicationFailure.name,
@@ -148,13 +146,15 @@ describe('AlertingService', () => {
   });
 
   it('should deliver the alert when reporting an application failure', async () => {
-    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
     await service.reportFailureBestEffort({
       alert: params,
       error: new Error('Application operation failed'),
       logContext: 'TestApplicationService',
       logNote: 'Test application operation failed',
+      logLevel: AlertLogLevel.Error,
+      isStackTraceIncluded: false,
     });
 
     expect(alertDeliverySendMock).toHaveBeenCalledWith({
@@ -164,7 +164,6 @@ describe('AlertingService', () => {
   });
 
   it('should not reject failure reporting when alert delivery fails', async () => {
-    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     alertDeliverySendMock.mockRejectedValueOnce(
       new Error('Telegram is unavailable'),
@@ -176,6 +175,8 @@ describe('AlertingService', () => {
         error: new Error('Application operation failed'),
         logContext: 'TestApplicationService',
         logNote: 'Test application operation failed',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       }),
     ).resolves.toBeUndefined();
   });
