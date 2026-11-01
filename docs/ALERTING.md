@@ -15,7 +15,7 @@ feature-owned alert definition
 
 `AlertingModule` must not import or maintain a registry of its consumers. Alert codes are opaque camelCase strings defined next to the condition that produces them.
 
-`AlertingService.reportFailureBestEffort` always records the original failure with the alert code, severity, safe attributes, feature context, and stack trace when available. A delivery failure produces an additional error log and does not replace the original application result.
+`AlertingService.reportFailureBestEffort` always records the original failure with the alert code, severity, safe attributes, feature context, and stack trace when available. Warning alerts use the `warn` log level, while critical alerts use `error`. A delivery failure produces an additional error log and does not replace the original application result.
 
 The initial delivery adapter sends alerts to the Telegram channel configured by `ALERTS_TELEGRAM_CHANNEL_ID`.
 

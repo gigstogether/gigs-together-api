@@ -80,14 +80,13 @@ describe('AlertingService', () => {
         message: deliveryFailure.message,
       }),
       deliveryFailure.stack,
-      AlertingService.name,
     );
   });
 
   it('should log an application failure with structured alert context', async () => {
     const applicationFailure = new Error('Application operation failed');
-    const loggerErrorSpy = vi
-      .spyOn(Logger.prototype, 'error')
+    const loggerWarnSpy = vi
+      .spyOn(Logger.prototype, 'warn')
       .mockImplementation(() => undefined);
 
     await service.reportFailureBestEffort({
@@ -97,24 +96,54 @@ describe('AlertingService', () => {
       logNote: 'Test application operation failed',
     });
 
-    expect(loggerErrorSpy).toHaveBeenCalledWith(
+    expect(loggerWarnSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         note: 'Test application operation failed',
-        context: 'TestApplicationService',
+        source: 'TestApplicationService',
         meta: {
           entityId: 'entity-id',
           alertCode: params.code,
           severity: params.severity,
         },
-        message: applicationFailure.message,
+        error: {
+          name: applicationFailure.name,
+          message: applicationFailure.message,
+          stack: applicationFailure.stack,
+        },
       }),
-      applicationFailure.stack,
-      'TestApplicationService',
+    );
+  });
+
+  it('should log a critical application failure at error level', async () => {
+    const loggerErrorSpy = vi
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+    const criticalParams: SendAlertParams = {
+      ...params,
+      severity: AlertSeverity.Critical,
+    };
+
+    await service.reportFailureBestEffort({
+      alert: criticalParams,
+      error: new Error('Critical application operation failed'),
+      logContext: 'TestApplicationService',
+      logNote: 'Critical application operation failed',
+    });
+
+    expect(loggerErrorSpy).toHaveBeenCalledOnce();
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'TestApplicationService',
+        meta: expect.objectContaining({
+          alertCode: criticalParams.code,
+          severity: AlertSeverity.Critical,
+        }),
+      }),
     );
   });
 
   it('should deliver the alert when reporting an application failure', async () => {
-    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
     await service.reportFailureBestEffort({
       alert: params,
@@ -130,6 +159,7 @@ describe('AlertingService', () => {
   });
 
   it('should not reject failure reporting when alert delivery fails', async () => {
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     alertDeliverySendMock.mockRejectedValueOnce(
       new Error('Telegram is unavailable'),

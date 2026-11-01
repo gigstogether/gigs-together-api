@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { logError } from '@shared/utils/logging';
-import { ALERT_DELIVERY } from './alert-delivery';
+import { ALERT_DELIVERY, AlertSeverity } from './alert-delivery';
 import type { AlertDelivery, SendAlertParams } from './alert-delivery';
 
 export interface ReportFailureBestEffortParams {
@@ -8,6 +8,20 @@ export interface ReportFailureBestEffortParams {
   error: unknown;
   logContext: string;
   logNote: string;
+}
+
+interface ReportedFailureError {
+  name: string;
+  message: string;
+  stack?: string;
+}
+
+interface ReportedFailureLogEntry {
+  note: string;
+  source: string;
+  meta: Record<string, unknown>;
+  error: ReportedFailureError;
+  timestamp: string;
 }
 
 @Injectable()
@@ -47,16 +61,43 @@ export class AlertingService {
   ): Promise<void> {
     const { alert, error, logContext, logNote } = params;
 
-    logError(this.logger, {
-      error,
+    const errorDetails: ReportedFailureError = {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message:
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Unknown error',
+    };
+    if (error instanceof Error && error.stack !== undefined) {
+      errorDetails.stack = error.stack;
+    }
+
+    const logEntry: ReportedFailureLogEntry = {
       note: logNote,
-      context: logContext,
+      source: logContext,
       meta: {
         ...alert.attributes,
         alertCode: alert.code,
         severity: alert.severity,
       },
-    });
+      error: errorDetails,
+      timestamp: new Date().toISOString(),
+    };
+
+    switch (alert.severity) {
+      case AlertSeverity.Warning:
+        this.logger.warn(logEntry);
+        break;
+      case AlertSeverity.Critical:
+        this.logger.error(logEntry);
+        break;
+      default: {
+        const unsupportedSeverity: never = alert.severity;
+        throw new Error(`Unsupported alert severity: ${unsupportedSeverity}`);
+      }
+    }
 
     await this.sendBestEffort(alert);
   }

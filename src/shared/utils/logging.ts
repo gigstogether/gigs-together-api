@@ -76,11 +76,10 @@ export function logError(
       timestamp: new Date().toISOString(),
     };
 
-    if (context) {
-      logger.error(payload, error.stack, context);
-    } else {
-      logger.error(payload, error.stack);
-    }
+    // A contextual Nest Logger appends its own context before delegating to
+    // ConsoleLogger. Passing another positional context here makes Nest parse
+    // the stack and context as separate log messages.
+    logger.error(payload, error.stack);
     return;
   }
 
