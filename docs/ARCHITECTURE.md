@@ -233,6 +233,8 @@ Main files:
 - `src/modules/alerting/alert-delivery.ts`
 - `src/modules/alerting/telegram-alert-delivery.service.ts`
 
+The active alert catalog and alerting conventions are documented in [`ALERTING.md`](./ALERTING.md).
+
 #### `TelegramBotClientModule`
 
 Responsibilities:

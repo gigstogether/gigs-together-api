@@ -60,6 +60,7 @@ src/
     locale/                supported locales (`Locale` collection, admin CRUD via `LocaleService`)
     translation/           static localized text (`Translation` collection, namespace/key records)
 migrations/                MongoDB migration files
+docs/                      architecture and operational documentation
 test/                      e2e test setup
 docker-compose.yml         local MongoDB
 .env.example               environment template
@@ -67,7 +68,7 @@ docker-compose.yml         local MongoDB
 
 ## Architecture
 
-Detailed architecture notes live in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Detailed architecture notes live in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md). The active internal alert catalog and alerting conventions live in [docs/ALERTING.md](./docs/ALERTING.md).
 
 ## Prerequisites
 
@@ -614,7 +615,7 @@ Admin locale management lives in `AdminModule`, which imports `LocaleModule` and
 
 `TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
 
-More module-level detail is in [ARCHITECTURE.md](./ARCHITECTURE.md).
+More module-level detail is in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Common development workflow
 
