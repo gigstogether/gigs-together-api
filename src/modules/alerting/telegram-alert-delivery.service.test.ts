@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
+import { TGParseMode } from '../telegram/telegram-bot-client/types/message.types';
 import { AlertSeverity } from './alert-delivery';
 import type { DeliverAlertParams } from './alert-delivery';
 import { TelegramAlertDeliveryService } from './telegram-alert-delivery.service';
@@ -62,18 +63,44 @@ describe('TelegramAlertDeliveryService', () => {
 
     expect(sendMessageMock).toHaveBeenCalledWith({
       chat_id: '-1001234567890',
+      parse_mode: TGParseMode.HTML,
       text: [
         '⚠️ WARNING',
         '',
         'Test Telegram alert delivery.',
         '',
-        'Code: testTelegramAlertDelivery',
-        'Time: 2026-10-30T12:30:00.000Z',
-        'attempt: 2',
-        'gigId: gig-id',
-        'isRetryable: true',
+        '<b>Code:</b> testTelegramAlertDelivery',
+        '<b>Time:</b> 2026-10-30T12:30:00.000Z',
+        '<b>attempt:</b> 2',
+        '<b>gigId:</b> gig-id',
+        '<b>isRetryable:</b> true',
       ].join('\n'),
     });
+  });
+
+  it('should escape dynamic HTML content in an alert', async () => {
+    await service.send({
+      ...params,
+      code: 'alert<code>',
+      summary: 'Calendar & Telegram <failure>',
+      attributes: {
+        'entity<id>': 'gig&candidate',
+      },
+    });
+
+    expect(sendMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: [
+          '⚠️ WARNING',
+          '',
+          'Calendar &amp; Telegram &lt;failure&gt;',
+          '',
+          '<b>Code:</b> alert&lt;code&gt;',
+          '<b>Time:</b> 2026-10-30T12:30:00.000Z',
+          '<b>entity&lt;id&gt;:</b> gig&amp;candidate',
+        ].join('\n'),
+      }),
+    );
   });
 
   it('should send a critical alert with a critical header', async () => {

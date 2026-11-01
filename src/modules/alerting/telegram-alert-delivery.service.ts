@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRequiredConfigString } from '@shared/utils/env';
 import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
+import { TGParseMode } from '../telegram/telegram-bot-client/types/message.types';
 import { AlertSeverity } from './alert-delivery';
 import type {
   AlertAttributeValue,
@@ -32,6 +33,7 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
     await this.telegramBotClient.sendMessage({
       chat_id: this.alertsChannelId,
       text: this.composeMessage(params),
+      parse_mode: TGParseMode.HTML,
     });
   }
 
@@ -39,10 +41,10 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
     const lines = [
       this.formatSeverity(params.severity),
       '',
-      params.summary,
+      this.escapeTelegramHtmlText(params.summary),
       '',
-      `Code: ${params.code}`,
-      `Time: ${params.occurredAt.toISOString()}`,
+      this.formatField('Code', params.code),
+      this.formatField('Time', params.occurredAt.toISOString()),
     ];
 
     if (params.attributes !== undefined) {
@@ -50,7 +52,7 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
         a.localeCompare(b),
       );
       for (const [name, value] of attributes) {
-        lines.push(`${name}: ${this.formatAttributeValue(value)}`);
+        lines.push(this.formatField(name, value));
       }
     }
 
@@ -61,7 +63,16 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
     return ALERT_SEVERITY_HEADERS[severity];
   }
 
-  private formatAttributeValue(value: AlertAttributeValue): string {
-    return String(value);
+  private formatField(name: string, value: AlertAttributeValue): string {
+    const escapedName = this.escapeTelegramHtmlText(name);
+    const escapedValue = this.escapeTelegramHtmlText(String(value));
+    return `<b>${escapedName}:</b> ${escapedValue}`;
+  }
+
+  private escapeTelegramHtmlText(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
   }
 }
