@@ -21,7 +21,6 @@ interface ReportedFailureLogEntry {
   source: string;
   meta: Record<string, unknown>;
   error: ReportedFailureError;
-  timestamp: string;
 }
 
 @Injectable()
@@ -70,7 +69,11 @@ export class AlertingService {
             ? error
             : 'Unknown error',
     };
-    if (error instanceof Error && error.stack !== undefined) {
+    if (
+      alert.severity === AlertSeverity.Critical &&
+      error instanceof Error &&
+      error.stack !== undefined
+    ) {
       errorDetails.stack = error.stack;
     }
 
@@ -83,7 +86,6 @@ export class AlertingService {
         severity: alert.severity,
       },
       error: errorDetails,
-      timestamp: new Date().toISOString(),
     };
 
     switch (alert.severity) {

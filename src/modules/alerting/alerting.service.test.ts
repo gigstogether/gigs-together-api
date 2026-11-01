@@ -96,22 +96,19 @@ describe('AlertingService', () => {
       logNote: 'Test application operation failed',
     });
 
-    expect(loggerWarnSpy).toHaveBeenCalledWith(
-      expect.objectContaining({
-        note: 'Test application operation failed',
-        source: 'TestApplicationService',
-        meta: {
-          entityId: 'entity-id',
-          alertCode: params.code,
-          severity: params.severity,
-        },
-        error: {
-          name: applicationFailure.name,
-          message: applicationFailure.message,
-          stack: applicationFailure.stack,
-        },
-      }),
-    );
+    expect(loggerWarnSpy).toHaveBeenCalledWith({
+      note: 'Test application operation failed',
+      source: 'TestApplicationService',
+      meta: {
+        entityId: 'entity-id',
+        alertCode: params.code,
+        severity: params.severity,
+      },
+      error: {
+        name: applicationFailure.name,
+        message: applicationFailure.message,
+      },
+    });
   });
 
   it('should log a critical application failure at error level', async () => {
@@ -122,10 +119,13 @@ describe('AlertingService', () => {
       ...params,
       severity: AlertSeverity.Critical,
     };
+    const applicationFailure = new Error(
+      'Critical application operation failed',
+    );
 
     await service.reportFailureBestEffort({
       alert: criticalParams,
-      error: new Error('Critical application operation failed'),
+      error: applicationFailure,
       logContext: 'TestApplicationService',
       logNote: 'Critical application operation failed',
     });
@@ -138,6 +138,11 @@ describe('AlertingService', () => {
           alertCode: criticalParams.code,
           severity: AlertSeverity.Critical,
         }),
+        error: {
+          name: applicationFailure.name,
+          message: applicationFailure.message,
+          stack: applicationFailure.stack,
+        },
       }),
     );
   });
