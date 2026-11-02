@@ -23,8 +23,11 @@ import type {
   TGInlineKeyboardMarkup,
   TGSendMessage,
   TGSendPhoto,
-} from '../types/message.types';
-import { TGInputMediaType, TGParseMode } from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
+import {
+  TGInputMediaType,
+  TGParseMode,
+} from '../telegram-bot-client/types/message.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import { PostEditKind } from '../telegram-composer.service.types';
 import type {

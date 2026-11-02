@@ -1,7 +1,7 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import type { TGUser } from '../types/user.types';
+import type { TGUser } from '../telegram-bot-client/types/user.types';
 import { getConfigPositiveSafeInteger } from '@shared/utils/env';
 import { isRecord } from '@shared/utils/is-record';
 import type { TelegramAuthenticationResult } from './types/telegram-auth.types';

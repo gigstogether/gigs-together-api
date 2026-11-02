@@ -1,11 +1,11 @@
-import type { TGChat } from './types/chat.types';
+import type { TGChat } from './telegram-bot-client/types/chat.types';
 import type {
   TGChatId,
   TGEditMessageCaption,
   TGEditMessageMedia,
   TGEditMessageText,
   TGMessage,
-} from './types/message.types';
+} from './telegram-bot-client/types/message.types';
 
 export enum PostEditKind {
   Media = 'media',

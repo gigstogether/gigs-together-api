@@ -4,11 +4,12 @@ import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 import { TelegramUpdatesService } from './telegram-updates.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
 import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { GigService } from '../gig/gig.service';
-import type { TGChat } from '../telegram/types/chat.types';
-import type { TGMessage } from '../telegram/types/message.types';
-import type { TGCallbackQuery } from '../telegram/types/update.types';
+import type { TGChat } from '../telegram/telegram-bot-client/types/chat.types';
+import type { TGMessage } from '../telegram/telegram-bot-client/types/message.types';
+import type { TGCallbackQuery } from '../telegram/telegram-bot-client/types/update.types';
 import {
   CallbackScope,
   encodeCallbackData,
@@ -27,15 +28,12 @@ describe('TelegramUpdatesService', () => {
 
   const mockTelegramService = {
     getBotUsername: vi.fn(),
+  };
+
+  const mockTelegramBotClient = {
     sendMessage: vi.fn(),
     setMessageReaction: vi.fn(),
     answerCallbackQuery: vi.fn(),
-    editMessageReplyMarkup: vi.fn(),
-    editGigPost: vi.fn(),
-    buildGigStatusReplyMarkup: vi.fn(),
-    pickTgPost: vi.fn(),
-    sendToModeration: vi.fn(),
-    updateGigModerationPost: vi.fn(),
   };
 
   const mockTelegramBotReplyService = {
@@ -84,6 +82,10 @@ describe('TelegramUpdatesService', () => {
         {
           provide: TelegramService,
           useValue: mockTelegramService,
+        },
+        {
+          provide: TelegramBotClient,
+          useValue: mockTelegramBotClient,
         },
         {
           provide: TelegramBotReplyService,
@@ -137,19 +139,6 @@ describe('TelegramUpdatesService', () => {
   afterEach(() => {
     vi.clearAllMocks();
     vi.unstubAllEnvs();
-  });
-
-  beforeEach(() => {
-    mockTelegramService.pickTgPost.mockImplementation((posts, type) =>
-      posts?.find((post) => {
-        return (
-          post.to === Messenger.Telegram &&
-          post.type === type &&
-          post.chatId != null &&
-          post.id != null
-        );
-      }),
-    );
   });
 
   it('should be defined', () => {
@@ -349,7 +338,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
 
       await service.handleMessage(message);
 
@@ -367,7 +356,7 @@ describe('TelegramUpdatesService', () => {
         messenger: Messenger.Telegram,
         externalUserId: '7',
       });
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
         message_id: 42,
         reaction: [{ type: 'emoji', emoji: '👍' }],
@@ -395,7 +384,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
 
       await service.handleMessage(message);
 
@@ -410,7 +399,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
         message_id: 52,
         reaction: [{ type: 'emoji', emoji: '👍' }],
@@ -440,7 +429,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should ignore a suggestion sent on behalf of another channel', async () => {
@@ -469,7 +458,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should preserve suggestion text when the group command mentions the bot', async () => {
@@ -487,7 +476,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
 
       await service.handleMessage(message);
 
@@ -516,7 +505,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
       mockUserService.findActiveUserByMessengerIdentity.mockResolvedValueOnce({
         id: '507f1f77bcf86cd799439088',
       });
@@ -538,7 +527,7 @@ describe('TelegramUpdatesService', () => {
         messenger: Messenger.Telegram,
         externalUserId: '7',
       });
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
         message_id: 44,
         reaction: [{ type: 'emoji', emoji: '👍' }],
@@ -572,7 +561,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should create an anonymous candidate for a suggestion sent by an anonymous group administrator', async () => {
@@ -591,7 +580,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockResolvedValue(undefined);
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
 
       await service.handleMessage(message);
 
@@ -606,7 +595,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockUserService.findActiveUserByMessengerIdentity,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
         chat_id: -100123,
         message_id: 54,
         reaction: [{ type: 'emoji', emoji: '👍' }],
@@ -631,7 +620,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
       expect(
         mockTelegramBotReplyService.sendUnknownCommandResponse,
       ).not.toHaveBeenCalled();
@@ -654,7 +643,7 @@ describe('TelegramUpdatesService', () => {
 
       await expect(service.handleMessage(message)).resolves.toBeUndefined();
 
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining('Database unavailable'),
       );
@@ -680,7 +669,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining('User lookup unavailable'),
       );
@@ -700,7 +689,7 @@ describe('TelegramUpdatesService', () => {
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
-      mockTelegramService.setMessageReaction.mockRejectedValue({
+      mockTelegramBotClient.setMessageReaction.mockRejectedValue({
         response: {
           data: {
             error_code: 400,
@@ -746,7 +735,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
     });
 
     it('should ignore an empty suggestion and ordinary group messages', async () => {
@@ -788,7 +777,7 @@ describe('TelegramUpdatesService', () => {
       expect(
         mockGigCandidateService.submitMessengerGigCandidate,
       ).not.toHaveBeenCalled();
-      expect(mockTelegramService.setMessageReaction).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
       expect(
         mockTelegramBotReplyService.sendIncomingMessageUnavailable,
       ).not.toHaveBeenCalled();
@@ -873,7 +862,7 @@ describe('TelegramUpdatesService', () => {
       await service.handleMessage(undefined as unknown as TGMessage);
       await service.handleMessage({} as TGMessage);
 
-      expect(mockTelegramService.sendMessage).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.sendMessage).not.toHaveBeenCalled();
     });
   });
 
@@ -900,7 +889,7 @@ describe('TelegramUpdatesService', () => {
       };
 
       mockGigService.createGigMainPost.mockResolvedValue(undefined);
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+      mockTelegramBotClient.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(callbackQuery);
 
@@ -912,7 +901,7 @@ describe('TelegramUpdatesService', () => {
           chatId: -100123,
         },
       });
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-1',
         text: 'Done!',
         show_alert: false,
@@ -940,7 +929,7 @@ describe('TelegramUpdatesService', () => {
         },
       };
       mockGigService.setGigVisibility.mockResolvedValue(undefined);
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+      mockTelegramBotClient.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(callbackQuery);
 
@@ -953,7 +942,7 @@ describe('TelegramUpdatesService', () => {
           chatId: -100123,
         },
       });
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-hide',
         text: 'Done!',
         show_alert: false,
@@ -981,7 +970,7 @@ describe('TelegramUpdatesService', () => {
         },
       };
       mockGigService.setGigVisibility.mockResolvedValue(undefined);
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+      mockTelegramBotClient.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(callbackQuery);
 
@@ -1012,12 +1001,12 @@ describe('TelegramUpdatesService', () => {
         },
       };
 
-      mockTelegramService.answerCallbackQuery.mockResolvedValue(undefined);
+      mockTelegramBotClient.answerCallbackQuery.mockResolvedValue(undefined);
 
       await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigService.createGigMainPost).not.toHaveBeenCalled();
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-legacy',
         text: 'Something unexpected happened, I dunno what to do',
         show_alert: true,
@@ -1103,7 +1092,7 @@ describe('TelegramUpdatesService', () => {
         expectedVersion: 4,
         approvedByUserId: '507f1f77bcf86cd799439088',
       });
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-gigCandidate-approve',
         text: 'Done!',
         show_alert: false,
@@ -1147,7 +1136,7 @@ describe('TelegramUpdatesService', () => {
       expect(warnSpy).toHaveBeenCalledWith(
         'handleCallbackQuery failed: Request failed with status code 400; httpStatus=400; telegramErrorCode=400; telegramDescription=Bad Request: message is not modified',
       );
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: callbackQuery.id,
         text: 'Failed: Bad Request: message is not modified',
         show_alert: true,
@@ -1182,7 +1171,7 @@ describe('TelegramUpdatesService', () => {
       await service.handleCallbackQuery(callbackQuery);
 
       expect(warnSpy).not.toHaveBeenCalled();
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-gigCandidate-invalid-draft',
         text: 'Failed: GigCandidate gigDraft is incomplete or invalid.',
         show_alert: true,
@@ -1214,7 +1203,7 @@ describe('TelegramUpdatesService', () => {
       await service.handleCallbackQuery(callbackQuery);
 
       expect(mockGigService.setGigVisibility).not.toHaveBeenCalled();
-      expect(mockTelegramService.answerCallbackQuery).toHaveBeenCalledWith({
+      expect(mockTelegramBotClient.answerCallbackQuery).toHaveBeenCalledWith({
         callback_query_id: 'callback-non-admin',
         text: 'Admin privileges required',
         show_alert: true,

@@ -7,9 +7,8 @@ import { getConfigString, getRequiredConfigString } from '@shared/utils/env';
 import { logError } from '@shared/utils/logging';
 import { BucketService } from '../bucket/bucket.service';
 import type { GigPoster } from '../gig/types/gig.types';
-import { TelegramBotClient } from './telegram-bot.client';
-import type { TGChat } from './types/chat.types';
-import type { TGSetMessageReaction } from './types/message.types';
+import { TelegramBotClient } from './telegram-bot-client/telegram-bot.client';
+import type { TGChat } from './telegram-bot-client/types/chat.types';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -89,19 +88,6 @@ export class TelegramService implements OnModuleInit {
       throw new Error(`${name} has not been initialized.`);
     }
     return value;
-  }
-
-  readonly sendMessage: TelegramBotClient['sendMessage'] =
-    this.telegramBotClient.sendMessage.bind(this.telegramBotClient);
-
-  readonly sendPhoto: TelegramBotClient['sendPhoto'] =
-    this.telegramBotClient.sendPhoto.bind(this.telegramBotClient);
-
-  readonly answerCallbackQuery: TelegramBotClient['answerCallbackQuery'] =
-    this.telegramBotClient.answerCallbackQuery.bind(this.telegramBotClient);
-
-  setMessageReaction(payload: TGSetMessageReaction): Promise<void> {
-    return this.telegramBotClient.setMessageReaction(payload);
   }
 
   resolvePosterUrl(posterInfo?: GigPoster): string | undefined {

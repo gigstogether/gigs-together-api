@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { TelegramBotReplyComposerService } from './telegram-bot-reply-composer.service';
-import { TelegramBotClient } from '../telegram-bot.client';
-import type { TGChat } from '../types/chat.types';
-import type { TGMessage } from '../types/message.types';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
+import type { TGChat } from '../telegram-bot-client/types/chat.types';
+import type { TGMessage } from '../telegram-bot-client/types/message.types';
 
 @Injectable()
 export class TelegramBotReplyService {

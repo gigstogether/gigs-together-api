@@ -106,6 +106,30 @@ Main files:
 - `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
 - `src/modules/gig-candidate/repositories/gig-candidate-approval/`
 
+#### `DigestModule`
+
+Responsibilities:
+
+- owns weekly digest scheduling, eligibility, and successful-post state
+- exposes the provider-neutral `DIGEST_DELIVERY` port to digest application services
+- uses `TelegramDigestDeliveryAdapter` to translate Telegram results and failures at the integration boundary
+- reports unattended scheduled and startup catch-up failures through `AlertingModule`
+
+Dependencies:
+
+- `GigModule`
+- `TelegramModule`
+- `AlertingModule`
+- local `DigestPostState` Mongoose model
+
+Main files:
+
+- `src/modules/digest/digest.module.ts`
+- `src/modules/digest/digest-delivery.ts`
+- `src/modules/digest/adapters/telegram-digest-delivery.adapter.ts`
+- `src/modules/digest/digest-cron.service.ts`
+- `src/modules/digest/digest.service.ts`
+
 #### `TelegramUpdatesModule`
 
 Responsibilities:
@@ -118,6 +142,7 @@ Responsibilities:
 Dependencies:
 
 - `GigModule`
+- `TelegramBotClientModule`
 - `TelegramModule`
 - `AuthModule`
 - `GigCandidateModule`
@@ -154,6 +179,25 @@ Main files:
 - `src/modules/locale/locale.controller.ts`
 - `src/modules/locale/locale.service.ts`
 
+#### `TranslationModule`
+
+Responsibilities:
+
+- owns translation persistence, runtime cache, and template rendering
+- reports runtime cache misses through `AlertingModule`
+- deduplicates identical namespace, key, and locale misses until the relevant cache is successfully revalidated
+
+Dependencies:
+
+- `LocaleModule`
+- `AlertingModule`
+
+Main files:
+
+- `src/modules/translation/translation.module.ts`
+- `src/modules/translation/translation-cache.service.ts`
+- `src/modules/translation/translation.service.ts`
+
 #### `LocationModule`
 
 Responsibilities:
@@ -173,12 +217,48 @@ Main files:
 
 ### Integration and infrastructure modules
 
+#### `AlertingModule`
+
+Responsibilities:
+
+- exposes the provider-neutral `AlertingService` application boundary
+- models actionable internal alerts with opaque codes, severity, summaries, and safe attributes
+- keeps alert definitions in the feature modules that own the reported conditions
+- delegates delivery through the `ALERT_DELIVERY` port
+- uses `TelegramAlertDeliveryService` as the initial delivery adapter
+- centralizes structured failure logging from ready feature-owned alerts
+- logs best-effort delivery failures without changing the originating application operation
+
+Main files:
+
+- `src/modules/alerting/alerting.module.ts`
+- `src/modules/alerting/alerting.service.ts`
+- `src/modules/alerting/alert-delivery.ts`
+- `src/modules/alerting/telegram-alert-delivery.service.ts`
+
+The active alert catalog and alerting conventions are documented in [`ALERTING.md`](./ALERTING.md).
+
+#### `TelegramBotClientModule`
+
+Responsibilities:
+
+- owns the low-level Telegram Bot API HTTP client and its wire types
+- configures the Telegram Bot API HTTP client with `BOT_TOKEN`
+- exports `TelegramBotClient` to modules that need direct Bot API operations
+- remains independent from higher-level Telegram workflows and application features
+
+Main files:
+
+- `src/modules/telegram/telegram-bot-client/telegram-bot-client.module.ts`
+- `src/modules/telegram/telegram-bot-client/telegram-bot.client.ts`
+- `src/modules/telegram/telegram-bot-client/types/`
+
 #### `TelegramModule`
 
 Responsibilities:
 
-- wraps Telegram Bot API calls
-- configures an HTTP client with `BOT_TOKEN`
+- owns higher-level Telegram workflows, composers, and authentication
+- uses `TelegramBotClientModule` for low-level Telegram Bot API calls
 - uses cache for Telegram-related operations
 - can interact with bucket storage
 - validates Web App `initData` and Telegram OIDC ID tokens, then exchanges them for application JWTs (with `AuthModule` services)

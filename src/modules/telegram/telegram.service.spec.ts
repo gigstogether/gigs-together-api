@@ -5,13 +5,13 @@ import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
-import type { TGMessage } from './types/message.types';
+import type { TGMessage } from './telegram-bot-client/types/message.types';
 import type { GigPost, PlainGig } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
-import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramBotClient } from './telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
@@ -21,7 +21,10 @@ import { TELEGRAM_TEMPLATE_KEYS } from './telegram-template-keys';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 import type { PlainTemplateParams } from './telegram-template.service';
 import { TelegramTemplateService } from './telegram-template.service';
-import { TGInputMediaType, TGParseMode } from './types/message.types';
+import {
+  TGInputMediaType,
+  TGParseMode,
+} from './telegram-bot-client/types/message.types';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.enum';
@@ -364,35 +367,6 @@ describe('TelegramService', () => {
         'https://images.example/poster.jpg?signature=preserve-me';
 
       expect(service.resolvePosterUrl({ externalUrl })).toBe(externalUrl);
-    });
-  });
-
-  describe('sendMessage', () => {
-    it('should send the correct HTTP request', async () => {
-      const chat_id = 12345;
-      const text = 'Hello, World!';
-      const mockMessage: TGMessage = {
-        message_id: 1,
-        date: Date.now(),
-        chat: { id: chat_id, type: 'private' },
-        text,
-      };
-
-      mockHttpService.post.mockReturnValue(
-        of({
-          data: {
-            result: mockMessage,
-          },
-        }),
-      );
-
-      const result = await service.sendMessage({ chat_id, text });
-
-      expect(mockHttpService.post).toHaveBeenCalledWith('sendMessage', {
-        chat_id,
-        text,
-      });
-      expect(result).toEqual(mockMessage);
     });
   });
 

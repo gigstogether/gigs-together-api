@@ -2,7 +2,7 @@ import { PATH_METADATA, VERSION_METADATA } from '@nestjs/common/constants';
 import { TelegramUpdatesController } from './telegram-updates.controller';
 import type { TelegramUpdatesService } from './telegram-updates.service';
 import type { TelegramWebhookRequest } from './guards/telegram-webhook.guard';
-import type { TGUpdate } from '../telegram/types/update.types';
+import type { TGUpdate } from '../telegram/telegram-bot-client/types/update.types';
 
 describe('TelegramUpdatesController', () => {
   const telegramUpdatesService = {

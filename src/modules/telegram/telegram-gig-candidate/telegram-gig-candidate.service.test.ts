@@ -12,7 +12,7 @@ import type {
   GigCandidateTextPost,
 } from '../../gig-candidate/types/gig-candidate.types';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate-composer.service';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';

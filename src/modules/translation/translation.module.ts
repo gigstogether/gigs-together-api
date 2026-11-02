@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AlertingModule } from '@modules/alerting/alerting.module';
 import { LocaleModule } from '../locale/locale.module';
 import { MongoTranslationRepository } from './repositories/mongo-translation.repository';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
@@ -12,6 +13,7 @@ import { TranslationTemplateService } from './translation-template.service';
 
 @Module({
   imports: [
+    AlertingModule,
     LocaleModule,
     MongooseModule.forFeature([
       { name: Translation.name, schema: TranslationSchema },
