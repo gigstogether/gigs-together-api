@@ -5,8 +5,8 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
-import { TelegramDigestSendError } from '@modules/telegram/telegram-digest/telegram-digest.error';
 import { DigestCronService } from './digest-cron.service';
+import { DigestDeliveryError } from './digest-delivery';
 import {
   DigestService,
   DIGEST_POST_CRON_EXPRESSION,
@@ -58,15 +58,16 @@ describe('DigestCronService', () => {
     });
 
     it('should contain a failed startup catch-up without an unhandled rejection', async () => {
-      const startupFailure = new TelegramDigestSendError({
+      const startupFailure = new DigestDeliveryError({
         message:
           'Telegram weekly digest send failed: Bad Request: chat not found',
         cause: new Error('Request failed with status code 400'),
+        provider: 'telegram',
         providerOperation: 'sendMediaGroup',
         status: 400,
         code: 'ERR_BAD_REQUEST',
-        telegramErrorCode: 400,
-        telegramDescription: 'Bad Request: chat not found',
+        providerErrorCode: 400,
+        providerDescription: 'Bad Request: chat not found',
       });
       createPostIfEligibleMock.mockRejectedValueOnce(startupFailure);
 
@@ -89,8 +90,8 @@ describe('DigestCronService', () => {
             providerOperation: 'sendMediaGroup',
             status: 400,
             code: 'ERR_BAD_REQUEST',
-            telegramErrorCode: 400,
-            telegramDescription: 'Bad Request: chat not found',
+            providerErrorCode: 400,
+            providerDescription: 'Bad Request: chat not found',
           },
         },
         error: startupFailure,

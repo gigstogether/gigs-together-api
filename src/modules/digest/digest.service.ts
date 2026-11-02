@@ -2,7 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { CronTime } from 'cron';
 import type { PlainGig } from '../gig/types/gig.types';
 import { GigFeedService } from '../gig/gig-feed/gig-feed.service';
-import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
+import { DIGEST_DELIVERY } from './digest-delivery';
+import type { DigestDelivery } from './digest-delivery';
 import { getDigestUpcomingInclusiveDayRangeMs } from './digest-date-range';
 import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
 import type { DigestPostStateRepository } from './repositories/digest-post-state.repository';
@@ -36,7 +37,7 @@ export function getPreviousEstimatedDigestCronFireDate(
 }
 
 /**
- * Digest Telegram posting. {@link DigestCronService} triggers `createPost` on a schedule.
+ * Weekly digest posting. {@link DigestCronService} triggers `createPost` on a schedule.
  */
 @Injectable()
 export class DigestService {
@@ -44,19 +45,19 @@ export class DigestService {
 
   constructor(
     private readonly gigFeedService: GigFeedService,
-    private readonly telegramDigestService: TelegramDigestService,
+    @Inject(DIGEST_DELIVERY)
+    private readonly digestDelivery: DigestDelivery,
     @Inject(DIGEST_POST_STATE_REPOSITORY)
     private readonly digestPostStateRepository: DigestPostStateRepository,
   ) {}
 
   /**
-   * Creates the weekly digest post in the main Telegram channel.
+   * Creates the weekly digest post through the configured delivery provider.
    */
   async createPost(): Promise<void> {
     const gigs = await this.getDigestRangeGigs();
 
-    const postResult =
-      await this.telegramDigestService.sendWeeklyDigestPost(gigs);
+    const postResult = await this.digestDelivery.sendWeeklyDigest(gigs);
 
     const digestPostUrl = postResult?.postUrl;
     if (digestPostUrl) {

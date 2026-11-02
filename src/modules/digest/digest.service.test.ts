@@ -6,7 +6,7 @@ import type {
   GetPreviousDigestCronFireDateParams,
 } from './digest.service';
 import { GigFeedService } from '../gig/gig-feed/gig-feed.service';
-import { TelegramDigestService } from '../telegram/telegram-digest/telegram-digest.service';
+import { DIGEST_DELIVERY } from './digest-delivery';
 import { DIGEST_POST_STATE_REPOSITORY } from './repositories/digest-post-state.repository';
 
 describe('getPreviousDigestCronFireDate', () => {
@@ -27,7 +27,7 @@ describe('DigestService', () => {
   let service: DigestService;
 
   const getVisibleGigsInInclusiveMsRangeMock = vi.fn();
-  const sendWeeklyDigestPostMock = vi.fn();
+  const sendWeeklyDigestMock = vi.fn();
   const findCurrentDigestPostStateMock = vi.fn();
   const saveSuccessfulDigestPostMock = vi.fn();
 
@@ -42,7 +42,7 @@ describe('DigestService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     getVisibleGigsInInclusiveMsRangeMock.mockResolvedValue([]);
-    sendWeeklyDigestPostMock.mockResolvedValue(digestPostSuccess);
+    sendWeeklyDigestMock.mockResolvedValue(digestPostSuccess);
     findCurrentDigestPostStateMock.mockResolvedValue(null);
     saveSuccessfulDigestPostMock.mockResolvedValue(undefined);
 
@@ -61,9 +61,9 @@ describe('DigestService', () => {
           },
         },
         {
-          provide: TelegramDigestService,
+          provide: DIGEST_DELIVERY,
           useValue: {
-            sendWeeklyDigestPost: sendWeeklyDigestPostMock,
+            sendWeeklyDigest: sendWeeklyDigestMock,
           },
         },
         {
@@ -104,7 +104,7 @@ describe('DigestService', () => {
       await service.createPostIfEligible();
 
       expect(getVisibleGigsInInclusiveMsRangeMock).not.toHaveBeenCalled();
-      expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
+      expect(sendWeeklyDigestMock).not.toHaveBeenCalled();
     });
 
     it('should query visible gigs within the seven-day inclusive date range for today', async () => {
@@ -122,7 +122,7 @@ describe('DigestService', () => {
     it('should send an empty document list when the digest date range has no documents', async () => {
       await service.createPostIfEligible();
 
-      expect(sendWeeklyDigestPostMock).toHaveBeenCalledWith([]);
+      expect(sendWeeklyDigestMock).toHaveBeenCalledWith([]);
     });
 
     it('should send loaded documents when the digest date range has documents', async () => {
@@ -132,7 +132,7 @@ describe('DigestService', () => {
 
       await service.createPostIfEligible();
 
-      expect(sendWeeklyDigestPostMock).toHaveBeenCalledWith([docA, docB]);
+      expect(sendWeeklyDigestMock).toHaveBeenCalledWith([docA, docB]);
     });
 
     it('should skip gig query and Telegram when post state is at or after the implied cron instant', async () => {
@@ -144,12 +144,12 @@ describe('DigestService', () => {
       await service.createPostIfEligible();
 
       expect(getVisibleGigsInInclusiveMsRangeMock).not.toHaveBeenCalled();
-      expect(sendWeeklyDigestPostMock).not.toHaveBeenCalled();
+      expect(sendWeeklyDigestMock).not.toHaveBeenCalled();
       expect(saveSuccessfulDigestPostMock).not.toHaveBeenCalled();
     });
 
     it('should not record post state when Telegram returns undefined', async () => {
-      sendWeeklyDigestPostMock.mockResolvedValue(undefined);
+      sendWeeklyDigestMock.mockResolvedValue(undefined);
 
       await service.createPostIfEligible();
 
@@ -172,7 +172,7 @@ describe('DigestService', () => {
       await service.createPostIfEligible();
 
       expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
-      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestMock).toHaveBeenCalled();
     });
   });
 
@@ -188,7 +188,7 @@ describe('DigestService', () => {
       await service.createPost();
 
       expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
-      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestMock).toHaveBeenCalled();
     });
 
     it('should post without reading eligibility state when a digest is already recorded this cron cycle', async () => {
@@ -203,7 +203,7 @@ describe('DigestService', () => {
 
       expect(findCurrentDigestPostStateMock).not.toHaveBeenCalled();
       expect(getVisibleGigsInInclusiveMsRangeMock).toHaveBeenCalled();
-      expect(sendWeeklyDigestPostMock).toHaveBeenCalled();
+      expect(sendWeeklyDigestMock).toHaveBeenCalled();
     });
   });
 });

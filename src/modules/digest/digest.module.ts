@@ -3,7 +3,9 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AlertingModule } from '@modules/alerting/alerting.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { TelegramDigestDeliveryAdapter } from './adapters/telegram-digest-delivery.adapter';
 import { DigestCronService } from './digest-cron.service';
+import { DIGEST_DELIVERY } from './digest-delivery';
 import {
   DigestPostState,
   DigestPostStateSchema,
@@ -30,6 +32,10 @@ import { MongoDigestPostStateRepository } from './repositories/mongo-digest-post
   providers: [
     DigestService,
     DigestCronService,
+    {
+      provide: DIGEST_DELIVERY,
+      useClass: TelegramDigestDeliveryAdapter,
+    },
     {
       provide: DIGEST_POST_STATE_REPOSITORY,
       useClass: MongoDigestPostStateRepository,

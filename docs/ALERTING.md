@@ -101,9 +101,9 @@ Lower-level logging is appropriate only when that layer fully contains the failu
 
 - **Owner:** `DigestCronService`
 - **Severity:** `warning`
-- **Log level:** `error`; expected Telegram delivery errors omit the stack, while unexpected errors include it
+- **Log level:** `error`; expected digest delivery errors omit the stack, while unexpected errors include it
 - **Condition:** an unattended scheduled weekly digest or startup catch-up run fails while checking eligibility, loading Gigs, or creating the Telegram post.
-- **Attributes:** `operation`, `trigger`, `cronExpression`, `timeZone`, and safe Telegram diagnostics when available: `deliveryProvider`, `providerOperation`, `status`, `code`, `telegramErrorCode`, `telegramDescription`, `telegramError`, `mediaPosition`, `gigPublicId`, `posterUrl`
+- **Attributes:** `operation`, `trigger`, `cronExpression`, `timeZone`, and safe provider-neutral delivery diagnostics when available: `deliveryProvider`, `providerOperation`, `status`, `code`, `providerErrorCode`, `providerDescription`, `providerFailureCode`, `failedItemPosition`, `gigPublicId`, `mediaUrl`
 - **Application behavior:** scheduled failures are reported and rethrown; startup catch-up failures are reported and contained so application startup can continue.
 - **Deduplication:** none.
 - **Scope:** manual digest requests through the admin API are not included because their errors are returned directly to the caller.

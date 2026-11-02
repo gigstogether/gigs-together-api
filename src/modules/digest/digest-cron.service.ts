@@ -14,7 +14,7 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
-import { TelegramDigestSendError } from '@modules/telegram/telegram-digest/telegram-digest.error';
+import { DigestDeliveryError } from './digest-delivery';
 
 const WEEKLY_DIGEST_POST_FAILED_ALERT = {
   code: 'weeklyDigestPostFailed',
@@ -83,8 +83,8 @@ export class DigestCronService implements OnModuleInit {
       cronExpression: DIGEST_POST_CRON_EXPRESSION,
       timeZone: DIGEST_POST_TIMEZONE,
     };
-    if (params.error instanceof TelegramDigestSendError) {
-      attributes.deliveryProvider = 'telegram';
+    if (params.error instanceof DigestDeliveryError) {
+      attributes.deliveryProvider = params.error.provider;
       attributes.providerOperation = params.error.providerOperation;
       if (params.error.status !== undefined) {
         attributes.status = params.error.status;
@@ -92,23 +92,23 @@ export class DigestCronService implements OnModuleInit {
       if (params.error.code !== undefined) {
         attributes.code = params.error.code;
       }
-      if (params.error.telegramErrorCode !== undefined) {
-        attributes.telegramErrorCode = params.error.telegramErrorCode;
+      if (params.error.providerErrorCode !== undefined) {
+        attributes.providerErrorCode = params.error.providerErrorCode;
       }
-      if (params.error.telegramDescription !== undefined) {
-        attributes.telegramDescription = params.error.telegramDescription;
+      if (params.error.providerDescription !== undefined) {
+        attributes.providerDescription = params.error.providerDescription;
       }
-      if (params.error.telegramError !== undefined) {
-        attributes.telegramError = params.error.telegramError;
+      if (params.error.providerFailureCode !== undefined) {
+        attributes.providerFailureCode = params.error.providerFailureCode;
       }
-      if (params.error.mediaPosition !== undefined) {
-        attributes.mediaPosition = params.error.mediaPosition;
+      if (params.error.failedItemPosition !== undefined) {
+        attributes.failedItemPosition = params.error.failedItemPosition;
       }
       if (params.error.gigPublicId !== undefined) {
         attributes.gigPublicId = params.error.gigPublicId;
       }
-      if (params.error.posterUrl !== undefined) {
-        attributes.posterUrl = params.error.posterUrl;
+      if (params.error.mediaUrl !== undefined) {
+        attributes.mediaUrl = params.error.mediaUrl;
       }
     }
 
@@ -121,7 +121,7 @@ export class DigestCronService implements OnModuleInit {
       logContext: DigestCronService.name,
       logNote,
       logLevel: AlertLogLevel.Error,
-      isStackTraceIncluded: !(params.error instanceof TelegramDigestSendError),
+      isStackTraceIncluded: !(params.error instanceof DigestDeliveryError),
     });
   }
 }

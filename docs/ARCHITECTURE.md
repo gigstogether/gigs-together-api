@@ -111,7 +111,8 @@ Main files:
 Responsibilities:
 
 - owns weekly digest scheduling, eligibility, and successful-post state
-- delegates Telegram composition and delivery through `TelegramModule`
+- exposes the provider-neutral `DIGEST_DELIVERY` port to digest application services
+- uses `TelegramDigestDeliveryAdapter` to translate Telegram results and failures at the integration boundary
 - reports unattended scheduled and startup catch-up failures through `AlertingModule`
 
 Dependencies:
@@ -124,6 +125,8 @@ Dependencies:
 Main files:
 
 - `src/modules/digest/digest.module.ts`
+- `src/modules/digest/digest-delivery.ts`
+- `src/modules/digest/adapters/telegram-digest-delivery.adapter.ts`
 - `src/modules/digest/digest-cron.service.ts`
 - `src/modules/digest/digest.service.ts`
 
