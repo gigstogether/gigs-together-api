@@ -6,11 +6,15 @@ import {
   DIGEST_POST_TIMEZONE,
 } from './digest.service';
 import { AlertSeverity } from '@modules/alerting/alert-delivery';
-import type { AlertDefinition } from '@modules/alerting/alert-delivery';
+import type {
+  AlertAttributeValue,
+  AlertDefinition,
+} from '@modules/alerting/alert-delivery';
 import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
+import { TelegramDigestSendError } from '@modules/telegram/telegram-digest/telegram-digest.error';
 
 const WEEKLY_DIGEST_POST_FAILED_ALERT = {
   code: 'weeklyDigestPostFailed',
@@ -73,22 +77,51 @@ export class DigestCronService implements OnModuleInit {
       params.trigger === 'startupCatchUp'
         ? 'Startup weekly digest catch-up failed; application will continue running'
         : 'Scheduled weekly digest post failed';
+    const attributes: Record<string, AlertAttributeValue> = {
+      operation: 'createWeeklyDigestPost',
+      trigger: params.trigger,
+      cronExpression: DIGEST_POST_CRON_EXPRESSION,
+      timeZone: DIGEST_POST_TIMEZONE,
+    };
+    if (params.error instanceof TelegramDigestSendError) {
+      attributes.deliveryProvider = 'telegram';
+      attributes.providerOperation = params.error.providerOperation;
+      if (params.error.status !== undefined) {
+        attributes.status = params.error.status;
+      }
+      if (params.error.code !== undefined) {
+        attributes.code = params.error.code;
+      }
+      if (params.error.telegramErrorCode !== undefined) {
+        attributes.telegramErrorCode = params.error.telegramErrorCode;
+      }
+      if (params.error.telegramDescription !== undefined) {
+        attributes.telegramDescription = params.error.telegramDescription;
+      }
+      if (params.error.telegramError !== undefined) {
+        attributes.telegramError = params.error.telegramError;
+      }
+      if (params.error.mediaPosition !== undefined) {
+        attributes.mediaPosition = params.error.mediaPosition;
+      }
+      if (params.error.gigPublicId !== undefined) {
+        attributes.gigPublicId = params.error.gigPublicId;
+      }
+      if (params.error.posterUrl !== undefined) {
+        attributes.posterUrl = params.error.posterUrl;
+      }
+    }
 
     return this.alertingService.reportFailureBestEffort({
       alert: {
         ...WEEKLY_DIGEST_POST_FAILED_ALERT,
-        attributes: {
-          operation: 'createPostIfEligible',
-          trigger: params.trigger,
-          cronExpression: DIGEST_POST_CRON_EXPRESSION,
-          timeZone: DIGEST_POST_TIMEZONE,
-        },
+        attributes,
       },
       error: params.error,
       logContext: DigestCronService.name,
       logNote,
       logLevel: AlertLogLevel.Error,
-      isStackTraceIncluded: true,
+      isStackTraceIncluded: !(params.error instanceof TelegramDigestSendError),
     });
   }
 }

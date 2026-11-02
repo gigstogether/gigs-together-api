@@ -5,6 +5,7 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
+import { TelegramDigestSendError } from '@modules/telegram/telegram-digest/telegram-digest.error';
 import { DigestCronService } from './digest-cron.service';
 import {
   DigestService,
@@ -57,7 +58,16 @@ describe('DigestCronService', () => {
     });
 
     it('should contain a failed startup catch-up without an unhandled rejection', async () => {
-      const startupFailure = new Error('Digest send failed');
+      const startupFailure = new TelegramDigestSendError({
+        message:
+          'Telegram weekly digest send failed: Bad Request: chat not found',
+        cause: new Error('Request failed with status code 400'),
+        providerOperation: 'sendMediaGroup',
+        status: 400,
+        code: 'ERR_BAD_REQUEST',
+        telegramErrorCode: 400,
+        telegramDescription: 'Bad Request: chat not found',
+      });
       createPostIfEligibleMock.mockRejectedValueOnce(startupFailure);
 
       cronService.onModuleInit();
@@ -71,10 +81,16 @@ describe('DigestCronService', () => {
           severity: AlertSeverity.Warning,
           summary: 'Weekly digest post failed.',
           attributes: {
-            operation: 'createPostIfEligible',
+            operation: 'createWeeklyDigestPost',
             trigger: 'startupCatchUp',
             cronExpression: DIGEST_POST_CRON_EXPRESSION,
             timeZone: DIGEST_POST_TIMEZONE,
+            deliveryProvider: 'telegram',
+            providerOperation: 'sendMediaGroup',
+            status: 400,
+            code: 'ERR_BAD_REQUEST',
+            telegramErrorCode: 400,
+            telegramDescription: 'Bad Request: chat not found',
           },
         },
         error: startupFailure,
@@ -82,7 +98,7 @@ describe('DigestCronService', () => {
         logNote:
           'Startup weekly digest catch-up failed; application will continue running',
         logLevel: AlertLogLevel.Error,
-        isStackTraceIncluded: true,
+        isStackTraceIncluded: false,
       });
     });
   });
@@ -107,7 +123,7 @@ describe('DigestCronService', () => {
           severity: AlertSeverity.Warning,
           summary: 'Weekly digest post failed.',
           attributes: {
-            operation: 'createPostIfEligible',
+            operation: 'createWeeklyDigestPost',
             trigger: 'scheduled',
             cronExpression: DIGEST_POST_CRON_EXPRESSION,
             timeZone: DIGEST_POST_TIMEZONE,

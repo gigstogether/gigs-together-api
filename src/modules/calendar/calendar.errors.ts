@@ -19,7 +19,13 @@ export class CalendarEventCreationError extends Error {
   constructor(params: CalendarEventCreationErrorParams) {
     super(params.message);
     this.name = CalendarEventCreationError.name;
-    this.cause = params.cause;
+    // Keep cause non-enumerable to prevent upstream details from leaking through serialization.
+    Object.defineProperty(this, 'cause', {
+      value: params.cause,
+      configurable: true,
+      enumerable: false,
+      writable: true,
+    });
     this.provider = params.provider;
     this.providerOperation = params.providerOperation;
     if (params.status !== undefined) {
