@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { auth, calendar } from '@googleapis/calendar';
@@ -16,12 +16,11 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
+import { CalendarEventCreationError } from '../../calendar.errors';
+import type { CalendarEventCreationErrorParams } from '../../calendar.errors';
 import type { CalendarEvent } from '../../calendar.types';
 import type { CalendarProvider } from '../calendar.provider';
-import {
-  getGoogleCalendarErrorMetadata,
-  logGoogleCalendarError,
-} from './google-calendar.logging';
+import { getGoogleCalendarErrorMetadata } from './google-calendar.error';
 
 // Scope for full calendar access.
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
@@ -196,7 +195,6 @@ export class GoogleCalendarProvider
   implements CalendarProvider, OnApplicationBootstrap
 {
   private readonly integration: GoogleCalendarIntegration;
-  private readonly logger = new Logger(GoogleCalendarProvider.name);
 
   constructor(
     configService: ConfigService,
@@ -304,7 +302,12 @@ export class GoogleCalendarProvider
   /** Add a new event to Google Calendar. */
   async addEvent(event: CalendarEvent): Promise<void> {
     if (this.integration.status === 'unavailable') {
-      throw new Error('Google Calendar integration is unavailable.');
+      throw new CalendarEventCreationError({
+        message: 'Google Calendar integration is unavailable.',
+        cause: new GoogleCalendarConfigurationError(this.integration.reason),
+        provider: 'googleCalendar',
+        providerOperation: 'events.insert',
+      });
     }
 
     try {
@@ -326,12 +329,23 @@ export class GoogleCalendarProvider
         },
       });
     } catch (e) {
-      logGoogleCalendarError(this.logger, {
-        error: e,
-        event: 'google_calendar_event_creation_failed',
-        operation: 'events.insert',
-      });
-      throw new Error('Failed to create calendar event.');
+      const metadata = getGoogleCalendarErrorMetadata(e);
+      const errorParams: CalendarEventCreationErrorParams = {
+        message: `Google Calendar event creation failed: ${formatErrorMessage(e)}`,
+        cause: e,
+        provider: 'googleCalendar',
+        providerOperation: 'events.insert',
+      };
+      if (metadata.status !== undefined) {
+        errorParams.status = metadata.status;
+      }
+      if (metadata.code !== undefined) {
+        errorParams.code = metadata.code;
+      }
+      if (metadata.hint !== undefined) {
+        errorParams.hint = metadata.hint;
+      }
+      throw new CalendarEventCreationError(errorParams);
     }
   }
 

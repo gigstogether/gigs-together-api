@@ -45,9 +45,9 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `GigCandidateApprovalService`
 - **Severity:** `warning`
-- **Log level:** `error`, with stack trace
+- **Log level:** `error`, without stack trace
 - **Condition:** Calendar event creation fails after a GigCandidate has already been approved and converted into a Gig.
-- **Attributes:** `operation`, `gigCandidateId`, `gigId`, `gigPublicId`
+- **Attributes:** `operation`, `trigger`, `gigCandidateId`, `gigId`, `gigPublicId`, and safe provider diagnostics when available: `calendarProvider`, `providerOperation`, `status`, `code`, `hint`
 - **Application behavior:** approval remains successful; alert logging and delivery are best-effort.
 - **Deduplication:** none.
 

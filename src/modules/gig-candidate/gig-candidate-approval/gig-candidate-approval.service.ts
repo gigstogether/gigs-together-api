@@ -4,6 +4,7 @@ import { PostType } from '@shared/types/post-type.enum';
 import { formatErrorMessage } from '@shared/utils/logging';
 import { AlertSeverity } from '@modules/alerting/alert-delivery';
 import type {
+  AlertAttributeValue,
   AlertDefinition,
   SendAlertParams,
 } from '@modules/alerting/alert-delivery';
@@ -11,7 +12,8 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
-import { CalendarService } from '../../calendar/calendar.service';
+import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
+import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
@@ -194,14 +196,29 @@ export class GigCandidateApprovalService {
         this.gigService.gigToCalendarPayload(gig),
       );
     } catch (e) {
+      const attributes: Record<string, AlertAttributeValue> = {
+        operation: 'createCalendarEvent',
+        trigger: 'gigCandidateApproval',
+        gigCandidateId: gigCandidate.id,
+        gigId: gig.id,
+        gigPublicId: gig.publicId,
+      };
+      if (e instanceof CalendarEventCreationError) {
+        attributes.calendarProvider = e.provider;
+        attributes.providerOperation = e.providerOperation;
+        if (e.status !== undefined) {
+          attributes.status = e.status;
+        }
+        if (e.code !== undefined) {
+          attributes.code = e.code;
+        }
+        if (e.hint !== undefined) {
+          attributes.hint = e.hint;
+        }
+      }
       const alert: SendAlertParams = {
         ...GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT,
-        attributes: {
-          operation: 'gigCandidateApproval',
-          gigCandidateId: gigCandidate.id,
-          gigId: gig.id,
-          gigPublicId: gig.publicId,
-        },
+        attributes,
       };
       await this.alertingService.reportFailureBestEffort({
         alert,
@@ -209,7 +226,7 @@ export class GigCandidateApprovalService {
         logContext: GigCandidateApprovalService.name,
         logNote: 'Calendar event creation failed after gig candidate approval',
         logLevel: AlertLogLevel.Error,
-        isStackTraceIncluded: true,
+        isStackTraceIncluded: false,
       });
     }
 

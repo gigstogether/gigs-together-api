@@ -7,6 +7,7 @@ import {
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
 import type { ReportFailureBestEffortParams } from '@modules/alerting/alerting.service';
+import { CalendarEventCreationError } from '../../calendar.errors';
 import type { CalendarEvent } from '../../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
 
@@ -199,6 +200,23 @@ describe('GoogleCalendarProvider', () => {
         },
       },
     });
+  });
+
+  it('should preserve safe provider diagnostics when event creation fails', async () => {
+    const providerFailure = createGaxiosError();
+    googleApisMocks.insert.mockRejectedValueOnce(providerFailure);
+
+    await expect(provider.addEvent(buildEvent())).rejects.toEqual(
+      expect.objectContaining({
+        name: CalendarEventCreationError.name,
+        message: 'Google Calendar event creation failed: Not Found',
+        cause: providerFailure,
+        provider: 'googleCalendar',
+        providerOperation: 'events.insert',
+        status: 404,
+        hint: 'Calendar does not exist or the service account has no access',
+      }),
+    );
   });
 
   it('should report an unavailable integration when calendar ID is missing', async () => {

@@ -6,8 +6,9 @@ import {
   AlertingService,
   AlertLogLevel,
 } from '@modules/alerting/alerting.service';
-import { CalendarService } from '../../calendar/calendar.service';
-import type { CalendarEvent } from '../../calendar/calendar.types';
+import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
+import { CalendarService } from '@modules/calendar/calendar.service';
+import type { CalendarEvent } from '@modules/calendar/calendar.types';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
@@ -52,7 +53,15 @@ describe('GigCandidateApprovalService', () => {
     endLocalDateTime: '2026-10-30T22:00:00',
     timeZone: 'Europe/Madrid',
   };
-  const calendarFailure = new Error('Calendar is unavailable');
+  const calendarProviderFailure = new Error('Not Found');
+  const calendarFailure = new CalendarEventCreationError({
+    message: 'Google Calendar event creation failed: Not Found',
+    cause: calendarProviderFailure,
+    provider: 'googleCalendar',
+    providerOperation: 'events.insert',
+    status: 404,
+    hint: 'Calendar does not exist or the service account has no access',
+  });
   const approvedGigCandidate: GigCandidate = {
     id: 'gig-candidate-id',
     status: GigCandidateStatus.Approved,
@@ -200,17 +209,22 @@ describe('GigCandidateApprovalService', () => {
         severity: AlertSeverity.Warning,
         summary: 'Calendar event was not created for the gig.',
         attributes: {
-          operation: 'gigCandidateApproval',
+          operation: 'createCalendarEvent',
+          trigger: 'gigCandidateApproval',
           gigCandidateId: approvedGigCandidate.id,
           gigId: approvedGig.id,
           gigPublicId: approvedGig.publicId,
+          calendarProvider: 'googleCalendar',
+          providerOperation: 'events.insert',
+          status: 404,
+          hint: 'Calendar does not exist or the service account has no access',
         },
       },
       error: calendarFailure,
       logContext: GigCandidateApprovalService.name,
       logNote: 'Calendar event creation failed after gig candidate approval',
       logLevel: AlertLogLevel.Error,
-      isStackTraceIncluded: true,
+      isStackTraceIncluded: false,
     });
   });
 
