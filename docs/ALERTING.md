@@ -15,9 +15,35 @@ feature-owned alert definition
 
 `AlertingModule` must not import or maintain a registry of its consumers. Alert codes are opaque camelCase strings defined next to the condition that produces them.
 
-`AlertingService.reportFailureBestEffort` always records the original failure with the alert code, alert severity, safe attributes, and feature context. Alert severity controls delivery urgency and presentation; the application log level and stack-trace policy are configured independently for each reported failure. A delivery failure produces an additional error log and does not replace the original application result.
+`AlertingService.reportFailureBestEffort` always records the reported failure with the alert code, alert severity, safe attributes, and feature context. Alert severity controls delivery urgency and presentation; the application log level and stack-trace policy are configured independently for each reported failure. A delivery failure produces an additional error log and does not replace the original application result.
 
 The initial delivery adapter sends alerts to the Telegram channel configured by `ALERTS_TELEGRAM_CHANNEL_ID`.
+
+## Failure propagation and logging ownership
+
+Each reported application failure must produce one structured application log. The feature that owns the failed operation is the logging owner:
+
+```text
+provider or client failure
+  -> typed boundary error with preserved cause and safe diagnostics
+  -> feature-owned AlertingService.reportFailureBestEffort call
+  -> one structured application log
+  -> best-effort alert delivery
+```
+
+A provider, client, repository, or adapter must not log a failure when it will propagate that same failure to an outer alert owner. Logging at both levels creates duplicate records, while replacing the upstream failure with a generic `Error` removes the information needed to diagnose it.
+
+When translating an upstream failure, the boundary must:
+
+- use a typed error owned by the boundary;
+- preserve the original failure as a native or otherwise non-enumerable `cause`;
+- provide an actionable message rather than only `Operation failed`;
+- expose only explicitly selected safe fields such as `providerOperation`, `status`, `code`, or a sanitized `hint`;
+- exclude tokens, credentials, authorization headers, raw upstream payloads, configuration values, and signed URL query parameters.
+
+The feature owner catches the typed error, maps its safe fields into alert attributes, and calls `AlertingService.reportFailureBestEffort` once. `AlertingModule` remains provider-neutral and does not inspect provider-specific error classes.
+
+Lower-level logging is appropriate only when that layer fully contains the failure and does not propagate or report it elsewhere. Expected external-service failures with sufficient structured diagnostics normally omit stack traces; unexpected programming or orchestration failures normally include them.
 
 ## Active alerts
 
@@ -75,9 +101,9 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 - **Owner:** `DigestCronService`
 - **Severity:** `warning`
-- **Log level:** `error`, with stack trace
+- **Log level:** `error`; expected Telegram delivery errors omit the stack, while unexpected errors include it
 - **Condition:** an unattended scheduled weekly digest or startup catch-up run fails while checking eligibility, loading Gigs, or creating the Telegram post.
-- **Attributes:** `operation`, `trigger`, `cronExpression`, `timeZone`
+- **Attributes:** `operation`, `trigger`, `cronExpression`, `timeZone`, and safe Telegram diagnostics when available: `deliveryProvider`, `providerOperation`, `status`, `code`, `telegramErrorCode`, `telegramDescription`, `telegramError`, `mediaPosition`, `gigPublicId`, `posterUrl`
 - **Application behavior:** scheduled failures are reported and rethrown; startup catch-up failures are reported and contained so application startup can continue.
 - **Deduplication:** none.
 - **Scope:** manual digest requests through the admin API are not included because their errors are returned directly to the caller.
@@ -86,9 +112,10 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 1. Define the stable code, severity, and summary in the feature that owns the reported condition using `satisfies AlertDefinition`.
 2. Build safe structured attributes in that feature. Do not include secrets, tokens, raw configuration values, or sensitive payloads.
-3. Call `AlertingService.reportFailureBestEffort` with the ready alert, original error, log context, and actionable log note.
-4. Decide explicitly whether the originating operation should continue or rethrow after reporting.
-5. Add success and failure-path tests, including deduplication tests when the feature suppresses repeated alerts.
-6. Add the new code to the active alert catalog in this document.
+3. If the failure crosses a provider or client boundary, translate it into a typed error with a preserved cause and safe structured diagnostics without logging it at that boundary.
+4. Call `AlertingService.reportFailureBestEffort` once from the feature owner with the ready alert, translated or original error, log context, and actionable log note.
+5. Decide explicitly whether the originating operation should continue or rethrow after reporting.
+6. Add success and failure-path tests, including deduplication tests when the feature suppresses repeated alerts and regression coverage that prevents duplicate lower-level logging.
+7. Add the new code to the active alert catalog in this document.
 
 Do not add consumer-specific codes, definitions, formatting, or deduplication rules to `AlertingModule`.

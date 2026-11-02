@@ -143,6 +143,16 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt, limits).
 - Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts must be conscious and explicit, not silent defaults.
 
+## Error and alert reporting
+
+- A propagated failure must have one structured-log owner. When an outer feature or exception boundary will log or alert the failure, lower-level clients, providers, repositories, and adapters must not log the same failure before rethrowing it.
+- A lower-level boundary that cannot handle a failure should throw a typed error that preserves the original failure as a native or otherwise non-enumerable `cause` and exposes only safe, explicitly selected diagnostic fields needed by its consumer.
+- Do not log an upstream error and then replace it with a generic wrapper such as `throw new Error('Operation failed')`. Translation must retain an actionable message, the cause, and safe metadata such as the provider operation, status, code, or sanitized hint.
+- The feature that owns the failed application operation owns the alert definition and the single `AlertingService.reportFailureBestEffort` call. Build alert attributes from the typed error; do not make `AlertingModule` understand provider-specific errors.
+- Log at the lower boundary only when the failure is fully contained there and will not be propagated or reported by an outer owner.
+- Expected external-service failures with actionable structured diagnostics should normally omit stack traces. Unexpected programming or orchestration failures should normally include them.
+- Never place credentials, tokens, authorization headers, raw configuration values, unsanitized upstream payloads, or signed URL query parameters in errors, logs, alert attributes, or serializable error fields.
+
 ## Legacy and backward compatibility
 
 - Do not keep legacy code, aliases, fallbacks, or compatibility shims without a clear reason.
