@@ -15,6 +15,18 @@ const ALERT_SEVERITY_HEADERS = {
   [AlertSeverity.Critical]: '🔴 CRITICAL',
 } satisfies Record<AlertSeverity, string>;
 
+const ALERT_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'UTC',
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+  timeZoneName: 'short',
+});
+
 @Injectable()
 export class TelegramAlertDeliveryService implements AlertDelivery {
   private readonly alertsChannelId: string;
@@ -44,7 +56,7 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
       this.escapeTelegramHtmlText(params.summary),
       '',
       this.formatField('Code', params.code),
-      this.formatField('Time', params.occurredAt.toISOString()),
+      this.formatField('Time', this.formatOccurredAt(params.occurredAt)),
     ];
 
     if (params.attributes !== undefined) {
@@ -61,6 +73,10 @@ export class TelegramAlertDeliveryService implements AlertDelivery {
 
   private formatSeverity(severity: AlertSeverity): string {
     return ALERT_SEVERITY_HEADERS[severity];
+  }
+
+  private formatOccurredAt(occurredAt: Date): string {
+    return ALERT_DATE_TIME_FORMATTER.format(occurredAt);
   }
 
   private formatField(name: string, value: AlertAttributeValue): string {
