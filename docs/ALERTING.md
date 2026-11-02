@@ -21,6 +21,16 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 ## Active alerts
 
+### `googleCalendarConnectionCheckFailed`
+
+- **Owner:** `GoogleCalendarProvider`
+- **Severity:** `warning`
+- **Log level:** `error`, without stack trace
+- **Condition:** the configured credentials cannot access the target Google Calendar during the application bootstrap connection check.
+- **Attributes:** `operation`, and the available safe Google API metadata: `status`, `code`, `hint`
+- **Application behavior:** application startup continues; alert logging and delivery are best-effort.
+- **Deduplication:** none; the connection check runs once per application startup.
+
 ### `gigCalendarEventCreationFailed`
 
 - **Owner:** `GigCandidateApprovalService`

@@ -2,6 +2,11 @@ import * as fs from 'fs';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { AlertSeverity } from '../../../alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '../../../alerting/alerting.service';
 import type { CalendarEvent } from '../../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
 
@@ -66,6 +71,12 @@ function createGaxiosError(): Error {
   });
 }
 
+function createAlertingService(): AlertingService {
+  return new AlertingService({
+    send: vi.fn().mockResolvedValue(undefined),
+  });
+}
+
 function getUnavailableIntegrationLog(
   config: Record<string, unknown>,
 ): unknown {
@@ -74,6 +85,7 @@ function getUnavailableIntegrationLog(
     .mockImplementation(() => undefined);
   const unavailableProvider = new GoogleCalendarProvider(
     createConfigService(config),
+    createAlertingService(),
   );
 
   unavailableProvider.onApplicationBootstrap();
@@ -95,6 +107,7 @@ function buildEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
 
 describe('GoogleCalendarProvider', () => {
   let provider: GoogleCalendarProvider;
+  let alertingService: AlertingService;
 
   beforeEach(() => {
     vi.stubEnv('GOOGLE_AUTH_JSON', '');
@@ -104,7 +117,11 @@ describe('GoogleCalendarProvider', () => {
       data: { id: 'calendar-id' },
     });
     googleApisMocks.insert.mockResolvedValue({ data: { id: 'event-id' } });
-    provider = new GoogleCalendarProvider(createConfigService());
+    alertingService = createAlertingService();
+    provider = new GoogleCalendarProvider(
+      createConfigService(),
+      alertingService,
+    );
   });
 
   afterEach(() => {
@@ -123,22 +140,33 @@ describe('GoogleCalendarProvider', () => {
     });
   });
 
-  it('should log a concise structured Gaxios error', async () => {
+  it('should report a connection check failure with safe Google metadata', async () => {
     const connectionFailure = createGaxiosError();
-    const loggerErrorSpy = vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
+    const reportFailureSpy = vi
+      .spyOn(alertingService, 'reportFailureBestEffort')
+      .mockResolvedValue(undefined);
     googleApisMocks.getCalendar.mockRejectedValueOnce(connectionFailure);
 
     provider.onApplicationBootstrap();
 
     await vi.waitFor(() => {
-      expect(loggerErrorSpy).toHaveBeenCalledWith({
-        event: 'google_calendar_connection_check_failed',
-        operation: 'calendars.get',
-        status: 404,
-        message: 'Not Found',
-        hint: 'Calendar does not exist or the service account has no access',
+      expect(reportFailureSpy).toHaveBeenCalledWith({
+        alert: {
+          code: 'googleCalendarConnectionCheckFailed',
+          severity: AlertSeverity.Warning,
+          summary:
+            'The application cannot access the configured Google Calendar.',
+          attributes: {
+            operation: 'calendars.get',
+            status: 404,
+            hint: 'Calendar does not exist or the service account has no access',
+          },
+        },
+        error: connectionFailure,
+        logContext: GoogleCalendarProvider.name,
+        logNote: 'Google Calendar connection check failed',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
     });
   });
@@ -193,6 +221,7 @@ describe('GoogleCalendarProvider', () => {
 
     new GoogleCalendarProvider(
       createConfigService({ GOOGLE_AUTH_JSON: encodedCredentials }),
+      createAlertingService(),
     );
 
     expect(googleApisMocks.jwt).toHaveBeenLastCalledWith({
@@ -213,6 +242,7 @@ describe('GoogleCalendarProvider', () => {
         GOOGLE_AUTH_JSON: '',
         GOOGLE_APPLICATION_CREDENTIALS: '  ./google-auth.json  ',
       }),
+      createAlertingService(),
     );
 
     expect(fs.readFileSync).toHaveBeenCalledWith('./google-auth.json', 'utf8');
@@ -320,6 +350,7 @@ describe('GoogleCalendarProvider', () => {
   it('should reject event creation when the integration is unavailable', async () => {
     const unavailableProvider = new GoogleCalendarProvider(
       createConfigService({ CALENDAR_ID: '' }),
+      createAlertingService(),
     );
 
     await expect(unavailableProvider.addEvent(buildEvent())).rejects.toThrow(
@@ -330,6 +361,7 @@ describe('GoogleCalendarProvider', () => {
   it('should build a create-event URL when the integration is unavailable', () => {
     const unavailableProvider = new GoogleCalendarProvider(
       createConfigService({ CALENDAR_ID: '' }),
+      createAlertingService(),
     );
 
     expect(unavailableProvider.getCreateEventUrl(buildEvent())).toContain(

@@ -25,12 +25,40 @@ interface GoogleCalendarErrorLogEntry {
   hint?: string;
 }
 
+export interface GoogleCalendarErrorMetadata {
+  status?: number;
+  code?: string | number;
+  hint?: string;
+}
+
 function isGaxiosError(e: unknown): e is GaxiosErrorLike {
   return e instanceof Error && GAXIOS_ERROR_SYMBOL in e;
 }
 
 function isStringOrNumber(value: unknown): value is string | number {
   return typeof value === 'string' || typeof value === 'number';
+}
+
+export function getGoogleCalendarErrorMetadata(
+  error: unknown,
+): GoogleCalendarErrorMetadata {
+  const metadata: GoogleCalendarErrorMetadata = {};
+  if (!isGaxiosError(error)) {
+    return metadata;
+  }
+
+  if (typeof error.status === 'number') {
+    metadata.status = error.status;
+  }
+  const hasDuplicateNumericCode =
+    typeof error.code === 'number' && error.code === error.status;
+  if (isStringOrNumber(error.code) && !hasDuplicateNumericCode) {
+    metadata.code = error.code;
+  }
+  if (error.status === 404) {
+    metadata.hint = GOOGLE_CALENDAR_NOT_FOUND_HINT;
+  }
+  return metadata;
 }
 
 export function logGoogleCalendarError(
@@ -48,16 +76,15 @@ export function logGoogleCalendarError(
     operation,
     message: error.message,
   };
-  if (typeof error.status === 'number') {
-    logEntry.status = error.status;
+  const metadata = getGoogleCalendarErrorMetadata(error);
+  if (metadata.status !== undefined) {
+    logEntry.status = metadata.status;
   }
-  const hasDuplicateNumericCode =
-    typeof error.code === 'number' && error.code === error.status;
-  if (isStringOrNumber(error.code) && !hasDuplicateNumericCode) {
-    logEntry.code = error.code;
+  if (metadata.code !== undefined) {
+    logEntry.code = metadata.code;
   }
-  if (error.status === 404) {
-    logEntry.hint = GOOGLE_CALENDAR_NOT_FOUND_HINT;
+  if (metadata.hint !== undefined) {
+    logEntry.hint = metadata.hint;
   }
 
   logger.error(logEntry);

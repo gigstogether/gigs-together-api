@@ -7,13 +7,30 @@ import * as fs from 'fs';
 import { getConfigString } from '@shared/utils/env';
 import { formatErrorMessage } from '@shared/utils/logging';
 import { isRecord } from '@shared/utils/is-record';
+import { AlertSeverity } from '../../../alerting/alert-delivery';
+import type {
+  AlertAttributeValue,
+  AlertDefinition,
+} from '../../../alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '../../../alerting/alerting.service';
 import type { CalendarEvent } from '../../calendar.types';
 import type { CalendarProvider } from '../calendar.provider';
-import { logGoogleCalendarError } from './google-calendar.logging';
+import {
+  getGoogleCalendarErrorMetadata,
+  logGoogleCalendarError,
+} from './google-calendar.logging';
 
 // Scope for full calendar access.
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
 const GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS = 10_000; // 10 seconds
+const GOOGLE_CALENDAR_CONNECTION_CHECK_FAILED_ALERT = {
+  code: 'googleCalendarConnectionCheckFailed',
+  severity: AlertSeverity.Warning,
+  summary: 'The application cannot access the configured Google Calendar.',
+} satisfies AlertDefinition;
 
 interface GoogleServiceAccountCredentials {
   type: 'service_account';
@@ -172,7 +189,10 @@ export class GoogleCalendarProvider
   private readonly integration: GoogleCalendarIntegration;
   private readonly logger = new Logger(GoogleCalendarProvider.name);
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly alertingService: AlertingService,
+  ) {
     const calendarId = getConfigString(configService, 'CALENDAR_ID');
     if (calendarId === undefined) {
       this.integration = {
@@ -231,10 +251,30 @@ export class GoogleCalendarProvider
         { timeout: GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS },
       );
     } catch (e) {
-      logGoogleCalendarError(this.logger, {
-        error: e,
-        event: 'google_calendar_connection_check_failed',
+      const attributes: Record<string, AlertAttributeValue> = {
         operation: 'calendars.get',
+      };
+      const metadata = getGoogleCalendarErrorMetadata(e);
+      if (metadata.status !== undefined) {
+        attributes.status = metadata.status;
+      }
+      if (metadata.code !== undefined) {
+        attributes.code = metadata.code;
+      }
+      if (metadata.hint !== undefined) {
+        attributes.hint = metadata.hint;
+      }
+
+      await this.alertingService.reportFailureBestEffort({
+        alert: {
+          ...GOOGLE_CALENDAR_CONNECTION_CHECK_FAILED_ALERT,
+          attributes,
+        },
+        error: e,
+        logContext: GoogleCalendarProvider.name,
+        logNote: 'Google Calendar connection check failed',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
     }
   }
