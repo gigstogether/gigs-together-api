@@ -17,12 +17,13 @@ import {
   parseCallbackData,
 } from '../telegram/utils/telegram-callback-action';
 import { TelegramService } from '../telegram/telegram.service';
+import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.client';
 import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
-import type { TGChat } from '../telegram/types/chat.types';
-import type { TGMessage } from '../telegram/types/message.types';
-import type { TGCallbackQuery } from '../telegram/types/update.types';
-import type { TGUser } from '../telegram/types/user.types';
+import type { TGChat } from '../telegram/telegram-bot-client/types/chat.types';
+import type { TGMessage } from '../telegram/telegram-bot-client/types/message.types';
+import type { TGCallbackQuery } from '../telegram/telegram-bot-client/types/update.types';
+import type { TGUser } from '../telegram/telegram-bot-client/types/user.types';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -95,6 +96,7 @@ export class TelegramUpdatesService {
 
   constructor(
     private readonly telegramService: TelegramService,
+    private readonly telegramBotClient: TelegramBotClient,
     private readonly telegramBotReplyService: TelegramBotReplyService,
     private readonly gigService: GigService,
     private readonly gigCandidateService: GigCandidateService,
@@ -378,7 +380,7 @@ export class TelegramUpdatesService {
     messageId: number,
   ): Promise<void> {
     try {
-      await this.telegramService.setMessageReaction({
+      await this.telegramBotClient.setMessageReaction({
         chat_id: chatId,
         message_id: messageId,
         reaction: [{ type: 'emoji', emoji: GIG_SUGGESTION_RECEIVED_REACTION }],
@@ -409,7 +411,7 @@ export class TelegramUpdatesService {
   ): Promise<void> {
     const { data, message } = callbackQuery;
     if (!data || !message) {
-      await this.telegramService.answerCallbackQuery({
+      await this.telegramBotClient.answerCallbackQuery({
         callback_query_id: callbackQuery.id,
         text: 'Invalid callback payload',
         show_alert: false,
@@ -419,7 +421,7 @@ export class TelegramUpdatesService {
 
     const parsed = parseCallbackData(data);
     if (!parsed) {
-      await this.telegramService.answerCallbackQuery({
+      await this.telegramBotClient.answerCallbackQuery({
         callback_query_id: callbackQuery.id,
         text: 'Something unexpected happened, I dunno what to do',
         show_alert: true,
@@ -499,7 +501,7 @@ export class TelegramUpdatesService {
       }
     }
 
-    await this.telegramService.answerCallbackQuery({
+    await this.telegramBotClient.answerCallbackQuery({
       callback_query_id: callbackQuery.id,
       text: 'Done!',
       show_alert: false,
@@ -510,7 +512,7 @@ export class TelegramUpdatesService {
     try {
       const adminUserId = await this.resolveAdminUserId(callbackQuery.from);
       if (!adminUserId) {
-        await this.telegramService.answerCallbackQuery({
+        await this.telegramBotClient.answerCallbackQuery({
           callback_query_id: callbackQuery.id,
           text: 'Admin privileges required',
           show_alert: true,
@@ -525,7 +527,7 @@ export class TelegramUpdatesService {
           `handleCallbackQuery failed: ${formatTelegramErrorMessage(e)}`,
         );
       }
-      await this.telegramService.answerCallbackQuery({
+      await this.telegramBotClient.answerCallbackQuery({
         callback_query_id: callbackQuery.id,
         text: this.formatCallbackQueryError(e),
         show_alert: true,

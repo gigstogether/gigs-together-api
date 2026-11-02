@@ -1,12 +1,12 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TelegramDigestComposerService } from './telegram-digest-composer.service';
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
-import { TGInputMediaType } from '../types/message.types';
+import { TGInputMediaType } from '../telegram-bot-client/types/message.types';
 import { TelegramDigestService } from './telegram-digest.service';
+import { TelegramDigestSendError } from './telegram-digest.error';
 import { TelegramService } from '../telegram.service';
 
 const mediaGroupPlan: WeeklyDigestSendPlan = {
@@ -123,53 +123,59 @@ describe('TelegramDigestService', () => {
     expect(telegramDigestComposer.composeWeeklyDigest).not.toHaveBeenCalled();
   });
 
-  it('should replace an upstream Telegram error', async () => {
+  it('should preserve safe upstream Telegram diagnostics', async () => {
+    const upstreamFailure = createDigestUpstreamError();
     telegramDigestComposer.composeWeeklyDigest.mockReturnValue(mediaGroupPlan);
-    telegramBotClient.sendMediaGroup.mockRejectedValue(
-      createDigestUpstreamError(),
-    );
-    vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    telegramBotClient.sendMediaGroup.mockRejectedValue(upstreamFailure);
 
-    await expect(service.sendWeeklyDigestPost([])).rejects.toThrow(
-      'Weekly digest send to main channel failed',
-    );
-  });
-
-  it('should omit the Telegram token from a failure log', async () => {
-    telegramDigestComposer.composeWeeklyDigest.mockReturnValue(mediaGroupPlan);
-    telegramBotClient.sendMediaGroup.mockRejectedValue(
-      createDigestUpstreamError(),
-    );
-    const loggerErrorSpy = vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
-
-    await expect(service.sendWeeklyDigestPost([])).rejects.toThrow();
-
-    expect(JSON.stringify(loggerErrorSpy.mock.calls)).not.toContain(
-      'secret-token',
-    );
-  });
-
-  it('should log failed media context without URL query data', async () => {
-    telegramDigestComposer.composeWeeklyDigest.mockReturnValue(mediaGroupPlan);
-    telegramBotClient.sendMediaGroup.mockRejectedValue(
-      createDigestUpstreamError(),
-    );
-    const loggerErrorSpy = vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
-
-    await expect(service.sendWeeklyDigestPost([])).rejects.toThrow();
-
-    expect(loggerErrorSpy).toHaveBeenCalledWith(
+    await expect(service.sendWeeklyDigestPost([])).rejects.toEqual(
       expect.objectContaining({
-        meta: {
-          telegramError: 'WEBPAGE_CURL_FAILED',
-          position: 2,
-          publicId: 'beta-2026-01-02',
-          posterUrl: 'https://cdn.example/beta.jpg',
-        },
+        name: TelegramDigestSendError.name,
+        message:
+          'Telegram weekly digest send failed: Bad Request: failed to send message #2 with the error message "WEBPAGE_CURL_FAILED"',
+        cause: upstreamFailure,
+        providerOperation: 'sendMediaGroup',
+        status: 400,
+        code: 'ERR_BAD_REQUEST',
+        telegramErrorCode: 400,
+        telegramDescription:
+          'Bad Request: failed to send message #2 with the error message "WEBPAGE_CURL_FAILED"',
+      }),
+    );
+  });
+
+  it('should omit the Telegram token from the serializable error', async () => {
+    telegramDigestComposer.composeWeeklyDigest.mockReturnValue(mediaGroupPlan);
+    telegramBotClient.sendMediaGroup.mockRejectedValue(
+      createDigestUpstreamError(),
+    );
+
+    let thrownError: unknown;
+    try {
+      await service.sendWeeklyDigestPost([]);
+    } catch (e) {
+      thrownError = e;
+    }
+    const serializedError = JSON.stringify(thrownError) ?? '';
+
+    expect({ thrownError, serializedError }).toEqual({
+      thrownError: expect.any(TelegramDigestSendError),
+      serializedError: expect.not.stringContaining('secret-token'),
+    });
+  });
+
+  it('should preserve failed media context without URL query data', async () => {
+    telegramDigestComposer.composeWeeklyDigest.mockReturnValue(mediaGroupPlan);
+    telegramBotClient.sendMediaGroup.mockRejectedValue(
+      createDigestUpstreamError(),
+    );
+
+    await expect(service.sendWeeklyDigestPost([])).rejects.toEqual(
+      expect.objectContaining({
+        telegramError: 'WEBPAGE_CURL_FAILED',
+        mediaPosition: 2,
+        gigPublicId: 'beta-2026-01-02',
+        posterUrl: 'https://cdn.example/beta.jpg',
       }),
     );
   });
@@ -179,14 +185,14 @@ describe('TelegramDigestService', () => {
     telegramBotClient.sendMediaGroup.mockRejectedValue(
       createDigestUpstreamError('Bad Request: WEBPAGE_CURL_FAILED'),
     );
-    const loggerErrorSpy = vi
-      .spyOn(Logger.prototype, 'error')
-      .mockImplementation(() => undefined);
 
-    await expect(service.sendWeeklyDigestPost([])).rejects.toThrow();
-
-    expect(loggerErrorSpy).toHaveBeenCalledWith(
-      expect.not.objectContaining({ meta: expect.anything() }),
+    await expect(service.sendWeeklyDigestPost([])).rejects.toEqual(
+      expect.not.objectContaining({
+        telegramError: expect.anything(),
+        mediaPosition: expect.anything(),
+        gigPublicId: expect.anything(),
+        posterUrl: expect.anything(),
+      }),
     );
   });
 });

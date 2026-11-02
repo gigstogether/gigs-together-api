@@ -8,7 +8,7 @@ import {
   UseGuards,
   Version,
 } from '@nestjs/common';
-import type { TGUpdate } from '../telegram/types/update.types';
+import type { TGUpdate } from '../telegram/telegram-bot-client/types/update.types';
 import { TelegramUpdatesExceptionFilter } from './filters/telegram-updates-exception.filter';
 import { TelegramWebhookExceptionFilter } from './filters/telegram-webhook-exception.filter';
 import { TelegramWebhookGuard } from './guards/telegram-webhook.guard';

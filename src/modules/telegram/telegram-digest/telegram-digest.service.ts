@@ -2,16 +2,29 @@ import { Injectable, Logger } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { PlainGig } from '../../gig/types/gig.types';
 import { isRecord } from '@shared/utils/is-record';
-import { logError } from '@shared/utils/logging';
+import { formatErrorMessage } from '@shared/utils/logging';
 import { TelegramDigestComposerService } from './telegram-digest-composer.service';
 import type { WeeklyDigestSendPlan } from './telegram-digest-composer.types';
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramDigestSendError } from './telegram-digest.error';
+import type { TelegramDigestSendErrorParams } from './telegram-digest.error';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { TelegramService } from '../telegram.service';
 
 export interface WeeklyDigestPostResult {
   postUrl: string;
+}
+
+interface WeeklyDigestMediaFailureDetails {
+  telegramError: string;
+  mediaPosition: number;
+  gigPublicId?: string;
+  posterUrl?: string;
+}
+
+function isStringOrNumber(value: unknown): value is string | number {
+  return typeof value === 'string' || typeof value === 'number';
 }
 
 @Injectable()
@@ -52,14 +65,66 @@ export class TelegramDigestService {
 
       return postResult;
     } catch (e: unknown) {
-      const mediaFailure = this.getWeeklyDigestMediaFailureLogMeta(e, plan);
-      logError(this.logger, {
-        error: e,
-        note: 'Weekly digest send to main channel failed',
-        context: TelegramDigestService.name,
-        ...(mediaFailure ? { meta: mediaFailure } : {}),
-      });
-      throw new Error('Weekly digest send to main channel failed');
+      throw this.createSendError(e, plan);
+    }
+  }
+
+  private createSendError(
+    e: unknown,
+    plan: WeeklyDigestSendPlan | undefined,
+  ): TelegramDigestSendError {
+    const providerOperation = this.getProviderOperation(plan);
+    const errorParams: TelegramDigestSendErrorParams = {
+      message: `Telegram weekly digest send failed: ${formatErrorMessage(e)}`,
+      cause: e,
+      providerOperation,
+    };
+
+    if (isAxiosError(e)) {
+      if (typeof e.response?.status === 'number') {
+        errorParams.status = e.response.status;
+      }
+      if (isStringOrNumber(e.code)) {
+        errorParams.code = e.code;
+      }
+      const responseData: unknown = e.response?.data;
+      if (isRecord(responseData)) {
+        if (typeof responseData.error_code === 'number') {
+          errorParams.telegramErrorCode = responseData.error_code;
+        }
+        if (typeof responseData.description === 'string') {
+          errorParams.telegramDescription = responseData.description;
+          errorParams.message = `Telegram weekly digest send failed: ${responseData.description}`;
+        }
+      }
+    }
+
+    const mediaFailure = this.getWeeklyDigestMediaFailureDetails(e, plan);
+    if (mediaFailure !== undefined) {
+      errorParams.telegramError = mediaFailure.telegramError;
+      errorParams.mediaPosition = mediaFailure.mediaPosition;
+      if (mediaFailure.gigPublicId !== undefined) {
+        errorParams.gigPublicId = mediaFailure.gigPublicId;
+      }
+      if (mediaFailure.posterUrl !== undefined) {
+        errorParams.posterUrl = mediaFailure.posterUrl;
+      }
+    }
+
+    return new TelegramDigestSendError(errorParams);
+  }
+
+  private getProviderOperation(plan: WeeklyDigestSendPlan | undefined): string {
+    if (plan === undefined) {
+      return 'composeWeeklyDigest';
+    }
+    switch (plan.kind) {
+      case WeeklyDigestSendKind.SendMessage:
+        return 'sendMessage';
+      case WeeklyDigestSendKind.SendPhoto:
+        return 'sendPhoto';
+      case WeeklyDigestSendKind.SendMediaGroup:
+        return 'sendMediaGroup';
     }
   }
 
@@ -100,10 +165,10 @@ export class TelegramDigestService {
     return postUrl === undefined ? undefined : { postUrl };
   }
 
-  private getWeeklyDigestMediaFailureLogMeta(
+  private getWeeklyDigestMediaFailureDetails(
     e: unknown,
     plan: WeeklyDigestSendPlan | undefined,
-  ): Record<string, unknown> | undefined {
+  ): WeeklyDigestMediaFailureDetails | undefined {
     const position = this.parseWebpageCurlFailedPosition(e);
     if (
       position === undefined ||
@@ -116,20 +181,20 @@ export class TelegramDigestService {
       (item) => item.position === position,
     );
     const media = plan.payload.media[position - 1];
-    const meta: Record<string, unknown> = {
+    const details: WeeklyDigestMediaFailureDetails = {
       telegramError: 'WEBPAGE_CURL_FAILED',
-      position,
+      mediaPosition: position,
     };
     if (mediaItem === undefined || media === undefined) {
-      return meta;
+      return details;
     }
 
-    meta.publicId = mediaItem.publicId;
+    details.gigPublicId = mediaItem.publicId;
     const posterUrl = this.getSafeTelegramPosterUrlForLog(media.media);
     if (posterUrl !== undefined) {
-      meta.posterUrl = posterUrl;
+      details.posterUrl = posterUrl;
     }
-    return meta;
+    return details;
   }
 
   private parseWebpageCurlFailedPosition(e: unknown): number | undefined {

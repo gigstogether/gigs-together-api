@@ -2,7 +2,7 @@ import type {
   TelegramAccessTokenIdentity,
   TelegramIdentitySnapshot,
 } from '../../auth/types/access-token-identity.types';
-import type { TGUser } from '../types/user.types';
+import type { TGUser } from '../telegram-bot-client/types/user.types';
 
 /**
  * Maps a Telegram {@link TGUser} into a neutral access-token identity for JWT signing.

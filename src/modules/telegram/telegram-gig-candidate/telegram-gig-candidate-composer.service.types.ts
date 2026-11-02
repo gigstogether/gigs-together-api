@@ -3,7 +3,10 @@ import type {
   GigCandidate,
   GigCandidatePost,
 } from '../../gig-candidate/types/gig-candidate.types';
-import type { TGChatId, TGInlineKeyboardMarkup } from '../types/message.types';
+import type {
+  TGChatId,
+  TGInlineKeyboardMarkup,
+} from '../telegram-bot-client/types/message.types';
 
 export interface GigCandidateFeedbackGigTitleSubject {
   type: 'gigTitle';

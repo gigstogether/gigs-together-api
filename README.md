@@ -50,6 +50,7 @@ src/
       gig-candidate-poster/    candidate poster selection and defaulting
     telegram-updates/      inbound Telegram webhook update handling
     telegram/              Telegram Bot API client, outbound messaging, and message composition
+    alerting/              actionable internal alerts and delivery adapters
     auth/                  JWT session, HttpOnly cookies, auth and authorization services
     admin/                 admin dashboard, moderation, locale management
     calendar/              Google Calendar integration
@@ -59,6 +60,7 @@ src/
     locale/                supported locales (`Locale` collection, admin CRUD via `LocaleService`)
     translation/           static localized text (`Translation` collection, namespace/key records)
 migrations/                MongoDB migration files
+docs/                      architecture and operational documentation
 test/                      e2e test setup
 docker-compose.yml         local MongoDB
 .env.example               environment template
@@ -66,7 +68,7 @@ docker-compose.yml         local MongoDB
 
 ## Architecture
 
-Detailed architecture notes live in [ARCHITECTURE.md](./ARCHITECTURE.md).
+Detailed architecture notes live in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md). The active internal alert catalog and alerting conventions live in [docs/ALERTING.md](./docs/ALERTING.md).
 
 ## Prerequisites
 
@@ -204,6 +206,7 @@ Blank optional values use the documented default or remain unset. Numeric durati
 | `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
 | `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
 | `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
+| `ALERTS_TELEGRAM_CHANNEL_ID`                    | For alerting flows                           | Internal Telegram channel for actionable application alerts.             |
 | `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Boolean. Also sends submission feedback DM to admins. Defaults to false. |
 | `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
 | `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
@@ -612,7 +615,7 @@ Admin locale management lives in `AdminModule`, which imports `LocaleModule` and
 
 `TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
 
-More module-level detail is in [ARCHITECTURE.md](./ARCHITECTURE.md).
+More module-level detail is in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
 
 ## Common development workflow
 

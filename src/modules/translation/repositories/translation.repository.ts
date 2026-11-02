@@ -7,6 +7,7 @@ import type {
   TranslationRecord,
   TranslationKind,
 } from '../types/translation.types';
+import type { InvalidTranslationDocumentError } from '../translation.errors';
 
 export const TRANSLATION_REPOSITORY = Symbol('TRANSLATION_REPOSITORY');
 
@@ -38,12 +39,17 @@ export interface SetTranslationActiveByIdParams {
   readonly isActive: boolean;
 }
 
+export interface ActiveTranslationRecordsResult {
+  records: readonly TranslationRecord[];
+  invalidDocuments: readonly InvalidTranslationDocumentError[];
+}
+
 export interface TranslationRepository {
   findActiveByNamespace(
     params: FindActiveByNamespaceParams,
-  ): Promise<readonly TranslationRecord[]>;
+  ): Promise<ActiveTranslationRecordsResult>;
 
-  findAllActiveRecords(): Promise<readonly TranslationRecord[]>;
+  findAllActiveRecords(): Promise<ActiveTranslationRecordsResult>;
 
   findByNamespace(
     params: FindByNamespaceParams,

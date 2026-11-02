@@ -6,8 +6,8 @@ import type { TelegramTemplateKey } from '../telegram-template-keys';
 import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramService } from '../telegram.service';
-import type { TGChat } from '../types/chat.types';
-import { TGParseMode } from '../types/message.types';
+import type { TGChat } from '../telegram-bot-client/types/chat.types';
+import { TGParseMode } from '../telegram-bot-client/types/message.types';
 
 type MockTelegramTemplates = Pick<
   TelegramTemplateService,
