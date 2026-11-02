@@ -9,12 +9,15 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { getConfigPositiveSafeInteger } from '@shared/utils/env';
-import { AlertSeverity } from '../alerting/alert-delivery';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
 import type {
   AlertDefinition,
   SendAlertParams,
-} from '../alerting/alert-delivery';
-import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
+} from '@modules/alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '@modules/alerting/alerting.service';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,

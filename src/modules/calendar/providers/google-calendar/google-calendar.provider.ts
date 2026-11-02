@@ -7,15 +7,15 @@ import * as fs from 'fs';
 import { getConfigString } from '@shared/utils/env';
 import { formatErrorMessage } from '@shared/utils/logging';
 import { isRecord } from '@shared/utils/is-record';
-import { AlertSeverity } from '../../../alerting/alert-delivery';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
 import type {
   AlertAttributeValue,
   AlertDefinition,
-} from '../../../alerting/alert-delivery';
+} from '@modules/alerting/alert-delivery';
 import {
   AlertingService,
   AlertLogLevel,
-} from '../../../alerting/alerting.service';
+} from '@modules/alerting/alerting.service';
 import type { CalendarEvent } from '../../calendar.types';
 import type { CalendarProvider } from '../calendar.provider';
 import {

@@ -234,6 +234,13 @@ src/modules/<feature>/
 - Extract to a shared file only when there are **multiple consumers**, or when the boundary is already established (request/response DTOs under `types/requests/*`, guards and validators reused across controllers, module public exports, shared parsers at HTTP or I/O boundaries).
 - Prefer extending an existing file in the same feature module over creating parallel one-off helpers.
 
+## Import paths
+
+- Use relative imports for files within the same feature module.
+- Use the `@modules/*` path alias for imports between different feature modules.
+- Use the `@shared/*` path alias for shared types and utilities.
+- Apply these rules to new code and to imports touched during refactoring. Do not perform unrelated bulk migrations of existing imports solely to adopt an alias.
+
 ## Translations
 
 - Do not use the word **copy** for UI text, labels, strings, templates, or other translatable content. Prefer **text**, **strings**, **labels**, or **content**. Reserve **copy** for clipboard actions (for example `Copy link`) and file operations (for example `Copy .env.example`).

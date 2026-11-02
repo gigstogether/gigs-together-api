@@ -3,8 +3,11 @@ import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { AlertSeverity } from '../alerting/alert-delivery';
-import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '@modules/alerting/alerting.service';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TELEGRAM_TEMPLATE_KEYS } from '../telegram/telegram-template-keys';

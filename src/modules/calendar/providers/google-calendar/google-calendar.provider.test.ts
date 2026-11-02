@@ -2,11 +2,11 @@ import * as fs from 'fs';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { AlertSeverity } from '../../../alerting/alert-delivery';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
 import {
   AlertingService,
   AlertLogLevel,
-} from '../../../alerting/alerting.service';
+} from '@modules/alerting/alerting.service';
 import type { CalendarEvent } from '../../calendar.types';
 import { GoogleCalendarProvider } from './google-calendar.provider';
 

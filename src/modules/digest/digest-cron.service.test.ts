@@ -1,7 +1,10 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { AlertSeverity } from '../alerting/alert-delivery';
-import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '@modules/alerting/alerting.service';
 import { DigestCronService } from './digest-cron.service';
 import {
   DigestService,

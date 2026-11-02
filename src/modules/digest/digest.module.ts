@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AlertingModule } from '../alerting/alerting.module';
+import { AlertingModule } from '@modules/alerting/alerting.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { DigestCronService } from './digest-cron.service';

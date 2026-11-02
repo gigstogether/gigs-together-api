@@ -2,15 +2,15 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { formatErrorMessage } from '@shared/utils/logging';
-import { AlertSeverity } from '../../alerting/alert-delivery';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
 import type {
   AlertDefinition,
   SendAlertParams,
-} from '../../alerting/alert-delivery';
+} from '@modules/alerting/alert-delivery';
 import {
   AlertingService,
   AlertLogLevel,
-} from '../../alerting/alerting.service';
+} from '@modules/alerting/alerting.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
-import { AlertingModule } from '../alerting/alerting.module';
+import { AlertingModule } from '@modules/alerting/alerting.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';

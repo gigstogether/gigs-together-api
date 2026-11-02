@@ -5,9 +5,12 @@ import {
   DIGEST_POST_CRON_EXPRESSION,
   DIGEST_POST_TIMEZONE,
 } from './digest.service';
-import { AlertSeverity } from '../alerting/alert-delivery';
-import type { AlertDefinition } from '../alerting/alert-delivery';
-import { AlertingService, AlertLogLevel } from '../alerting/alerting.service';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
+import type { AlertDefinition } from '@modules/alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '@modules/alerting/alerting.service';
 
 const WEEKLY_DIGEST_POST_FAILED_ALERT = {
   code: 'weeklyDigestPostFailed',

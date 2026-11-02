@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AlertingModule } from '../alerting/alerting.module';
+import { AlertingModule } from '@modules/alerting/alerting.module';
 import { CalendarService } from './calendar.service';
 import { CALENDAR_PROVIDER } from './providers/calendar.provider';
 import { GoogleCalendarProvider } from './providers/google-calendar/google-calendar.provider';
