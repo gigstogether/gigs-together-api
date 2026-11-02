@@ -7,8 +7,11 @@ import type {
   ComposeGigCandidateFeedbackMessageParams,
   ComposeGigCandidateIntakePostAfterModerationEditParams,
 } from './telegram-gig-candidate-composer.service.types';
-import { TelegramBotClient } from '../telegram-bot.client';
-import type { InputFileData, TGMessage } from '../types/message.types';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
+import type {
+  InputFileData,
+  TGMessage,
+} from '../telegram-bot-client/types/message.types';
 import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import type {

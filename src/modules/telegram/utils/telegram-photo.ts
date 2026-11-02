@@ -1,4 +1,4 @@
-import type { TGPhotoSize } from '../types/message.types';
+import type { TGPhotoSize } from '../telegram-bot-client/types/message.types';
 
 export function getBiggestTgPhotoFileId(
   photos: TGPhotoSize[] | undefined,

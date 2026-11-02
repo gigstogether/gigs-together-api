@@ -1,7 +1,5 @@
-import {
-  InvalidTranslationDocumentError,
-  TranslationRepositoryMapper,
-} from './translation.repository.mapper';
+import { TranslationRepositoryMapper } from './translation.repository.mapper';
+import { InvalidTranslationDocumentError } from '../translation.errors';
 
 describe('TranslationRepositoryMapper', () => {
   describe('toTranslationRecord', () => {

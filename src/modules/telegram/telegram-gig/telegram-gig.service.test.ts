@@ -5,7 +5,7 @@ import type { GigPost, PlainGig } from '../../gig/types/gig.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramTemplateKey } from '../telegram-template-keys';

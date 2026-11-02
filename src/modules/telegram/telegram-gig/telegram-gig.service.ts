@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PostType } from '@shared/types/post-type.enum';
 import type { GigPost, PlainGig } from '../../gig/types/gig.types';
 import { TelegramGigComposerService } from './telegram-gig-composer.service';
-import { TelegramBotClient } from '../telegram-bot.client';
+import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { formatTelegramErrorMessage } from '../utils/telegram-error';
 import { TelegramComposerService } from '../telegram-composer.service';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
@@ -11,8 +11,8 @@ import type {
   InputFileData,
   TGMessage,
   TGSendPhoto,
-} from '../types/message.types';
-import { TGParseMode } from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
+import { TGParseMode } from '../telegram-bot-client/types/message.types';
 import { getBiggestTgPhotoFileId } from '../utils/telegram-photo';
 import { TelegramService } from '../telegram.service';
 import type {

@@ -2,7 +2,18 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { formatErrorMessage } from '@shared/utils/logging';
-import { CalendarService } from '../../calendar/calendar.service';
+import { AlertSeverity } from '@modules/alerting/alert-delivery';
+import type {
+  AlertAttributeValue,
+  AlertDefinition,
+  SendAlertParams,
+} from '@modules/alerting/alert-delivery';
+import {
+  AlertingService,
+  AlertLogLevel,
+} from '@modules/alerting/alerting.service';
+import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
+import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
@@ -25,6 +36,12 @@ import {
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+
+const GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT = {
+  code: 'gigCalendarEventCreationFailed',
+  severity: AlertSeverity.Warning,
+  summary: 'Calendar event was not created for the gig.',
+} satisfies AlertDefinition;
 
 export interface ApproveGigCandidateParams {
   gigCandidateId: string;
@@ -49,6 +66,7 @@ export class GigCandidateApprovalService {
     private readonly gigService: GigService,
     private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly calendarService: CalendarService,
+    private readonly alertingService: AlertingService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
   ) {}
@@ -178,12 +196,38 @@ export class GigCandidateApprovalService {
         this.gigService.gigToCalendarPayload(gig),
       );
     } catch (e) {
-      this.logIntegrationFailure(
-        'addCalendarEvent',
-        gigCandidate.id,
-        gig.id,
-        e,
-      );
+      const attributes: Record<string, AlertAttributeValue> = {
+        operation: 'createCalendarEvent',
+        trigger: 'gigCandidateApproval',
+        gigCandidateId: gigCandidate.id,
+        gigId: gig.id,
+        gigPublicId: gig.publicId,
+      };
+      if (e instanceof CalendarEventCreationError) {
+        attributes.calendarProvider = e.provider;
+        attributes.providerOperation = e.providerOperation;
+        if (e.status !== undefined) {
+          attributes.status = e.status;
+        }
+        if (e.code !== undefined) {
+          attributes.code = e.code;
+        }
+        if (e.hint !== undefined) {
+          attributes.hint = e.hint;
+        }
+      }
+      const alert: SendAlertParams = {
+        ...GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT,
+        attributes,
+      };
+      await this.alertingService.reportFailureBestEffort({
+        alert,
+        error: e,
+        logContext: GigCandidateApprovalService.name,
+        logNote: 'Calendar event creation failed after gig candidate approval',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
+      });
     }
 
     await this.gigCandidateFeedbackService.sendBestEffort(gigCandidate, {

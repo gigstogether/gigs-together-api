@@ -31,7 +31,7 @@ describe('TelegramWebhookExceptionFilter', () => {
     filter = moduleRef.get(TelegramWebhookExceptionFilter);
   });
 
-  it('should log a concise message without a stack when a translation is missing', () => {
+  it('should suppress Telegram retries without logging an already reported missing translation', () => {
     const sendMock = vi.fn();
     const statusMock = vi.fn().mockReturnValue({ send: sendMock });
     const host = new ExecutionContextHost([
@@ -51,10 +51,7 @@ describe('TelegramWebhookExceptionFilter', () => {
 
     filter.catch(exception, host);
 
-    expect(loggerErrorMock).toHaveBeenCalledOnce();
-    expect(loggerErrorMock).toHaveBeenCalledWith(
-      'Missing translation key="command.suggest.privateUnavailable" namespace="telegram" locale="en" while handling POST /v1/telegram/updates; responding 200 to suppress Telegram retries.',
-    );
+    expect(loggerErrorMock).not.toHaveBeenCalled();
     expect(statusMock).toHaveBeenCalledWith(200);
     expect(sendMock).toHaveBeenCalledOnce();
   });

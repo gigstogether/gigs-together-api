@@ -28,9 +28,8 @@ export class TelegramWebhookExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     if (exception instanceof MissingTranslationError) {
-      this.logger.error(
-        `Missing translation key="${exception.key}" namespace="${exception.namespace}" locale="${exception.locale}" while handling ${request.method} ${request.url}; responding 200 to suppress Telegram retries.`,
-      );
+      // The translation feature already reports this failure. This filter only
+      // owns the transport decision to suppress Telegram retries.
       response.status(200).send();
       return;
     }

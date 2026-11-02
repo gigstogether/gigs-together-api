@@ -19,8 +19,11 @@ import { TelegramService } from '../telegram.service';
 import type {
   TGInlineKeyboardMarkup,
   TGSendPhoto,
-} from '../types/message.types';
-import { TGInputMediaType, TGParseMode } from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
+import {
+  TGInputMediaType,
+  TGParseMode,
+} from '../telegram-bot-client/types/message.types';
 import type {
   BuildGigModerationCaptionPayload,
   BuildGigModerationReplyMarkupParams,

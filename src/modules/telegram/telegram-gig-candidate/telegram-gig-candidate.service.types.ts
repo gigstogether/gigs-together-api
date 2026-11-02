@@ -6,7 +6,7 @@ import type {
   InputFileData,
   TGMessage,
   TGSendPhoto,
-} from '../types/message.types';
+} from '../telegram-bot-client/types/message.types';
 import type { PostEditKind } from '../telegram-composer.service.types';
 
 export interface TelegramGigCandidatePostEditResult {

@@ -19,8 +19,8 @@ import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import type { TGUser } from './types/user.types';
 import { formatErrorMessage } from '@shared/utils/logging';
-import { RemoteImageService } from '../remote-image/remote-image.service';
-import type { DownloadedRemoteImage } from '../remote-image/remote-image.service';
+import { RemoteImageService } from '../../remote-image/remote-image.service';
+import type { DownloadedRemoteImage } from '../../remote-image/remote-image.service';
 
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TelegramInitDataValidationService } from './telegram-auth/telegram-init-data-validation.service';
-import { TelegramBotClient } from './telegram-bot.client';
+import { TelegramBotClientModule } from './telegram-bot-client/telegram-bot-client.module';
 import { TelegramBotReplyComposerService } from './telegram-bot-reply/telegram-bot-reply-composer.service';
 import { TelegramBotReplyService } from './telegram-bot-reply/telegram-bot-reply.service';
 import { TelegramDigestComposerService } from './telegram-digest/telegram-digest-composer.service';
@@ -12,8 +12,6 @@ import { TelegramGigService } from './telegram-gig/telegram-gig.service';
 import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramTemplateService } from './telegram-template.service';
 import { TelegramService } from './telegram.service';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CacheModule } from '@nestjs/cache-manager';
 import { BucketModule } from '../bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
@@ -23,21 +21,10 @@ import { TelegramInitDataAuthService } from './telegram-auth/telegram-init-data-
 import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-exchange.service';
 import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
-import { RemoteImageModule } from '../remote-image/remote-image.module';
-import { getRequiredConfigString } from '@shared/utils/env';
 
 @Module({
   imports: [
-    HttpModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const botToken = getRequiredConfigString(configService, 'BOT_TOKEN');
-        return {
-          baseURL: `https://api.telegram.org/bot${botToken}`,
-        };
-      },
-    }),
+    TelegramBotClientModule,
     CacheModule.register({
       ttl: 60_000 * 60,
     }),
@@ -45,12 +32,10 @@ import { getRequiredConfigString } from '@shared/utils/env';
     AuthModule,
     UserModule,
     TranslationModule,
-    RemoteImageModule,
   ],
   controllers: [TelegramAuthController],
   providers: [
     TelegramInitDataValidationService,
-    TelegramBotClient,
     TelegramTemplateService,
     TelegramComposerService,
     TelegramBotReplyComposerService,

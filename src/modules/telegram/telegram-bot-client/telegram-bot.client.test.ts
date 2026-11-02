@@ -10,7 +10,7 @@ import {
   TelegramBotClient,
   TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS,
 } from './telegram-bot.client';
-import { RemoteImageService } from '../remote-image/remote-image.service';
+import { RemoteImageService } from '../../remote-image/remote-image.service';
 
 describe('TelegramBotClient', () => {
   let client: TelegramBotClient;

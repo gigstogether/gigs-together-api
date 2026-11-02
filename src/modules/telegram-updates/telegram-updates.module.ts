@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TelegramUpdatesController } from './telegram-updates.controller';
 import { TelegramUpdatesService } from './telegram-updates.service';
 import { GigModule } from '../gig/gig.module';
+import { TelegramBotClientModule } from '../telegram/telegram-bot-client/telegram-bot-client.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AuthModule } from '../auth/auth.module';
 import { GigCandidateModule } from '../gig-candidate/gig-candidate.module';
@@ -14,6 +15,7 @@ import { UserModule } from '../user/user.module';
 @Module({
   imports: [
     GigModule,
+    TelegramBotClientModule,
     TelegramModule,
     AuthModule,
     GigCandidateModule,
