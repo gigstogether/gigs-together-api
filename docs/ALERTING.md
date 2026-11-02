@@ -21,6 +21,16 @@ The initial delivery adapter sends alerts to the Telegram channel configured by 
 
 ## Active alerts
 
+### `googleCalendarConfigurationInvalid`
+
+- **Owner:** `GoogleCalendarProvider`
+- **Severity:** `warning`
+- **Log level:** `error`, without stack trace
+- **Condition:** Google Calendar cannot be initialized because `CALENDAR_ID` is absent or the service-account credentials configuration is invalid.
+- **Attributes:** `operation`, `configurationIssue`
+- **Application behavior:** application startup continues without a usable Calendar integration; alert logging and delivery are best-effort.
+- **Deduplication:** none; configuration is evaluated once per application startup.
+
 ### `googleCalendarConnectionCheckFailed`
 
 - **Owner:** `GoogleCalendarProvider`

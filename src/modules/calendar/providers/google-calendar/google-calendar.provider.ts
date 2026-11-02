@@ -26,11 +26,19 @@ import {
 // Scope for full calendar access.
 const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar';
 const GOOGLE_CALENDAR_CONNECTION_TIMEOUT_MS = 10_000; // 10 seconds
+const GOOGLE_CALENDAR_CONFIGURATION_INVALID_ALERT = {
+  code: 'googleCalendarConfigurationInvalid',
+  severity: AlertSeverity.Warning,
+  summary: 'Google Calendar integration configuration is invalid.',
+} satisfies AlertDefinition;
 const GOOGLE_CALENDAR_CONNECTION_CHECK_FAILED_ALERT = {
   code: 'googleCalendarConnectionCheckFailed',
   severity: AlertSeverity.Warning,
   summary: 'The application cannot access the configured Google Calendar.',
 } satisfies AlertDefinition;
+
+type GoogleCalendarConfigurationIssue =
+  'calendarIdMissing' | 'credentialsInvalid';
 
 interface GoogleServiceAccountCredentials {
   type: 'service_account';
@@ -47,6 +55,7 @@ interface ReadyGoogleCalendarIntegration {
 
 interface UnavailableGoogleCalendarIntegration {
   status: 'unavailable';
+  configurationIssue: GoogleCalendarConfigurationIssue;
   reason: string;
 }
 
@@ -197,6 +206,7 @@ export class GoogleCalendarProvider
     if (calendarId === undefined) {
       this.integration = {
         status: 'unavailable',
+        configurationIssue: 'calendarIdMissing',
         reason: 'CALENDAR_ID is not configured.',
       };
       return;
@@ -211,6 +221,7 @@ export class GoogleCalendarProvider
       }
       this.integration = {
         status: 'unavailable',
+        configurationIssue: 'credentialsInvalid',
         reason: e.message,
       };
       return;
@@ -238,9 +249,20 @@ export class GoogleCalendarProvider
   /** Verify that the configured credentials can access the target calendar. */
   private async checkConnection(): Promise<void> {
     if (this.integration.status === 'unavailable') {
-      this.logger.error({
-        note: 'Google Calendar integration is unavailable; application will continue running',
-        reason: this.integration.reason,
+      await this.alertingService.reportFailureBestEffort({
+        alert: {
+          ...GOOGLE_CALENDAR_CONFIGURATION_INVALID_ALERT,
+          attributes: {
+            operation: 'initializeGoogleCalendar',
+            configurationIssue: this.integration.configurationIssue,
+          },
+        },
+        error: new GoogleCalendarConfigurationError(this.integration.reason),
+        logContext: GoogleCalendarProvider.name,
+        logNote:
+          'Google Calendar integration is unavailable; application will continue running',
+        logLevel: AlertLogLevel.Error,
+        isStackTraceIncluded: false,
       });
       return;
     }
