@@ -19,6 +19,7 @@ import type {
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import type { TGUser } from './types/user.types';
+import { isRecord } from '@shared/utils/is-record';
 import { formatErrorMessage } from '@shared/utils/logging';
 import { RemoteImageService } from '../../remote-image/remote-image.service';
 import type { DownloadedRemoteImage } from '../../remote-image/remote-image.service';
@@ -339,17 +340,17 @@ export class TelegramBotClient {
   private getTelegramBotErrorData(
     e: unknown,
   ): TelegramBotErrorData | undefined {
-    if (!this.isRecord(e)) {
+    if (!isRecord(e)) {
       return;
     }
 
     const response = e.response;
-    if (!this.isRecord(response)) {
+    if (!isRecord(response)) {
       return;
     }
 
     const data = response.data;
-    if (!this.isRecord(data)) {
+    if (!isRecord(data)) {
       return;
     }
 
@@ -376,16 +377,8 @@ export class TelegramBotClient {
     );
   }
 
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-  }
-
   private parseTelegramFileResponse(data: unknown): TGFile {
-    if (
-      !this.isRecord(data) ||
-      data.ok !== true ||
-      !this.isRecord(data.result)
-    ) {
+    if (!isRecord(data) || data.ok !== true || !isRecord(data.result)) {
       throw new TelegramGetFileError({
         message: 'Telegram getFile response is invalid',
       });
@@ -436,7 +429,7 @@ export class TelegramBotClient {
   }
 
   private getHttpStatus(e: unknown): number | undefined {
-    if (!this.isRecord(e) || !this.isRecord(e.response)) {
+    if (!isRecord(e) || !isRecord(e.response)) {
       return;
     }
     const status = e.response.status;
