@@ -133,6 +133,9 @@ export class AdminGigCandidateService {
     if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
       return;
     }
+    if (gigCandidate.source.originalText === undefined) {
+      return;
+    }
 
     const url = this.telegramComposer.buildPostUrl({
       chatId: gigCandidate.source.origin.message.chatId,

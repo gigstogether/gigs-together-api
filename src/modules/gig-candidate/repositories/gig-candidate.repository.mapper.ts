@@ -36,7 +36,9 @@ const GIG_CANDIDATE_MESSENGER_SOURCE_KEYS = new Set([
   'userId',
   'origin',
   'originalText',
+  'image',
 ]);
+const GIG_CANDIDATE_MESSENGER_IMAGE_KEYS = new Set(['bucketPath']);
 const GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS = new Set([
   'type',
   'messenger',
@@ -82,6 +84,7 @@ export class GigCandidateRepositoryMapper {
     switch (source.type) {
       case GigSourceType.User: {
         if (isGigCandidateSourceMessengerUser(source)) {
+          this.assertMessengerUserSourceContentIsValid(source);
           const storedSource: GigCandidateStoredSource = {
             type: GigSourceType.User,
             origin: {
@@ -89,8 +92,13 @@ export class GigCandidateRepositoryMapper {
               messenger: source.origin.messenger,
               message: { ...source.origin.message },
             },
-            originalText: source.originalText,
           };
+          if (source.originalText !== undefined) {
+            storedSource.originalText = source.originalText;
+          }
+          if (source.image !== undefined) {
+            storedSource.image = { ...source.image };
+          }
           if (source.userId !== undefined) {
             storedSource.userId = this.toObjectId(source.userId);
           }
@@ -236,8 +244,13 @@ export class GigCandidateRepositoryMapper {
           messageId: message.messageId,
         },
       },
-      originalText: source.originalText,
     };
+    if (source.originalText !== undefined) {
+      messengerSource.originalText = source.originalText;
+    }
+    if (source.image !== undefined) {
+      messengerSource.image = { ...source.image };
+    }
     if (source.userId !== undefined) {
       messengerSource.userId = this.toId(source.userId, 'source.userId');
     }
@@ -286,11 +299,37 @@ export class GigCandidateRepositoryMapper {
     ) {
       throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
     }
+    this.assertMessengerUserSourceContentIsValid(source, id);
+  }
+
+  private static assertMessengerUserSourceContentIsValid(
+    source: Pick<GigCandidateSourceMessengerUser, 'originalText' | 'image'>,
+    id?: string,
+  ): void {
+    const errorMessage =
+      id === undefined
+        ? 'GigCandidate messenger source is inconsistent.'
+        : `GigCandidate ${id} messenger source is inconsistent.`;
     if (
-      typeof source.originalText !== 'string' ||
-      source.originalText.trim() === ''
+      source.originalText !== undefined &&
+      (typeof source.originalText !== 'string' ||
+        source.originalText.trim() === '')
     ) {
-      throw new Error(`GigCandidate ${id} messenger source is inconsistent.`);
+      throw new Error(errorMessage);
+    }
+    if (
+      source.image !== undefined &&
+      (!isRecord(source.image) ||
+        Object.keys(source.image).some(
+          (key) => !GIG_CANDIDATE_MESSENGER_IMAGE_KEYS.has(key),
+        ) ||
+        typeof source.image.bucketPath !== 'string' ||
+        source.image.bucketPath.trim() === '')
+    ) {
+      throw new Error(errorMessage);
+    }
+    if (source.originalText === undefined && source.image === undefined) {
+      throw new Error(errorMessage);
     }
   }
 

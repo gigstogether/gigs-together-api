@@ -209,6 +209,32 @@ describe('AdminGigCandidateService', () => {
       expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
     });
 
+    it('should omit the original message for an image-only messenger source', async () => {
+      const record = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+          },
+        },
+      });
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+
+      const [result] = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+      });
+
+      expect(result?.originalMessage).toBeUndefined();
+      expect(telegramComposerMock.buildPostUrl).not.toHaveBeenCalled();
+    });
+
     it('should reject a messenger candidate when its source URL cannot be built', async () => {
       const record = buildGigCandidate({
         source: {

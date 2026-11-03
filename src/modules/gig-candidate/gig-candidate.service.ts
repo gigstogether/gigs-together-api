@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Inject,
@@ -6,6 +7,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { BucketService } from '@modules/bucket/bucket.service';
+import type { BucketUploadInput } from '@modules/bucket/bucket.service';
 import type { User } from '../auth/types/user.types';
 import { Messenger } from '@shared/types/messenger.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
@@ -65,8 +68,14 @@ export interface CreateMessengerGigCandidateParams {
   messenger: Messenger;
   chatId: number;
   messageId: number;
-  originalText: string;
+  originalText?: string;
+  image?: MessengerGigCandidateImage;
   userId?: string;
+}
+
+export interface MessengerGigCandidateImage {
+  buffer: Buffer;
+  contentType?: string;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -112,6 +121,7 @@ export interface UpdateGigCandidateDraftApplicationParams {
 }
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX = 'suggestions';
 
 interface HandleGigCandidateSubmitParams {
   body: V1CreateGigCandidateRequestBody;
@@ -150,6 +160,7 @@ export class GigCandidateService {
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
+    private readonly bucketService: BucketService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -203,7 +214,7 @@ export class GigCandidateService {
     return this.gigCandidateRepository.findMany(params);
   }
 
-  createMessengerGigCandidate(
+  async createMessengerGigCandidate(
     params: CreateMessengerGigCandidateParams,
   ): Promise<GigCandidate> {
     if (params.messenger !== Messenger.Telegram) {
@@ -217,10 +228,30 @@ export class GigCandidateService {
         'messageId must be a positive safe integer',
       );
     }
-    if (params.originalText.trim() === '') {
-      throw new BadRequestException('originalText is required');
+    if (
+      params.originalText !== undefined &&
+      params.originalText.trim() === ''
+    ) {
+      throw new BadRequestException(
+        'originalText must be non-empty when provided',
+      );
+    }
+    if (params.image !== undefined && params.image.buffer.length === 0) {
+      throw new BadRequestException('image buffer must be non-empty');
+    }
+    if (
+      params.image?.contentType !== undefined &&
+      params.image.contentType.trim() === ''
+    ) {
+      throw new BadRequestException(
+        'image contentType must be non-empty when provided',
+      );
+    }
+    if (params.originalText === undefined && params.image === undefined) {
+      throw new BadRequestException('originalText or image is required');
     }
 
+    const gigCandidateId = this.gigCandidateRepository.createId();
     const source: GigCandidateSourceMessengerUser = {
       type: GigSourceType.User,
       origin: {
@@ -231,14 +262,27 @@ export class GigCandidateService {
           messageId: params.messageId,
         },
       },
-      originalText: params.originalText,
     };
+    if (params.originalText !== undefined) {
+      source.originalText = params.originalText;
+    }
+    if (params.image !== undefined) {
+      const uploadInput: BucketUploadInput = {
+        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}`,
+        buffer: params.image.buffer,
+      };
+      if (params.image.contentType !== undefined) {
+        uploadInput.mimetype = params.image.contentType;
+      }
+      const bucketPath = await this.bucketService.upload(uploadInput);
+      source.image = { bucketPath };
+    }
     if (params.userId !== undefined) {
       source.userId = params.userId;
     }
 
     return this.gigCandidateRepository.createGigCandidate({
-      gigCandidateId: this.gigCandidateRepository.createId(),
+      gigCandidateId,
       status: GigCandidateStatus.New,
       source,
       // TODO: This is temporary while suggestions come from a single city chat.

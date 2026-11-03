@@ -355,9 +355,10 @@ export class TelegramGigCandidateComposerService {
         ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
         : '';
     const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
-    const originalMessage = isMessengerSource
-      ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
-      : undefined;
+    const originalMessage =
+      isMessengerSource && source.originalText !== undefined
+        ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
+        : undefined;
     const originalMessageSection =
       originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
     const hasGigDraftCaptionContent =
