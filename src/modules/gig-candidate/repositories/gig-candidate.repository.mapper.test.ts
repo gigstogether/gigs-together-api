@@ -80,7 +80,10 @@ describe('GigCandidateRepositoryMapper', () => {
           messenger: Messenger.Telegram,
           message: { chatId: -100123, messageId: 42 },
         },
-        image: { bucketPath: '/suggestions/image-id' },
+        image: {
+          bucketPath: '/suggestions/image-id',
+          telegramFileId: 'telegram-image-file-id',
+        },
       } satisfies GigCandidateSourceMessengerUser;
 
       expect(GigCandidateRepositoryMapper.toStoredSource(source)).toEqual(
@@ -286,6 +289,7 @@ describe('GigCandidateRepositoryMapper', () => {
           },
           image: {
             bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
           },
         },
       });
@@ -323,6 +327,27 @@ describe('GigCandidateRepositoryMapper', () => {
             message: { chatId: -100123, messageId: 42 },
           },
           image: { bucketPath: '   ' },
+        },
+      });
+
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(document),
+      ).toThrowError(/messenger source is inconsistent/);
+    });
+
+    it('should reject a messenger source with a blank Telegram image file ID', () => {
+      const document = buildTargetDocument({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: '   ',
+          },
         },
       });
 

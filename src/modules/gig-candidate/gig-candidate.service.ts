@@ -75,6 +75,7 @@ export interface CreateMessengerGigCandidateParams {
 
 export interface MessengerGigCandidateImage {
   buffer: Buffer;
+  telegramFileId: string;
   contentType?: string;
 }
 
@@ -240,6 +241,12 @@ export class GigCandidateService {
       throw new BadRequestException('image buffer must be non-empty');
     }
     if (
+      params.image !== undefined &&
+      params.image.telegramFileId.trim() === ''
+    ) {
+      throw new BadRequestException('image telegramFileId must be non-empty');
+    }
+    if (
       params.image?.contentType !== undefined &&
       params.image.contentType.trim() === ''
     ) {
@@ -275,7 +282,10 @@ export class GigCandidateService {
         uploadInput.mimetype = params.image.contentType;
       }
       const bucketPath = await this.bucketService.upload(uploadInput);
-      source.image = { bucketPath };
+      source.image = {
+        bucketPath,
+        telegramFileId: params.image.telegramFileId,
+      };
     }
     if (params.userId !== undefined) {
       source.userId = params.userId;

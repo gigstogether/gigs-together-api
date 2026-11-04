@@ -161,6 +161,51 @@ describe('TelegramGigCandidateService', () => {
     );
   });
 
+  it('should send a Telegram source image as an intake photo and return its file ID', async () => {
+    const gigCandidate: GigCandidate = {
+      ...createGigCandidate(),
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -300, messageId: 42 },
+        },
+        image: {
+          bucketPath: '/suggestions/image-id',
+          telegramFileId: 'source-image-file-id',
+        },
+      },
+      gigDraft: {},
+    };
+    telegramBotClientMock.sendPhoto.mockResolvedValue({
+      message_id: 41,
+      date: 1_700_000_000,
+      chat: { id: -100, type: 'channel' },
+      photo: [
+        {
+          file_id: 'intake-image-file-id',
+          file_unique_id: 'intake-image-unique-id',
+          width: 800,
+          height: 800,
+        },
+      ],
+    });
+
+    const result = await service.sendIntakePost(gigCandidate);
+
+    expect(result).toEqual({
+      messageId: 41,
+      chatId: -100,
+      sentAtSeconds: 1_700_000_000,
+      fileId: 'intake-image-file-id',
+    });
+    expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: 'source-image-file-id' }),
+      gigCandidate.id,
+    );
+  });
+
   it('should reuse the intake photo for the moderation post', async () => {
     const intakePost = createPost(PostType.Intake, 'intake-file-id');
     const gigCandidate: GigCandidate = {
@@ -196,6 +241,94 @@ describe('TelegramGigCandidateService', () => {
     });
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({ photo: 'intake-file-id' }),
+      gigCandidate.id,
+    );
+  });
+
+  it('should reuse a messenger intake photo when the candidate has no draft poster', async () => {
+    const intakePost = createPost(PostType.Intake, 'intake-file-id');
+    const gigCandidate: GigCandidate = {
+      ...createGigCandidate(),
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -300, messageId: 42 },
+        },
+        image: {
+          bucketPath: '/suggestions/image-id',
+          telegramFileId: 'source-image-file-id',
+        },
+      },
+      status: GigCandidateStatus.Reviewing,
+      posts: [intakePost],
+      gigDraft: {},
+    };
+    telegramBotClientMock.sendPhoto.mockResolvedValue({
+      message_id: 50,
+      date: 1_700_000_001,
+      chat: { id: -200, type: 'channel' },
+      photo: [
+        {
+          file_id: 'moderation-file-id',
+          file_unique_id: 'moderation-unique-id',
+          width: 800,
+          height: 800,
+        },
+      ],
+    });
+
+    await service.sendModerationPost(gigCandidate);
+
+    expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({ photo: 'intake-file-id' }),
+      gigCandidate.id,
+    );
+  });
+
+  it('should use a messenger draft poster instead of its intake photo when provided', async () => {
+    const intakePost = createPost(PostType.Intake, 'intake-file-id');
+    const gigCandidate: GigCandidate = {
+      ...createGigCandidate(),
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -300, messageId: 42 },
+        },
+        image: {
+          bucketPath: '/suggestions/image-id',
+          telegramFileId: 'source-image-file-id',
+        },
+      },
+      status: GigCandidateStatus.Reviewing,
+      posts: [intakePost],
+      gigDraft: {
+        poster: { externalUrl: 'https://cdn.example/draft-poster.jpg' },
+      },
+    };
+    telegramBotClientMock.sendPhoto.mockResolvedValue({
+      message_id: 50,
+      date: 1_700_000_001,
+      chat: { id: -200, type: 'channel' },
+      photo: [
+        {
+          file_id: 'moderation-file-id',
+          file_unique_id: 'moderation-unique-id',
+          width: 800,
+          height: 800,
+        },
+      ],
+    });
+
+    await service.sendModerationPost(gigCandidate);
+
+    expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        photo: 'https://cdn.example/draft-poster.jpg',
+      }),
       gigCandidate.id,
     );
   });

@@ -38,7 +38,10 @@ const GIG_CANDIDATE_MESSENGER_SOURCE_KEYS = new Set([
   'originalText',
   'image',
 ]);
-const GIG_CANDIDATE_MESSENGER_IMAGE_KEYS = new Set(['bucketPath']);
+const GIG_CANDIDATE_MESSENGER_IMAGE_KEYS = new Set([
+  'bucketPath',
+  'telegramFileId',
+]);
 const GIG_CANDIDATE_MESSENGER_ORIGIN_KEYS = new Set([
   'type',
   'messenger',
@@ -324,7 +327,10 @@ export class GigCandidateRepositoryMapper {
           (key) => !GIG_CANDIDATE_MESSENGER_IMAGE_KEYS.has(key),
         ) ||
         typeof source.image.bucketPath !== 'string' ||
-        source.image.bucketPath.trim() === '')
+        source.image.bucketPath.trim() === '' ||
+        (source.image.telegramFileId !== undefined &&
+          (typeof source.image.telegramFileId !== 'string' ||
+            source.image.telegramFileId.trim() === '')))
     ) {
       throw new Error(errorMessage);
     }

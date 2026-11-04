@@ -4,7 +4,10 @@ import { getRequiredConfigString } from '@shared/utils/env';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import type { CreateMessengerGigCandidateParams } from '../gig-candidate/gig-candidate.service';
+import type {
+  CreateMessengerGigCandidateParams,
+  MessengerGigCandidateImage,
+} from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
 import { AuthorizationService } from '../auth/authorization.service';
 import { UserService } from '../user/user.service';
@@ -374,8 +377,16 @@ export class TelegramUpdatesService {
         candidateParams.originalText = originalText;
       }
       if (photoFileId !== undefined) {
-        candidateParams.image =
+        const downloadedImage =
           await this.telegramBotClient.downloadByFileId(photoFileId);
+        const image: MessengerGigCandidateImage = {
+          buffer: downloadedImage.buffer,
+          telegramFileId: photoFileId,
+        };
+        if (downloadedImage.contentType !== undefined) {
+          image.contentType = downloadedImage.contentType;
+        }
+        candidateParams.image = image;
       }
       if (sender.type === 'user') {
         const user = await this.userService.findActiveUserByMessengerIdentity({

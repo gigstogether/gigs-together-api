@@ -55,6 +55,7 @@ interface GigCandidateSourceUserMessengerOrigin {
 
 export interface GigCandidateSourceImage {
   bucketPath: string;
+  telegramFileId?: string;
 }
 
 export interface GigCandidateSourceMessengerUser {

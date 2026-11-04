@@ -277,6 +277,7 @@ describe('GigCandidateService', () => {
           },
           image: {
             bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
           },
         },
         gigDraft: {
@@ -293,7 +294,11 @@ describe('GigCandidateService', () => {
         messenger: Messenger.Telegram,
         chatId: -100123,
         messageId: 42,
-        image: { buffer: imageBuffer, contentType: 'image/jpeg' },
+        image: {
+          buffer: imageBuffer,
+          telegramFileId: 'telegram-image-file-id',
+          contentType: 'image/jpeg',
+        },
       });
 
       expect(result).toEqual(gigCandidate);
@@ -318,6 +323,7 @@ describe('GigCandidateService', () => {
           },
           image: {
             bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
           },
         },
         gigDraft: {
@@ -330,12 +336,27 @@ describe('GigCandidateService', () => {
     it.each([
       {
         name: 'empty image buffer',
-        image: { buffer: Buffer.alloc(0) },
+        image: {
+          buffer: Buffer.alloc(0),
+          telegramFileId: 'telegram-image-file-id',
+        },
         expectedMessage: 'image buffer must be non-empty',
       },
       {
+        name: 'blank Telegram file ID',
+        image: {
+          buffer: Buffer.from('image'),
+          telegramFileId: '   ',
+        },
+        expectedMessage: 'image telegramFileId must be non-empty',
+      },
+      {
         name: 'blank image content type',
-        image: { buffer: Buffer.from('image'), contentType: '   ' },
+        image: {
+          buffer: Buffer.from('image'),
+          telegramFileId: 'telegram-image-file-id',
+          contentType: '   ',
+        },
         expectedMessage: 'image contentType must be non-empty when provided',
       },
     ])('should reject $name', async ({ image, expectedMessage }) => {
@@ -363,7 +384,11 @@ describe('GigCandidateService', () => {
           messenger: Messenger.Telegram,
           chatId: -100123,
           messageId: 42,
-          image: { buffer: Buffer.from('image'), contentType: 'image/jpeg' },
+          image: {
+            buffer: Buffer.from('image'),
+            telegramFileId: 'telegram-image-file-id',
+            contentType: 'image/jpeg',
+          },
         }),
       ).rejects.toThrowError('Bucket unavailable');
       expect(

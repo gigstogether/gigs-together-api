@@ -680,7 +680,7 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
-    it('should compose a text Intake post for an image-only Telegram suggestion', () => {
+    it('should compose a photo Intake post for an image-only Telegram suggestion', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
         source: {
@@ -692,6 +692,7 @@ describe('TelegramComposerService', () => {
           },
           image: {
             bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
           },
         },
         gigDraft: {},
@@ -704,15 +705,46 @@ describe('TelegramComposerService', () => {
 
       expect(payload).toMatchObject({
         chat_id: '-3001',
-        text: expect.stringContaining('Source: user (Telegram)'),
+        photo: 'source-image-file-id',
+        caption: expect.stringContaining('Source: user (Telegram)'),
         parse_mode: TGParseMode.HTML,
-        disable_web_page_preview: true,
       });
-      expect('photo' in payload).toBe(false);
-      if (!('text' in payload)) {
-        throw new Error('Expected a text Intake payload');
+      if (!('caption' in payload)) {
+        throw new Error('Expected a photo Intake payload');
       }
-      expect(payload.text).not.toContain('Original message:');
+      expect(payload.caption).not.toContain('Original message:');
+    });
+
+    it('should include Telegram suggestion text in its photo Intake caption', () => {
+      const payload = gigCandidateComposer.composeIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Band with a screenshot',
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: {},
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        photo: 'source-image-file-id',
+        caption: expect.stringContaining(
+          'Original message:\nBand with a screenshot',
+        ),
+      });
     });
 
     it('should omit Gig draft from initial Moderation for a Telegram suggestion', () => {

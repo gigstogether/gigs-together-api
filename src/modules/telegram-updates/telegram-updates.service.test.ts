@@ -372,7 +372,12 @@ describe('TelegramUpdatesService', () => {
     it('should create a candidate from a photo with the suggest command in its caption', async () => {
       const image = {
         buffer: Buffer.from('direct photo bytes'),
+        telegramFileId: 'large-photo-file-id',
         contentType: 'image/jpeg',
+      };
+      const downloadedImage = {
+        buffer: image.buffer,
+        contentType: image.contentType,
       };
       const message: TGMessage = {
         message_id: 57,
@@ -397,7 +402,9 @@ describe('TelegramUpdatesService', () => {
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
       };
-      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(image);
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(
+        downloadedImage,
+      );
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );
@@ -427,7 +434,12 @@ describe('TelegramUpdatesService', () => {
     it('should create an image-only candidate when the suggest command replies to a photo', async () => {
       const image = {
         buffer: Buffer.from('reply photo bytes'),
+        telegramFileId: 'reply-photo-file-id',
         contentType: 'image/jpeg',
+      };
+      const downloadedImage = {
+        buffer: image.buffer,
+        contentType: image.contentType,
       };
       const message: TGMessage = {
         message_id: 58,
@@ -450,7 +462,9 @@ describe('TelegramUpdatesService', () => {
           ],
         },
       };
-      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(image);
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(
+        downloadedImage,
+      );
       mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
         undefined,
       );

@@ -23,6 +23,7 @@ import type {
   UpdateRejectedGigCandidatePostPayload,
 } from './telegram-gig-candidate.service.types';
 import { getBiggestTgPhotoFileId } from '../utils/telegram-photo';
+import { isGigCandidateSourceMessengerUser } from '../../gig-candidate/gig-candidate-source.guards';
 
 @Injectable()
 export class TelegramGigCandidateService {
@@ -60,7 +61,10 @@ export class TelegramGigCandidateService {
           post.to === Messenger.Telegram && post.type === PostType.Intake,
       );
       const intakeFileId = intakePost?.fileId?.trim();
-      if (intakeFileId) {
+      const hasMessengerDraftPoster =
+        isGigCandidateSourceMessengerUser(gigCandidate.source) &&
+        gigCandidate.gigDraft.poster !== undefined;
+      if (intakeFileId && !hasMessengerDraftPoster) {
         composed.photo = intakeFileId;
       }
     }
