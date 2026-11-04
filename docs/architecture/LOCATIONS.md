@@ -120,10 +120,9 @@ consumers.
 ## Community Assignments
 
 A Gig may appear in one or more Community feeds. The target Gig and GigCandidate
-assignment fields are:
+assignment field is:
 
 ```text
-primaryCommunityId
 communityIds[]
 ```
 
@@ -131,7 +130,6 @@ The following invariants apply once assignments become required for an approved
 Gig:
 
 - `communityIds` is non-empty and contains no duplicates
-- `primaryCommunityId` is included in `communityIds`
 - every referenced Community exists
 - new assignments may target only active Communities
 - changing the physical Place does not silently rewrite Community assignments
@@ -142,10 +140,9 @@ their concrete IDs. A Community created later is not retroactively added to olde
 Gigs. Dynamic country-wide assignment rules may be introduced separately only if
 that behavior becomes an explicit product requirement.
 
-The primary Community owns the canonical Community context for integrations that
-initially support one destination, such as the main Telegram channel or the
-fallback feed used by a Gig deep link. All assigned Communities can include the
-Gig in their web feeds and Community-specific digests.
+Integrations select their destinations explicitly from the assigned Communities
+instead of relying on an arbitrary primary assignment. A Gig deep link identifies
+the Gig independently from the Community feed through which it was discovered.
 
 ## Place
 
