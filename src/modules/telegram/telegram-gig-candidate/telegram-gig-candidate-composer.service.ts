@@ -412,14 +412,14 @@ export class TelegramGigCandidateComposerService {
       ) ||
       gigDraft.date !== undefined ||
       gigDraft.endDate !== undefined;
+    const shouldOmitGigDraft =
+      isMessengerSource && (isIntake || !hasGigDraftCaptionContent);
     let content: string;
-    if (isIntake && isMessengerSource) {
+    if (shouldOmitGigDraft) {
       content =
         originalMessage === undefined
           ? sourceText
           : `${originalMessage}${sourceLabel}`;
-    } else if (originalMessage !== undefined && !hasGigDraftCaptionContent) {
-      content = `${originalMessage}${sourceLabel}`;
     } else {
       content = `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
     }
