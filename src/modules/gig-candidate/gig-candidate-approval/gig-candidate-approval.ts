@@ -18,6 +18,10 @@ export interface GigCandidateApprovalIssue {
   message: string;
 }
 
+export interface ValidatedGigCandidateDraft extends GigData {
+  poster: NonNullable<GigData['poster']>;
+}
+
 export class GigCandidateApprovalValidationError extends Error {
   issues: GigCandidateApprovalIssue[];
 
@@ -30,7 +34,7 @@ export class GigCandidateApprovalValidationError extends Error {
 
 export function validateGigCandidateDraftForApproval(
   gigDraft: Partial<GigData>,
-): GigData {
+): ValidatedGigCandidateDraft {
   const issues: GigCandidateApprovalIssue[] = [];
   const title = validateRequiredNormalizedString(
     gigDraft.title,

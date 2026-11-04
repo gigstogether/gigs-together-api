@@ -20,6 +20,7 @@ describe('validateGigCandidateDraftForApproval', () => {
     });
 
     expect(gigData.title).toBe('B');
+    expect(gigData.poster.bucketPath).toBe('posters/b.jpg');
   });
 
   it('should reject a title longer than 300 characters', () => {
