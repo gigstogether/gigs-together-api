@@ -1471,6 +1471,64 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('should use a messenger source image before the default poster', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+        fileId: 'intake-source-image-file-id',
+      };
+      const newGigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: { title: 'Band' },
+        version: 1,
+        posts: [intakePost],
+      });
+      const reviewing = buildGigCandidate({
+        ...newGigCandidate,
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
+        reviewing,
+      );
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 1,
+        }),
+      ).resolves.toEqual(reviewing);
+
+      expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
+      expect(
+        gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 1,
+      });
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(reviewing, undefined);
+    });
+
     it('should commit moderation once and not retry failed feedback', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')

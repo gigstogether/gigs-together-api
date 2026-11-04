@@ -3,7 +3,6 @@ import {
   BadRequestException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,7 +23,7 @@ import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {
   GigCandidateRepository,
-  SendGigCandidateToModerationWithPosterParams,
+  SendGigCandidateToModerationRecordParams,
 } from './repositories/gig-candidate.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
@@ -49,6 +48,7 @@ import {
 } from './gig-candidate-state-machine';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
+import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -441,24 +441,24 @@ export class GigCandidateService {
         command,
       );
 
+      const hasSourceImage =
+        isGigCandidateSourceMessengerUser(currentGigCandidate.source) &&
+        currentGigCandidate.source.image !== undefined;
       const preparedPoster =
         await this.gigCandidatePosterService.prepareDraftPoster({
           gigCandidateId: currentGigCandidate.id,
           gigDraft: currentGigCandidate.gigDraft,
           existingPoster: currentGigCandidate.gigDraft.poster,
-          shouldUseDefaultPoster: true,
+          shouldUseDefaultPoster: !hasSourceImage,
         });
       const moderationPoster = preparedPoster.gigDraft.poster;
-      if (moderationPoster === undefined) {
-        throw new InternalServerErrorException(
-          `Cannot send GigCandidate ${currentGigCandidate.id} to moderation without a poster.`,
-        );
-      }
-      const repositoryParams: SendGigCandidateToModerationWithPosterParams = {
+      const repositoryParams: SendGigCandidateToModerationRecordParams = {
         gigCandidateId: params.gigCandidateId,
         expectedVersion: params.expectedVersion,
-        poster: moderationPoster,
       };
+      if (moderationPoster !== undefined) {
+        repositoryParams.poster = moderationPoster;
+      }
 
       const updated =
         await this.gigCandidateRepository.sendGigCandidateToModeration(
