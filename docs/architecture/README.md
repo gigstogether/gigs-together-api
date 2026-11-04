@@ -1,4 +1,4 @@
-# Architecture
+# Architecture Overview
 
 This document explains how `gigs-together-api` is structured and where the main responsibilities live.
 
@@ -202,18 +202,12 @@ Main files:
 
 Responsibilities:
 
-- serves country/location data
+- owns country data and the planned geographic Community catalog
+- serves public geographic reference data
+- will own geographic Community lookup and matching without taking ownership of Gig moderation or delivery integrations
 
-Persistence:
-
-- `Country`
-- `locale`
-
-Main files:
-
-- `src/modules/location/location.module.ts`
-- `src/modules/location/location.controller.ts`
-- `src/modules/location/location.service.ts`
+Detailed ownership, target models, and rollout constraints are documented in
+[Location Architecture](./LOCATIONS.md).
 
 ### Integration and infrastructure modules
 
@@ -236,7 +230,7 @@ Main files:
 - `src/modules/alerting/alert-delivery.ts`
 - `src/modules/alerting/telegram-alert-delivery.service.ts`
 
-The active alert catalog and alerting conventions are documented in [`ALERTING.md`](./ALERTING.md).
+The active alert catalog and alerting conventions are documented in [`ALERTING.md`](../ALERTING.md).
 
 #### `TelegramBotClientModule`
 
@@ -383,7 +377,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - gigs in `src/modules/gig/gig.schema.ts`
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
-- locations in `src/modules/location/location.schema.ts`
+- countries in `src/modules/location/country.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
 
