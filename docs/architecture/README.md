@@ -202,9 +202,9 @@ Main files:
 
 Responsibilities:
 
-- owns country data and the planned geographic Community catalog
+- owns country data and the geographic Community catalog
 - serves public geographic reference data
-- will own geographic Community lookup and matching without taking ownership of Gig moderation or delivery integrations
+- owns geographic Community lookup and will own future geographic matching without taking ownership of Gig moderation or delivery integrations
 
 Detailed ownership, target models, and rollout constraints are documented in
 [Location Architecture](./LOCATIONS.md).
@@ -378,6 +378,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
 - countries in `src/modules/location/country/country.schema.ts`
+- Communities in `src/modules/location/community/community.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
 

@@ -6,13 +6,14 @@ matching.
 
 ## Current Module Boundary
 
-`LocationModule` owns geographic reference data. It currently serves countries
-and is the planned owner of Community persistence and lookup. It does not own Gig
+`LocationModule` owns geographic reference data. It serves countries and owns
+Community persistence and lookup. It does not own Gig
 moderation, feed delivery, Telegram workflows, or calendar integration.
 
 Current persistence:
 
 - `Country`
+- `Community`
 
 Current main files:
 
@@ -22,6 +23,10 @@ Current main files:
 - `src/modules/location/country/country.schema.ts`
 - `src/modules/location/country/repositories/country.repository.ts`
 - `src/modules/location/country/repositories/mongo-country.repository.ts`
+- `src/modules/location/community/community.schema.ts`
+- `src/modules/location/community/community.service.ts`
+- `src/modules/location/community/repositories/community.repository.ts`
+- `src/modules/location/community/repositories/mongo-community.repository.ts`
 
 `Country` remains an independently stored reference collection even when another
 feature is its primary consumer. Country reads must continue to pass through the
@@ -29,9 +34,10 @@ Country-owned repository boundary; a Community repository must not query the
 Country model. A Community application service may depend on both repository
 interfaces when a use case needs Community and Country data.
 
-The Community and Place model described below will be introduced incrementally.
-The current Gig feed continues to use its existing `country` and `city` fields
-until the corresponding migrations and application changes are complete.
+Community persistence and lookup are implemented as described below. Place and
+Community assignments will be introduced incrementally. The current Gig feed
+continues to use its existing `country` and `city` fields until the corresponding
+migrations and application changes are complete.
 
 ## Community
 
