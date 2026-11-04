@@ -77,10 +77,16 @@ export function validateGigCandidateDraftForApproval(
       message: 'endDate must be on or after date',
     });
   }
-  if (
-    gigDraft.poster !== undefined &&
-    (typeof gigDraft.poster.bucketPath !== 'string' ||
-      gigDraft.poster.bucketPath.trim() === '')
+  const poster = gigDraft.poster;
+  if (poster === undefined) {
+    issues.push({
+      field: 'poster',
+      code: 'required',
+      message: 'poster is required',
+    });
+  } else if (
+    typeof poster.bucketPath !== 'string' ||
+    poster.bucketPath.trim() === ''
   ) {
     issues.push({
       field: 'poster',
@@ -96,7 +102,8 @@ export function validateGigCandidateDraftForApproval(
     city === undefined ||
     country === undefined ||
     venue === undefined ||
-    ticketsUrl === undefined
+    ticketsUrl === undefined ||
+    poster === undefined
   ) {
     throw new GigCandidateApprovalValidationError(issues);
   }
@@ -109,9 +116,7 @@ export function validateGigCandidateDraftForApproval(
     country,
     venue,
     ticketsUrl,
-    ...(gigDraft.poster !== undefined
-      ? { poster: { ...gigDraft.poster } }
-      : {}),
+    poster: { ...poster },
   };
 }
 

@@ -2045,6 +2045,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
       });
       const gig = buildGigApprovalResult({ source });
@@ -2085,6 +2086,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
       });
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
@@ -2117,6 +2119,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
         posts: [
           {

@@ -16,6 +16,7 @@ describe('validateGigCandidateDraftForApproval', () => {
       country: 'ES',
       venue: 'Palau Sant Jordi',
       ticketsUrl: 'https://tickets.example/b',
+      poster: { bucketPath: 'posters/b.jpg' },
     });
 
     expect(gigData.title).toBe('B');
@@ -101,6 +102,25 @@ describe('validateGigCandidateDraftForApproval', () => {
         issues: expect.arrayContaining([
           expect.objectContaining({ field: 'venue', code: 'required' }),
           expect.objectContaining({ field: 'ticketsUrl', code: 'required' }),
+        ]),
+      }),
+    );
+  });
+
+  it('should reject approval when poster is missing', () => {
+    expect(() =>
+      validateGigCandidateDraftForApproval({
+        title: 'Radiohead',
+        date: Date.UTC(2026, 5, 12),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({ field: 'poster', code: 'required' }),
         ]),
       }),
     );
