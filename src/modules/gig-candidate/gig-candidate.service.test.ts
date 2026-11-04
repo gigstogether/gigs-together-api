@@ -307,7 +307,7 @@ describe('GigCandidateService', () => {
       expect(result).toEqual(gigCandidate);
       expect(bucketServiceMock.upload).toHaveBeenCalledWith({
         key: expect.stringMatching(
-          /^suggestions\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.jpg$/,
+          /^suggestions\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
         ),
         buffer: imageBuffer,
         mimetype: 'image/jpeg',

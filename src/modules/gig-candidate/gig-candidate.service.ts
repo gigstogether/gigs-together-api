@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { BucketService } from '@modules/bucket/bucket.service';
 import type { BucketUploadInput } from '@modules/bucket/bucket.service';
-import { getSupportedImageExtension } from '@shared/utils/image-file';
 import type { SupportedImageContentType } from '@shared/utils/image-file';
 import type { User } from '../auth/types/user.types';
 import { Messenger } from '@shared/types/messenger.enum';
@@ -268,9 +267,8 @@ export class GigCandidateService {
       source.originalText = params.originalText;
     }
     if (params.image !== undefined) {
-      const extension = getSupportedImageExtension(params.image.contentType);
       const uploadInput: BucketUploadInput = {
-        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}.${extension}`,
+        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}`,
         buffer: params.image.buffer,
         mimetype: params.image.contentType,
       };
