@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { CommunityController } from './community/community.controller';
 import { Community, CommunitySchema } from './community/community.schema';
 import { CommunityService } from './community/community.service';
 import { COMMUNITY_REPOSITORY } from './community/repositories/community.repository';
@@ -17,7 +18,7 @@ import { MongoCountryRepository } from './country/repositories/mongo-country.rep
       { name: Country.name, schema: CountrySchema },
     ]),
   ],
-  controllers: [CountriesController],
+  controllers: [CommunityController, CountriesController],
   providers: [
     CommunityService,
     CountryService,

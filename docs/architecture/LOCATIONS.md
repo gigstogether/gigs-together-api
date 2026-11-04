@@ -85,6 +85,19 @@ event is physically inside Barcelona. Internal code should use names such as
 The route pair resolves to a Community `id`. Feed queries and stored relationships
 use that `id`; they do not use a derived compound key such as `es:barcelona`.
 
+## Community Catalog API
+
+The public active Community catalog is exposed as:
+
+```text
+GET /v1/communities
+```
+
+The response contains a `communities` array. Each item exposes the stable `id`,
+`countryIso`, route `slug`, `nameTranslationKey`, and `timeZone`. The endpoint
+returns active Communities only, so `isActive` is intentionally omitted from the
+wire contract. Clients resolve the localized names and sort them for presentation.
+
 ## Community Assignments
 
 A Gig may appear in one or more Community feeds. The target Gig and GigCandidate
