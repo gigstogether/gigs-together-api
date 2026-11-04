@@ -6,6 +6,8 @@ import type {
   V1CommunityListResponseBody,
 } from './types/requests/v1-community-list-response';
 
+const COMMUNITY_NAME_TRANSLATION_NAMESPACE = 'community';
+
 @Controller('communities')
 export class CommunityController {
   constructor(private readonly communityService: CommunityService) {}
@@ -23,6 +25,7 @@ function mapV1CommunityListResponse(
   communities: readonly Community[],
 ): V1CommunityListResponseBody {
   return {
+    nameTranslationNamespace: COMMUNITY_NAME_TRANSLATION_NAMESPACE,
     communities: communities.map(mapV1CommunityListItemResponse),
   };
 }

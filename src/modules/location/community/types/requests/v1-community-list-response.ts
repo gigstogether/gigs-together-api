@@ -7,5 +7,6 @@ export interface V1CommunityListItemResponseBody {
 }
 
 export interface V1CommunityListResponseBody {
+  nameTranslationNamespace: 'community';
   communities: V1CommunityListItemResponseBody[];
 }

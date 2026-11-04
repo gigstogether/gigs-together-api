@@ -9,7 +9,7 @@ function createCommunityDocument(): CommunityLeanDocument {
     _id: new Types.ObjectId(COMMUNITY_ID),
     countryIso: 'ES',
     slug: 'barcelona',
-    nameTranslationKey: 'community.barcelona.name',
+    nameTranslationKey: 'barcelona.name',
     timeZone: 'Europe/Madrid',
     isActive: true,
   };
@@ -23,7 +23,7 @@ describe('CommunityRepositoryMapper', () => {
       id: COMMUNITY_ID,
       countryIso: 'ES',
       slug: 'barcelona',
-      nameTranslationKey: 'community.barcelona.name',
+      nameTranslationKey: 'barcelona.name',
       timeZone: 'Europe/Madrid',
       isActive: true,
     });

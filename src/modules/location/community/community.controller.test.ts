@@ -37,19 +37,20 @@ describe('CommunityController', () => {
         id: '690a1fdb17f0a7771e9c1c21',
         countryIso: 'ES',
         slug: 'barcelona',
-        nameTranslationKey: 'community.barcelona.name',
+        nameTranslationKey: 'barcelona.name',
         timeZone: 'Europe/Madrid',
         isActive: true,
       },
     ]);
 
     await expect(controller.getCommunitiesV1()).resolves.toEqual({
+      nameTranslationNamespace: 'community',
       communities: [
         {
           id: '690a1fdb17f0a7771e9c1c21',
           countryIso: 'ES',
           slug: 'barcelona',
-          nameTranslationKey: 'community.barcelona.name',
+          nameTranslationKey: 'barcelona.name',
           timeZone: 'Europe/Madrid',
         },
       ],

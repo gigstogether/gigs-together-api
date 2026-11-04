@@ -54,7 +54,9 @@ The initial Community model contains:
 - an opaque stable `id` used by application and persistence relationships
 - `countryIso`, stored as an uppercase ISO 3166-1 alpha-2 code
 - `slug`, used as the human-readable route segment within a country
-- `nameTranslationKey`, used to resolve the localized Community name
+- `nameTranslationKey`, used with the fixed `community` namespace to resolve
+  the localized Community name; keys identify the translated field, for example
+  `barcelona.name`
 - `timeZone`, stored as an IANA time-zone identifier for Community-level scheduling
 - `isActive`, which controls whether the Community can receive new assignments and appear in public catalogs
 
@@ -93,10 +95,27 @@ The public active Community catalog is exposed as:
 GET /v1/communities
 ```
 
-The response contains a `communities` array. Each item exposes the stable `id`,
+The response exposes `nameTranslationNamespace: "community"` once at the catalog
+level and contains a `communities` array. Each item exposes the stable `id`,
 `countryIso`, route `slug`, `nameTranslationKey`, and `timeZone`. The endpoint
 returns active Communities only, so `isActive` is intentionally omitted from the
 wire contract. Clients resolve the localized names and sort them for presentation.
+
+## Legacy City Migration Boundary
+
+The legacy `city` field currently has two responsibilities that must be migrated
+separately:
+
+- its feed-selection responsibility can move to explicit Community assignments
+  before Place is introduced
+- its physical event-locality responsibility remains until Place provides the
+  replacement location fields
+
+The frontend may switch feed routing and titles from the `city` translation
+namespace to the `community` catalog during the Community rollout. The legacy
+`city` namespace must remain available while Gig responses still expose physical
+city codes. It can be removed only after the Place migration removes those final
+consumers.
 
 ## Community Assignments
 
