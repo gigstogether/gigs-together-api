@@ -358,7 +358,7 @@ export class TelegramUpdatesService {
       originalText = (
         replyToMessage.text ??
         replyToMessage.caption ??
-        argument
+        ''
       ).trim();
       sourcePhoto = replyToMessage.photo;
       sourceMessageId = replyToMessage.message_id;

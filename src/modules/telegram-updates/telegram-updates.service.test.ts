@@ -431,7 +431,7 @@ describe('TelegramUpdatesService', () => {
       });
     });
 
-    it('should create an image-only candidate when the suggest command replies to a photo', async () => {
+    it('should ignore the command argument when the suggest command replies to a photo without text', async () => {
       const image = {
         buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
         telegramFileId: 'reply-photo-file-id',
@@ -444,7 +444,7 @@ describe('TelegramUpdatesService', () => {
       const message: TGMessage = {
         message_id: 58,
         date: Date.now(),
-        text: '/gig@GigsTogetherBot',
+        text: '/gig@GigsTogetherBot This argument must be ignored',
         chat: { id: -100123, type: 'supergroup' },
         from: { id: 7, is_bot: false, first_name: 'Arina' },
         reply_to_message: {
