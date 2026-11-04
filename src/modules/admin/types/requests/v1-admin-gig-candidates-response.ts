@@ -71,7 +71,8 @@ interface V1AdminGigCandidateGigDraftResponseBody {
 }
 
 export interface V1AdminGigCandidateOriginalMessageResponseBody {
-  text: string;
+  text?: string;
+  imageUrl?: string;
   url: string;
 }
 

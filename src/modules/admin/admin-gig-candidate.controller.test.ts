@@ -172,6 +172,7 @@ describe('AdminGigCandidateController', () => {
     const detailsWithOriginalMessage = buildDetails({
       originalMessage: {
         text: 'Radiohead in Barcelona',
+        imageUrl: 'https://cdn.example/suggestions/image-id',
         url: 'https://t.me/c/123/42',
       },
     });
@@ -185,6 +186,7 @@ describe('AdminGigCandidateController', () => {
       expect.objectContaining({
         originalMessage: {
           text: 'Radiohead in Barcelona',
+          imageUrl: 'https://cdn.example/suggestions/image-id',
           url: 'https://t.me/c/123/42',
         },
       }),

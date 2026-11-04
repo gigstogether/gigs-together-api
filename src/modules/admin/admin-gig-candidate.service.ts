@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { BucketService } from '@modules/bucket/bucket.service';
 import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
@@ -26,6 +27,7 @@ export class AdminGigCandidateService {
     private readonly gigService: GigService,
     private readonly telegramComposer: TelegramComposerService,
     private readonly userService: UserService,
+    private readonly bucketService: BucketService,
   ) {}
 
   async getList(
@@ -133,7 +135,10 @@ export class AdminGigCandidateService {
     if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
       return;
     }
-    if (gigCandidate.source.originalText === undefined) {
+    if (
+      gigCandidate.source.originalText === undefined &&
+      gigCandidate.source.image === undefined
+    ) {
       return;
     }
 
@@ -146,7 +151,22 @@ export class AdminGigCandidateService {
         `Cannot build original message URL for GigCandidate ${gigCandidate.id}.`,
       );
     }
-    return { text: gigCandidate.source.originalText, url };
+    const originalMessage: AdminGigCandidateOriginalMessage = { url };
+    if (gigCandidate.source.originalText !== undefined) {
+      originalMessage.text = gigCandidate.source.originalText;
+    }
+    if (gigCandidate.source.image !== undefined) {
+      const imageUrl = this.bucketService.getPublicFileUrl(
+        gigCandidate.source.image.bucketPath,
+      );
+      if (imageUrl === undefined) {
+        throw new Error(
+          `Cannot resolve original image URL for GigCandidate ${gigCandidate.id}.`,
+        );
+      }
+      originalMessage.imageUrl = imageUrl;
+    }
+    return originalMessage;
   }
 
   private resolveSource(
