@@ -72,6 +72,38 @@ describe('GigCandidateRepositoryMapper', () => {
       );
     });
 
+    it('should preserve an image-only messenger source', () => {
+      const source = {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+          message: { chatId: -100123, messageId: 42 },
+        },
+        image: {
+          bucketPath: '/suggestions/image-id',
+          telegramFileId: 'telegram-image-file-id',
+        },
+      } satisfies GigCandidateSourceMessengerUser;
+
+      expect(GigCandidateRepositoryMapper.toStoredSource(source)).toEqual(
+        source,
+      );
+    });
+
+    it('should reject storing a messenger source without text or image', () => {
+      expect(() =>
+        GigCandidateRepositoryMapper.toStoredSource({
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+        }),
+      ).toThrowError(/messenger source is inconsistent/);
+    });
+
     it('should convert an optional messenger user id to ObjectId', () => {
       const source = GigCandidateRepositoryMapper.toStoredSource({
         type: GigSourceType.User,
@@ -244,6 +276,84 @@ describe('GigCandidateRepositoryMapper', () => {
         GigCandidateRepositoryMapper.toGigCandidate(document);
 
       expect(gigCandidate.source).toEqual(document.source);
+    });
+
+    it('should parse an image-only messenger source', () => {
+      const document = buildTargetDocument({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
+          },
+        },
+      });
+
+      const gigCandidate =
+        GigCandidateRepositoryMapper.toGigCandidate(document);
+
+      expect(gigCandidate.source).toEqual(document.source);
+    });
+
+    it('should reject a messenger source without text or image', () => {
+      const document = buildTargetDocument({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+        },
+      });
+
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(document),
+      ).toThrowError(/messenger source is inconsistent/);
+    });
+
+    it('should reject a messenger source with an invalid image path', () => {
+      const document = buildTargetDocument({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: { bucketPath: '   ' },
+        },
+      });
+
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(document),
+      ).toThrowError(/messenger source is inconsistent/);
+    });
+
+    it('should reject a messenger source with a blank Telegram image file ID', () => {
+      const document = buildTargetDocument({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: '   ',
+          },
+        },
+      });
+
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(document),
+      ).toThrowError(/messenger source is inconsistent/);
     });
 
     it('should reject an invalid messenger message reference', () => {

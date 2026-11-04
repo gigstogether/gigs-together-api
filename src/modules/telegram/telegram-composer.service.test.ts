@@ -680,6 +680,77 @@ describe('TelegramComposerService', () => {
       expect('photo' in payload).toBe(false);
     });
 
+    it('should compose a photo Intake post for an image-only Telegram suggestion', () => {
+      const payload = gigCandidateComposer.composeIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: {},
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        chat_id: '-3001',
+        photo: 'source-image-file-id',
+        caption: expect.stringContaining('Source: user (Telegram)'),
+        parse_mode: TGParseMode.HTML,
+      });
+      if (!('caption' in payload)) {
+        throw new Error('Expected a photo Intake payload');
+      }
+      expect(payload.caption).not.toContain('Original message:');
+      expect(payload.caption).not.toContain('\n🗓');
+      expect(payload.caption).not.toContain('\n📍');
+      expect(payload.caption).not.toContain('\n🎫');
+      expect(payload.caption).not.toMatch(/^-$/m);
+    });
+
+    it('should include Telegram suggestion text in its photo Intake caption', () => {
+      const payload = gigCandidateComposer.composeIntakePost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          originalText: 'Band with a screenshot',
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: {},
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        photo: 'source-image-file-id',
+        caption: expect.stringContaining(
+          'Original message:\nBand with a screenshot',
+        ),
+      });
+    });
+
     it('should omit Gig draft from initial Moderation for a Telegram suggestion', () => {
       mockBucket.getPublicFileUrl.mockReturnValue(
         'https://cdn.example/default.jpg',
@@ -714,6 +785,42 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).not.toContain('📍');
       expect(payload.caption).not.toContain('🎫');
       expect(payload.caption).toContain('Source: user (Telegram)');
+    });
+
+    it('should omit an empty Gig draft from image-only Telegram Moderation', () => {
+      const payload = gigCandidateComposer.composeModerationPost({
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+        version: 2,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      expect(payload).toMatchObject({
+        photo: 'source-image-file-id',
+        caption: expect.stringContaining('Source: user (Telegram)'),
+      });
+      expect(payload.caption).not.toContain('\n🗓');
+      expect(payload.caption).not.toContain('\n📍');
+      expect(payload.caption).not.toContain('\n🎫');
+      expect(payload.caption).not.toMatch(/^-$/m);
     });
 
     it('should add a partial date to the edited Moderation post while preserving the original message', () => {

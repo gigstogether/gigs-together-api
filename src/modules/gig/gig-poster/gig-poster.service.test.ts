@@ -11,6 +11,10 @@ import {
 } from '../../remote-image/remote-image.service';
 import { GigPosterService } from './gig-poster.service';
 
+const PNG_BUFFER = Buffer.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
 describe('GigPosterService', () => {
   let gigPosterService: GigPosterService;
 
@@ -86,8 +90,8 @@ describe('GigPosterService', () => {
     await expect(
       gigPosterService.upload({
         file: {
-          buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
-          mimetype: 'image/png',
+          buffer: PNG_BUFFER,
+          mimetype: 'application/octet-stream',
         },
         context: {
           date: '2026-09-17',
@@ -99,16 +103,71 @@ describe('GigPosterService', () => {
     ).resolves.toEqual({
       storedPoster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
       posterFile: {
-        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        buffer: PNG_BUFFER,
         mimetype: 'image/png',
         filename: 'poster.png',
       },
     });
     expect(bucketService.upload).toHaveBeenCalledWith({
-      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      buffer: PNG_BUFFER,
       mimetype: 'image/png',
       key: 'gigs/2026/es/barcelona/gc-1',
     });
+  });
+
+  it('should preserve supported HEIC bytes without conversion', async () => {
+    const heicBuffer = Buffer.from([
+      0x00, 0x00, 0x00, 0x14, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x69, 0x66, 0x31,
+      0x00, 0x00, 0x00, 0x00, 0x68, 0x65, 0x69, 0x63,
+    ]);
+
+    await expect(
+      gigPosterService.upload({
+        file: {
+          buffer: heicBuffer,
+          mimetype: 'image/heif',
+        },
+        context: {
+          date: '2026-09-17',
+          country: 'ES',
+          city: 'Barcelona',
+          publicId: 'gc-1',
+        },
+      }),
+    ).resolves.toEqual({
+      storedPoster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
+      posterFile: {
+        buffer: heicBuffer,
+        mimetype: 'image/heic',
+        filename: 'poster.heic',
+      },
+    });
+    expect(bucketService.upload).toHaveBeenCalledWith({
+      buffer: heicBuffer,
+      mimetype: 'image/heic',
+      key: 'gigs/2026/es/barcelona/gc-1',
+    });
+  });
+
+  it('should reject an unsupported raster image', async () => {
+    const upload = gigPosterService.upload({
+      file: {
+        buffer: Buffer.from([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]),
+        mimetype: 'image/gif',
+      },
+      context: {
+        date: '2026-09-17',
+        country: 'ES',
+        city: 'Barcelona',
+        publicId: 'gc-1',
+      },
+    });
+
+    await expect(upload).rejects.toThrow(BadRequestException);
+    await expect(upload).rejects.toThrow(
+      'Poster file must be a JPEG, PNG, WebP, AVIF, or HEIC/HEIF image',
+    );
+    expect(bucketService.upload).not.toHaveBeenCalled();
   });
 
   it('should normalize the configured bucket prefix', async () => {
@@ -127,7 +186,7 @@ describe('GigPosterService', () => {
 
     await service.upload({
       file: {
-        buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+        buffer: PNG_BUFFER,
         mimetype: 'image/png',
       },
       context: {
@@ -139,7 +198,7 @@ describe('GigPosterService', () => {
     });
 
     expect(bucketService.upload).toHaveBeenCalledWith({
-      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+      buffer: PNG_BUFFER,
       mimetype: 'image/png',
       key: 'posters/2026/es/barcelona/gc-1',
     });
@@ -164,9 +223,8 @@ describe('GigPosterService', () => {
   });
 
   it('should return downloaded poster bytes after uploading an external URL', async () => {
-    const posterBytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]).buffer;
     remoteImageService.download.mockResolvedValue({
-      buffer: Buffer.from(posterBytes),
+      buffer: PNG_BUFFER,
       contentType: 'image/png',
     });
 
@@ -186,13 +244,13 @@ describe('GigPosterService', () => {
         externalUrl: 'https://images.example/download/poster',
       },
       posterFile: {
-        buffer: Buffer.from(posterBytes),
+        buffer: PNG_BUFFER,
         mimetype: 'image/png',
         filename: 'poster.png',
       },
     });
     expect(bucketService.upload).toHaveBeenCalledWith({
-      buffer: Buffer.from(posterBytes),
+      buffer: PNG_BUFFER,
       mimetype: 'image/png',
       key: 'gigs/2026/es/barcelona/gc-1',
     });

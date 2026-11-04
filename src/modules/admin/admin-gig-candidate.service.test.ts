@@ -1,6 +1,7 @@
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
+import { BucketService } from '@modules/bucket/bucket.service';
 import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
 import {
@@ -64,10 +65,14 @@ describe('AdminGigCandidateService', () => {
   const userServiceMock = {
     findActiveUsersByIds: vi.fn(),
   };
+  const bucketServiceMock = {
+    getPublicFileUrl: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
     telegramComposerMock.buildPostUrl.mockReset();
+    bucketServiceMock.getPublicFileUrl.mockReset();
     gigServiceMock.getGigsByIds.mockResolvedValue([]);
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
@@ -95,6 +100,7 @@ describe('AdminGigCandidateService', () => {
         { provide: GigService, useValue: gigServiceMock },
         { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: UserService, useValue: userServiceMock },
+        { provide: BucketService, useValue: bucketServiceMock },
       ],
     }).compile();
 
@@ -206,7 +212,70 @@ describe('AdminGigCandidateService', () => {
         chatId: -100123,
         messageId: 42,
       });
+      expect(bucketServiceMock.getPublicFileUrl).not.toHaveBeenCalled();
       expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
+    });
+
+    it('should expose the image and source message URLs for an image-only messenger source', async () => {
+      const record = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+          },
+        },
+      });
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+      telegramComposerMock.buildPostUrl.mockReturnValue(
+        'https://t.me/c/123/42',
+      );
+      bucketServiceMock.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/suggestions/image-id',
+      );
+
+      const [result] = await service.getList({
+        status: GigCandidateStatus.New,
+        limit: 20,
+      });
+
+      expect(result?.originalMessage).toEqual({
+        imageUrl: 'https://cdn.example/suggestions/image-id',
+        url: 'https://t.me/c/123/42',
+      });
+      expect(bucketServiceMock.getPublicFileUrl).toHaveBeenCalledWith(
+        '/suggestions/image-id',
+      );
+    });
+
+    it('should reject an image source when its public URL cannot be resolved', async () => {
+      const record = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: { bucketPath: '/suggestions/image-id' },
+        },
+      });
+      gigCandidateServiceMock.findMany.mockResolvedValue([record]);
+      telegramComposerMock.buildPostUrl.mockReturnValue(
+        'https://t.me/c/123/42',
+      );
+      bucketServiceMock.getPublicFileUrl.mockReturnValue(undefined);
+
+      await expect(
+        service.getList({ status: GigCandidateStatus.New, limit: 20 }),
+      ).rejects.toThrowError(
+        `Cannot resolve original image URL for GigCandidate ${record.id}.`,
+      );
     });
 
     it('should reject a messenger candidate when its source URL cannot be built', async () => {

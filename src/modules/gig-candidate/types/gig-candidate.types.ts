@@ -53,11 +53,17 @@ interface GigCandidateSourceUserMessengerOrigin {
   message: GigCandidateSourceMessengerMessage;
 }
 
+export interface GigCandidateSourceImage {
+  bucketPath: string;
+  telegramFileId?: string;
+}
+
 export interface GigCandidateSourceMessengerUser {
   type: GigSourceType.User;
   userId?: string;
   origin: GigCandidateSourceUserMessengerOrigin;
-  originalText: string;
+  originalText?: string;
+  image?: GigCandidateSourceImage;
 }
 
 export type GigCandidateSourceUser =

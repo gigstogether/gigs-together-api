@@ -13,6 +13,7 @@ export interface TGMessage {
   from?: TGUser;
   chat: TGChat;
   text?: string; // UTF-8 text
+  caption?: string;
   date: number;
   reply_to_message?: TGMessage;
   sender_chat?: TGChat;
@@ -157,4 +158,11 @@ export interface TGPhotoSize {
   width: number;
   height: number;
   file_size?: number;
+}
+
+export interface TGFile {
+  file_id: string;
+  file_unique_id: string;
+  file_size?: number;
+  file_path?: string;
 }

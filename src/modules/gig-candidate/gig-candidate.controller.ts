@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -23,12 +22,6 @@ import { GigCandidateService } from './gig-candidate.service';
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype?.startsWith('image/')) {
-      return cb(new BadRequestException('posterFile must be an image'), false);
-    }
-    cb(null, true);
-  },
 });
 
 @Controller('gig-candidates')

@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from '../auth/auth.module';
 import { AiModule } from '../ai/ai.module';
 import { AlertingModule } from '@modules/alerting/alerting.module';
+import { BucketModule } from '@modules/bucket/bucket.module';
 import { CalendarModule } from '../calendar/calendar.module';
 import { GigModule } from '../gig/gig.module';
 import { TelegramModule } from '../telegram/telegram.module';
@@ -31,6 +32,7 @@ import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-
     UserModule,
     AuthModule,
     AiModule,
+    BucketModule,
   ],
   controllers: [GigCandidateController],
   providers: [

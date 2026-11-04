@@ -1,11 +1,14 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Inject,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { BucketService } from '@modules/bucket/bucket.service';
+import type { BucketUploadInput } from '@modules/bucket/bucket.service';
+import type { SupportedImageContentType } from '@shared/utils/image-file';
 import type { User } from '../auth/types/user.types';
 import { Messenger } from '@shared/types/messenger.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
@@ -21,7 +24,7 @@ import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {
   GigCandidateRepository,
-  SendGigCandidateToModerationWithPosterParams,
+  SendGigCandidateToModerationRecordParams,
 } from './repositories/gig-candidate.repository';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
@@ -46,6 +49,7 @@ import {
 } from './gig-candidate-state-machine';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
+import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
   status: GigCandidateStatus;
@@ -65,8 +69,15 @@ export interface CreateMessengerGigCandidateParams {
   messenger: Messenger;
   chatId: number;
   messageId: number;
-  originalText: string;
+  originalText?: string;
+  image?: MessengerGigCandidateImage;
   userId?: string;
+}
+
+export interface MessengerGigCandidateImage {
+  buffer: Buffer;
+  telegramFileId: string;
+  contentType: SupportedImageContentType;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -112,6 +123,7 @@ export interface UpdateGigCandidateDraftApplicationParams {
 }
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX = 'suggestions';
 
 interface HandleGigCandidateSubmitParams {
   body: V1CreateGigCandidateRequestBody;
@@ -150,6 +162,7 @@ export class GigCandidateService {
     private readonly telegramGigCandidateService: TelegramGigCandidateService,
     private readonly aiService: AiService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
+    private readonly bucketService: BucketService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -203,7 +216,7 @@ export class GigCandidateService {
     return this.gigCandidateRepository.findMany(params);
   }
 
-  createMessengerGigCandidate(
+  async createMessengerGigCandidate(
     params: CreateMessengerGigCandidateParams,
   ): Promise<GigCandidate> {
     if (params.messenger !== Messenger.Telegram) {
@@ -217,10 +230,28 @@ export class GigCandidateService {
         'messageId must be a positive safe integer',
       );
     }
-    if (params.originalText.trim() === '') {
-      throw new BadRequestException('originalText is required');
+    if (
+      params.originalText !== undefined &&
+      params.originalText.trim() === ''
+    ) {
+      throw new BadRequestException(
+        'originalText must be non-empty when provided',
+      );
+    }
+    if (params.image !== undefined && params.image.buffer.length === 0) {
+      throw new BadRequestException('image buffer must be non-empty');
+    }
+    if (
+      params.image !== undefined &&
+      params.image.telegramFileId.trim() === ''
+    ) {
+      throw new BadRequestException('image telegramFileId must be non-empty');
+    }
+    if (params.originalText === undefined && params.image === undefined) {
+      throw new BadRequestException('originalText or image is required');
     }
 
+    const gigCandidateId = this.gigCandidateRepository.createId();
     const source: GigCandidateSourceMessengerUser = {
       type: GigSourceType.User,
       origin: {
@@ -231,14 +262,28 @@ export class GigCandidateService {
           messageId: params.messageId,
         },
       },
-      originalText: params.originalText,
     };
+    if (params.originalText !== undefined) {
+      source.originalText = params.originalText;
+    }
+    if (params.image !== undefined) {
+      const uploadInput: BucketUploadInput = {
+        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}`,
+        buffer: params.image.buffer,
+        mimetype: params.image.contentType,
+      };
+      const bucketPath = await this.bucketService.upload(uploadInput);
+      source.image = {
+        bucketPath,
+        telegramFileId: params.image.telegramFileId,
+      };
+    }
     if (params.userId !== undefined) {
       source.userId = params.userId;
     }
 
     return this.gigCandidateRepository.createGigCandidate({
-      gigCandidateId: this.gigCandidateRepository.createId(),
+      gigCandidateId,
       status: GigCandidateStatus.New,
       source,
       // TODO: This is temporary while suggestions come from a single city chat.
@@ -387,24 +432,24 @@ export class GigCandidateService {
         command,
       );
 
+      const hasSourceImage =
+        isGigCandidateSourceMessengerUser(currentGigCandidate.source) &&
+        currentGigCandidate.source.image !== undefined;
       const preparedPoster =
         await this.gigCandidatePosterService.prepareDraftPoster({
           gigCandidateId: currentGigCandidate.id,
           gigDraft: currentGigCandidate.gigDraft,
           existingPoster: currentGigCandidate.gigDraft.poster,
-          shouldUseDefaultPoster: true,
+          shouldUseDefaultPoster: !hasSourceImage,
         });
       const moderationPoster = preparedPoster.gigDraft.poster;
-      if (moderationPoster === undefined) {
-        throw new InternalServerErrorException(
-          `Cannot send GigCandidate ${currentGigCandidate.id} to moderation without a poster.`,
-        );
-      }
-      const repositoryParams: SendGigCandidateToModerationWithPosterParams = {
+      const repositoryParams: SendGigCandidateToModerationRecordParams = {
         gigCandidateId: params.gigCandidateId,
         expectedVersion: params.expectedVersion,
-        poster: moderationPoster,
       };
+      if (moderationPoster !== undefined) {
+        repositoryParams.poster = moderationPoster;
+      }
 
       const updated =
         await this.gigCandidateRepository.sendGigCandidateToModeration(

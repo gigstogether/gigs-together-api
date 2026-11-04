@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -62,12 +61,6 @@ import type {
 const GigCandidatePosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype?.startsWith('image/')) {
-      return cb(new BadRequestException('posterFile must be an image'), false);
-    }
-    cb(null, true);
-  },
 });
 
 @Controller('admin/gig-candidates')

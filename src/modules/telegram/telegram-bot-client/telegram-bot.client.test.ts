@@ -1,4 +1,3 @@
-import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -7,8 +6,13 @@ import type { TGMessage } from './types/message.types';
 import type { TGUser } from './types/user.types';
 import { TGInputMediaType } from './types/message.types';
 import {
+  TELEGRAM_BOT_HTTP,
+  TELEGRAM_FILE_DOWNLOAD_MAX_BYTES,
+  TELEGRAM_FILE_HTTP,
   TelegramBotClient,
   TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS,
+  TelegramFileDownloadError,
+  TelegramGetFileError,
 } from './telegram-bot.client';
 import { RemoteImageService } from '../../remote-image/remote-image.service';
 
@@ -17,6 +21,9 @@ describe('TelegramBotClient', () => {
 
   const mockHttpService = {
     post: vi.fn(),
+    get: vi.fn(),
+  };
+  const mockFileHttpService = {
     get: vi.fn(),
   };
   const remoteImageService = {
@@ -28,8 +35,12 @@ describe('TelegramBotClient', () => {
       providers: [
         TelegramBotClient,
         {
-          provide: HttpService,
+          provide: TELEGRAM_BOT_HTTP,
           useValue: mockHttpService,
+        },
+        {
+          provide: TELEGRAM_FILE_HTTP,
+          useValue: mockFileHttpService,
         },
         {
           provide: RemoteImageService,
@@ -45,6 +56,7 @@ describe('TelegramBotClient', () => {
     vi.restoreAllMocks();
     mockHttpService.post.mockReset();
     mockHttpService.get.mockReset();
+    mockFileHttpService.get.mockReset();
     remoteImageService.download.mockReset();
   });
 
@@ -62,6 +74,232 @@ describe('TelegramBotClient', () => {
 
       expect(mockHttpService.get).toHaveBeenCalledWith('getMe');
       expect(result).toEqual(bot);
+    });
+  });
+
+  describe('getFile', () => {
+    it('should return validated Telegram file metadata', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'photo-file-id',
+              file_unique_id: 'photo-unique-id',
+              file_size: 1_024,
+              file_path: 'photos/file_1.jpg',
+            },
+          },
+        }),
+      );
+
+      await expect(client.getFile('photo-file-id')).resolves.toEqual({
+        file_id: 'photo-file-id',
+        file_unique_id: 'photo-unique-id',
+        file_size: 1_024,
+        file_path: 'photos/file_1.jpg',
+      });
+      expect(mockHttpService.get).toHaveBeenCalledWith('getFile', {
+        params: { file_id: 'photo-file-id' },
+      });
+    });
+
+    it('should reject an invalid Telegram response', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({ data: { ok: true, result: { file_id: 'photo-file-id' } } }),
+      );
+
+      await expect(client.getFile('photo-file-id')).rejects.toMatchObject({
+        name: TelegramGetFileError.name,
+        operation: 'getFile',
+        message: 'Telegram getFile response has invalid file identifiers',
+      });
+    });
+
+    it('should preserve an upstream failure as a non-enumerable cause', async () => {
+      const upstreamFailure = {
+        message: 'Telegram unavailable',
+        response: { status: 503 },
+      };
+      mockHttpService.get.mockReturnValueOnce(
+        throwError(() => upstreamFailure),
+      );
+
+      let caught: unknown;
+      try {
+        await client.getFile('photo-file-id');
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(TelegramGetFileError);
+      expect(caught).toMatchObject({
+        operation: 'getFile',
+        message: 'Telegram getFile request failed',
+        status: 503,
+        cause: upstreamFailure,
+      });
+      if (!(caught instanceof TelegramGetFileError)) {
+        throw new Error('Expected TelegramGetFileError');
+      }
+      expect(Object.keys(caught)).not.toContain('cause');
+    });
+  });
+
+  describe('downloadByFileId', () => {
+    it('should download Telegram file bytes with their content type', async () => {
+      const buffer = Buffer.from('photo bytes');
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'photo-file-id',
+              file_unique_id: 'photo-unique-id',
+              file_size: buffer.length,
+              file_path: 'photos/file 1.jpg',
+            },
+          },
+        }),
+      );
+      mockFileHttpService.get.mockReturnValueOnce(
+        of({
+          data: buffer,
+          headers: { 'content-type': 'image/jpeg' },
+        }),
+      );
+
+      await expect(client.downloadByFileId('photo-file-id')).resolves.toEqual({
+        buffer,
+        contentType: 'image/jpeg',
+      });
+      expect(mockHttpService.get).toHaveBeenCalledWith('getFile', {
+        params: { file_id: 'photo-file-id' },
+      });
+      expect(mockFileHttpService.get).toHaveBeenCalledWith(
+        'photos/file%201.jpg',
+        {
+          responseType: 'arraybuffer',
+          maxContentLength: TELEGRAM_FILE_DOWNLOAD_MAX_BYTES,
+        },
+      );
+    });
+
+    it('should reject a file exceeding the download limit before downloading it', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'large-file-id',
+              file_unique_id: 'large-file-unique-id',
+              file_size: TELEGRAM_FILE_DOWNLOAD_MAX_BYTES + 1,
+              file_path: 'photos/large.jpg',
+            },
+          },
+        }),
+      );
+
+      await expect(
+        client.downloadByFileId('large-file-id'),
+      ).rejects.toMatchObject({
+        name: TelegramFileDownloadError.name,
+        operation: 'downloadFile',
+        message: expect.stringContaining('download limit'),
+      });
+      expect(mockFileHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('should reject Telegram metadata without a downloadable file path', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'photo-file-id',
+              file_unique_id: 'photo-unique-id',
+            },
+          },
+        }),
+      );
+
+      await expect(
+        client.downloadByFileId('photo-file-id'),
+      ).rejects.toMatchObject({
+        name: TelegramFileDownloadError.name,
+        operation: 'downloadFile',
+        message: 'Telegram getFile response has no file path',
+      });
+      expect(mockFileHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('should reject an unsafe Telegram file path', async () => {
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'photo-file-id',
+              file_unique_id: 'photo-unique-id',
+              file_path: '../secret',
+            },
+          },
+        }),
+      );
+
+      await expect(
+        client.downloadByFileId('photo-file-id'),
+      ).rejects.toMatchObject({
+        name: TelegramFileDownloadError.name,
+        operation: 'downloadFile',
+        message: 'Telegram getFile response has an invalid file path',
+      });
+      expect(mockFileHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('should preserve a download failure as a non-enumerable cause', async () => {
+      const upstreamFailure = {
+        message: 'socket closed',
+        response: { status: 502 },
+        config: {
+          baseURL: 'https://api.telegram.org/file/bot-secret-token',
+        },
+      };
+      mockHttpService.get.mockReturnValueOnce(
+        of({
+          data: {
+            ok: true,
+            result: {
+              file_id: 'photo-file-id',
+              file_unique_id: 'photo-unique-id',
+              file_path: 'photos/file_1.jpg',
+            },
+          },
+        }),
+      );
+      mockFileHttpService.get.mockReturnValueOnce(
+        throwError(() => upstreamFailure),
+      );
+
+      let caught: unknown;
+      try {
+        await client.downloadByFileId('photo-file-id');
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(caught).toBeInstanceOf(TelegramFileDownloadError);
+      expect(caught).toMatchObject({
+        operation: 'downloadFile',
+        message: 'Telegram file download failed',
+        status: 502,
+        cause: upstreamFailure,
+      });
+      if (!(caught instanceof TelegramFileDownloadError)) {
+        throw new Error('Expected TelegramFileDownloadError');
+      }
+      expect(Object.keys(caught)).not.toContain('cause');
+      expect(String(caught)).not.toContain('secret-token');
     });
   });
 

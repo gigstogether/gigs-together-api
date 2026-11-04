@@ -1,10 +1,14 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRequiredConfigString } from '@shared/utils/env';
+import { detectSupportedImageFileType } from '@shared/utils/image-file';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
-import type { CreateMessengerGigCandidateParams } from '../gig-candidate/gig-candidate.service';
+import type {
+  CreateMessengerGigCandidateParams,
+  MessengerGigCandidateImage,
+} from '../gig-candidate/gig-candidate.service';
 import { GigService } from '../gig/gig.service';
 import { AuthorizationService } from '../auth/authorization.service';
 import { UserService } from '../user/user.service';
@@ -21,9 +25,13 @@ import { TelegramBotClient } from '../telegram/telegram-bot-client/telegram-bot.
 import { TelegramBotReplyService } from '../telegram/telegram-bot-reply/telegram-bot-reply.service';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import type { TGChat } from '../telegram/telegram-bot-client/types/chat.types';
-import type { TGMessage } from '../telegram/telegram-bot-client/types/message.types';
+import type {
+  TGMessage,
+  TGPhotoSize,
+} from '../telegram/telegram-bot-client/types/message.types';
 import type { TGCallbackQuery } from '../telegram/telegram-bot-client/types/update.types';
 import type { TGUser } from '../telegram/telegram-bot-client/types/user.types';
+import { getBiggestTgPhotoFileId } from '@modules/telegram/utils/telegram-photo';
 // import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 enum Command {
@@ -55,6 +63,7 @@ interface HandleCommandParams extends ParsedCommand {
   chat: TGChat;
   messageId: number;
   sender: CommandSender;
+  photo?: TGPhotoSize[];
   replyToMessage?: TGMessage;
 }
 
@@ -63,6 +72,7 @@ interface HandleSuggestCommandParams {
   chat: TGChat;
   messageId: number;
   sender: CommandSender;
+  photo?: TGPhotoSize[];
   replyToMessage?: TGMessage;
 }
 
@@ -190,7 +200,7 @@ export class TelegramUpdatesService {
       return;
     }
 
-    const text = message.text ?? '';
+    const text = message.text ?? message.caption ?? '';
 
     if (text.charAt(0) !== '/') {
       if (this.isGroupChat(chat)) {
@@ -217,6 +227,9 @@ export class TelegramUpdatesService {
     };
     if (message.reply_to_message !== undefined) {
       params.replyToMessage = message.reply_to_message;
+    }
+    if (message.photo !== undefined) {
+      params.photo = message.photo;
     }
     await this.handleCommand(params);
   }
@@ -286,7 +299,8 @@ export class TelegramUpdatesService {
   }
 
   private async handleCommand(params: HandleCommandParams): Promise<void> {
-    const { name, argument, chat, messageId, sender, replyToMessage } = params;
+    const { name, argument, chat, messageId, sender, photo, replyToMessage } =
+      params;
 
     switch (name) {
       case Command.Suggest: {
@@ -298,6 +312,9 @@ export class TelegramUpdatesService {
         };
         if (replyToMessage !== undefined) {
           suggestParams.replyToMessage = replyToMessage;
+        }
+        if (photo !== undefined) {
+          suggestParams.photo = photo;
         }
         await this.handleSuggestCommand(suggestParams);
         break;
@@ -315,7 +332,7 @@ export class TelegramUpdatesService {
   private async handleSuggestCommand(
     params: HandleSuggestCommandParams,
   ): Promise<void> {
-    const { argument, chat, messageId, sender, replyToMessage } = params;
+    const { argument, chat, messageId, sender, photo, replyToMessage } = params;
     if (chat.type === 'private') {
       await this.telegramBotReplyService.sendSuggestCommandUnavailableInPrivateChat(
         chat,
@@ -335,15 +352,19 @@ export class TelegramUpdatesService {
     }
 
     let originalText = argument;
+    let sourcePhoto = photo;
     let sourceMessageId = messageId;
     if (replyToMessage !== undefined) {
-      if (replyToMessage.text === undefined) {
-        return;
-      }
-      originalText = replyToMessage.text.trim();
+      originalText = (
+        replyToMessage.text ??
+        replyToMessage.caption ??
+        ''
+      ).trim();
+      sourcePhoto = replyToMessage.photo;
       sourceMessageId = replyToMessage.message_id;
     }
-    if (originalText === '') {
+    const photoFileId = getBiggestTgPhotoFileId(sourcePhoto);
+    if (originalText === '' && photoFileId === undefined) {
       return;
     }
 
@@ -352,8 +373,28 @@ export class TelegramUpdatesService {
         messenger: Messenger.Telegram,
         chatId: chat.id,
         messageId: sourceMessageId,
-        originalText,
       };
+      if (originalText !== '') {
+        candidateParams.originalText = originalText;
+      }
+      if (photoFileId !== undefined) {
+        const downloadedImage =
+          await this.telegramBotClient.downloadByFileId(photoFileId);
+        const imageFileType = detectSupportedImageFileType(
+          downloadedImage.buffer,
+        );
+        if (imageFileType === undefined) {
+          throw new Error(
+            'Downloaded Telegram photo has an unsupported or invalid image format',
+          );
+        }
+        const image: MessengerGigCandidateImage = {
+          buffer: downloadedImage.buffer,
+          telegramFileId: photoFileId,
+          contentType: imageFileType.contentType,
+        };
+        candidateParams.image = image;
+      }
       if (sender.type === 'user') {
         const user = await this.userService.findActiveUserByMessengerIdentity({
           messenger: Messenger.Telegram,

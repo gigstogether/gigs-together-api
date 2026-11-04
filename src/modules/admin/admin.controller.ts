@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -66,13 +65,6 @@ import type {
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
-  fileFilter: (_req, file, callback) => {
-    if (!file.mimetype?.startsWith('image/')) {
-      callback(new BadRequestException('posterFile must be an image'), false);
-      return;
-    }
-    callback(null, true);
-  },
 });
 
 interface MapV1AdminTranslationPutRequestParams {

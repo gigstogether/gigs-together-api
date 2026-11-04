@@ -77,6 +77,7 @@ export interface ComposeRejectedGigCandidatePostEditParams {
 interface ComposeGigCandidateChannelPostBaseParams {
   gigCandidate: GigCandidate;
   chatId: string;
+  photo: string;
   replyMarkup: TGInlineKeyboardMarkup;
 }
 
