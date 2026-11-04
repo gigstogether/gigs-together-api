@@ -398,7 +398,8 @@ export class TelegramGigCandidateComposerService {
       source.type === GigSourceType.User
         ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
         : '';
-    const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
+    const sourceText = `Source: ${source.type}${sourceOriginTypeLabel}`;
+    const sourceLabel = `${DIVIDER}${sourceText}`;
     const originalMessage =
       isMessengerSource && source.originalText !== undefined
         ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
@@ -411,11 +412,17 @@ export class TelegramGigCandidateComposerService {
       ) ||
       gigDraft.date !== undefined ||
       gigDraft.endDate !== undefined;
-    const shouldShowOnlyOriginalMessage =
-      originalMessage !== undefined && (isIntake || !hasGigDraftCaptionContent);
-    const content = shouldShowOnlyOriginalMessage
-      ? `${originalMessage}${sourceLabel}`
-      : `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+    let content: string;
+    if (isIntake && isMessengerSource) {
+      content =
+        originalMessage === undefined
+          ? sourceText
+          : `${originalMessage}${sourceLabel}`;
+    } else if (originalMessage !== undefined && !hasGigDraftCaptionContent) {
+      content = `${originalMessage}${sourceLabel}`;
+    } else {
+      content = `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+    }
     const actionLinks = this.buildActionLinks(params);
 
     const isNew = status === GigCandidateStatus.New;

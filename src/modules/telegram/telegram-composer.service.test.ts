@@ -713,6 +713,10 @@ describe('TelegramComposerService', () => {
         throw new Error('Expected a photo Intake payload');
       }
       expect(payload.caption).not.toContain('Original message:');
+      expect(payload.caption).not.toContain('\n🗓');
+      expect(payload.caption).not.toContain('\n📍');
+      expect(payload.caption).not.toContain('\n🎫');
+      expect(payload.caption).not.toMatch(/^-$/m);
     });
 
     it('should include Telegram suggestion text in its photo Intake caption', () => {
