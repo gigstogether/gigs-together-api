@@ -136,8 +136,8 @@ describe('TelegramUpdatesService', () => {
     mockUserService.findActiveUserByMessengerIdentity.mockResolvedValue(null);
     mockAuthorizationService.isAdmin.mockResolvedValue(true);
     mockTelegramBotClient.downloadByFileId.mockResolvedValue({
-      buffer: Buffer.from('photo bytes'),
-      contentType: 'image/jpeg',
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+      contentType: 'application/octet-stream',
     });
   });
 
@@ -371,13 +371,13 @@ describe('TelegramUpdatesService', () => {
 
     it('should create a candidate from a photo with the suggest command in its caption', async () => {
       const image = {
-        buffer: Buffer.from('direct photo bytes'),
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
         telegramFileId: 'large-photo-file-id',
         contentType: 'image/jpeg',
       };
       const downloadedImage = {
         buffer: image.buffer,
-        contentType: image.contentType,
+        contentType: 'application/octet-stream',
       };
       const message: TGMessage = {
         message_id: 57,
@@ -433,13 +433,13 @@ describe('TelegramUpdatesService', () => {
 
     it('should create an image-only candidate when the suggest command replies to a photo', async () => {
       const image = {
-        buffer: Buffer.from('reply photo bytes'),
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
         telegramFileId: 'reply-photo-file-id',
         contentType: 'image/jpeg',
       };
       const downloadedImage = {
         buffer: image.buffer,
-        contentType: image.contentType,
+        contentType: 'application/octet-stream',
       };
       const message: TGMessage = {
         message_id: 58,
@@ -521,6 +521,41 @@ describe('TelegramUpdatesService', () => {
       expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
       expect(loggerSpy).toHaveBeenCalledWith(
         expect.stringContaining('Telegram file unavailable'),
+      );
+    });
+
+    it('should not create a candidate when the downloaded photo format is invalid', async () => {
+      const message: TGMessage = {
+        message_id: 59,
+        date: Date.now(),
+        caption: '/gig',
+        photo: [
+          {
+            file_id: 'photo-file-id',
+            file_unique_id: 'photo-unique-id',
+            width: 1_280,
+            height: 960,
+          },
+        ],
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce({
+        buffer: Buffer.from('not an image'),
+        contentType: 'application/octet-stream',
+      });
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('unsupported or invalid image format'),
       );
     });
 

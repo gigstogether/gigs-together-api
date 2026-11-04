@@ -23,6 +23,7 @@ import {
   GigCandidateConflictError,
 } from './gig-candidate-state-machine';
 import { GigCandidateService } from './gig-candidate.service';
+import type { MessengerGigCandidateImage } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval/gig-candidate-approval';
@@ -35,6 +36,8 @@ import { BucketService } from '@modules/bucket/bucket.service';
 import { AlertingService } from '@modules/alerting/alerting.service';
 
 describe('GigCandidateService', () => {
+  const jpegContentType = 'image/jpeg';
+
   let service: GigCandidateService;
   let approvalService: GigCandidateApprovalService;
 
@@ -304,7 +307,7 @@ describe('GigCandidateService', () => {
       expect(result).toEqual(gigCandidate);
       expect(bucketServiceMock.upload).toHaveBeenCalledWith({
         key: expect.stringMatching(
-          /^suggestions\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+          /^suggestions\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.jpg$/,
         ),
         buffer: imageBuffer,
         mimetype: 'image/jpeg',
@@ -333,12 +336,13 @@ describe('GigCandidateService', () => {
       });
     });
 
-    it.each([
+    const invalidImageCases = [
       {
         name: 'empty image buffer',
         image: {
           buffer: Buffer.alloc(0),
           telegramFileId: 'telegram-image-file-id',
+          contentType: jpegContentType,
         },
         expectedMessage: 'image buffer must be non-empty',
       },
@@ -347,32 +351,33 @@ describe('GigCandidateService', () => {
         image: {
           buffer: Buffer.from('image'),
           telegramFileId: '   ',
+          contentType: jpegContentType,
         },
         expectedMessage: 'image telegramFileId must be non-empty',
       },
-      {
-        name: 'blank image content type',
-        image: {
-          buffer: Buffer.from('image'),
-          telegramFileId: 'telegram-image-file-id',
-          contentType: '   ',
-        },
-        expectedMessage: 'image contentType must be non-empty when provided',
+    ] satisfies Array<{
+      name: string;
+      image: MessengerGigCandidateImage;
+      expectedMessage: string;
+    }>;
+
+    it.each(invalidImageCases)(
+      'should reject $name',
+      async ({ image, expectedMessage }) => {
+        await expect(
+          service.createMessengerGigCandidate({
+            messenger: Messenger.Telegram,
+            chatId: -100123,
+            messageId: 42,
+            image,
+          }),
+        ).rejects.toThrowError(expectedMessage);
+        expect(bucketServiceMock.upload).not.toHaveBeenCalled();
+        expect(
+          gigCandidateRepositoryMock.createGigCandidate,
+        ).not.toHaveBeenCalled();
       },
-    ])('should reject $name', async ({ image, expectedMessage }) => {
-      await expect(
-        service.createMessengerGigCandidate({
-          messenger: Messenger.Telegram,
-          chatId: -100123,
-          messageId: 42,
-          image,
-        }),
-      ).rejects.toThrowError(expectedMessage);
-      expect(bucketServiceMock.upload).not.toHaveBeenCalled();
-      expect(
-        gigCandidateRepositoryMock.createGigCandidate,
-      ).not.toHaveBeenCalled();
-    });
+    );
 
     it('should not create a candidate when the image upload fails', async () => {
       bucketServiceMock.upload.mockRejectedValueOnce(

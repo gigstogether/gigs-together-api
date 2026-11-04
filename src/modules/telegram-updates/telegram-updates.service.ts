@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { getRequiredConfigString } from '@shared/utils/env';
+import { detectSupportedImageFileType } from '@shared/utils/image-file';
 import { GigCandidateApprovalValidationError } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from '../gig-candidate/gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidateService } from '../gig-candidate/gig-candidate.service';
@@ -379,13 +380,19 @@ export class TelegramUpdatesService {
       if (photoFileId !== undefined) {
         const downloadedImage =
           await this.telegramBotClient.downloadByFileId(photoFileId);
+        const imageFileType = detectSupportedImageFileType(
+          downloadedImage.buffer,
+        );
+        if (imageFileType === undefined) {
+          throw new Error(
+            'Downloaded Telegram photo has an unsupported or invalid image format',
+          );
+        }
         const image: MessengerGigCandidateImage = {
           buffer: downloadedImage.buffer,
           telegramFileId: photoFileId,
+          contentType: imageFileType.contentType,
         };
-        if (downloadedImage.contentType !== undefined) {
-          image.contentType = downloadedImage.contentType;
-        }
         candidateParams.image = image;
       }
       if (sender.type === 'user') {

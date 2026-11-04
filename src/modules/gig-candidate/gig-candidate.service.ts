@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { BucketService } from '@modules/bucket/bucket.service';
 import type { BucketUploadInput } from '@modules/bucket/bucket.service';
+import { getSupportedImageExtension } from '@shared/utils/image-file';
+import type { SupportedImageContentType } from '@shared/utils/image-file';
 import type { User } from '../auth/types/user.types';
 import { Messenger } from '@shared/types/messenger.enum';
 import { TelegramGigCandidateService } from '../telegram/telegram-gig-candidate/telegram-gig-candidate.service';
@@ -76,7 +78,7 @@ export interface CreateMessengerGigCandidateParams {
 export interface MessengerGigCandidateImage {
   buffer: Buffer;
   telegramFileId: string;
-  contentType?: string;
+  contentType: SupportedImageContentType;
 }
 
 export interface UpdateAdminGigCandidateDraftParams {
@@ -246,14 +248,6 @@ export class GigCandidateService {
     ) {
       throw new BadRequestException('image telegramFileId must be non-empty');
     }
-    if (
-      params.image?.contentType !== undefined &&
-      params.image.contentType.trim() === ''
-    ) {
-      throw new BadRequestException(
-        'image contentType must be non-empty when provided',
-      );
-    }
     if (params.originalText === undefined && params.image === undefined) {
       throw new BadRequestException('originalText or image is required');
     }
@@ -274,13 +268,12 @@ export class GigCandidateService {
       source.originalText = params.originalText;
     }
     if (params.image !== undefined) {
+      const extension = getSupportedImageExtension(params.image.contentType);
       const uploadInput: BucketUploadInput = {
-        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}`,
+        key: `${MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX}/${randomUUID()}.${extension}`,
         buffer: params.image.buffer,
+        mimetype: params.image.contentType,
       };
-      if (params.image.contentType !== undefined) {
-        uploadInput.mimetype = params.image.contentType;
-      }
       const bucketPath = await this.bucketService.upload(uploadInput);
       source.image = {
         bucketPath,
