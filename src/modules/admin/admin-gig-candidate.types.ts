@@ -29,7 +29,8 @@ export type GigCandidateSourceForAdminView =
   GigCandidateSourceUserWithProfile | GigCandidateSourceProvider;
 
 export interface AdminGigCandidateOriginalMessage {
-  text: string;
+  text?: string;
+  imageUrl?: string;
   url: string;
 }
 

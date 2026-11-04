@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
@@ -9,6 +9,7 @@ import type {
   TGEditMessageMedia,
   TGEditMessageReplyMarkup,
   TGEditMessageText,
+  TGFile,
   TGMessage,
   TGSendMediaGroup,
   TGSendMessage,
@@ -18,6 +19,7 @@ import type {
 import type { TGChat } from './types/chat.types';
 import type { TGAnswerCallbackQuery } from './types/update.types';
 import type { TGUser } from './types/user.types';
+import { isRecord } from '@shared/utils/is-record';
 import { formatErrorMessage } from '@shared/utils/logging';
 import { RemoteImageService } from '../../remote-image/remote-image.service';
 import type { DownloadedRemoteImage } from '../../remote-image/remote-image.service';
@@ -25,6 +27,66 @@ import type { DownloadedRemoteImage } from '../../remote-image/remote-image.serv
 export const TELEGRAM_CALLBACK_QUERY_NOTIFICATION_MAX_CHARS = 200;
 export const TELEGRAM_MEDIA_GROUP_MIN_ITEMS = 2;
 export const TELEGRAM_MEDIA_GROUP_MAX_ITEMS = 10;
+export const TELEGRAM_BOT_HTTP = Symbol('TELEGRAM_BOT_HTTP');
+export const TELEGRAM_FILE_HTTP = Symbol('TELEGRAM_FILE_HTTP');
+export const TELEGRAM_FILE_DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024; // 20 MB
+
+interface TelegramGetFileErrorParams {
+  message: string;
+  cause?: unknown;
+  status?: number;
+}
+
+export class TelegramGetFileError extends Error {
+  readonly operation = 'getFile';
+  readonly cause: unknown;
+  readonly status?: number;
+
+  constructor(params: TelegramGetFileErrorParams) {
+    super(params.message);
+    this.name = TelegramGetFileError.name;
+    this.cause = params.cause;
+    Object.defineProperty(this, 'cause', {
+      value: params.cause,
+      enumerable: false,
+      configurable: true,
+    });
+    if (params.status !== undefined) {
+      this.status = params.status;
+    }
+  }
+}
+
+interface TelegramFileDownloadErrorParams {
+  message: string;
+  cause?: unknown;
+  status?: number;
+}
+
+export interface DownloadedTelegramFile {
+  buffer: Buffer;
+  contentType?: string;
+}
+
+export class TelegramFileDownloadError extends Error {
+  readonly operation = 'downloadFile';
+  readonly cause: unknown;
+  readonly status?: number;
+
+  constructor(params: TelegramFileDownloadErrorParams) {
+    super(params.message);
+    this.name = TelegramFileDownloadError.name;
+    this.cause = params.cause;
+    Object.defineProperty(this, 'cause', {
+      value: params.cause,
+      enumerable: false,
+      configurable: true,
+    });
+    if (params.status !== undefined) {
+      this.status = params.status;
+    }
+  }
+}
 
 interface TelegramBotErrorData {
   errorCode: number;
@@ -50,7 +112,10 @@ export class TelegramBotClient {
   private readonly logger = new Logger(TelegramBotClient.name);
 
   constructor(
+    @Inject(TELEGRAM_BOT_HTTP)
     private readonly httpService: HttpService,
+    @Inject(TELEGRAM_FILE_HTTP)
+    private readonly fileHttpService: HttpService,
     private readonly remoteImageService: RemoteImageService,
   ) {}
 
@@ -58,6 +123,86 @@ export class TelegramBotClient {
     const res$ = this.httpService.get('getMe');
     const res = await firstValueFrom(res$);
     return res.data.result;
+  }
+
+  async getFile(fileId: string): Promise<TGFile> {
+    if (fileId.trim() === '') {
+      throw new TelegramGetFileError({
+        message: 'Telegram file id is required',
+      });
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<unknown>('getFile', {
+          params: { file_id: fileId },
+        }),
+      );
+      return this.parseTelegramFileResponse(response.data);
+    } catch (e) {
+      if (e instanceof TelegramGetFileError) {
+        throw e;
+      }
+      throw new TelegramGetFileError({
+        message: 'Telegram getFile request failed',
+        cause: e,
+        status: this.getHttpStatus(e),
+      });
+    }
+  }
+
+  async downloadByFileId(fileId: string): Promise<DownloadedTelegramFile> {
+    const file = await this.getFile(fileId);
+    if (
+      file.file_size !== undefined &&
+      file.file_size > TELEGRAM_FILE_DOWNLOAD_MAX_BYTES
+    ) {
+      throw new TelegramFileDownloadError({
+        message: `Telegram file exceeds the ${TELEGRAM_FILE_DOWNLOAD_MAX_BYTES}-byte download limit`,
+      });
+    }
+
+    const filePath = file.file_path;
+    if (filePath === undefined) {
+      throw new TelegramFileDownloadError({
+        message: 'Telegram getFile response has no file path',
+      });
+    }
+    const downloadPath = this.buildDownloadPath(filePath);
+
+    try {
+      const response = await firstValueFrom(
+        this.fileHttpService.get<unknown>(downloadPath, {
+          responseType: 'arraybuffer',
+          maxContentLength: TELEGRAM_FILE_DOWNLOAD_MAX_BYTES,
+        }),
+      );
+      const buffer = this.parseDownloadedFileBuffer(response.data);
+      if (buffer.length > TELEGRAM_FILE_DOWNLOAD_MAX_BYTES) {
+        throw new TelegramFileDownloadError({
+          message: `Telegram file exceeds the ${TELEGRAM_FILE_DOWNLOAD_MAX_BYTES}-byte download limit`,
+        });
+      }
+
+      const result: DownloadedTelegramFile = { buffer };
+      const contentTypeHeader: unknown = response.headers['content-type'];
+      if (
+        typeof contentTypeHeader === 'string' &&
+        contentTypeHeader.trim() !== ''
+      ) {
+        result.contentType = contentTypeHeader.trim();
+      }
+      return result;
+    } catch (e) {
+      if (e instanceof TelegramFileDownloadError) {
+        throw e;
+      }
+      throw new TelegramFileDownloadError({
+        message: 'Telegram file download failed',
+        cause: e,
+        status: this.getHttpStatus(e),
+      });
+    }
   }
 
   async sendMessage(payload: TGSendMessage): Promise<TGMessage> {
@@ -195,17 +340,17 @@ export class TelegramBotClient {
   private getTelegramBotErrorData(
     e: unknown,
   ): TelegramBotErrorData | undefined {
-    if (!this.isRecord(e)) {
+    if (!isRecord(e)) {
       return;
     }
 
     const response = e.response;
-    if (!this.isRecord(response)) {
+    if (!isRecord(response)) {
       return;
     }
 
     const data = response.data;
-    if (!this.isRecord(data)) {
+    if (!isRecord(data)) {
       return;
     }
 
@@ -232,8 +377,107 @@ export class TelegramBotClient {
     );
   }
 
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
+  private parseTelegramFileResponse(data: unknown): TGFile {
+    if (!isRecord(data) || data.ok !== true || !isRecord(data.result)) {
+      throw new TelegramGetFileError({
+        message: 'Telegram getFile response is invalid',
+      });
+    }
+
+    const result = data.result;
+    const fileId = result.file_id;
+    const fileUniqueId = result.file_unique_id;
+    if (
+      typeof fileId !== 'string' ||
+      fileId.trim() === '' ||
+      typeof fileUniqueId !== 'string' ||
+      fileUniqueId.trim() === ''
+    ) {
+      throw new TelegramGetFileError({
+        message: 'Telegram getFile response has invalid file identifiers',
+      });
+    }
+
+    const file: TGFile = {
+      file_id: fileId,
+      file_unique_id: fileUniqueId,
+    };
+    const fileSize = result.file_size;
+    if (fileSize !== undefined) {
+      if (
+        typeof fileSize !== 'number' ||
+        !Number.isSafeInteger(fileSize) ||
+        fileSize < 0
+      ) {
+        throw new TelegramGetFileError({
+          message: 'Telegram getFile response has an invalid file size',
+        });
+      }
+      file.file_size = fileSize;
+    }
+
+    const filePath = result.file_path;
+    if (filePath !== undefined) {
+      if (typeof filePath !== 'string' || filePath.trim() === '') {
+        throw new TelegramGetFileError({
+          message: 'Telegram getFile response has an invalid file path',
+        });
+      }
+      file.file_path = filePath;
+    }
+    return file;
+  }
+
+  private getHttpStatus(e: unknown): number | undefined {
+    if (!isRecord(e) || !isRecord(e.response)) {
+      return;
+    }
+    const status = e.response.status;
+    return typeof status === 'number' && Number.isInteger(status)
+      ? status
+      : undefined;
+  }
+
+  private buildDownloadPath(filePath: string): string {
+    const segments = filePath.split('/');
+    const isInvalidPath =
+      filePath.startsWith('/') ||
+      filePath.includes('\\') ||
+      filePath.includes('?') ||
+      filePath.includes('#') ||
+      segments.some(
+        (segment) => segment === '' || segment === '.' || segment === '..',
+      );
+    if (isInvalidPath) {
+      throw new TelegramFileDownloadError({
+        message: 'Telegram getFile response has an invalid file path',
+      });
+    }
+
+    return segments.map((segment) => encodeURIComponent(segment)).join('/');
+  }
+
+  private parseDownloadedFileBuffer(data: unknown): Buffer {
+    if (Buffer.isBuffer(data)) {
+      if (data.length === 0) {
+        throw new TelegramFileDownloadError({
+          message: 'Telegram returned an empty file',
+        });
+      }
+      return data;
+    }
+    if (data instanceof ArrayBuffer) {
+      const buffer = Buffer.from(data);
+      if (buffer.length === 0) {
+        throw new TelegramFileDownloadError({
+          message: 'Telegram returned an empty file',
+        });
+      }
+      return buffer;
+    }
+    throw new TelegramFileDownloadError({
+      message: 'Telegram returned an invalid file body',
+    });
   }
 
   private getUrlWithoutQueryOrHash(url: string): string {

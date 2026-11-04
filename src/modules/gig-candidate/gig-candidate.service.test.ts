@@ -23,6 +23,7 @@ import {
   GigCandidateConflictError,
 } from './gig-candidate-state-machine';
 import { GigCandidateService } from './gig-candidate.service';
+import type { MessengerGigCandidateImage } from './gig-candidate.service';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval/gig-candidate-approval';
@@ -31,8 +32,12 @@ import type { GigApprovalResult } from './repositories/gig-candidate-approval/gi
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
+import { BucketService } from '@modules/bucket/bucket.service';
+import { AlertingService } from '@modules/alerting/alerting.service';
 
 describe('GigCandidateService', () => {
+  const jpegContentType = 'image/jpeg';
+
   let service: GigCandidateService;
   let approvalService: GigCandidateApprovalService;
 
@@ -103,6 +108,14 @@ describe('GigCandidateService', () => {
     lookupGig: vi.fn(),
   };
 
+  const bucketServiceMock = {
+    upload: vi.fn(),
+  };
+
+  const alertingServiceMock = {
+    reportFailureBestEffort: vi.fn(),
+  };
+
   const calendarServiceMock = { addEvent: vi.fn() };
   const gigFeedRevalidationServiceMock = {
     revalidateGigFeedOrThrow: vi.fn(),
@@ -141,6 +154,8 @@ describe('GigCandidateService', () => {
           useValue: telegramGigCandidateServiceMock,
         },
         { provide: AiService, useValue: aiServiceMock },
+        { provide: BucketService, useValue: bucketServiceMock },
+        { provide: AlertingService, useValue: alertingServiceMock },
         { provide: CalendarService, useValue: calendarServiceMock },
         {
           provide: GigFeedRevalidationService,
@@ -158,6 +173,7 @@ describe('GigCandidateService', () => {
 
   beforeEach(async () => {
     gigPosterServiceMock.upload.mockResolvedValue(undefined);
+    bucketServiceMock.upload.mockResolvedValue('/suggestions/image-id');
     gigServiceMock.generateUniquePublicId.mockImplementation(
       async (params: {
         isPublicIdTaken?: (publicId: string) => Promise<boolean>;
@@ -230,6 +246,7 @@ describe('GigCandidateService', () => {
       });
 
       expect(result).toEqual(gigCandidate);
+      expect(bucketServiceMock.upload).not.toHaveBeenCalled();
       expect(
         gigCandidateRepositoryMock.createGigCandidate,
       ).toHaveBeenCalledWith({
@@ -249,6 +266,139 @@ describe('GigCandidateService', () => {
           country: 'ES',
         },
       });
+    });
+
+    it('should upload and store an image-only messenger source', async () => {
+      const imageBuffer = Buffer.from('image bytes');
+      const gigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
+          },
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(
+        gigCandidate,
+      );
+
+      const result = await service.createMessengerGigCandidate({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 42,
+        image: {
+          buffer: imageBuffer,
+          telegramFileId: 'telegram-image-file-id',
+          contentType: 'image/jpeg',
+        },
+      });
+
+      expect(result).toEqual(gigCandidate);
+      expect(bucketServiceMock.upload).toHaveBeenCalledWith({
+        key: expect.stringMatching(
+          /^suggestions\/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        ),
+        buffer: imageBuffer,
+        mimetype: 'image/jpeg',
+      });
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: gigCandidate.id,
+        status: GigCandidateStatus.New,
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'telegram-image-file-id',
+          },
+        },
+        gigDraft: {
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      });
+    });
+
+    const invalidImageCases = [
+      {
+        name: 'empty image buffer',
+        image: {
+          buffer: Buffer.alloc(0),
+          telegramFileId: 'telegram-image-file-id',
+          contentType: jpegContentType,
+        },
+        expectedMessage: 'image buffer must be non-empty',
+      },
+      {
+        name: 'blank Telegram file ID',
+        image: {
+          buffer: Buffer.from('image'),
+          telegramFileId: '   ',
+          contentType: jpegContentType,
+        },
+        expectedMessage: 'image telegramFileId must be non-empty',
+      },
+    ] satisfies Array<{
+      name: string;
+      image: MessengerGigCandidateImage;
+      expectedMessage: string;
+    }>;
+
+    it.each(invalidImageCases)(
+      'should reject $name',
+      async ({ image, expectedMessage }) => {
+        await expect(
+          service.createMessengerGigCandidate({
+            messenger: Messenger.Telegram,
+            chatId: -100123,
+            messageId: 42,
+            image,
+          }),
+        ).rejects.toThrowError(expectedMessage);
+        expect(bucketServiceMock.upload).not.toHaveBeenCalled();
+        expect(
+          gigCandidateRepositoryMock.createGigCandidate,
+        ).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should not create a candidate when the image upload fails', async () => {
+      bucketServiceMock.upload.mockRejectedValueOnce(
+        new Error('Bucket unavailable'),
+      );
+
+      await expect(
+        service.createMessengerGigCandidate({
+          messenger: Messenger.Telegram,
+          chatId: -100123,
+          messageId: 42,
+          image: {
+            buffer: Buffer.from('image'),
+            telegramFileId: 'telegram-image-file-id',
+            contentType: 'image/jpeg',
+          },
+        }),
+      ).rejects.toThrowError('Bucket unavailable');
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).not.toHaveBeenCalled();
     });
 
     it('should associate a messenger candidate with an existing User', async () => {
@@ -311,26 +461,41 @@ describe('GigCandidateService', () => {
         chatId: -100123,
         messageId: 42,
         originalText: '   ',
-        expectedMessage: 'originalText is required',
+        expectedMessage: 'originalText must be non-empty when provided',
       },
     ])(
       'should reject $name',
-      ({ chatId, messageId, originalText, expectedMessage }) => {
-        const createGigCandidate = () =>
-          service.createMessengerGigCandidate({
-            messenger: Messenger.Telegram,
-            chatId,
-            messageId,
-            originalText,
-          });
+      async ({ chatId, messageId, originalText, expectedMessage }) => {
+        const createGigCandidate = service.createMessengerGigCandidate({
+          messenger: Messenger.Telegram,
+          chatId,
+          messageId,
+          originalText,
+        });
 
-        expect(createGigCandidate).toThrowError(BadRequestException);
-        expect(createGigCandidate).toThrowError(expectedMessage);
+        await expect(createGigCandidate).rejects.toThrowError(
+          BadRequestException,
+        );
+        await expect(createGigCandidate).rejects.toThrowError(expectedMessage);
         expect(
           gigCandidateRepositoryMock.createGigCandidate,
         ).not.toHaveBeenCalled();
       },
     );
+
+    it('should reject a messenger source without text or image', async () => {
+      await expect(
+        service.createMessengerGigCandidate({
+          messenger: Messenger.Telegram,
+          chatId: -100123,
+          messageId: 42,
+        }),
+      ).rejects.toThrowError('originalText or image is required');
+      expect(bucketServiceMock.upload).not.toHaveBeenCalled();
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('submitMessengerGigCandidate', () => {
@@ -1311,6 +1476,64 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('should use a messenger source image before the default poster', async () => {
+      const intakePost: GigCandidate['posts'][number] = {
+        to: Messenger.Telegram,
+        type: PostType.Intake,
+        date: 1_700_000_000_000,
+        id: 40,
+        chatId: -100,
+        fileId: 'intake-source-image-file-id',
+      };
+      const newGigCandidate = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          origin: {
+            type: GigSourceUserOriginType.Messenger,
+            messenger: Messenger.Telegram,
+            message: { chatId: -100123, messageId: 42 },
+          },
+          image: {
+            bucketPath: '/suggestions/image-id',
+            telegramFileId: 'source-image-file-id',
+          },
+        },
+        gigDraft: { title: 'Band' },
+        version: 1,
+        posts: [intakePost],
+      });
+      const reviewing = buildGigCandidate({
+        ...newGigCandidate,
+        status: GigCandidateStatus.Reviewing,
+        version: 2,
+      });
+      gigCandidateRepositoryMock.findById.mockResolvedValue(newGigCandidate);
+      gigCandidateRepositoryMock.sendGigCandidateToModeration.mockResolvedValue(
+        reviewing,
+      );
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        service.sendGigCandidateToModeration({
+          gigCandidateId: newGigCandidate.id,
+          expectedVersion: 1,
+        }),
+      ).resolves.toEqual(reviewing);
+
+      expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
+      expect(
+        gigCandidateRepositoryMock.sendGigCandidateToModeration,
+      ).toHaveBeenCalledWith({
+        gigCandidateId: newGigCandidate.id,
+        expectedVersion: 1,
+      });
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(reviewing, undefined);
+    });
+
     it('should commit moderation once and not retry failed feedback', async () => {
       const loggerWarnSpy = vi
         .spyOn(Logger.prototype, 'warn')
@@ -1827,6 +2050,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
       });
       const gig = buildGigApprovalResult({ source });
@@ -1867,6 +2091,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
       });
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
@@ -1899,6 +2124,7 @@ describe('GigCandidateService', () => {
           country: 'ES',
           venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
         },
         posts: [
           {

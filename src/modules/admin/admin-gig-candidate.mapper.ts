@@ -28,6 +28,7 @@ import type {
   V1AdminGigCandidateProviderReferenceResponseBody,
   V1AdminGigCandidateIdentifiedUserSourceResponseBody,
   V1AdminGigCandidateMessengerUserSourceResponseBody,
+  V1AdminGigCandidateOriginalMessageResponseBody,
   V1AdminGigCandidateResponseBody,
   V1AdminGigCandidatesListResponseBody,
   V1AdminGigCandidateSourceResponseBody,
@@ -94,10 +95,16 @@ export function mapV1AdminGigCandidateResponse(
     updatedAt: gigCandidate.updatedAt.toISOString(),
   };
   if (gigCandidate.originalMessage !== undefined) {
-    response.originalMessage = {
-      text: gigCandidate.originalMessage.text,
+    const originalMessage: V1AdminGigCandidateOriginalMessageResponseBody = {
       url: gigCandidate.originalMessage.url,
     };
+    if (gigCandidate.originalMessage.text !== undefined) {
+      originalMessage.text = gigCandidate.originalMessage.text;
+    }
+    if (gigCandidate.originalMessage.imageUrl !== undefined) {
+      originalMessage.imageUrl = gigCandidate.originalMessage.imageUrl;
+    }
+    response.originalMessage = originalMessage;
   }
   return response;
 }

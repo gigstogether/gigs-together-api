@@ -34,6 +34,7 @@ describe('TelegramUpdatesService', () => {
     sendMessage: vi.fn(),
     setMessageReaction: vi.fn(),
     answerCallbackQuery: vi.fn(),
+    downloadByFileId: vi.fn(),
   };
 
   const mockTelegramBotReplyService = {
@@ -134,6 +135,10 @@ describe('TelegramUpdatesService', () => {
     });
     mockUserService.findActiveUserByMessengerIdentity.mockResolvedValue(null);
     mockAuthorizationService.isAdmin.mockResolvedValue(true);
+    mockTelegramBotClient.downloadByFileId.mockResolvedValue({
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+      contentType: 'application/octet-stream',
+    });
   });
 
   afterEach(() => {
@@ -362,6 +367,196 @@ describe('TelegramUpdatesService', () => {
         reaction: [{ type: 'emoji', emoji: '👍' }],
       });
       expect(mockUserService.findOrCreateMessengerUser).not.toHaveBeenCalled();
+    });
+
+    it('should create a candidate from a photo with the suggest command in its caption', async () => {
+      const image = {
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+        telegramFileId: 'large-photo-file-id',
+        contentType: 'image/jpeg',
+      };
+      const downloadedImage = {
+        buffer: image.buffer,
+        contentType: 'application/octet-stream',
+      };
+      const message: TGMessage = {
+        message_id: 57,
+        date: Date.now(),
+        caption: '/gig Primavera Sound Barcelona',
+        photo: [
+          {
+            file_id: 'small-photo-file-id',
+            file_unique_id: 'small-photo-unique-id',
+            width: 320,
+            height: 240,
+            file_size: 10_000,
+          },
+          {
+            file_id: 'large-photo-file-id',
+            file_unique_id: 'large-photo-unique-id',
+            width: 1_280,
+            height: 960,
+            file_size: 100_000,
+          },
+        ],
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(
+        downloadedImage,
+      );
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(mockTelegramBotClient.downloadByFileId).toHaveBeenCalledWith(
+        'large-photo-file-id',
+      );
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 57,
+        originalText: 'Primavera Sound Barcelona',
+        image,
+      });
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 57,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should ignore the command argument when the suggest command replies to a photo without text', async () => {
+      const image = {
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xdb]),
+        telegramFileId: 'reply-photo-file-id',
+        contentType: 'image/jpeg',
+      };
+      const downloadedImage = {
+        buffer: image.buffer,
+        contentType: 'application/octet-stream',
+      };
+      const message: TGMessage = {
+        message_id: 58,
+        date: Date.now(),
+        text: '/gig@GigsTogetherBot This argument must be ignored',
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+        reply_to_message: {
+          message_id: 56,
+          date: Date.now(),
+          chat: { id: -100123, type: 'supergroup' },
+          from: { id: 8, is_bot: false, first_name: 'Another user' },
+          photo: [
+            {
+              file_id: 'reply-photo-file-id',
+              file_unique_id: 'reply-photo-unique-id',
+              width: 1_280,
+              height: 960,
+            },
+          ],
+        },
+      };
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce(
+        downloadedImage,
+      );
+      mockGigCandidateService.submitMessengerGigCandidate.mockResolvedValue(
+        undefined,
+      );
+      mockTelegramBotClient.setMessageReaction.mockResolvedValue(undefined);
+
+      await service.handleMessage(message);
+
+      expect(mockTelegramBotClient.downloadByFileId).toHaveBeenCalledWith(
+        'reply-photo-file-id',
+      );
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).toHaveBeenCalledWith({
+        messenger: Messenger.Telegram,
+        chatId: -100123,
+        messageId: 56,
+        image,
+      });
+      expect(mockTelegramBotClient.setMessageReaction).toHaveBeenCalledWith({
+        chat_id: -100123,
+        message_id: 58,
+        reaction: [{ type: 'emoji', emoji: '👍' }],
+      });
+    });
+
+    it('should not create a candidate when downloading its source photo fails', async () => {
+      const message: TGMessage = {
+        message_id: 59,
+        date: Date.now(),
+        caption: '/gig',
+        photo: [
+          {
+            file_id: 'photo-file-id',
+            file_unique_id: 'photo-unique-id',
+            width: 1_280,
+            height: 960,
+          },
+        ],
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockTelegramBotClient.downloadByFileId.mockRejectedValueOnce(
+        new Error('Telegram file unavailable'),
+      );
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Telegram file unavailable'),
+      );
+    });
+
+    it('should not create a candidate when the downloaded photo format is invalid', async () => {
+      const message: TGMessage = {
+        message_id: 59,
+        date: Date.now(),
+        caption: '/gig',
+        photo: [
+          {
+            file_id: 'photo-file-id',
+            file_unique_id: 'photo-unique-id',
+            width: 1_280,
+            height: 960,
+          },
+        ],
+        chat: { id: -100123, type: 'supergroup' },
+        from: { id: 7, is_bot: false, first_name: 'Arina' },
+      };
+      mockTelegramBotClient.downloadByFileId.mockResolvedValueOnce({
+        buffer: Buffer.from('not an image'),
+        contentType: 'application/octet-stream',
+      });
+      const loggerSpy = vi
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(service.handleMessage(message)).resolves.toBeUndefined();
+
+      expect(
+        mockGigCandidateService.submitMessengerGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(mockTelegramBotClient.setMessageReaction).not.toHaveBeenCalled();
+      expect(loggerSpy).toHaveBeenCalledWith(
+        expect.stringContaining('unsupported or invalid image format'),
+      );
     });
 
     it('should create a candidate for a suggestion sent on behalf of the configured channel', async () => {

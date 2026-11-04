@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BucketModule } from '@modules/bucket/bucket.module';
 import { AuthModule } from '../auth/auth.module';
 import { DigestModule } from '../digest/digest.module';
 import { GigModule } from '../gig/gig.module';
@@ -34,6 +35,7 @@ import { UserModule } from '../user/user.module';
     TelegramModule,
     GigCandidateModule,
     UserModule,
+    BucketModule,
   ],
   controllers: [AdminController, AdminGigCandidateController],
   providers: [

@@ -12,7 +12,7 @@ import type {
   FindGigCandidatesParams,
   GigCandidateRepository,
   RejectGigCandidateRecordParams,
-  SendGigCandidateToModerationWithPosterParams,
+  SendGigCandidateToModerationRecordParams,
   UpdateGigCandidateDraftParams,
   UpdateGigCandidateModerationPostFileIdParams,
 } from './gig-candidate.repository';
@@ -114,10 +114,17 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
   }
 
   async sendGigCandidateToModeration(
-    params: SendGigCandidateToModerationWithPosterParams,
+    params: SendGigCandidateToModerationRecordParams,
   ): Promise<GigCandidateDomain | null> {
     if (!this.isValidConditionalUpdate(params)) {
       return null;
+    }
+
+    const set: Record<string, unknown> = {
+      status: GigCandidateStatus.Reviewing,
+    };
+    if (params.poster !== undefined) {
+      set['gigDraft.poster'] = params.poster;
     }
 
     const updated = await this.gigCandidateModel
@@ -128,10 +135,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
           version: params.expectedVersion,
         },
         {
-          $set: {
-            status: GigCandidateStatus.Reviewing,
-            'gigDraft.poster': params.poster,
-          },
+          $set: set,
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },

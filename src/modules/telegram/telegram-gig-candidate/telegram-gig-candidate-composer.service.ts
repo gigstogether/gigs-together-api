@@ -67,10 +67,8 @@ export class TelegramGigCandidateComposerService {
     );
 
     const replyMarkup = this.buildIntakeReplyMarkup(gigCandidate);
-    const poster = this.telegramService.resolvePosterUrl(
-      gigCandidate.gigDraft.poster,
-    );
-    if (poster === undefined || poster === '') {
+    const photo = this.resolveIntakePhoto(gigCandidate);
+    if (photo === undefined) {
       return {
         chat_id: chatId,
         text: this.buildCaption({
@@ -86,6 +84,7 @@ export class TelegramGigCandidateComposerService {
     return this.composeChannelPost({
       gigCandidate,
       chatId,
+      photo,
       postType: PostType.Intake,
       replyMarkup,
     });
@@ -98,9 +97,17 @@ export class TelegramGigCandidateComposerService {
       PostType.Moderation,
     );
 
+    const photo = this.resolveModerationPhoto(gigCandidate);
+    if (photo === undefined) {
+      throw new BadRequestException(
+        'Cannot compose GigCandidate moderation post: gigCandidate has no poster or source image.',
+      );
+    }
+
     return this.composeChannelPost({
       gigCandidate,
       chatId,
+      photo,
       postType: PostType.Moderation,
       replyMarkup: this.buildModerationReplyMarkup({
         gigCandidate,
@@ -296,22 +303,59 @@ export class TelegramGigCandidateComposerService {
   private composeChannelPost(
     params: ComposeGigCandidateChannelPostParams,
   ): TGSendPhoto {
-    const poster = this.telegramService.resolvePosterUrl(
-      params.gigCandidate.gigDraft.poster,
-    );
-    if (poster === undefined || poster === '') {
-      throw new BadRequestException(
-        `Cannot compose GigCandidate ${params.postType.toLowerCase()} post: gigCandidate has no poster URL.`,
-      );
-    }
-
     return {
       chat_id: params.chatId,
-      photo: poster,
+      photo: params.photo,
       caption: this.buildCaption(params),
       parse_mode: TGParseMode.HTML,
       reply_markup: params.replyMarkup,
     };
+  }
+
+  private resolveIntakePhoto(gigCandidate: GigCandidate): string | undefined {
+    if (isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+      return this.resolveMessengerSourceImage(gigCandidate);
+    }
+    return this.telegramService.resolvePosterUrl(gigCandidate.gigDraft.poster);
+  }
+
+  private resolveModerationPhoto(
+    gigCandidate: GigCandidate,
+  ): string | undefined {
+    const poster = this.telegramService.resolvePosterUrl(
+      gigCandidate.gigDraft.poster,
+    );
+    if (poster !== undefined && poster !== '') {
+      return poster;
+    }
+    if (isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+      return this.resolveMessengerSourceImage(gigCandidate);
+    }
+  }
+
+  private resolveMessengerSourceImage(
+    gigCandidate: GigCandidate,
+  ): string | undefined {
+    if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
+      return;
+    }
+    const image = gigCandidate.source.image;
+    if (image === undefined) {
+      return;
+    }
+    if (image.telegramFileId !== undefined) {
+      return image.telegramFileId;
+    }
+
+    const imageUrl = this.telegramService.resolvePosterUrl({
+      bucketPath: image.bucketPath,
+    });
+    if (imageUrl === undefined || imageUrl === '') {
+      throw new BadRequestException(
+        'Cannot compose Telegram GigCandidate post: source image has no reusable file ID or public URL.',
+      );
+    }
+    return imageUrl;
   }
 
   private composeExistingPostEdit(
@@ -354,10 +398,12 @@ export class TelegramGigCandidateComposerService {
       source.type === GigSourceType.User
         ? ` (${isMessengerSource ? source.origin.messenger : source.origin.type})`
         : '';
-    const sourceLabel = `${DIVIDER}Source: ${source.type}${sourceOriginTypeLabel}`;
-    const originalMessage = isMessengerSource
-      ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
-      : undefined;
+    const sourceText = `Source: ${source.type}${sourceOriginTypeLabel}`;
+    const sourceLabel = `${DIVIDER}${sourceText}`;
+    const originalMessage =
+      isMessengerSource && source.originalText !== undefined
+        ? `Original message:\n${this.escapeTelegramHtmlText(source.originalText)}`
+        : undefined;
     const originalMessageSection =
       originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
     const hasGigDraftCaptionContent =
@@ -366,11 +412,17 @@ export class TelegramGigCandidateComposerService {
       ) ||
       gigDraft.date !== undefined ||
       gigDraft.endDate !== undefined;
-    const shouldShowOnlyOriginalMessage =
-      originalMessage !== undefined && (isIntake || !hasGigDraftCaptionContent);
-    const content = shouldShowOnlyOriginalMessage
-      ? `${originalMessage}${sourceLabel}`
-      : `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+    const shouldOmitGigDraft =
+      isMessengerSource && (isIntake || !hasGigDraftCaptionContent);
+    let content: string;
+    if (shouldOmitGigDraft) {
+      content =
+        originalMessage === undefined
+          ? sourceText
+          : `${originalMessage}${sourceLabel}`;
+    } else {
+      content = `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+    }
     const actionLinks = this.buildActionLinks(params);
 
     const isNew = status === GigCandidateStatus.New;

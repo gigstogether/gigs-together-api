@@ -3,6 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { BucketService } from '../../bucket/bucket.service';
 import { getConfigString } from '@shared/utils/env';
 import {
+  detectSupportedImageFileType,
+  getSupportedImageExtension,
+} from '@shared/utils/image-file';
+import {
   InvalidRemoteImageUrlError,
   RemoteImageContentTypeError,
   RemoteImageService,
@@ -29,10 +33,11 @@ export interface GigPosterUploadResult {
   posterFile: PreparedGigPosterFile;
 }
 
-const SVG_IMAGE_MIME_TYPE = 'image/svg+xml';
 const SVG_CONTENT_SNIFF_BYTES = 16 * 1024;
 const SVG_POSTER_ERROR_MESSAGE =
   'SVG poster files are not supported; use a raster image instead';
+const UNSUPPORTED_POSTER_ERROR_MESSAGE =
+  'Poster file must be a JPEG, PNG, WebP, AVIF, or HEIC/HEIF image';
 
 @Injectable()
 export class GigPosterService {
@@ -49,17 +54,10 @@ export class GigPosterService {
   }
 
   private async download(url: string): Promise<PreparedGigPosterFile> {
+    let buffer: Buffer;
     try {
       const remoteImage = await this.remoteImageService.download(url);
-
-      const downloadedFile: PreparedGigPosterFile = {
-        buffer: remoteImage.buffer,
-        filename: this.buildPosterFilename(remoteImage.contentType),
-      };
-      if (remoteImage.contentType !== undefined) {
-        downloadedFile.mimetype = remoteImage.contentType;
-      }
-      return downloadedFile;
+      buffer = remoteImage.buffer;
     } catch (e) {
       if (e instanceof InvalidRemoteImageUrlError) {
         throw new BadRequestException('posterUrl must be a valid URL');
@@ -73,41 +71,8 @@ export class GigPosterService {
       const msg = e instanceof Error ? e.message : 'unknown error';
       throw new BadRequestException(`Failed to download poster: ${msg}`);
     }
-  }
 
-  private getImageExtension(mimetype: string | undefined): string | undefined {
-    const normalizedMimeType = mimetype?.split(';', 1)[0].trim().toLowerCase();
-    switch (normalizedMimeType) {
-      case 'image/jpeg':
-      case 'image/jpg':
-        return 'jpg';
-      case 'image/png':
-        return 'png';
-      case 'image/webp':
-        return 'webp';
-      case 'image/gif':
-        return 'gif';
-      case 'image/bmp':
-        return 'bmp';
-      case 'image/tiff':
-        return 'tiff';
-      case 'image/avif':
-        return 'avif';
-      case 'image/heic':
-        return 'heic';
-      case 'image/heif':
-        return 'heif';
-      default:
-        return undefined;
-    }
-  }
-
-  private buildPosterFilename(mimetype: string | undefined): string {
-    const extension = this.getImageExtension(mimetype);
-    if (extension === undefined) {
-      return 'poster';
-    }
-    return `poster.${extension}`;
+    return this.preparePosterFile({ buffer });
   }
 
   private parseBucketPrefix(value: string | undefined): string {
@@ -136,11 +101,9 @@ export class GigPosterService {
   }
 
   private async uploadToBucket(
-    input: GigPosterFile,
+    input: PreparedGigPosterFile,
     context: UploadPosterPayload['context'],
   ): Promise<string> {
-    this.assertGigPosterFileIsNotSvg(input);
-
     const { buffer, mimetype } = input;
     const year = this.getUtcYear(context.date);
     // TODO
@@ -165,10 +128,6 @@ export class GigPosterService {
   }
 
   private assertGigPosterFileIsNotSvg(file: GigPosterFile): void {
-    const normalizedMimeType = file.mimetype
-      ?.split(';', 1)[0]
-      .trim()
-      .toLowerCase();
     const fileStart = file.buffer
       .subarray(0, SVG_CONTENT_SNIFF_BYTES)
       .toString('utf8')
@@ -177,9 +136,24 @@ export class GigPosterService {
     const hasSvgMarkup =
       fileStart.startsWith('<') && /<svg(?:\s|>)/i.test(fileStart);
 
-    if (normalizedMimeType === SVG_IMAGE_MIME_TYPE || hasSvgMarkup) {
+    if (hasSvgMarkup) {
       throw new BadRequestException(SVG_POSTER_ERROR_MESSAGE);
     }
+  }
+
+  private preparePosterFile(file: GigPosterFile): PreparedGigPosterFile {
+    this.assertGigPosterFileIsNotSvg(file);
+
+    const fileType = detectSupportedImageFileType(file.buffer);
+    if (fileType === undefined) {
+      throw new BadRequestException(UNSUPPORTED_POSTER_ERROR_MESSAGE);
+    }
+
+    return {
+      buffer: file.buffer,
+      filename: `poster.${getSupportedImageExtension(fileType.contentType)}`,
+      mimetype: fileType.contentType,
+    };
   }
 
   async upload(
@@ -188,13 +162,7 @@ export class GigPosterService {
     const { url, file, context } = payload;
 
     if (file) {
-      const preparedFile: PreparedGigPosterFile = {
-        buffer: file.buffer,
-        filename: this.buildPosterFilename(file.mimetype),
-      };
-      if (file.mimetype !== undefined) {
-        preparedFile.mimetype = file.mimetype;
-      }
+      const preparedFile = this.preparePosterFile(file);
       const bucketPath = await this.uploadToBucket(preparedFile, context);
 
       return {

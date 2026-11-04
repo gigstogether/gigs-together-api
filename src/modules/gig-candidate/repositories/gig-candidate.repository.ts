@@ -25,10 +25,10 @@ export interface UpdateGigCandidateDraftParams {
   gigDraft: Partial<GigData>;
 }
 
-export interface SendGigCandidateToModerationWithPosterParams {
+export interface SendGigCandidateToModerationRecordParams {
   gigCandidateId: string;
   expectedVersion: number;
-  poster: NonNullable<GigData['poster']>;
+  poster?: NonNullable<GigData['poster']>;
 }
 
 export interface RejectGigCandidateRecordParams {
@@ -69,7 +69,7 @@ export interface GigCandidateRepository {
   ): Promise<GigCandidate | null>;
 
   sendGigCandidateToModeration(
-    params: SendGigCandidateToModerationWithPosterParams,
+    params: SendGigCandidateToModerationRecordParams,
   ): Promise<GigCandidate | null>;
 
   rejectGigCandidate(

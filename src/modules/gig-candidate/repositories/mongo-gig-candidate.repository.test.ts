@@ -207,6 +207,52 @@ describe('MongoGigCandidateRepository', () => {
         { returnDocument: 'after', runValidators: true },
       );
     });
+
+    it('should transition without storing a poster when none is provided', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      findOneAndUpdateMock.mockReturnValue(
+        updateQueryResult({
+          _id: gigCandidateId,
+          source: {
+            type: GigSourceType.User,
+            origin: {
+              type: GigSourceUserOriginType.Messenger,
+              messenger: Messenger.Telegram,
+              message: { chatId: -100123, messageId: 42 },
+            },
+            image: {
+              bucketPath: '/suggestions/image-id',
+              telegramFileId: 'source-image-file-id',
+            },
+          },
+          gigDraft: {},
+          version: 1,
+          status: GigCandidateStatus.Reviewing,
+          posts: [],
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      );
+
+      const result = await repository.sendGigCandidateToModeration({
+        gigCandidateId,
+        expectedVersion: 0,
+      });
+
+      expect(result?.status).toBe(GigCandidateStatus.Reviewing);
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        {
+          _id: expect.any(Types.ObjectId),
+          status: GigCandidateStatus.New,
+          version: 0,
+        },
+        {
+          $set: { status: GigCandidateStatus.Reviewing },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      );
+    });
   });
 
   describe('rejectGigCandidate', () => {

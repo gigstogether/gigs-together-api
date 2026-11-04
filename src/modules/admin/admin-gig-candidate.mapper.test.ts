@@ -121,6 +121,7 @@ describe('mapV1AdminGigCandidateResponse', () => {
       },
       originalMessage: {
         text: 'Radiohead in Barcelona',
+        imageUrl: 'https://cdn.example/suggestions/image-id',
         url: 'https://t.me/c/123/42',
       },
     });
@@ -135,6 +136,22 @@ describe('mapV1AdminGigCandidateResponse', () => {
     });
     expect(response.originalMessage).toEqual({
       text: 'Radiohead in Barcelona',
+      imageUrl: 'https://cdn.example/suggestions/image-id',
+      url: 'https://t.me/c/123/42',
+    });
+  });
+
+  it('should serialize an image-only original message', () => {
+    const response = mapV1AdminGigCandidateResponse({
+      ...buildGigCandidateDetails(),
+      originalMessage: {
+        imageUrl: 'https://cdn.example/suggestions/image-id',
+        url: 'https://t.me/c/123/42',
+      },
+    });
+
+    expect(response.originalMessage).toEqual({
+      imageUrl: 'https://cdn.example/suggestions/image-id',
       url: 'https://t.me/c/123/42',
     });
   });
