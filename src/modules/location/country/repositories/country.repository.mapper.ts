@@ -1,10 +1,10 @@
-import type { Country } from '../types/location.types';
+import type { Country } from '../types/country.types';
 
 export interface CountryLeanDocument {
   iso: unknown;
 }
 
-export class LocationRepositoryMapper {
+export class CountryRepositoryMapper {
   static toCountry(doc: CountryLeanDocument): Country {
     if (typeof doc.iso !== 'string' || !/^[A-Z]{2}$/.test(doc.iso)) {
       throw new Error(
@@ -16,6 +16,6 @@ export class LocationRepositoryMapper {
   }
 
   static toCountries(docs: readonly CountryLeanDocument[]): readonly Country[] {
-    return docs.map((doc) => LocationRepositoryMapper.toCountry(doc));
+    return docs.map((doc) => CountryRepositoryMapper.toCountry(doc));
   }
 }

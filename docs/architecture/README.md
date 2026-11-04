@@ -377,7 +377,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - gigs in `src/modules/gig/gig.schema.ts`
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
-- countries in `src/modules/location/country.schema.ts`
+- countries in `src/modules/location/country/country.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
 

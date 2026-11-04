@@ -15,17 +15,3 @@ export class Country {
 
 export type CountryDocument = HydratedDocument<Country>;
 export const CountrySchema = SchemaFactory.createForClass(Country);
-
-@Schema()
-export class City {
-  @Prop({ required: true })
-  code: string;
-
-  @Prop({ required: true })
-  country: string; // ISO 3166-1 alpha-2: e.g. "ES"
-}
-
-export type CityDocument = HydratedDocument<City>;
-export const CitySchema = SchemaFactory.createForClass(City);
-
-CitySchema.index({ country: 1, code: 1 }, { unique: true });

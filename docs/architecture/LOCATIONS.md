@@ -17,11 +17,17 @@ Current persistence:
 Current main files:
 
 - `src/modules/location/location.module.ts`
-- `src/modules/location/countries.controller.ts`
-- `src/modules/location/country.service.ts`
-- `src/modules/location/country.schema.ts`
-- `src/modules/location/repositories/country.repository.ts`
-- `src/modules/location/repositories/mongo-country.repository.ts`
+- `src/modules/location/country/countries.controller.ts`
+- `src/modules/location/country/country.service.ts`
+- `src/modules/location/country/country.schema.ts`
+- `src/modules/location/country/repositories/country.repository.ts`
+- `src/modules/location/country/repositories/mongo-country.repository.ts`
+
+`Country` remains an independently stored reference collection even when another
+feature is its primary consumer. Country reads must continue to pass through the
+Country-owned repository boundary; a Community repository must not query the
+Country model. A Community application service may depend on both repository
+interfaces when a use case needs Community and Country data.
 
 The Community and Place model described below will be introduced incrementally.
 The current Gig feed continues to use its existing `country` and `city` fields
@@ -134,14 +140,26 @@ between cities, and events intended for several Community audiences. A future
 coverage model must use an explicit discriminator so radius and polygon variants
 are narrowed by their declared kind rather than by incidental payload fields.
 
+## Future Venue Catalog
+
+A reusable Venue catalog is planned as a separate entity with its own identity,
+lifecycle, persistence schema, and `VenueRepository`. It must not be stored through
+`CommunityRepository` merely because Venue has geographic data.
+
+`Place` remains the event's physical-location value object and is persisted by the
+Gig or GigCandidate repository that owns the event data. When Venue references are
+introduced, Place may reference a Venue by ID while retaining the event-specific
+location data required for historical and integration behavior.
+
 ## Related Module Responsibilities
 
 `LocationModule` owns:
 
-- country and Community persistence
+- Country and Community persistence through separate repository boundaries
 - Community lookup by ID and route
 - active Community catalog reads
 - future coordinate-to-Community suggestions
+- the future Venue catalog through its own repository boundary
 
 Downstream feature modules own their application behavior:
 

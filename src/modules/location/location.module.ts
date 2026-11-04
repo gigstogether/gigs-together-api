@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CountriesController } from './countries.controller';
-import { LocationService } from './location.service';
-import { Country, CountrySchema } from './location.schema';
-import { LOCATION_REPOSITORY } from './repositories/location.repository';
-import { MongoLocationRepository } from './repositories/mongo-location.repository';
+import { Country, CountrySchema } from './country/country.schema';
+import { CountryService } from './country/country.service';
+import { CountriesController } from './country/countries.controller';
+import { COUNTRY_REPOSITORY } from './country/repositories/country.repository';
+import { MongoCountryRepository } from './country/repositories/mongo-country.repository';
 
 @Module({
   imports: [
@@ -12,10 +12,10 @@ import { MongoLocationRepository } from './repositories/mongo-location.repositor
   ],
   controllers: [CountriesController],
   providers: [
-    LocationService,
+    CountryService,
     {
-      provide: LOCATION_REPOSITORY,
-      useClass: MongoLocationRepository,
+      provide: COUNTRY_REPOSITORY,
+      useClass: MongoCountryRepository,
     },
   ],
 })
