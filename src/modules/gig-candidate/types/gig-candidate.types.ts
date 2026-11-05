@@ -1,4 +1,4 @@
-import type { GigData } from '../../gig/types/gig.types';
+import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
 import type { PostType } from '@shared/types/post-type.enum';
 import type { Messenger } from '@shared/types/messenger.enum';
 import type { GigCandidateStatus } from './gig-candidate-status.enum';
@@ -82,7 +82,7 @@ export interface GigCandidate {
   status: GigCandidateStatus;
   version: number;
   source: GigCandidateSource;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posts: GigCandidatePost[];
   gigId?: string;
   approvedAt?: Date;

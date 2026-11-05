@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,7 +17,8 @@ import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gi
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
-import type { GigData } from '../gig/types/gig.types';
+import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
+import { CommunityService } from '@modules/location/community/community.service';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
@@ -60,7 +62,7 @@ export interface FindGigCandidatesParams {
 
 export interface CreateAdminGigCandidateParams {
   userId: string;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
@@ -83,7 +85,7 @@ export interface MessengerGigCandidateImage {
 export interface UpdateAdminGigCandidateDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
@@ -118,11 +120,12 @@ export interface RejectGigCandidateParams {
 export interface UpdateGigCandidateDraftApplicationParams {
   gigCandidateId: string;
   expectedVersion: number;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterFile?: PreparedGigPosterFile;
 }
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+const COMMUNITY_ID_RE = /^[a-f\d]{24}$/i;
 const MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX = 'suggestions';
 
 interface HandleGigCandidateSubmitParams {
@@ -137,6 +140,7 @@ interface CreatedGigCandidate {
 }
 
 interface ParsedCreateGigCandidateFields {
+  communityIds: string[];
   title: string;
   date: string;
   endDate?: string;
@@ -163,6 +167,7 @@ export class GigCandidateService {
     private readonly aiService: AiService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
     private readonly bucketService: BucketService,
+    private readonly communityService: CommunityService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
@@ -282,13 +287,25 @@ export class GigCandidateService {
       source.userId = params.userId;
     }
 
+    // TODO: This is temporary while suggestions come from a single city chat.
+    //  Derive both the location and Community assignments from the source chat
+    //  when multi-city chats are supported.
+    const community = await this.communityService.findByRoute({
+      countryIso: 'ES',
+      communitySlug: 'barcelona',
+    });
+    if (community === null || !community.isActive) {
+      throw new InternalServerErrorException(
+        'The Barcelona Community is unavailable for Telegram intake',
+      );
+    }
+
     return this.gigCandidateRepository.createGigCandidate({
       gigCandidateId,
       status: GigCandidateStatus.New,
       source,
-      // TODO: This is temporary while suggestions come from a single city chat.
-      //  Derive this location from the source chat when multi-city chats are supported.
       gigDraft: {
+        communityIds: [community.id],
         city: 'Barcelona',
         country: 'ES',
       },
@@ -320,10 +337,13 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
+    const communityIds = await this.requireActiveCommunityIds(
+      params.gigDraft.communityIds,
+    );
     const preparedPoster =
       await this.gigCandidatePosterService.prepareDraftPoster({
         gigCandidateId,
-        gigDraft: params.gigDraft,
+        gigDraft: { ...params.gigDraft, communityIds },
         posterUrl: params.posterUrl,
         posterFile: params.posterFile,
         shouldUseDefaultPoster: true,
@@ -375,10 +395,13 @@ export class GigCandidateService {
       command,
     );
 
+    const communityIds = await this.requireActiveCommunityIds(
+      params.gigDraft.communityIds,
+    );
     const preparedPoster =
       await this.gigCandidatePosterService.prepareDraftPoster({
         gigCandidateId: currentGigCandidate.id,
-        gigDraft: params.gigDraft,
+        gigDraft: { ...params.gigDraft, communityIds },
         posterUrl: params.posterUrl,
         posterFile: params.posterFile,
         existingPoster: currentGigCandidate.gigDraft.poster,
@@ -609,7 +632,9 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const gigDraft: Partial<GigCandidate['gigDraft']> = {
+    const communityIds = await this.requireActiveCommunityIds(gig.communityIds);
+    const gigDraft: GigCandidateDraft = {
+      communityIds,
       title: gig.title,
       date: dateMs,
       city: gig.city,
@@ -650,6 +675,43 @@ export class GigCandidateService {
       result.posterFile = preparedPoster.posterFile;
     }
     return result;
+  }
+
+  private async requireActiveCommunityIds(
+    communityIds: readonly string[],
+  ): Promise<string[]> {
+    if (communityIds.length === 0) {
+      throw new BadRequestException(
+        'communityIds must contain at least one Community id',
+      );
+    }
+    const normalizedCommunityIds = communityIds.map((communityId) => {
+      if (!COMMUNITY_ID_RE.test(communityId)) {
+        throw new BadRequestException(
+          'communityIds must contain valid Community ids',
+        );
+      }
+      return communityId.toLowerCase();
+    });
+    if (
+      new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length
+    ) {
+      throw new BadRequestException('communityIds must not contain duplicates');
+    }
+
+    const communities = await Promise.all(
+      normalizedCommunityIds.map((communityId) =>
+        this.communityService.findById(communityId),
+      ),
+    );
+    if (
+      communities.some((community) => community === null || !community.isActive)
+    ) {
+      throw new BadRequestException(
+        'communityIds must reference active Communities',
+      );
+    }
+    return normalizedCommunityIds;
   }
 
   private parseAndValidateCreateBody(
@@ -698,6 +760,7 @@ export class GigCandidateService {
     }
 
     return {
+      communityIds: [...raw.communityIds],
       title,
       date,
       ...(endDate !== undefined ? { endDate } : {}),

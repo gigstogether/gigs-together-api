@@ -79,6 +79,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     const approved = buildGigCandidateDocument({
       ...reviewing,
       gigDraft: {
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -100,6 +101,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       {
         toObject: vi.fn().mockReturnValue({
           _id: new Types.ObjectId(gigId),
+          communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -132,6 +134,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         gigId,
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -143,6 +146,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       });
       const gig = await transaction.createGig({
         gigId,
+        communityIds: ['507f1f77bcf86cd799439011'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -221,6 +225,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     gigFindById.mockReturnValue(
       queryResult({
         _id: new Types.ObjectId(gigId),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -262,6 +267,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     gigFindById.mockReturnValue(
       queryResult({
         _id: new Types.ObjectId(gigId),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -306,6 +312,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           version: 1,
           posts: [],
           gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -330,6 +337,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           gigId: '507f1f77bcf86cd799439011',
           approvedAt: new Date('2026-09-01T12:00:00.000Z'),
           gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -341,6 +349,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         });
         return transaction.createGig({
           gigId: '507f1f77bcf86cd799439011',
+          communityIds: ['507f1f77bcf86cd799439011'],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -387,6 +396,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         gigId: '507f1f77bcf86cd799439011',
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -413,6 +423,7 @@ function buildGigCandidateDocument(
       origin: { type: GigSourceUserOriginType.Admin },
     },
     gigDraft: {
+      communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
       title: 'Radiohead',
       date: Date.UTC(2026, 5, 12),
       city: 'Barcelona',

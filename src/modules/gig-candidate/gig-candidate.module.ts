@@ -19,6 +19,7 @@ import { GigCandidateService } from './gig-candidate.service';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
+import { LocationModule } from '@modules/location/location.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-
     AuthModule,
     AiModule,
     BucketModule,
+    LocationModule,
   ],
   controllers: [GigCandidateController],
   providers: [

@@ -71,7 +71,7 @@ describe('GigCandidateApprovalService', () => {
       userId: 'user-id',
       origin: { type: GigSourceUserOriginType.Form },
     },
-    gigDraft: {},
+    gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     posts: [],
     gigId: 'gig-id',
     approvedAt: new Date('2026-10-30T12:00:00.000Z'),
@@ -81,6 +81,7 @@ describe('GigCandidateApprovalService', () => {
   };
   const approvedGig: GigApprovalResult = {
     id: 'gig-id',
+    communityIds: ['507f1f77bcf86cd799439011'],
     publicId: 'radiohead-madrid-2026-10-30',
     title: 'Radiohead',
     date: Date.parse('2026-10-30T20:00:00.000Z'),

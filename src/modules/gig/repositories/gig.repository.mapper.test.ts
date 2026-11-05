@@ -12,6 +12,7 @@ function buildDocument(
 ): GigLeanDocument {
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -42,6 +43,23 @@ function buildDocument(
 }
 
 describe('GigRepositoryMapper', () => {
+  describe('Community identifiers', () => {
+    it('should map Community identifiers to ObjectIds', () => {
+      expect(
+        GigRepositoryMapper.toStoredCommunityIds(['507F1F77BCF86CD799439022']),
+      ).toEqual([new Types.ObjectId('507f1f77bcf86cd799439022')]);
+    });
+
+    it('should reject duplicate Community identifiers', () => {
+      expect(() =>
+        GigRepositoryMapper.toStoredCommunityIds([
+          '507f1f77bcf86cd799439022',
+          '507F1F77BCF86CD799439022',
+        ]),
+      ).toThrow(/must not contain duplicates/);
+    });
+  });
+
   describe('toStoredSource', () => {
     it('should convert an identified user id to ObjectId', () => {
       const source = GigRepositoryMapper.toStoredSource({
@@ -235,6 +253,16 @@ describe('GigRepositoryMapper', () => {
           buildDocument({ source: { type: 'user', userId: 'missing-origin' } }),
         ),
       ).toThrow('Gig user source origin is missing or invalid.');
+    });
+
+    it('should reject duplicate stored Community identifiers', () => {
+      const communityId = new Types.ObjectId('507f1f77bcf86cd799439022');
+
+      expect(() =>
+        GigRepositoryMapper.toGig(
+          buildDocument({ communityIds: [communityId, communityId] }),
+        ),
+      ).toThrow(/must not contain duplicates/);
     });
   });
 });

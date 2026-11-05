@@ -3,14 +3,17 @@ import type {
   GigCandidateSource,
 } from '../types/gig-candidate.types';
 import type {
+  GigCandidateDraft,
   GigData,
   GigSource,
   GigSourceMessengerUser,
-} from '../../gig/types/gig.types';
+} from '@modules/gig/types/gig.types';
 import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import { isGigCandidateSourceMessengerUser } from '../gig-candidate-source.guards';
+
+const COMMUNITY_ID_RE = /^[a-f\d]{24}$/i;
 
 export interface GigCandidateApprovalIssue {
   field: string;
@@ -33,9 +36,10 @@ export class GigCandidateApprovalValidationError extends Error {
 }
 
 export function validateGigCandidateDraftForApproval(
-  gigDraft: Partial<GigData>,
+  gigDraft: GigCandidateDraft,
 ): ValidatedGigCandidateDraft {
   const issues: GigCandidateApprovalIssue[] = [];
+  const communityIds = validateCommunityIds(gigDraft.communityIds, issues);
   const title = validateRequiredNormalizedString(
     gigDraft.title,
     'title',
@@ -102,6 +106,7 @@ export function validateGigCandidateDraftForApproval(
   if (
     issues.length > 0 ||
     title === undefined ||
+    communityIds === undefined ||
     date === undefined ||
     city === undefined ||
     country === undefined ||
@@ -113,6 +118,7 @@ export function validateGigCandidateDraftForApproval(
   }
 
   return {
+    communityIds,
     title,
     date,
     ...(endDate !== undefined ? { endDate } : {}),
@@ -122,6 +128,40 @@ export function validateGigCandidateDraftForApproval(
     ticketsUrl,
     poster: { ...poster },
   };
+}
+
+function validateCommunityIds(
+  communityIds: readonly string[],
+  issues: GigCandidateApprovalIssue[],
+): string[] | undefined {
+  if (communityIds.length === 0) {
+    issues.push({
+      field: 'communityIds',
+      code: 'invalid',
+      message: 'communityIds must contain at least one Community id',
+    });
+    return undefined;
+  }
+  if (communityIds.some((communityId) => !COMMUNITY_ID_RE.test(communityId))) {
+    issues.push({
+      field: 'communityIds',
+      code: 'invalid',
+      message: 'communityIds must contain valid Community ids',
+    });
+    return undefined;
+  }
+  const normalizedCommunityIds = communityIds.map((communityId) =>
+    communityId.toLowerCase(),
+  );
+  if (new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length) {
+    issues.push({
+      field: 'communityIds',
+      code: 'invalid',
+      message: 'communityIds must not contain duplicates',
+    });
+    return undefined;
+  }
+  return normalizedCommunityIds;
 }
 
 export function mapGigCandidateSourceToGigSource(

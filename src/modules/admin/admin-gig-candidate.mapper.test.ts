@@ -25,6 +25,7 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
       origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: Date.parse('2026-08-20T00:00:00.000Z'),
       city: 'Barcelona',
@@ -170,6 +171,7 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
         userId: '507f1f77bcf86cd799439088',
         body: {
           gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
             title: '  Band  ',
             date: '2026-09-20',
             country: 'es',
@@ -180,6 +182,7 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
     ).toEqual({
       userId: '507f1f77bcf86cd799439088',
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Band',
         date: Date.parse('2026-09-20T00:00:00.000Z'),
         country: 'ES',
@@ -208,7 +211,9 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
     expect(
       mapV1AdminCreateGigCandidateRequest({
         userId: '507f1f77bcf86cd799439088',
-        body: { gigDraft: {} },
+        body: {
+          gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
+        },
         posterFile,
       }).posterFile,
     ).toEqual({ buffer, mimetype: 'image/png' });
@@ -218,7 +223,12 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
     expect(() =>
       mapV1AdminCreateGigCandidateRequest({
         userId: '507f1f77bcf86cd799439088',
-        body: { gigDraft: { title: 'A'.repeat(301) } },
+        body: {
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            title: 'A'.repeat(301),
+          },
+        },
       }),
     ).toThrow(/title must contain at most 300 characters/);
   });
@@ -231,13 +241,20 @@ describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {
         gigCandidateId: '507f1f77bcf86cd799439099',
         body: {
           expectedVersion: 4,
-          gigDraft: { city: ' Barcelona ', posterUrl: 'https://img.example/a' },
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            city: ' Barcelona ',
+            posterUrl: 'https://img.example/a',
+          },
         },
       }),
     ).toEqual({
       gigCandidateId: '507f1f77bcf86cd799439099',
       expectedVersion: 4,
-      gigDraft: { city: 'Barcelona' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        city: 'Barcelona',
+      },
       posterUrl: 'https://img.example/a',
       posterFile: undefined,
     });

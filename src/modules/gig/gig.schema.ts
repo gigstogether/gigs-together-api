@@ -8,6 +8,7 @@ import type {
 } from './types/gig.types';
 import { PostType } from '@shared/types/post-type.enum';
 import { isRecord } from '@shared/utils/is-record';
+import { isNonEmptyUniqueObjectIdArray } from '@shared/utils/mongoose-object-id-array';
 import { GIG_TITLE_MAX_LENGTH } from './gig.constants';
 import { GigSourceType } from './types/gig-source-type.enum';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
@@ -129,6 +130,17 @@ function isGigSource(value: unknown): boolean {
 
 @Schema({ timestamps: true })
 export class Gig {
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Community',
+    required: true,
+    validate: {
+      validator: isNonEmptyUniqueObjectIdArray,
+      message: 'communityIds must contain unique Community ObjectIds',
+    },
+  })
+  communityIds: Types.ObjectId[];
+
   /**
    * Public stable identifier for URLs/anchors.
    *

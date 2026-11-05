@@ -27,7 +27,10 @@ function buildGigCandidate(
       userId: '66a000000000000000000000042',
       origin: { type: GigSourceUserOriginType.Admin },
     },
-    gigDraft: { title: 'Band' },
+    gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
+      title: 'Band',
+    },
     version: 0,
     status: GigCandidateStatus.Reviewing,
     posts: [],
@@ -68,6 +71,7 @@ describe('AdminGigCandidateController', () => {
   };
   const gigApprovalResult: GigApprovalResult = {
     id: '507f1f77bcf86cd799439011',
+    communityIds: ['507f1f77bcf86cd799439011'],
     publicId: 'band-2026-09-20',
     title: 'Band',
     date: Date.UTC(2026, 8, 20),
@@ -195,12 +199,17 @@ describe('AdminGigCandidateController', () => {
 
   it('should create and resolve an admin GigCandidate', async () => {
     await controller.createGigCandidate(undefined, user, {
-      gigDraft: { title: ' Band ', date: '2026-09-20' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        title: ' Band ',
+        date: '2026-09-20',
+      },
     });
 
     expect(gigCandidateService.createAdminGigCandidate).toHaveBeenCalledWith({
       userId: user.userId,
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Band',
         date: Date.parse('2026-09-20T00:00:00.000Z'),
       },
@@ -215,7 +224,10 @@ describe('AdminGigCandidateController', () => {
   it('should update the GigCandidate draft at the expected version', async () => {
     await controller.updateGigCandidateDraft(details.id, undefined, {
       expectedVersion: 0,
-      gigDraft: { title: 'Updated' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        title: 'Updated',
+      },
     });
 
     expect(
@@ -223,7 +235,10 @@ describe('AdminGigCandidateController', () => {
     ).toHaveBeenCalledWith({
       gigCandidateId: details.id,
       expectedVersion: 0,
-      gigDraft: { title: 'Updated' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        title: 'Updated',
+      },
       posterUrl: undefined,
       posterFile: undefined,
     });

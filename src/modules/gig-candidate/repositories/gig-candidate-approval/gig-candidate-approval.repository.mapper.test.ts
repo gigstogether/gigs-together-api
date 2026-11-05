@@ -7,6 +7,7 @@ import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval.r
 import type { GigApprovalResultLeanDocument } from './gig-candidate-approval.repository.mapper';
 
 const completeGigDraft = {
+  communityIds: ['507f1f77bcf86cd799439011'],
   title: 'Radiohead',
   date: Date.UTC(2026, 5, 12),
   city: 'Barcelona',
@@ -34,7 +35,10 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
       expect(() =>
         GigCandidateApprovalRepositoryMapper.assertApprovedStateIsValid({
           id: '507f1f77bcf86cd799439099',
-          gigDraft: { title: 'Radiohead' },
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            title: 'Radiohead',
+          },
           gigId: '507f1f77bcf86cd799439011',
           approvedAt: new Date('2026-05-01T00:00:00.000Z'),
           approvedByUserId: '507f1f77bcf86cd799439012',
@@ -48,6 +52,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
     it('should map approval data to Gig persistence data', () => {
       const data = GigCandidateApprovalRepositoryMapper.toGigCreationData({
         gigId: '507f1f77bcf86cd799439011',
+        communityIds: ['507f1f77bcf86cd799439022'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -74,6 +79,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
 
       expect(data).toEqual({
         _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -108,6 +114,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
     it('should map a stored Gig to the approval result', () => {
       const document: GigApprovalResultLeanDocument = {
         _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -131,6 +138,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
 
       expect(result).toEqual({
         id: '507f1f77bcf86cd799439011',
+        communityIds: ['507f1f77bcf86cd799439022'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),

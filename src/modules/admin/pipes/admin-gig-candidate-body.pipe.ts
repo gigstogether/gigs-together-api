@@ -1,5 +1,6 @@
 import type { PipeTransform } from '@nestjs/common';
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { isRecord } from '@shared/utils/is-record';
 import { GIG_TITLE_MAX_LENGTH } from '../../gig/gig.constants';
 import type {
   V1AdminCreateGigCandidateRequestBody,
@@ -11,7 +12,7 @@ import type {
   V1AdminUpdateGigCandidateDraftRequestBody,
 } from '../types/requests/v1-admin-gig-candidate-requests';
 
-const GIG_DRAFT_FIELDS = [
+const OPTIONAL_GIG_DRAFT_STRING_FIELDS = [
   'title',
   'date',
   'endDate',
@@ -22,9 +23,10 @@ const GIG_DRAFT_FIELDS = [
   'posterUrl',
 ] as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+const GIG_DRAFT_FIELDS = [
+  'communityIds',
+  ...OPTIONAL_GIG_DRAFT_STRING_FIELDS,
+] as const;
 
 function parseRecord(value: unknown, field: string): Record<string, unknown> {
   if (typeof value === 'string') {
@@ -79,16 +81,31 @@ function readOptionalString(
   return raw;
 }
 
+function readRequiredStringArray(
+  value: Record<string, unknown>,
+  field: string,
+): string[] {
+  const raw = value[field];
+  if (!Array.isArray(raw) || raw.some((item) => typeof item !== 'string')) {
+    throw new BadRequestException(`${field} must be an array of strings`);
+  }
+  return raw;
+}
+
 function parseGigDraft(value: unknown): V1AdminGigCandidateGigDraftRequestBody {
   const record = parseRecord(value, 'gigDraft');
   assertOnlyFields(record, GIG_DRAFT_FIELDS, 'gigDraft');
 
-  return Object.fromEntries(
-    GIG_DRAFT_FIELDS.flatMap((field) => {
+  const stringFields = Object.fromEntries(
+    OPTIONAL_GIG_DRAFT_STRING_FIELDS.flatMap((field) => {
       const fieldValue = readOptionalString(record, field);
       return fieldValue === undefined ? [] : [[field, fieldValue]];
     }),
   );
+  return {
+    ...stringFields,
+    communityIds: readRequiredStringArray(record, 'communityIds'),
+  };
 }
 
 function parseBody(value: unknown): Record<string, unknown> {

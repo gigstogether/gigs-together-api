@@ -23,6 +23,7 @@ export interface GigPoster {
 /** Domain Gig representation used outside the persistence layer. */
 export interface PlainGig {
   id: GigId;
+  communityIds: string[];
   publicId: string;
   title: string;
   date: number;
@@ -60,6 +61,7 @@ interface GigPosterInput {
 }
 
 export interface GigData {
+  communityIds: string[];
   title: string;
   date: number;
   endDate?: number;
@@ -69,6 +71,9 @@ export interface GigData {
   ticketsUrl: string;
   poster?: GigPosterInput;
 }
+
+export type GigCandidateDraft = Partial<GigData> &
+  Pick<GigData, 'communityIds'>;
 
 interface GigSourceUserIdentifiedOrigin {
   type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;

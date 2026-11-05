@@ -5,6 +5,33 @@ import { GigSchema } from './gig.schema';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 
 describe('GigSchema', () => {
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
   it('should limit titles to 300 characters', () => {
     expect(GigSchema.path('title').options.maxlength).toBe(300);
   });

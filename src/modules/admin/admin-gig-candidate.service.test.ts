@@ -30,6 +30,7 @@ function buildGigCandidate(
       origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: Date.parse('2026-08-20T00:00:00.000Z'),
       city: 'Barcelona',
