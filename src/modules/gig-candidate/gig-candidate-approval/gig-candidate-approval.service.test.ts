@@ -37,8 +37,8 @@ describe('GigCandidateApprovalService', () => {
   const gigCandidateApprovalRepositoryMock = {
     withTransaction: vi.fn(),
   };
-  const revalidateGigFeedOrThrowMock =
-    vi.fn<GigFeedRevalidationService['revalidateGigFeedOrThrow']>();
+  const revalidateGigFeedsOrThrowMock =
+    vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
   const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
   const reportFailureBestEffortMock =
@@ -106,7 +106,7 @@ describe('GigCandidateApprovalService', () => {
         work: (transaction: typeof approvalTransactionMock) => Promise<unknown>,
       ) => work(approvalTransactionMock),
     );
-    revalidateGigFeedOrThrowMock.mockResolvedValue(undefined);
+    revalidateGigFeedsOrThrowMock.mockResolvedValue(undefined);
     calendarAddEventMock.mockResolvedValue(undefined);
     gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
@@ -126,7 +126,7 @@ describe('GigCandidateApprovalService', () => {
         {
           provide: GigFeedRevalidationService,
           useValue: {
-            revalidateGigFeedOrThrow: revalidateGigFeedOrThrowMock,
+            revalidateGigFeedsOrThrow: revalidateGigFeedsOrThrowMock,
           },
         },
         {

@@ -47,6 +47,23 @@ export class MongoCommunityRepository implements CommunityRepository {
     return CommunityRepositoryMapper.toCommunity(doc);
   }
 
+  async findByIds(ids: string[]): Promise<readonly Community[]> {
+    const objectIds = ids.map((id) => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new Error('Community id must be a valid ObjectId');
+      }
+
+      return new Types.ObjectId(id);
+    });
+    const docs = await this.communityModel
+      .find({ _id: { $in: objectIds } }, COMMUNITY_PROJECTION)
+      .sort(COMMUNITY_SORT)
+      .lean<readonly CommunityLeanDocument[]>()
+      .exec();
+
+    return CommunityRepositoryMapper.toCommunities(docs);
+  }
+
   async findByRoute(
     params: FindCommunityByRouteParams,
   ): Promise<Community | null> {

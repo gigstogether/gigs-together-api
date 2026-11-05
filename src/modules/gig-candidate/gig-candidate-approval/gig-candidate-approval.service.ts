@@ -178,13 +178,12 @@ export class GigCandidateApprovalService {
   ): Promise<void> {
     const { gig, gigCandidate, moderationPost } = result;
     try {
-      await this.gigFeedRevalidationService.revalidateGigFeedOrThrow({
-        country: gig.country,
-        city: gig.city,
+      await this.gigFeedRevalidationService.revalidateGigFeedsOrThrow({
+        communityIds: gig.communityIds,
       });
     } catch (e) {
       this.logIntegrationFailure(
-        'revalidateGigFeed',
+        'revalidateGigFeeds',
         gigCandidate.id,
         gig.id,
         e,

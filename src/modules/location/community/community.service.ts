@@ -23,6 +23,10 @@ export class CommunityService {
     return this.communityRepository.findById(id);
   }
 
+  findByIds(ids: string[]): Promise<readonly Community[]> {
+    return this.communityRepository.findByIds(ids);
+  }
+
   findByRoute(params: FindCommunityByRouteParams): Promise<Community | null> {
     if (!isValidCommunityCountryIso(params.countryIso)) {
       throw new Error(

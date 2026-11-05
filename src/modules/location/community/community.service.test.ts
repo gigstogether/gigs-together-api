@@ -8,11 +8,13 @@ describe('CommunityService', () => {
 
   const findActiveMock = vi.fn();
   const findByIdMock = vi.fn();
+  const findByIdsMock = vi.fn();
   const findByRouteMock = vi.fn();
 
   beforeEach(async () => {
     findActiveMock.mockReset();
     findByIdMock.mockReset();
+    findByIdsMock.mockReset();
     findByRouteMock.mockReset();
 
     const module: TestingModule = await Test.createTestingModule({
@@ -23,6 +25,7 @@ describe('CommunityService', () => {
           useValue: {
             findActive: findActiveMock,
             findById: findByIdMock,
+            findByIds: findByIdsMock,
             findByRoute: findByRouteMock,
           },
         },
@@ -39,6 +42,20 @@ describe('CommunityService', () => {
       id: 'community-id',
     });
     expect(findByIdMock).toHaveBeenCalledWith('community-id');
+  });
+
+  it('should find Communities by ids through the repository', async () => {
+    const ids = ['first-community-id', 'second-community-id'];
+    findByIdsMock.mockResolvedValue([
+      { id: 'first-community-id' },
+      { id: 'second-community-id' },
+    ]);
+
+    await expect(service.findByIds(ids)).resolves.toEqual([
+      { id: 'first-community-id' },
+      { id: 'second-community-id' },
+    ]);
+    expect(findByIdsMock).toHaveBeenCalledWith(ids);
   });
 
   it('should find a Community by a valid route', async () => {

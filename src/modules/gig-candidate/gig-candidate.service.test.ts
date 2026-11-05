@@ -124,7 +124,7 @@ describe('GigCandidateService', () => {
 
   const calendarServiceMock = { addEvent: vi.fn() };
   const gigFeedRevalidationServiceMock = {
-    revalidateGigFeedOrThrow: vi.fn(),
+    revalidateGigFeedsOrThrow: vi.fn(),
   };
   const gigServiceMock = {
     generateUniquePublicId: vi.fn(),
@@ -2032,10 +2032,9 @@ describe('GigCandidateService', () => {
         'radiohead-2026-06-12',
       );
       expect(
-        gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow,
+        gigFeedRevalidationServiceMock.revalidateGigFeedsOrThrow,
       ).toHaveBeenCalledWith({
-        country: gig.country,
-        city: gig.city,
+        communityIds: gig.communityIds,
       });
       expect(calendarServiceMock.addEvent).toHaveBeenCalledWith({
         event: true,
@@ -2170,7 +2169,7 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
       expect(
-        gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow,
+        gigFeedRevalidationServiceMock.revalidateGigFeedsOrThrow,
       ).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateFeedback,
@@ -2302,7 +2301,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
       gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
-      gigFeedRevalidationServiceMock.revalidateGigFeedOrThrow.mockRejectedValue(
+      gigFeedRevalidationServiceMock.revalidateGigFeedsOrThrow.mockRejectedValue(
         new Error('Revalidation unavailable'),
       );
       calendarServiceMock.addEvent.mockRejectedValue(

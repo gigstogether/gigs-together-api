@@ -10,6 +10,8 @@ export interface FindCommunityByRouteParams {
 export interface CommunityRepository {
   findById(id: string): Promise<Community | null>;
 
+  findByIds(ids: string[]): Promise<readonly Community[]>;
+
   findByRoute(params: FindCommunityByRouteParams): Promise<Community | null>;
 
   findActive(): Promise<readonly Community[]>;

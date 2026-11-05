@@ -76,7 +76,7 @@ describe('GigService', () => {
   const sendMainPost = vi.fn();
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
-  const revalidateGigFeed = vi.fn();
+  const revalidateGigFeeds = vi.fn();
   const getPublicFileUrl = vi.fn();
 
   async function createService(
@@ -98,7 +98,7 @@ describe('GigService', () => {
         { provide: BucketService, useValue: { getPublicFileUrl } },
         {
           provide: GigFeedRevalidationService,
-          useValue: { revalidateGigFeed },
+          useValue: { revalidateGigFeeds },
         },
         { provide: ConfigService, useValue: configService },
       ],
@@ -349,9 +349,8 @@ describe('GigService', () => {
           posterFile: undefined,
         }),
       ).resolves.toEqual({ publicId: updated.publicId });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 
@@ -671,9 +670,8 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 
@@ -698,9 +696,8 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 

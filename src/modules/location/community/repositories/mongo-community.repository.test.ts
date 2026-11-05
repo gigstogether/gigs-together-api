@@ -6,6 +6,7 @@ import { Community } from '../community.schema';
 import { MongoCommunityRepository } from './mongo-community.repository';
 
 const COMMUNITY_ID = '690a1fdb17f0a7771e9c1c21';
+const SECOND_COMMUNITY_ID = '690a1fdb17f0a7771e9c1c22';
 const COMMUNITY_DOCUMENT = {
   _id: new Types.ObjectId(COMMUNITY_ID),
   countryIso: 'ES',
@@ -79,6 +80,37 @@ describe('MongoCommunityRepository', () => {
       'Community id must be a valid ObjectId',
     );
     expect(findOneMock).not.toHaveBeenCalled();
+  });
+
+  it('should find Communities by ids in stable route order', async () => {
+    const execMock = vi.fn().mockResolvedValue([COMMUNITY_DOCUMENT]);
+    const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+    const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
+    findMock.mockReturnValue({ sort: sortMock });
+
+    await expect(
+      repository.findByIds([COMMUNITY_ID, SECOND_COMMUNITY_ID]),
+    ).resolves.toEqual([expect.objectContaining({ id: COMMUNITY_ID })]);
+
+    expect(findMock).toHaveBeenCalledWith(
+      {
+        _id: {
+          $in: [
+            new Types.ObjectId(COMMUNITY_ID),
+            new Types.ObjectId(SECOND_COMMUNITY_ID),
+          ],
+        },
+      },
+      COMMUNITY_PROJECTION,
+    );
+    expect(sortMock).toHaveBeenCalledWith({ countryIso: 1, slug: 1 });
+  });
+
+  it('should reject an invalid Community id in a batch', async () => {
+    await expect(
+      repository.findByIds([COMMUNITY_ID, 'invalid']),
+    ).rejects.toThrow('Community id must be a valid ObjectId');
+    expect(findMock).not.toHaveBeenCalled();
   });
 
   it('should find a Community by its route', async () => {

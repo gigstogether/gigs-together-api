@@ -5,21 +5,22 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { CommunityService } from '@modules/location/community/community.service';
+import type { Community } from '@modules/location/community/types/community.types';
 import { getConfigString } from '@shared/utils/env';
 
 interface BuildGigFeedPathParams {
-  country: string;
-  city: string;
+  countryIso: string;
+  communitySlug: string;
 }
 
-interface RevalidateGigFeedParams {
-  country?: string;
-  city?: string;
+interface RevalidateGigFeedsParams {
+  communityIds?: string[];
 }
 
 interface PostGigFeedRevalidationRequestParams {
   url: string;
-  path: string | undefined;
+  paths: readonly string[] | undefined;
 }
 
 @Injectable()
@@ -28,7 +29,10 @@ export class GigFeedRevalidationService {
   private readonly appBaseUrl: string | undefined;
   private readonly revalidationSecret: string | undefined;
 
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly communityService: CommunityService,
+  ) {
     this.appBaseUrl = getConfigString(configService, 'APP_BASE_URL');
     this.revalidationSecret = getConfigString(
       configService,
@@ -36,9 +40,9 @@ export class GigFeedRevalidationService {
     );
   }
 
-  async revalidateGigFeed(params: RevalidateGigFeedParams): Promise<void> {
+  async revalidateGigFeeds(params: RevalidateGigFeedsParams): Promise<void> {
     try {
-      await this.revalidateGigFeedOrThrow(params);
+      await this.revalidateGigFeedsOrThrow(params);
     } catch (e) {
       this.logger.warn(
         `Gig feed revalidation request failed: ${e instanceof Error ? e.message : String(e)}`,
@@ -46,8 +50,8 @@ export class GigFeedRevalidationService {
     }
   }
 
-  async revalidateGigFeedOrThrow(
-    params: RevalidateGigFeedParams,
+  async revalidateGigFeedsOrThrow(
+    params: RevalidateGigFeedsParams,
   ): Promise<void> {
     if (
       this.appBaseUrl === undefined ||
@@ -68,24 +72,49 @@ export class GigFeedRevalidationService {
     }
 
     const url = new URL('/api/revalidate/feed', this.appBaseUrl).toString();
-    let path: string | undefined;
-    if (params.country && params.city) {
-      path = this.buildGigFeedPath({
-        country: params.country,
-        city: params.city,
-      });
+    let paths: readonly string[] | undefined;
+    if (params.communityIds !== undefined) {
+      if (params.communityIds.length === 0) {
+        throw new Error(
+          'Gig feed revalidation requires at least one Community id',
+        );
+      }
+
+      const communities = await this.communityService.findByIds(
+        params.communityIds,
+      );
+      this.assertAllCommunitiesExist(params.communityIds, communities);
+      paths = communities.map((community) =>
+        this.buildGigFeedPath({
+          countryIso: community.countryIso,
+          communitySlug: community.slug,
+        }),
+      );
     }
 
-    await this.postGigFeedRevalidationRequest({ url, path });
+    await this.postGigFeedRevalidationRequest({ url, paths });
   }
 
   buildGigFeedPath(params: BuildGigFeedPathParams): string {
-    const country = params.country.trim().toLowerCase();
-    const city = params.city.trim().toLowerCase();
-    if (!country || !city) {
-      throw new Error('Missing country/city for Gig feed path');
+    const countryIso = params.countryIso.trim().toLowerCase();
+    const communitySlug = params.communitySlug.trim().toLowerCase();
+    if (!countryIso || !communitySlug) {
+      throw new Error('Missing countryIso/communitySlug for Gig feed path');
     }
-    return `/feed/${encodeURIComponent(country)}/${encodeURIComponent(city)}`;
+    return `/feed/${encodeURIComponent(countryIso)}/${encodeURIComponent(communitySlug)}`;
+  }
+
+  private assertAllCommunitiesExist(
+    communityIds: string[],
+    communities: readonly Community[],
+  ): void {
+    const foundIds = new Set(communities.map((community) => community.id));
+    const missingId = communityIds.find((id) => !foundIds.has(id));
+    if (missingId !== undefined) {
+      throw new Error(
+        `Gig feed revalidation Community does not exist: ${missingId}`,
+      );
+    }
   }
 
   private async postGigFeedRevalidationRequest(
@@ -95,7 +124,7 @@ export class GigFeedRevalidationService {
       this.logger.warn('FEED_REVALIDATE_SECRET is not set');
       return;
     }
-    const { url, path } = params;
+    const { url, paths } = params;
 
     let res: Response;
     try {
@@ -105,7 +134,7 @@ export class GigFeedRevalidationService {
           'content-type': 'application/json',
           'x-revalidate-secret': this.revalidationSecret,
         },
-        body: JSON.stringify(path ? { paths: [path] } : {}),
+        body: JSON.stringify(paths === undefined ? {} : { paths }),
       });
     } catch (e) {
       this.logger.warn(
