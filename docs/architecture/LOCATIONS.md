@@ -34,10 +34,11 @@ Country-owned repository boundary; a Community repository must not query the
 Country model. A Community application service may depend on both repository
 interfaces when a use case needs Community and Country data.
 
-Community persistence and lookup are implemented as described below. Place and
-Community assignments will be introduced incrementally. The current Gig feed
-continues to use its existing `country` and `city` fields until the corresponding
-migrations and application changes are complete.
+Community persistence, lookup, and Gig assignment relationships are implemented
+as described below. Public Gig feed selection and cache revalidation use those
+Community relationships. Place remains a future increment, so Gig responses and
+physical-location integrations continue to use the existing `country`, `city`,
+and `venue` fields until the Place migration is complete.
 
 ## Community
 
@@ -107,23 +108,24 @@ The legacy `city` field originally had two responsibilities that are migrated
 separately:
 
 - its feed-selection responsibility now uses explicit Community assignments;
-  public Gig feed queries resolve `country + communitySlug` to a Community ID
+  public Gig feed queries resolve `country + communitySlug` to an active
+  Community ID, then filter by that ID
 - its physical event-locality responsibility remains until Place provides the
   replacement location fields
 
-The frontend may switch feed routing and titles from the `city` translation
-namespace to the `community` catalog during the Community rollout. The legacy
-`city` namespace must remain available while Gig responses still expose physical
-city codes. It can be removed only after the Place migration removes those final
-consumers.
+Frontend feed routing and titles should use the Community catalog and the
+`community` translation namespace. The legacy `city` namespace must remain
+available while Gig responses still expose physical city codes. It can be
+removed only after the Place migration removes those final consumers.
 
 ## Community Assignments
 
-A Gig may appear in one or more Community feeds. The target Gig and GigCandidate
-assignment field is:
+A Gig may appear in one or more Community feeds. Assignments are stored at these
+paths:
 
 ```text
-communityIds[]
+Gig.communityIds[]
+GigCandidate.gigDraft.communityIds[]
 ```
 
 The following invariants apply once assignments become required for an approved
@@ -134,15 +136,34 @@ Gig:
 - new assignments may target only active Communities
 - changing the physical Place does not silently rewrite Community assignments
 
+Gig and GigCandidate schemas require non-empty, unique Community ObjectId arrays.
+Candidate create and update flows verify that every new assignment references an
+active Community. Approval copies the reviewed `gigDraft.communityIds` into the
+created Gig without deriving assignments from `city` or `country`.
+
 Assignments are explicit snapshots. An admin action such as "select all
 Communities in Spain" resolves the currently active Spanish Communities and stores
 their concrete IDs. A Community created later is not retroactively added to older
 Gigs. Dynamic country-wide assignment rules may be introduced separately only if
 that behavior becomes an explicit product requirement.
 
-Integrations select their destinations explicitly from the assigned Communities
-instead of relying on an arbitrary primary assignment. A Gig deep link identifies
-the Gig independently from the Community feed through which it was discovered.
+Community-aware integrations must select their destinations explicitly from the
+assigned Communities instead of relying on an arbitrary primary assignment. A
+Gig deep link identifies the Gig independently from the Community feed through
+which it was discovered.
+
+Feed cache revalidation resolves every assigned Community ID to its
+`countryIso + slug` route and invalidates all corresponding feed paths. It also
+resolves inactive assigned Communities so an old feed path can be cleared after a
+Community is deactivated. Manual global revalidation remains available without a
+specific assignment list.
+
+The bootstrap migration
+`1793750400000-bootstrap-barcelona-community-assignments` creates the Barcelona
+Community and its English `community / barcelona.name` translation when absent,
+then assigns all historical Gigs and GigCandidates to it. The migration writes
+GigCandidate assignments only to `gigDraft.communityIds` and blocks conflicting,
+invalid, or legacy top-level GigCandidate assignments.
 
 ## Place
 
@@ -207,3 +228,9 @@ Downstream feature modules own their application behavior:
 
 These downstream modules depend on the Location application boundary and must not
 query Location-owned Mongo models directly.
+
+The current single-chat Telegram intake assigns the Barcelona Community
+explicitly. Resolving source Communities from multiple chats, Community-specific
+Telegram delivery, and Community-specific digests remain later integration
+increments; their ownership is listed above to keep those future dependencies out
+of Location persistence.

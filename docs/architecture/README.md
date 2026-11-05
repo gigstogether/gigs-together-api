@@ -53,7 +53,8 @@ In practice:
 Responsibilities:
 
 - owns gig persistence and public gig APIs
-- owns Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
+- owns explicit Gig-to-Community relationships
+- owns Community-filtered Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
 - exposes `GigService`, `GigFeedService`, and `GigFeedRevalidationService`
 - owns Gig poster validation, download, and storage through `GigPosterService` under `gig/gig-poster`
 
@@ -64,6 +65,7 @@ Dependencies:
 - `RemoteImageModule`
 - `AuthModule`
 - `TelegramModule`
+- `LocationModule`
 - local `Gig` Mongoose model
 
 Main files:
@@ -85,6 +87,7 @@ Responsibilities:
 - keeps candidate lifecycle feedback in `GigCandidateFeedbackService`
 - keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file validation and storage to `GigPosterService`
 - keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
+- validates draft Community assignments and carries them into approved Gigs
 - uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
 
 Dependencies:
@@ -95,6 +98,7 @@ Dependencies:
 - `TelegramModule`
 - `UserModule`
 - `AuthModule`
+- `LocationModule`
 - local `GigCandidate` Mongoose model
 
 Main files:
@@ -204,7 +208,7 @@ Responsibilities:
 
 - owns country data and the geographic Community catalog
 - serves public geographic reference data
-- owns geographic Community lookup and will own future geographic matching without taking ownership of Gig moderation or delivery integrations
+- owns geographic Community lookup and will own future geographic matching without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Detailed ownership, target models, and rollout constraints are documented in
 [Location Architecture](./LOCATIONS.md).
