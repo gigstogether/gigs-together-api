@@ -1,7 +1,6 @@
 import { Logger } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { HttpService } from '@nestjs/axios';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
@@ -11,7 +10,11 @@ import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { BucketService } from '../bucket/bucket.service';
 import { TelegramService } from './telegram.service';
-import { TelegramBotClient } from './telegram-bot-client/telegram-bot.client';
+import {
+  TELEGRAM_BOT_HTTP,
+  TELEGRAM_FILE_HTTP,
+  TelegramBotClient,
+} from './telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from './telegram-composer.service';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate/telegram-gig-candidate-composer.service';
 import { TelegramGigCandidateService } from './telegram-gig-candidate/telegram-gig-candidate.service';
@@ -188,7 +191,11 @@ describe('TelegramService', () => {
           useValue: mockPostTemplates,
         },
         {
-          provide: HttpService,
+          provide: TELEGRAM_BOT_HTTP,
+          useValue: mockHttpService,
+        },
+        {
+          provide: TELEGRAM_FILE_HTTP,
           useValue: mockHttpService,
         },
         {
