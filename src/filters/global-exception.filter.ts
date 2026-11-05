@@ -9,8 +9,66 @@ import {
 } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
-import { Error as MongooseError } from 'mongoose';
+import { Error as MongooseError, Types } from 'mongoose';
 import { logError } from '@shared/utils/logging';
+
+interface ObjectIdArrayValidationDetail {
+  path: string;
+  objectIds: string[];
+  duplicateObjectIds: string[];
+  valueCount: number;
+  uniqueCount: number;
+}
+
+function toObjectIdString(value: unknown): string | undefined {
+  if (value instanceof Types.ObjectId) {
+    return value.toHexString();
+  }
+
+  if (typeof value === 'string' && /^[a-f\d]{24}$/i.test(value)) {
+    return value.toLowerCase();
+  }
+
+  return undefined;
+}
+
+function getObjectIdArrayValidationDetails(
+  exception: MongooseError.ValidationError,
+): ObjectIdArrayValidationDetail[] {
+  return Object.values(exception.errors).flatMap((validationError) => {
+    if (!Array.isArray(validationError.value)) {
+      return [];
+    }
+
+    const objectIds = validationError.value.map(toObjectIdString);
+    if (objectIds.some((objectId) => objectId === undefined)) {
+      return [];
+    }
+
+    const definedObjectIds = objectIds.filter(
+      (objectId) => objectId !== undefined,
+    );
+    const uniqueObjectIds = new Set<string>();
+    const duplicateObjectIds = new Set<string>();
+    for (const objectId of definedObjectIds) {
+      if (uniqueObjectIds.has(objectId)) {
+        duplicateObjectIds.add(objectId);
+      } else {
+        uniqueObjectIds.add(objectId);
+      }
+    }
+
+    return [
+      {
+        path: validationError.path,
+        objectIds: definedObjectIds,
+        duplicateObjectIds: [...duplicateObjectIds],
+        valueCount: definedObjectIds.length,
+        uniqueCount: uniqueObjectIds.size,
+      },
+    ];
+  });
+}
 
 function getClientIp(request: Request): string {
   const forwarded = request.headers['x-forwarded-for'];
@@ -105,6 +163,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         errorType: exception.name,
         message: exception.message,
         validationPaths: Object.keys(exception.errors),
+        validationDetails: getObjectIdArrayValidationDetails(exception),
       });
     } else {
       // Keep logs readable: only message + stack (no giant object dumps).

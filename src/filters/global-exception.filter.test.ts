@@ -1,10 +1,11 @@
 import type { ArgumentsHost } from '@nestjs/common';
 import { ConsoleLogger, HttpStatus } from '@nestjs/common';
-import { Error as MongooseError } from 'mongoose';
+import { Error as MongooseError, Types } from 'mongoose';
 import { GlobalExceptionFilter } from './global-exception.filter';
 
 describe('GlobalExceptionFilter', () => {
   it('should log Mongoose validation failures without a stack trace', () => {
+    const communityId = '6aebb1ca69f8e3833ff8d1d6';
     const logger = new ConsoleLogger();
     vi.spyOn(logger, 'setContext').mockImplementation(() => undefined);
     const loggerError = vi
@@ -34,6 +35,10 @@ describe('GlobalExceptionFilter', () => {
       new MongooseError.ValidatorError({
         message: 'communityIds must contain unique Community ObjectIds',
         path: 'gigDraft.communityIds',
+        value: [
+          new Types.ObjectId(communityId),
+          new Types.ObjectId(communityId),
+        ],
       }),
     );
     const filter = new GlobalExceptionFilter(logger);
@@ -49,6 +54,15 @@ describe('GlobalExceptionFilter', () => {
         'Validation failed: gigDraft.communityIds: communityIds must contain unique Community ObjectIds',
       errorType: 'ValidationError',
       validationPaths: ['gigDraft.communityIds'],
+      validationDetails: [
+        {
+          path: 'gigDraft.communityIds',
+          objectIds: [communityId, communityId],
+          duplicateObjectIds: [communityId],
+          valueCount: 2,
+          uniqueCount: 1,
+        },
+      ],
     });
     expect(loggerError.mock.calls[0]).toHaveLength(1);
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
