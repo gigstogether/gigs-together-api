@@ -124,7 +124,9 @@ export class MongoGigCandidateApprovalRepository implements GigCandidateApproval
         gigId: new Types.ObjectId(params.gigId),
         approvedAt: params.approvedAt,
         approvedByUserId: new Types.ObjectId(params.approvedByUserId),
-        gigDraft: params.gigDraft,
+        gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(
+          params.gigDraft,
+        ),
       },
       $inc: { version: 1 },
     };

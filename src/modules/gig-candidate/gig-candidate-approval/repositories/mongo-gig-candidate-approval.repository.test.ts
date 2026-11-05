@@ -59,7 +59,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('should use one session for the conditional approval and statusless Gig insert', async () => {
+  it('should use one session and store approval Community assignments as ObjectIds', async () => {
     const gigCandidateId = '507f1f77bcf86cd799439099';
     const gigId = '507f1f77bcf86cd799439011';
     const approvedByUserId = '507f1f77bcf86cd799439077';
@@ -187,6 +187,9 @@ describe('MongoGigCandidateApprovalRepository', () => {
           status: GigCandidateStatus.Approved,
           gigId: expect.any(Types.ObjectId),
           approvedByUserId: expect.any(Types.ObjectId),
+          gigDraft: expect.objectContaining({
+            communityIds: [expect.any(Types.ObjectId)],
+          }),
         }),
         $pull: {
           posts: {
