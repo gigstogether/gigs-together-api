@@ -220,7 +220,4 @@ export const GigSchema = SchemaFactory.createForClass(Gig);
 // Unique public id for anchoring/sharing.
 GigSchema.index({ publicId: 1 }, { unique: true });
 
-GigSchema.index(
-  { isVisible: 1, country: 1, city: 1, date: 1, _id: 1 },
-  { collation: { locale: 'en', strength: 2 } },
-);
+GigSchema.index({ isVisible: 1, communityIds: 1, date: 1, _id: 1 });

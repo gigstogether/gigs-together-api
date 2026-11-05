@@ -122,16 +122,13 @@ describe('GigSchema', () => {
     ).toBe(false);
   });
 
-  it('should define a visibility index for location feed ordering', () => {
+  it('should define a visibility index for Community feed ordering', () => {
     const visibilityIndexes = GigSchema.indexes().filter(([fields]) =>
       Object.prototype.hasOwnProperty.call(fields, 'isVisible'),
     );
 
     expect(visibilityIndexes).toEqual([
-      [
-        { isVisible: 1, country: 1, city: 1, date: 1, _id: 1 },
-        { collation: { locale: 'en', strength: 2 } },
-      ],
+      [{ isVisible: 1, communityIds: 1, date: 1, _id: 1 }, {}],
     ]);
   });
 
@@ -139,6 +136,13 @@ describe('GigSchema', () => {
     const indexes = GigSchema.indexes().map(([fields]) => fields);
 
     expect(indexes).not.toContainEqual({ country: 1, city: 1 });
+    expect(indexes).not.toContainEqual({
+      isVisible: 1,
+      country: 1,
+      city: 1,
+      date: 1,
+      _id: 1,
+    });
     expect(indexes).not.toContainEqual({ gigCandidateId: 1 });
   });
 });

@@ -55,8 +55,7 @@ export interface UpdateGigTelegramPostFileIdRecordParams {
 export interface FindVisibleGigsInRangeParams {
   from: number;
   to?: number;
-  city?: string;
-  country?: string;
+  communityId?: string;
 }
 
 export interface GigPageCursor {
@@ -69,6 +68,7 @@ export type GigPageDirection = 'next' | 'prev';
 export interface FindVisibleGigsPageParams extends FindVisibleGigsInRangeParams {
   limit: number;
   direction: GigPageDirection;
+  communityId: string;
   cursor?: GigPageCursor;
 }
 
@@ -82,8 +82,7 @@ export interface FindVisibleGigsAroundParams {
   todayStart: number;
   beforeLimit: number;
   afterLimit: number;
-  city?: string;
-  country?: string;
+  communityId: string;
 }
 
 export interface FindVisibleGigsAroundResult {
@@ -91,6 +90,10 @@ export interface FindVisibleGigsAroundResult {
   after: PlainGig[];
   hasPrevious: boolean;
   hasNext: boolean;
+}
+
+export interface FindVisibleGigDatesParams extends FindVisibleGigsInRangeParams {
+  communityId: string;
 }
 
 export interface GigRepository {
@@ -122,5 +125,5 @@ export interface GigRepository {
   findVisibleAround(
     params: FindVisibleGigsAroundParams,
   ): Promise<FindVisibleGigsAroundResult>;
-  findVisibleDates(params: FindVisibleGigsInRangeParams): Promise<number[]>;
+  findVisibleDates(params: FindVisibleGigDatesParams): Promise<number[]>;
 }

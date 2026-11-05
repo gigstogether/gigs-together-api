@@ -7,14 +7,19 @@ import { V1GigGetRequestQuery } from './v1-gig-get-request';
 describe('V1GigGetRequestQuery', () => {
   it('should accept and normalize a complete location', async () => {
     const query = plainToInstance(V1GigGetRequestQuery, {
-      city: 'Barcelona',
+      communitySlug: 'Barcelona',
       country: 'es',
     });
 
     const validationErrors = await validate(query);
 
-    expect({ validationErrors, country: query.country }).toEqual({
+    expect({
+      validationErrors,
+      communitySlug: query.communitySlug,
+      country: query.country,
+    }).toEqual({
       validationErrors: [],
+      communitySlug: 'barcelona',
       country: 'ES',
     });
   });
@@ -25,7 +30,7 @@ describe('V1GigGetRequestQuery', () => {
     const validationErrors = await validate(query);
 
     expect(validationErrors.map(({ property }) => property).sort()).toEqual([
-      'city',
+      'communitySlug',
       'country',
     ]);
   });
@@ -34,14 +39,19 @@ describe('V1GigGetRequestQuery', () => {
 describe('V1GigDatesGetRequestQuery', () => {
   it('should accept and normalize a complete location', async () => {
     const query = plainToInstance(V1GigDatesGetRequestQuery, {
-      city: 'Barcelona',
+      communitySlug: 'Barcelona',
       country: 'es',
     });
 
     const validationErrors = await validate(query);
 
-    expect({ validationErrors, country: query.country }).toEqual({
+    expect({
+      validationErrors,
+      communitySlug: query.communitySlug,
+      country: query.country,
+    }).toEqual({
       validationErrors: [],
+      communitySlug: 'barcelona',
       country: 'ES',
     });
   });
@@ -52,7 +62,7 @@ describe('V1GigDatesGetRequestQuery', () => {
     const validationErrors = await validate(query);
 
     expect(validationErrors.map(({ property }) => property).sort()).toEqual([
-      'city',
+      'communitySlug',
       'country',
     ]);
   });
@@ -62,14 +72,19 @@ describe('V1GigAroundGetRequestQuery', () => {
   it('should accept and normalize a complete location', async () => {
     const query = plainToInstance(V1GigAroundGetRequestQuery, {
       anchor: '2026-09-09',
-      city: 'Barcelona',
+      communitySlug: 'Barcelona',
       country: 'es',
     });
 
     const validationErrors = await validate(query);
 
-    expect({ validationErrors, country: query.country }).toEqual({
+    expect({
+      validationErrors,
+      communitySlug: query.communitySlug,
+      country: query.country,
+    }).toEqual({
       validationErrors: [],
+      communitySlug: 'barcelona',
       country: 'ES',
     });
   });
@@ -82,7 +97,7 @@ describe('V1GigAroundGetRequestQuery', () => {
     const validationErrors = await validate(query);
 
     expect(validationErrors.map(({ property }) => property).sort()).toEqual([
-      'city',
+      'communitySlug',
       'country',
     ]);
   });

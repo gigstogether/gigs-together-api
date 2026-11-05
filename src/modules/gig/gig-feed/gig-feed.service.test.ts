@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
@@ -11,6 +11,7 @@ import type { GigRepository } from '../repositories/gig.repository';
 import type { PlainGig } from '../types/gig.types';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
+import { CommunityService } from '@modules/location/community/community.service';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
@@ -69,6 +70,7 @@ describe('GigFeedService', () => {
     resolveMainPostUrl: vi.fn(),
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
+  const communityService = { findByRoute: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -94,6 +96,14 @@ describe('GigFeedService', () => {
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
+    communityService.findByRoute.mockResolvedValue({
+      id: '507f1f77bcf86cd799439022',
+      countryIso: 'ES',
+      slug: 'barcelona',
+      nameTranslationKey: 'barcelona.name',
+      timeZone: 'Europe/Madrid',
+      isActive: true,
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,6 +112,7 @@ describe('GigFeedService', () => {
         { provide: GigService, useValue: gigService },
         { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
+        { provide: CommunityService, useValue: communityService },
       ],
     }).compile();
     service = module.get(GigFeedService);
@@ -126,8 +137,8 @@ describe('GigFeedService', () => {
     const result = await service.getVisibleGigs({
       from: gig.date,
       limit: 10,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
 
     expect(result.gigs[0]).toEqual(
@@ -140,10 +151,13 @@ describe('GigFeedService', () => {
     expect(result.gigs[0]).not.toHaveProperty('source');
     expect(gigRepository.findVisiblePage).toHaveBeenCalledWith({
       from: gig.date,
-      city: 'barcelona',
-      country: 'ES',
+      communityId: '507f1f77bcf86cd799439022',
       limit: 10,
       direction: 'next',
+    });
+    expect(communityService.findByRoute).toHaveBeenCalledWith({
+      countryIso: 'ES',
+      communitySlug: 'barcelona',
     });
   });
 
@@ -152,8 +166,8 @@ describe('GigFeedService', () => {
       service.getVisibleGigDates({
         from: 20,
         to: 10,
-        city: 'barcelona',
-        country: 'ES',
+        communitySlug: 'barcelona',
+        countryIso: 'ES',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(gigRepository.findVisibleDates).not.toHaveBeenCalled();
@@ -166,11 +180,62 @@ describe('GigFeedService', () => {
       service.getVisibleGigDates({
         from: 1,
         to: 30,
-        city: 'barcelona',
-        country: 'ES',
+        communitySlug: 'barcelona',
+        countryIso: 'ES',
       }),
     ).resolves.toEqual({ dates: [10, 20] });
+    expect(gigRepository.findVisibleDates).toHaveBeenCalledWith({
+      from: 1,
+      to: 30,
+      communityId: '507f1f77bcf86cd799439022',
+    });
   });
+
+  it('should query the visible Gig window by Community ID', async () => {
+    await service.getVisibleGigsAround({
+      anchor: 20,
+      beforeLimit: 5,
+      afterLimit: 6,
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
+    });
+
+    expect(gigRepository.findVisibleAround).toHaveBeenCalledWith({
+      anchor: 20,
+      todayStart: expect.any(Number),
+      beforeLimit: 5,
+      afterLimit: 6,
+      communityId: '507f1f77bcf86cd799439022',
+    });
+  });
+
+  it.each([
+    { community: null },
+    {
+      community: {
+        id: '507f1f77bcf86cd799439022',
+        countryIso: 'ES',
+        slug: 'girona',
+        nameTranslationKey: 'girona.name',
+        timeZone: 'Europe/Madrid',
+        isActive: false,
+      },
+    },
+  ])(
+    'should reject an unavailable Community before querying Gigs %#',
+    async ({ community }) => {
+      communityService.findByRoute.mockResolvedValue(community);
+
+      await expect(
+        service.getVisibleGigs({
+          from: 1,
+          communitySlug: 'girona',
+          countryIso: 'ES',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(gigRepository.findVisiblePage).not.toHaveBeenCalled();
+    },
+  );
 
   it('should resolve a visible Gig anchor date by validated publicId', async () => {
     gigRepository.findVisibleDateByPublicId.mockResolvedValue(123);

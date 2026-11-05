@@ -103,11 +103,11 @@ wire contract. Clients resolve the localized names and sort them for presentatio
 
 ## Legacy City Migration Boundary
 
-The legacy `city` field currently has two responsibilities that must be migrated
+The legacy `city` field originally had two responsibilities that are migrated
 separately:
 
-- its feed-selection responsibility can move to explicit Community assignments
-  before Place is introduced
+- its feed-selection responsibility now uses explicit Community assignments;
+  public Gig feed queries resolve `country + communitySlug` to a Community ID
 - its physical event-locality responsibility remains until Place provides the
   replacement location fields
 
