@@ -1,23 +1,39 @@
 import { Types } from 'mongoose';
 
-import { runBarcelonaCommunityMigration } from './1793750400000-add-barcelona-community-assignments';
+import { runBarcelonaCommunityMigration } from './1793750400000-bootstrap-barcelona-community-assignments';
 import type {
   BarcelonaCommunityInsertDocument,
   BarcelonaCommunityMigrationState,
   BarcelonaCommunityMigrationStore,
   BarcelonaCommunityMigrationWriteResult,
   BarcelonaTranslationInsertDocument,
-  CommunityAssignmentMigrationDocument,
-} from './1793750400000-add-barcelona-community-assignments';
+  GigAssignmentMigrationDocument,
+  GigCandidateAssignmentMigrationDocument,
+} from './1793750400000-bootstrap-barcelona-community-assignments';
+import { isRecord } from '@shared/utils/is-record';
 
 const NOW = new Date('2026-11-04T00:00:00.000Z');
 
-function cloneAssignmentDocument(
-  document: CommunityAssignmentMigrationDocument,
-): CommunityAssignmentMigrationDocument {
-  const clone: CommunityAssignmentMigrationDocument = { ...document };
+function cloneGigAssignmentDocument(
+  document: GigAssignmentMigrationDocument,
+): GigAssignmentMigrationDocument {
+  const clone: GigAssignmentMigrationDocument = { ...document };
   if (Array.isArray(document.communityIds)) {
     clone.communityIds = [...document.communityIds];
+  }
+  return clone;
+}
+
+function cloneGigCandidateAssignmentDocument(
+  document: GigCandidateAssignmentMigrationDocument,
+): GigCandidateAssignmentMigrationDocument {
+  const clone: GigCandidateAssignmentMigrationDocument = { ...document };
+  if (isRecord(document.gigDraft)) {
+    const gigDraft = { ...document.gigDraft };
+    clone.gigDraft = gigDraft;
+    if (Array.isArray(document.gigDraft.communityIds)) {
+      gigDraft.communityIds = [...document.gigDraft.communityIds];
+    }
   }
   return clone;
 }
@@ -29,8 +45,10 @@ class InMemoryBarcelonaCommunityMigrationStore implements BarcelonaCommunityMigr
     this.state = {
       communities: state.communities.map((document) => ({ ...document })),
       translations: state.translations.map((document) => ({ ...document })),
-      gigs: state.gigs.map(cloneAssignmentDocument),
-      gigCandidates: state.gigCandidates.map(cloneAssignmentDocument),
+      gigs: state.gigs.map(cloneGigAssignmentDocument),
+      gigCandidates: state.gigCandidates.map(
+        cloneGigCandidateAssignmentDocument,
+      ),
     };
   }
 
@@ -40,8 +58,10 @@ class InMemoryBarcelonaCommunityMigrationStore implements BarcelonaCommunityMigr
       translations: this.state.translations.map((document) => ({
         ...document,
       })),
-      gigs: this.state.gigs.map(cloneAssignmentDocument),
-      gigCandidates: this.state.gigCandidates.map(cloneAssignmentDocument),
+      gigs: this.state.gigs.map(cloneGigAssignmentDocument),
+      gigCandidates: this.state.gigCandidates.map(
+        cloneGigCandidateAssignmentDocument,
+      ),
     });
   }
 
@@ -62,23 +82,8 @@ class InMemoryBarcelonaCommunityMigrationStore implements BarcelonaCommunityMigr
   backfillGigs(
     communityId: Types.ObjectId,
   ): Promise<BarcelonaCommunityMigrationWriteResult> {
-    return Promise.resolve(this.backfill(this.state.gigs, communityId));
-  }
-
-  backfillGigCandidates(
-    communityId: Types.ObjectId,
-  ): Promise<BarcelonaCommunityMigrationWriteResult> {
-    return Promise.resolve(
-      this.backfill(this.state.gigCandidates, communityId),
-    );
-  }
-
-  private backfill(
-    documents: CommunityAssignmentMigrationDocument[],
-    communityId: Types.ObjectId,
-  ): BarcelonaCommunityMigrationWriteResult {
     let matchedCount = 0;
-    for (const document of documents) {
+    for (const document of this.state.gigs) {
       const hasCommunityIds = Object.prototype.hasOwnProperty.call(
         document,
         'communityIds',
@@ -89,6 +94,36 @@ class InMemoryBarcelonaCommunityMigrationStore implements BarcelonaCommunityMigr
       matchedCount += 1;
       document.communityIds = [communityId];
     }
+    return Promise.resolve(this.backfillWriteResult(matchedCount));
+  }
+
+  backfillGigCandidates(
+    communityId: Types.ObjectId,
+  ): Promise<BarcelonaCommunityMigrationWriteResult> {
+    let matchedCount = 0;
+    for (const document of this.state.gigCandidates) {
+      if (
+        Object.prototype.hasOwnProperty.call(document, 'communityIds') ||
+        !isRecord(document.gigDraft)
+      ) {
+        continue;
+      }
+      const hasCommunityIds = Object.prototype.hasOwnProperty.call(
+        document.gigDraft,
+        'communityIds',
+      );
+      if (hasCommunityIds) {
+        continue;
+      }
+      matchedCount += 1;
+      document.gigDraft.communityIds = [communityId];
+    }
+    return Promise.resolve(this.backfillWriteResult(matchedCount));
+  }
+
+  private backfillWriteResult(
+    matchedCount: number,
+  ): BarcelonaCommunityMigrationWriteResult {
     return {
       matchedCount,
       modifiedCount: matchedCount,
@@ -106,7 +141,7 @@ function emptyState(): BarcelonaCommunityMigrationState {
     communities: [],
     translations: [],
     gigs: [{ _id: new Types.ObjectId() }, { _id: new Types.ObjectId() }],
-    gigCandidates: [{ _id: new Types.ObjectId() }],
+    gigCandidates: [{ _id: new Types.ObjectId(), gigDraft: {} }],
   };
 }
 
@@ -115,6 +150,7 @@ describe('runBarcelonaCommunityMigration', () => {
     const store = new InMemoryBarcelonaCommunityMigrationStore(emptyState());
 
     const report = await runBarcelonaCommunityMigration(store, true, NOW);
+    const stateAfterDryRun = await store.readState();
 
     expect(report).toMatchObject({
       mode: 'dry-run',
@@ -140,12 +176,16 @@ describe('runBarcelonaCommunityMigration', () => {
         gigCandidates: { modifiedCount: 0 },
       },
     });
+    expect(stateAfterDryRun.gigCandidates[0]).not.toHaveProperty(
+      'gigDraft.communityIds',
+    );
   });
 
   it('should apply once and make a rerun a no-op', async () => {
     const store = new InMemoryBarcelonaCommunityMigrationStore(emptyState());
 
     const firstReport = await runBarcelonaCommunityMigration(store, false, NOW);
+    const appliedState = await store.readState();
     const rerunReport = await runBarcelonaCommunityMigration(store, false, NOW);
 
     expect(firstReport.writes).toEqual({
@@ -168,6 +208,12 @@ describe('runBarcelonaCommunityMigration', () => {
       gigs: { missing: 0, valid: 2 },
       gigCandidates: { missing: 0, valid: 1 },
     });
+    expect(appliedState.gigCandidates[0]).toMatchObject({
+      gigDraft: {
+        communityIds: [new Types.ObjectId(firstReport.communityId)],
+      },
+    });
+    expect(appliedState.gigCandidates[0]).not.toHaveProperty('communityIds');
     expect(rerunReport.writes).toEqual({
       community: { matchedCount: 0, modifiedCount: 0, insertedCount: 0 },
       englishTranslation: {
@@ -214,6 +260,88 @@ describe('runBarcelonaCommunityMigration', () => {
     expect(report.canApply).toBe(false);
     expect(report.before.gigs.blockingRecordIds).toEqual(['gig-conflict']);
     expect(backfillGigsSpy).not.toHaveBeenCalled();
+  });
+
+  it('should block conflicting nested GigCandidate assignments without writing', async () => {
+    const communityId = new Types.ObjectId();
+    const conflictingCommunityId = new Types.ObjectId();
+    const store = new InMemoryBarcelonaCommunityMigrationStore({
+      communities: [
+        {
+          _id: communityId,
+          countryIso: 'ES',
+          slug: 'barcelona',
+          nameTranslationKey: 'barcelona.name',
+          timeZone: 'Europe/Madrid',
+          isActive: true,
+        },
+      ],
+      translations: [],
+      gigs: [],
+      gigCandidates: [
+        {
+          _id: 'gig-candidate-conflict',
+          gigDraft: { communityIds: [conflictingCommunityId] },
+        },
+      ],
+    });
+    const backfillGigCandidatesSpy = vi.spyOn(store, 'backfillGigCandidates');
+
+    const report = await runBarcelonaCommunityMigration(store, false, NOW);
+
+    expect(report.canApply).toBe(false);
+    expect(report.before.gigCandidates.blockingRecordIds).toEqual([
+      'gig-candidate-conflict',
+    ]);
+    expect(backfillGigCandidatesSpy).not.toHaveBeenCalled();
+  });
+
+  it('should block legacy top-level GigCandidate assignments', async () => {
+    const communityId = new Types.ObjectId();
+    const store = new InMemoryBarcelonaCommunityMigrationStore({
+      communities: [
+        {
+          _id: communityId,
+          countryIso: 'ES',
+          slug: 'barcelona',
+          nameTranslationKey: 'barcelona.name',
+          timeZone: 'Europe/Madrid',
+          isActive: true,
+        },
+      ],
+      translations: [],
+      gigs: [],
+      gigCandidates: [
+        {
+          _id: 'legacy-gig-candidate',
+          gigDraft: {},
+          communityIds: [communityId],
+        },
+      ],
+    });
+
+    const report = await runBarcelonaCommunityMigration(store, true, NOW);
+
+    expect(report.canApply).toBe(false);
+    expect(report.before.gigCandidates.blockingRecordIds).toEqual([
+      'legacy-gig-candidate',
+    ]);
+  });
+
+  it('should block a GigCandidate without a valid gigDraft object', async () => {
+    const store = new InMemoryBarcelonaCommunityMigrationStore({
+      communities: [],
+      translations: [],
+      gigs: [],
+      gigCandidates: [{ _id: 'invalid-gig-candidate', gigDraft: null }],
+    });
+
+    const report = await runBarcelonaCommunityMigration(store, true, NOW);
+
+    expect(report.canApply).toBe(false);
+    expect(report.before.gigCandidates.blockingRecordIds).toEqual([
+      'invalid-gig-candidate',
+    ]);
   });
 
   it('should block a conflicting Barcelona Community record', async () => {

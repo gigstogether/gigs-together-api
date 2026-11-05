@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import type { Connection } from 'mongoose';
+import { isRecord } from '@shared/utils/is-record';
 
 import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
 
@@ -54,16 +55,22 @@ export interface BarcelonaTranslationInsertDocument {
   updatedAt: Date;
 }
 
-export interface CommunityAssignmentMigrationDocument {
+export interface GigAssignmentMigrationDocument {
   _id: unknown;
+  communityIds?: unknown;
+}
+
+export interface GigCandidateAssignmentMigrationDocument {
+  _id: unknown;
+  gigDraft?: unknown;
   communityIds?: unknown;
 }
 
 export interface BarcelonaCommunityMigrationState {
   communities: BarcelonaCommunityMigrationDocument[];
   translations: BarcelonaTranslationMigrationDocument[];
-  gigs: CommunityAssignmentMigrationDocument[];
-  gigCandidates: CommunityAssignmentMigrationDocument[];
+  gigs: GigAssignmentMigrationDocument[];
+  gigCandidates: GigCandidateAssignmentMigrationDocument[];
 }
 
 export interface BarcelonaCommunityMigrationWriteResult {
@@ -93,6 +100,11 @@ interface AssignmentSnapshot {
   missing: number;
   valid: number;
   blockingRecordIds: string[];
+}
+
+interface AssignmentReadResult {
+  hasCommunityIds: boolean;
+  communityIds: unknown;
 }
 
 export interface BarcelonaCommunityMigrationSnapshot {
@@ -169,29 +181,31 @@ function isExpectedEnglishTranslation(
   );
 }
 
-function buildAssignmentSnapshot(
-  documents: readonly CommunityAssignmentMigrationDocument[],
+function buildAssignmentSnapshot<T extends { _id: unknown }>(
+  documents: readonly T[],
   communityId: Types.ObjectId,
+  readAssignment: (document: T) => AssignmentReadResult | null,
 ): AssignmentSnapshot {
   let missing = 0;
   let valid = 0;
   const blockingRecordIds: string[] = [];
 
   for (const document of documents) {
-    const hasCommunityIds = Object.prototype.hasOwnProperty.call(
-      document,
-      'communityIds',
-    );
+    const assignment = readAssignment(document);
+    if (assignment === null) {
+      blockingRecordIds.push(toRecordId(document._id));
+      continue;
+    }
 
-    if (!hasCommunityIds) {
+    if (!assignment.hasCommunityIds) {
       missing += 1;
       continue;
     }
 
     if (
-      Array.isArray(document.communityIds) &&
-      document.communityIds.length === 1 &&
-      isSameObjectId(document.communityIds[0], communityId)
+      Array.isArray(assignment.communityIds) &&
+      assignment.communityIds.length === 1 &&
+      isSameObjectId(assignment.communityIds[0], communityId)
     ) {
       valid += 1;
       continue;
@@ -205,6 +219,37 @@ function buildAssignmentSnapshot(
     missing,
     valid,
     blockingRecordIds: blockingRecordIds.sort(),
+  };
+}
+
+function readGigAssignment(
+  document: GigAssignmentMigrationDocument,
+): AssignmentReadResult {
+  return {
+    hasCommunityIds: Object.prototype.hasOwnProperty.call(
+      document,
+      'communityIds',
+    ),
+    communityIds: document.communityIds,
+  };
+}
+
+function readGigCandidateAssignment(
+  document: GigCandidateAssignmentMigrationDocument,
+): AssignmentReadResult | null {
+  if (
+    Object.prototype.hasOwnProperty.call(document, 'communityIds') ||
+    !isRecord(document.gigDraft)
+  ) {
+    return null;
+  }
+
+  return {
+    hasCommunityIds: Object.prototype.hasOwnProperty.call(
+      document.gigDraft,
+      'communityIds',
+    ),
+    communityIds: document.gigDraft.communityIds,
   };
 }
 
@@ -237,17 +282,22 @@ function buildSnapshot(
     );
   }
 
-  const gigs = buildAssignmentSnapshot(state.gigs, communityId);
+  const gigs = buildAssignmentSnapshot(
+    state.gigs,
+    communityId,
+    readGigAssignment,
+  );
   const gigCandidates = buildAssignmentSnapshot(
     state.gigCandidates,
     communityId,
+    readGigCandidateAssignment,
   );
   if (gigs.blockingRecordIds.length > 0) {
     blockingReasons.push('Some Gigs have conflicting Community assignments.');
   }
   if (gigCandidates.blockingRecordIds.length > 0) {
     blockingReasons.push(
-      'Some GigCandidates have conflicting Community assignments.',
+      'Some GigCandidates have invalid or conflicting Community assignments.',
     );
   }
 
@@ -282,18 +332,18 @@ function projectState(
     communities,
     translations,
     gigs: state.gigs.map((document) =>
-      addAssignmentsWhenMissing(document, communityId),
+      addGigAssignmentsWhenMissing(document, communityId),
     ),
     gigCandidates: state.gigCandidates.map((document) =>
-      addAssignmentsWhenMissing(document, communityId),
+      addGigCandidateAssignmentsWhenMissing(document, communityId),
     ),
   };
 }
 
-function addAssignmentsWhenMissing(
-  document: CommunityAssignmentMigrationDocument,
+function addGigAssignmentsWhenMissing(
+  document: GigAssignmentMigrationDocument,
   communityId: Types.ObjectId,
-): CommunityAssignmentMigrationDocument {
+): GigAssignmentMigrationDocument {
   const hasCommunityIds = Object.prototype.hasOwnProperty.call(
     document,
     'communityIds',
@@ -304,6 +354,27 @@ function addAssignmentsWhenMissing(
   return {
     ...document,
     communityIds: [communityId],
+  };
+}
+
+function addGigCandidateAssignmentsWhenMissing(
+  document: GigCandidateAssignmentMigrationDocument,
+  communityId: Types.ObjectId,
+): GigCandidateAssignmentMigrationDocument {
+  if (
+    Object.prototype.hasOwnProperty.call(document, 'communityIds') ||
+    !isRecord(document.gigDraft) ||
+    Object.prototype.hasOwnProperty.call(document.gigDraft, 'communityIds')
+  ) {
+    return document;
+  }
+
+  return {
+    ...document,
+    gigDraft: {
+      ...document.gigDraft,
+      communityIds: [communityId],
+    },
   };
 }
 
@@ -462,6 +533,7 @@ function createMongoStore(
               {
                 projection: {
                   _id: 1,
+                  gigDraft: 1,
                   communityIds: 1,
                 },
               },
@@ -504,11 +576,13 @@ function createMongoStore(
     async backfillGigCandidates(communityId) {
       const result = await gigCandidates.updateMany(
         {
+          gigDraft: { $type: 'object' },
+          'gigDraft.communityIds': { $exists: false },
           communityIds: { $exists: false },
         },
         {
           $set: {
-            communityIds: [communityId],
+            'gigDraft.communityIds': [communityId],
           },
         },
       );
