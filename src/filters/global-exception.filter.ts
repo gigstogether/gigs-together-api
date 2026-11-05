@@ -157,6 +157,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         `Not found ${request.method} ${pathForLog} ip=${clientIp}`,
         GlobalExceptionFilter.name,
       );
+    } else if (status >= HttpStatus.BAD_REQUEST && status < 500) {
+      this.logger.warn(errorResponse);
     } else if (exception instanceof MongooseError.ValidationError) {
       this.logger.error({
         ...errorResponse,
@@ -166,7 +168,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         validationDetails: getObjectIdArrayValidationDetails(exception),
       });
     } else {
-      // Keep logs readable: only message + stack (no giant object dumps).
+      // Keep unexpected server failure logs readable: response metadata plus stack,
+      // without dumping the full exception object.
       this.logger.error(
         errorResponse,
         exception instanceof Error ? exception.stack : undefined,
