@@ -104,7 +104,7 @@ Main files:
 - `src/modules/gig-candidate/gig-candidate-feedback.service.ts`
 - `src/modules/gig-candidate/gig-candidate-poster/gig-candidate-poster.service.ts`
 - `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
-- `src/modules/gig-candidate/repositories/gig-candidate-approval/`
+- `src/modules/gig-candidate/gig-candidate-approval/repositories/`
 
 #### `DigestModule`
 

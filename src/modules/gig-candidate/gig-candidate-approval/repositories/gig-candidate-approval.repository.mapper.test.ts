@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { GigSourceType } from '../../../gig/types/gig-source-type.enum';

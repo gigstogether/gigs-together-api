@@ -15,7 +15,7 @@ import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-typ
 import { AdminGigCandidateController } from './admin-gig-candidate.controller';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
-import type { GigApprovalResult } from '../gig-candidate/repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import type { GigApprovalResult } from '@modules/gig-candidate/gig-candidate-approval/repositories/gig-candidate-approval.repository';
 
 function buildGigCandidate(
   overrides: Partial<GigCandidate> = {},

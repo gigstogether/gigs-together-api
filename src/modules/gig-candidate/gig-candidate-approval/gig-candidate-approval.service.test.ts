@@ -20,8 +20,8 @@ import {
   GigCandidateCommand,
 } from '../gig-candidate-state-machine';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
-import type { GigApprovalResult } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
 import type { GigCandidate } from '../types/gig-candidate.types';
 import { GigCandidateApprovalService } from './gig-candidate-approval.service';
 

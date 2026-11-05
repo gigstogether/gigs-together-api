@@ -19,7 +19,7 @@ import type {
   GigCandidateSourceMessengerUser,
   GigCandidateSourceProvider,
 } from '../types/gig-candidate.types';
-import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval/gig-candidate-approval.repository.mapper';
+import { GigCandidateApprovalRepositoryMapper } from '../gig-candidate-approval/repositories/gig-candidate-approval.repository.mapper';
 
 type MongoId = { toString(): string } | string;
 type GigCandidateLeanIdentifiedUserSource = Omit<

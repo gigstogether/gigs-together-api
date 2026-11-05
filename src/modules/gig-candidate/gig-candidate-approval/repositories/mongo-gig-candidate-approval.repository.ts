@@ -16,8 +16,8 @@ import type {
 } from './gig-candidate-approval.repository';
 import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval.repository.mapper';
 import type { GigApprovalResultLeanDocument } from './gig-candidate-approval.repository.mapper';
-import { GigCandidateRepositoryMapper } from '../gig-candidate.repository.mapper';
-import type { GigCandidateLeanDocument } from '../gig-candidate.repository.mapper';
+import { GigCandidateRepositoryMapper } from '../../repositories/gig-candidate.repository.mapper';
+import type { GigCandidateLeanDocument } from '../../repositories/gig-candidate.repository.mapper';
 
 // TODO: Extract this cross-aggregate transaction boundary as GigCandidateApprovalUnitOfWork.
 @Injectable()

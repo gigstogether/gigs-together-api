@@ -24,12 +24,12 @@ import {
   GigCandidateConflictError,
   getGigCandidateTransitionPolicy,
 } from '../gig-candidate-state-machine';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import type {
   GigApprovalResult,
   GigCandidateApprovalRepository,
   GigCandidateApprovalTransaction,
-} from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+} from './repositories/gig-candidate-approval.repository';
 import type { GigCandidate } from '../types/gig-candidate.types';
 import {
   mapGigCandidateSourceToGigSource,

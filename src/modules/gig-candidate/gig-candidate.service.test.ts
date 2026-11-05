@@ -17,7 +17,7 @@ import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './gig-candidate-approval/repositories/gig-candidate-approval.repository';
 import {
   GigCandidateCommand,
   GigCandidateConflictError,
@@ -28,7 +28,7 @@ import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type { GigCandidate } from './types/gig-candidate.types';
 import { GigCandidateApprovalValidationError } from './gig-candidate-approval/gig-candidate-approval';
 import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
-import type { GigApprovalResult } from './repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import type { GigApprovalResult } from './gig-candidate-approval/repositories/gig-candidate-approval.repository';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
