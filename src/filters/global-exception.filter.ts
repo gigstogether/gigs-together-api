@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import type { Request, Response } from 'express';
+import { Error as MongooseError } from 'mongoose';
 import { logError } from '@shared/utils/logging';
 
 function getClientIp(request: Request): string {
@@ -98,6 +99,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         `Not found ${request.method} ${pathForLog} ip=${clientIp}`,
         GlobalExceptionFilter.name,
       );
+    } else if (exception instanceof MongooseError.ValidationError) {
+      this.logger.error({
+        ...errorResponse,
+        errorType: exception.name,
+        message: exception.message,
+        validationPaths: Object.keys(exception.errors),
+      });
     } else {
       // Keep logs readable: only message + stack (no giant object dumps).
       this.logger.error(
