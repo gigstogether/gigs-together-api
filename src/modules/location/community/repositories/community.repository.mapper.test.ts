@@ -38,12 +38,12 @@ describe('CommunityRepositoryMapper', () => {
     );
   });
 
-  it('should reject an invalid country ISO code', () => {
+  it('should reject an empty country ISO code', () => {
     const doc = createCommunityDocument();
-    doc.countryIso = 'es';
+    doc.countryIso = '';
 
     expect(() => CommunityRepositoryMapper.toCommunity(doc)).toThrow(
-      'Community countryIso must be an uppercase ISO 3166-1 alpha-2 code',
+      'Community countryIso must be a non-empty string',
     );
   });
 

@@ -1,7 +1,17 @@
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
+import { CountryService } from '../country/country.service';
 import { CommunityService } from './community.service';
 import { COMMUNITY_REPOSITORY } from './repositories/community.repository';
+
+const COMMUNITY = {
+  id: 'community-id',
+  countryIso: 'ES',
+  slug: 'barcelona',
+  nameTranslationKey: 'barcelona.name',
+  timeZone: 'Europe/Madrid',
+  isActive: true,
+};
 
 describe('CommunityService', () => {
   let service: CommunityService;
@@ -10,12 +20,15 @@ describe('CommunityService', () => {
   const findByIdMock = vi.fn();
   const findByIdsMock = vi.fn();
   const findByRouteMock = vi.fn();
+  const hasCountryMock = vi.fn();
 
   beforeEach(async () => {
     findActiveMock.mockReset();
     findByIdMock.mockReset();
     findByIdsMock.mockReset();
     findByRouteMock.mockReset();
+    hasCountryMock.mockReset();
+    hasCountryMock.mockResolvedValue(true);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -29,6 +42,10 @@ describe('CommunityService', () => {
             findByRoute: findByRouteMock,
           },
         },
+        {
+          provide: CountryService,
+          useValue: { hasCountry: hasCountryMock },
+        },
       ],
     }).compile();
 
@@ -36,24 +53,23 @@ describe('CommunityService', () => {
   });
 
   it('should find a Community by id through the repository', async () => {
-    findByIdMock.mockResolvedValue({ id: 'community-id' });
+    findByIdMock.mockResolvedValue(COMMUNITY);
 
-    await expect(service.findById('community-id')).resolves.toEqual({
-      id: 'community-id',
-    });
+    await expect(service.findById('community-id')).resolves.toEqual(COMMUNITY);
     expect(findByIdMock).toHaveBeenCalledWith('community-id');
+    expect(hasCountryMock).toHaveBeenCalledWith('ES');
   });
 
   it('should find Communities by ids through the repository', async () => {
     const ids = ['first-community-id', 'second-community-id'];
     findByIdsMock.mockResolvedValue([
-      { id: 'first-community-id' },
-      { id: 'second-community-id' },
+      { ...COMMUNITY, id: 'first-community-id' },
+      { ...COMMUNITY, id: 'second-community-id' },
     ]);
 
     await expect(service.findByIds(ids)).resolves.toEqual([
-      { id: 'first-community-id' },
-      { id: 'second-community-id' },
+      { ...COMMUNITY, id: 'first-community-id' },
+      { ...COMMUNITY, id: 'second-community-id' },
     ]);
     expect(findByIdsMock).toHaveBeenCalledWith(ids);
   });
@@ -65,37 +81,48 @@ describe('CommunityService', () => {
     await expect(service.findByRoute(params)).resolves.toEqual({
       id: 'community-id',
     });
+    expect(hasCountryMock).toHaveBeenCalledWith('ES');
     expect(findByRouteMock).toHaveBeenCalledWith(params);
   });
 
-  it('should reject an invalid route country ISO code', () => {
-    expect(() =>
+  it('should return null for a route outside the Country catalog', async () => {
+    hasCountryMock.mockResolvedValue(false);
+
+    await expect(
       service.findByRoute({
-        countryIso: 'es',
+        countryIso: 'ZZ',
         communitySlug: 'barcelona',
       }),
-    ).toThrow(
-      'Community countryIso must be an uppercase ISO 3166-1 alpha-2 code',
-    );
+    ).resolves.toBeNull();
     expect(findByRouteMock).not.toHaveBeenCalled();
   });
 
-  it('should reject an invalid route slug', () => {
-    expect(() =>
+  it('should reject an invalid route slug', async () => {
+    await expect(
       service.findByRoute({
         countryIso: 'ES',
         communitySlug: 'Barcelona City',
       }),
-    ).toThrow('Community slug must be a lowercase route slug');
+    ).rejects.toThrow('Community slug must be a lowercase route slug');
+    expect(hasCountryMock).not.toHaveBeenCalled();
     expect(findByRouteMock).not.toHaveBeenCalled();
   });
 
   it('should return active Communities through the repository', async () => {
-    findActiveMock.mockResolvedValue([{ id: 'community-id' }]);
+    findActiveMock.mockResolvedValue([COMMUNITY]);
 
-    await expect(service.findActive()).resolves.toEqual([
-      { id: 'community-id' },
-    ]);
+    await expect(service.findActive()).resolves.toEqual([COMMUNITY]);
     expect(findActiveMock).toHaveBeenCalledOnce();
+  });
+
+  it('should reject a stored Community outside the Country catalog', async () => {
+    findActiveMock.mockResolvedValue([
+      { id: 'community-id', countryIso: 'ZZ' },
+    ]);
+    hasCountryMock.mockResolvedValue(false);
+
+    await expect(service.findActive()).rejects.toThrow(
+      'Community countryIso "ZZ" must reference an existing Country',
+    );
   });
 });

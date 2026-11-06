@@ -1,7 +1,6 @@
 import { Types } from 'mongoose';
 import { isValidTranslationKey } from '@modules/translation/translation-identifiers';
 import {
-  isValidCommunityCountryIso,
   isValidCommunitySlug,
   isValidCommunityTimeZone,
 } from '../community.validators';
@@ -21,13 +20,8 @@ export class CommunityRepositoryMapper {
     if (!(doc._id instanceof Types.ObjectId)) {
       throw new Error('Community _id must be an ObjectId');
     }
-    if (
-      typeof doc.countryIso !== 'string' ||
-      !isValidCommunityCountryIso(doc.countryIso)
-    ) {
-      throw new Error(
-        'Community countryIso must be an uppercase ISO 3166-1 alpha-2 code',
-      );
+    if (typeof doc.countryIso !== 'string' || doc.countryIso.length === 0) {
+      throw new Error('Community countryIso must be a non-empty string');
     }
     if (typeof doc.slug !== 'string' || !isValidCommunitySlug(doc.slug)) {
       throw new Error('Community slug must be a lowercase route slug');

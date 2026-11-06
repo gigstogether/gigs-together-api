@@ -2,7 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
 import { isValidTranslationKey } from '@modules/translation/translation-identifiers';
 import {
-  isValidCommunityCountryIso,
   isValidCommunitySlug,
   isValidCommunityTimeZone,
 } from './community.validators';
@@ -14,7 +13,6 @@ export class Community {
     required: true,
     uppercase: true,
     trim: true,
-    validate: isValidCommunityCountryIso,
   })
   countryIso: string;
 
