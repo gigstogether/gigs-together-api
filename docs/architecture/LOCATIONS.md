@@ -44,6 +44,13 @@ Creating a Region must verify through the Country application and repository
 boundary that its `countryIso` exists in the Country collection. A syntactically
 valid but unsupported code must not create a Region.
 
+`CountryService` lazily loads the small reference collection and keeps both the
+ordered catalog and a set of ISO codes in process memory. HTTP DTOs normalize and
+validate external ISO syntax, while application services ask CountryService
+whether the code is part of the supported catalog. Region and Community do not
+maintain a separate ISO regex. Because Country has no runtime mutation API,
+catalog changes take effect after an application restart.
+
 ## Region
 
 `Region` is a deliberately simple grouping below Country. The model does not yet
