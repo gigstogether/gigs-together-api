@@ -1,65 +1,134 @@
 # Location Architecture
 
 This document defines the current `LocationModule` boundary and the target domain
-model for countries, Communities, physical event Places, and future geographic
-matching.
+model for Countries, Regions, Localities, Communities, physical event Places,
+and future geographic matching.
 
-## Current Module Boundary
+## Module Boundary
 
 `LocationModule` owns geographic reference data. It serves countries and owns
-Community persistence and lookup. It does not own Gig
-moderation, feed delivery, Telegram workflows, or calendar integration.
+Community persistence and lookup. It does not own Gig moderation, feed delivery,
+Telegram workflows, or calendar integration.
 
 Current persistence:
 
 - `Country`
 - `Community`
 
-Current main files:
+Target geographic catalog:
 
-- `src/modules/location/location.module.ts`
-- `src/modules/location/country/countries.controller.ts`
-- `src/modules/location/country/country.service.ts`
-- `src/modules/location/country/country.schema.ts`
-- `src/modules/location/country/repositories/country.repository.ts`
-- `src/modules/location/country/repositories/mongo-country.repository.ts`
-- `src/modules/location/community/community.schema.ts`
-- `src/modules/location/community/community.service.ts`
-- `src/modules/location/community/repositories/community.repository.ts`
-- `src/modules/location/community/repositories/mongo-community.repository.ts`
+```text
+Country -> Region -> Locality -> Place
+```
 
-`Country` remains an independently stored reference collection even when another
-feature is its primary consumer. Country reads must continue to pass through the
-Country-owned repository boundary; a Community repository must not query the
-Country model. A Community application service may depend on both repository
-interfaces when a use case needs Community and Country data.
+`Country`, `Region`, and `Locality` describe physical geography. `Place`
+identifies a reusable physical event location. `Community` remains an independent
+editorial audience and feed assignment.
 
-Community persistence, lookup, and Gig assignment relationships are implemented
-as described below. Public Gig feed selection and cache revalidation use those
-Community relationships. Place remains a future increment, so Gig responses and
-physical-location integrations continue to use the existing `country`, `city`,
-and `venue` fields until the Place migration is complete.
+Every collection has its own repository boundary. One feature service may depend
+on another feature's application service, but a repository must not query a model
+owned by another feature. For example, Region creation verifies `countryIso`
+through `CountryService`; `RegionRepository` does not query the Country model.
+
+Region, Locality, and Place are introduced incrementally. Gig responses and
+physical-location integrations continue to use the legacy `country`, `city`, and
+`venue` fields until the catalog, runtime relationships, and migration are ready.
+
+## Country
+
+`Country` is the root of the physical geographic catalog. Its unique uppercase
+ISO 3166-1 alpha-2 `iso` value is the relationship key used by Region. Region does
+not store a separate Country ObjectId.
+
+Creating a Region must verify through the Country application and repository
+boundary that its `countryIso` exists in the Country collection. A syntactically
+valid but unsupported code must not create a Region.
+
+## Region
+
+`Region` is a deliberately simple grouping below Country. The model does not yet
+declare whether a Region is an autonomous community, province, state, department,
+or another administrative category. That distinction may be introduced after
+the catalog has real multi-country requirements.
+
+The Region model contains:
+
+- an opaque stable `id`
+- `countryIso`, which references an existing Country by its unique ISO code
+- a required canonical `name`
+- required `aliases`, which may be empty and provide alternative searchable names
+
+Region names and aliases are stored directly in the entity. They do not depend on
+translation records. The canonical name remains available for administration,
+search, and data integrity even when no locale-specific display name exists.
+
+Region has no `isActive` state. An unused erroneous Region may be deleted. Once
+Locality is introduced, a Region referenced by a Locality must not be deleted
+until those references have been moved or removed.
+
+## Locality
+
+`Locality` represents the city, town, settlement, municipality, or other local
+territory used to locate a Place. The target model contains:
+
+- an opaque stable `id`
+- `regionId`, which references a Region
+- a required canonical `name`
+- required searchable `aliases`, which may be empty
+- a required IANA `timeZone`
+
+Country is resolved through Locality's Region and is not duplicated on Locality.
+Locality has no `isActive` state. Geographic names remain canonical stored data;
+aliases may initially cover alternative-language spellings without introducing a
+translation dependency.
+
+## Place
+
+`Place` is a reusable catalog entity representing a concrete physical event
+location. It replaces the previous plan for an embedded Place value object and a
+separate future Venue entity. Clubs, concert halls, festival grounds, and
+temporary festival locations use the same Place model.
+
+The target Place model contains:
+
+- an opaque stable `id`
+- `localityId`, which references a Locality
+- a required canonical `name`
+- required searchable `aliases`, which may be empty
+- `isActive`, which controls whether the Place may be assigned to new events
+
+Country, Region, and time zone are resolved through Locality. They are not
+duplicated on Place. A temporary or closed Place remains available to historical
+Gigs but is excluded from new assignments after deactivation.
+
+Address and coordinates are intentionally excluded until a consumer and a
+reliable data-entry or geocoding boundary exist. Multiple stages inside one
+festival site remain one Place. Independently addressable venues used by the same
+festival are separate Places.
+
+Place names are not unique. Two physical locations may share a name, including
+within one Locality. Aliases support variants such as `Razzmatazz`,
+`Sala Razzmatazz`, and `Razzmatazz 1`; catalog search and moderation provide the
+deduplication workflow instead of a potentially incorrect unique-name constraint.
 
 ## Community
 
 A Community represents a geographic audience and feed, not a municipal boundary
 and not the physical place of an event. For example, the Barcelona Community may
-contain an event in Badalona or a festival outside any municipality.
+contain an event in Badalona or a festival outside Barcelona.
 
-`LocationModule` owns Community persistence and lookup because Community is a
-geographic catalog concept at this stage. If social membership, roles, or access
-rules are introduced later, those concerns may require a separate domain boundary.
-
-The initial Community model contains:
+The current Community model contains:
 
 - an opaque stable `id` used by application and persistence relationships
 - `countryIso`, stored as an uppercase ISO 3166-1 alpha-2 code
 - `slug`, used as the human-readable route segment within a country
-- `nameTranslationKey`, used with the fixed `community` namespace to resolve
-  the localized Community name; keys identify the translated field, for example
-  `barcelona.name`
+- `nameTranslationKey`, used with the fixed `community` namespace to resolve the
+  localized Community name
 - `timeZone`, stored as an IANA time-zone identifier for Community-level scheduling
-- `isActive`, which controls whether the Community can receive new assignments and appear in public catalogs
+- `isActive`, which controls new assignments and public catalog visibility
+
+Community does not also store a canonical `name`. Its label is translatable UI
+content, while Region, Locality, and Place names are canonical catalog data.
 
 The pair `countryIso + slug` is unique. The opaque `id`, rather than the slug, is
 stored on Gigs and GigCandidates so a route slug can change without rewriting all
@@ -68,11 +137,9 @@ relationships.
 The initial model intentionally has no default Community, custom sort position, or
 geographic coverage. The existing Barcelona entry route remains an explicit
 application decision until the product introduces a Community chooser or another
-root-route policy. Public clients sort localized Community names themselves; a
-manual sort position should be introduced only when the product requires curated
-ordering.
+root-route policy.
 
-## Community Routes
+## Community Routes and Catalog
 
 The canonical feed route keeps its existing shape:
 
@@ -81,14 +148,9 @@ The canonical feed route keeps its existing shape:
 ```
 
 For example, `/feed/es/barcelona` addresses the Barcelona Community. The
-`barcelona` segment describes an audience/feed and does not assert that every
-event is physically inside Barcelona. Internal code should use names such as
-`communitySlug` rather than `city` for this route segment.
-
-The route pair resolves to a Community `id`. Feed queries and stored relationships
-use that `id`; they do not use a derived compound key such as `es:barcelona`.
-
-## Community Catalog API
+`barcelona` segment describes an audience and does not assert that every event is
+physically inside Barcelona. Feed queries resolve `countryIso + communitySlug` to
+a Community `id` and use that ID for stored relationships.
 
 The public active Community catalog is exposed as:
 
@@ -97,140 +159,91 @@ GET /v1/communities
 ```
 
 The response exposes `nameTranslationNamespace: "community"` once at the catalog
-level and contains a `communities` array. Each item exposes the stable `id`,
-`countryIso`, route `slug`, `nameTranslationKey`, and `timeZone`. The endpoint
-returns active Communities only, so `isActive` is intentionally omitted from the
-wire contract. Clients resolve the localized names and sort them for presentation.
-
-## Legacy City Migration Boundary
-
-The legacy `city` field originally had two responsibilities that are migrated
-separately:
-
-- its feed-selection responsibility now uses explicit Community assignments;
-  public Gig feed queries resolve `country + communitySlug` to an active
-  Community ID, then filter by that ID
-- its physical event-locality responsibility remains until Place provides the
-  replacement location fields
-
-Frontend feed routing and titles should use the Community catalog and the
-`community` translation namespace. The legacy `city` namespace must remain
-available while Gig responses still expose physical city codes. It can be
-removed only after the Place migration removes those final consumers.
+level and contains a `communities` array. The endpoint returns active Communities
+only, so `isActive` is intentionally omitted from the wire contract.
 
 ## Community Assignments
 
-A Gig may appear in one or more Community feeds. Assignments are stored at these
-paths:
+A Gig may appear in one or more Community feeds. Assignments are stored at:
 
 ```text
 Gig.communityIds[]
 GigCandidate.gigDraft.communityIds[]
 ```
 
-The following invariants apply once assignments become required for an approved
-Gig:
-
-- `communityIds` is non-empty and contains no duplicates
-- every referenced Community exists
-- new assignments may target only active Communities
-- changing the physical Place does not silently rewrite Community assignments
-
-Gig and GigCandidate schemas require non-empty, unique Community ObjectId arrays.
-Candidate create and update flows verify that every new assignment references an
-active Community. Approval copies the reviewed `gigDraft.communityIds` into the
-created Gig without deriving assignments from `city` or `country`.
+Assignments are non-empty, contain no duplicates, and reference existing
+Communities. New assignments may target only active Communities. Changing the
+physical Places does not silently rewrite Community assignments.
 
 Assignments are explicit snapshots. An admin action such as "select all
-Communities in Spain" resolves the currently active Spanish Communities and stores
-their concrete IDs. A Community created later is not retroactively added to older
-Gigs. Dynamic country-wide assignment rules may be introduced separately only if
-that behavior becomes an explicit product requirement.
-
-Community-aware integrations must select their destinations explicitly from the
-assigned Communities instead of relying on an arbitrary primary assignment. A
-Gig deep link identifies the Gig independently from the Community feed through
-which it was discovered.
+Communities in Spain" resolves the currently active Spanish Communities and
+stores their concrete IDs. A Community created later is not retroactively added
+to older Gigs.
 
 Feed cache revalidation resolves every assigned Community ID to its
 `countryIso + slug` route and invalidates all corresponding feed paths. It also
 resolves inactive assigned Communities so an old feed path can be cleared after a
-Community is deactivated. Manual global revalidation remains available without a
-specific assignment list.
+Community is deactivated.
 
 The bootstrap migration
 `1793750400000-bootstrap-barcelona-community-assignments` creates the Barcelona
 Community and its English `community / barcelona.name` translation when absent,
-then assigns all historical Gigs and GigCandidates to it. The migration writes
-GigCandidate assignments only to `gigDraft.communityIds` and blocks conflicting,
-invalid, or legacy top-level GigCandidate assignments.
+then assigns all historical Gigs and GigCandidates to it.
 
-## Place
+## Gig Place Assignments
 
-`Place` represents where an event physically occurs and is independent from its
-Community assignments. The target model contains:
+A Gig references one or more physical locations:
 
-- `venue`, required for event display and integrations
-- optional `locality`, because a festival may not belong to a municipality
-- `countryIso`, required and stored as an uppercase ISO 3166-1 alpha-2 code
-- optional `coordinates`, stored as a validated latitude/longitude pair
-- `timeZone`, required for an approved Gig and stored as an IANA time-zone identifier
+```text
+Gig.placeIds[]
+GigCandidate.gigDraft.placeIds[]
+```
 
-`addressText` and `region` are intentionally excluded from the first model because
-there is no established address or geocoding boundary that owns them yet. They may
-be added when an actual consumer and normalization contract exist.
+Approved Gig assignments are non-empty, contain no duplicate IDs, and reference
+active Places at creation time. All Places assigned to one Gig must resolve to the
+same Country and IANA time zone, while different Localities are allowed. A
+multi-venue festival stores every independently addressable venue in `placeIds`;
+the array order does not imply a primary venue.
 
-Coordinates may be absent from legacy Gigs and incomplete GigCandidates. Missing
-coordinates disable automatic geographic suggestions but do not prevent an admin
-from assigning Communities explicitly.
+GigCandidate may additionally preserve unresolved source proposals until an admin
+selects an existing Place or creates a catalog entry. Approval requires all final
+physical locations to be resolved to `placeIds`. The exact candidate proposal
+wire contract must be reviewed before implementation.
 
-## Future Geographic Suggestions
+Legacy `country`, `city`, and `venue` remain in runtime contracts until Region,
+Locality, and Place persistence and the Gig relationship migration are complete.
+The migration must run only after the final runtime schemas have been reviewed.
+
+## Geographic Suggestions
 
 Geographic coverage is not part of the initial Community persistence model. A
-later increment may add radius-based coverage and use Place coordinates to suggest
-Communities during moderation. Suggestions never mutate assignments on their own:
-the admin confirms the final `communityIds` and may add or remove any Community.
+later increment may use explicit Region and Locality coverage to suggest
+Communities during moderation. Radius-based matching may be added after Place has
+a reliable coordinate source.
 
-This preserves editorial relevance for events outside a default radius, events
-between cities, and events intended for several Community audiences. A future
-coverage model must use an explicit discriminator so radius and polygon variants
-are narrowed by their declared kind rather than by incidental payload fields.
-
-## Future Venue Catalog
-
-A reusable Venue catalog is planned as a separate entity with its own identity,
-lifecycle, persistence schema, and `VenueRepository`. It must not be stored through
-`CommunityRepository` merely because Venue has geographic data.
-
-`Place` remains the event's physical-location value object and is persisted by the
-Gig or GigCandidate repository that owns the event data. When Venue references are
-introduced, Place may reference a Venue by ID while retaining the event-specific
-location data required for historical and integration behavior.
+Suggestions never mutate assignments on their own. The source Community provides
+the initial assignment, geography supplies additional suggestions, and the admin
+confirms the final `communityIds`. Manual editorial relevance takes precedence
+over physical distance.
 
 ## Related Module Responsibilities
 
 `LocationModule` owns:
 
-- Country and Community persistence through separate repository boundaries
+- Country, Region, Locality, Place, and Community persistence through separate
+  repository boundaries
 - Community lookup by ID and route
 - active Community catalog reads
-- future coordinate-to-Community suggestions
-- the future Venue catalog through its own repository boundary
+- future geography-to-Community suggestions
 
 Downstream feature modules own their application behavior:
 
-- `GigModule` owns feed queries and Gig Community relationships
+- `GigModule` owns Gig relationships to Communities and Places
 - `GigCandidateModule` owns draft assignments and moderation decisions
 - `TelegramUpdatesModule` resolves the source Community for incoming suggestions
 - `TelegramModule` resolves Community-specific delivery destinations
 - `DigestModule` creates Community-specific digests
-- `CalendarModule` uses the physical Place time zone for event data
+- `CalendarModule` uses the Locality time zone resolved through Place
 
-These downstream modules depend on the Location application boundary and must not
-query Location-owned Mongo models directly.
-
-The current single-chat Telegram intake assigns the Barcelona Community
-explicitly. Resolving source Communities from multiple chats, Community-specific
-Telegram delivery, and Community-specific digests remain later integration
-increments; their ownership is listed above to keep those future dependencies out
-of Location persistence.
+Downstream modules depend on the Location application boundary and must not query
+Location-owned Mongo models directly.
