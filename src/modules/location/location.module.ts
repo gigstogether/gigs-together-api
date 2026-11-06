@@ -10,18 +10,24 @@ import { CountryService } from './country/country.service';
 import { CountriesController } from './country/countries.controller';
 import { COUNTRY_REPOSITORY } from './country/repositories/country.repository';
 import { MongoCountryRepository } from './country/repositories/mongo-country.repository';
+import { Region, RegionSchema } from './region/region.schema';
+import { RegionService } from './region/region.service';
+import { REGION_REPOSITORY } from './region/repositories/region.repository';
+import { MongoRegionRepository } from './region/repositories/mongo-region.repository';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Community.name, schema: CommunitySchema },
       { name: Country.name, schema: CountrySchema },
+      { name: Region.name, schema: RegionSchema },
     ]),
   ],
   controllers: [CommunityController, CountriesController],
   providers: [
     CommunityService,
     CountryService,
+    RegionService,
     {
       provide: COMMUNITY_REPOSITORY,
       useClass: MongoCommunityRepository,
@@ -30,7 +36,11 @@ import { MongoCountryRepository } from './country/repositories/mongo-country.rep
       provide: COUNTRY_REPOSITORY,
       useClass: MongoCountryRepository,
     },
+    {
+      provide: REGION_REPOSITORY,
+      useClass: MongoRegionRepository,
+    },
   ],
-  exports: [CommunityService],
+  exports: [CommunityService, RegionService],
 })
 export class LocationModule {}

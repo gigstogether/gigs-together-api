@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BucketModule } from '@modules/bucket/bucket.module';
+import { LocationModule } from '@modules/location/location.module';
 import { AuthModule } from '../auth/auth.module';
 import { DigestModule } from '../digest/digest.module';
 import { GigModule } from '../gig/gig.module';
@@ -24,6 +25,7 @@ import { GigCandidateConflictFilter } from './filters/gig-candidate-conflict.fil
 import { GigCandidateApprovalValidationFilter } from './filters/gig-candidate-approval-validation.filter';
 import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
 import { UserModule } from '../user/user.module';
+import { AdminRegionController } from './admin-region.controller';
 
 @Module({
   imports: [
@@ -34,10 +36,15 @@ import { UserModule } from '../user/user.module';
     TranslationModule,
     TelegramModule,
     GigCandidateModule,
+    LocationModule,
     UserModule,
     BucketModule,
   ],
-  controllers: [AdminController, AdminGigCandidateController],
+  controllers: [
+    AdminController,
+    AdminGigCandidateController,
+    AdminRegionController,
+  ],
   providers: [
     AdminDashboardService,
     AdminGigService,

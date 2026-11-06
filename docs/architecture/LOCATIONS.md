@@ -30,6 +30,10 @@ on another feature's application service, but a repository must not query a mode
 owned by another feature. For example, Region creation verifies `countryIso`
 through `CountryService`; `RegionRepository` does not query the Country model.
 
+`LocationModule` owns Region persistence and application behavior and exports
+`RegionService`. `AdminModule` owns the authenticated administrative HTTP
+controller and its versioned Region request and response contracts.
+
 Region, Locality, and Place are introduced incrementally. Gig responses and
 physical-location integrations continue to use the legacy `country`, `city`, and
 `venue` fields until the catalog, runtime relationships, and migration are ready.
