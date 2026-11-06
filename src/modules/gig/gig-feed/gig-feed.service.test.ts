@@ -11,7 +11,7 @@ import type { GigRepository } from '../repositories/gig.repository';
 import type { PlainGig } from '../types/gig.types';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
-import { CommunityService } from '@modules/location/community/community.service';
+import { CommunityService } from '@modules/community/community.service';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {

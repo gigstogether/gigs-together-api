@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { CountryService } from '../country/country.service';
+import { CountryService } from '@modules/location/country/country.service';
 import { CommunityService } from './community.service';
 import { COMMUNITY_REPOSITORY } from './repositories/community.repository';
 

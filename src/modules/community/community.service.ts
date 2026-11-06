@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isValidCommunitySlug } from './community.validators';
-import { CountryService } from '../country/country.service';
+import { CountryService } from '@modules/location/country/country.service';
 import { COMMUNITY_REPOSITORY } from './repositories/community.repository';
 import type { CommunityRepository } from './repositories/community.repository';
 import type { Community } from './types/community.types';

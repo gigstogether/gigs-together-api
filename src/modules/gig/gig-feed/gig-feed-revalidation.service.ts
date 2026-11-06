@@ -5,8 +5,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { CommunityService } from '@modules/location/community/community.service';
-import type { Community } from '@modules/location/community/types/community.types';
+import { CommunityService } from '@modules/community/community.service';
+import type { Community } from '@modules/community/types/community.types';
 import { getConfigString } from '@shared/utils/env';
 
 interface BuildGigFeedPathParams {

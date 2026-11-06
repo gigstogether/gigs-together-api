@@ -1,19 +1,29 @@
 # Location Architecture
 
-This document defines the current `LocationModule` boundary and the target domain
-model for Countries, Regions, Localities, Communities, physical event Places,
-and future geographic matching.
+This document defines the boundary between physical geography in
+`LocationModule` and editorial audiences in `CommunityModule`, together with the
+target domain model for Countries, Regions, Localities, Communities, physical
+event Places, and future geographic matching.
 
 ## Module Boundary
 
-`LocationModule` owns geographic reference data. It serves countries and owns
-Community persistence and lookup. It does not own Gig moderation, feed delivery,
+`LocationModule` owns physical geographic reference data. It currently serves
+countries and owns Region persistence and lookup. It will also own Locality and
+Place. It does not own Community persistence, Gig moderation, feed delivery,
 Telegram workflows, or calendar integration.
+
+`CommunityModule` owns Community persistence, public catalog reads, and lookup
+by ID or route. It depends on `LocationModule` through `CountryService` to verify
+that every Community references a supported country.
 
 Current persistence:
 
 - `Country`
-- `Community`
+- `Region`
+
+Current editorial-audience persistence:
+
+- `Community`, owned by `CommunityModule`
 
 Target geographic catalog:
 
@@ -241,11 +251,16 @@ over physical distance.
 
 `LocationModule` owns:
 
-- Country, Region, Locality, Place, and Community persistence through separate
-  repository boundaries
+- Country, Region, Locality, and Place persistence through separate repository
+  boundaries
+
+`CommunityModule` owns:
+
+- Community persistence through its repository boundary
 - Community lookup by ID and route
 - active Community catalog reads
-- future geography-to-Community suggestions
+- validation of Community country references through `CountryService`
+- future geography-to-Community suggestion rules and orchestration
 
 Downstream feature modules own their application behavior:
 
@@ -256,5 +271,5 @@ Downstream feature modules own their application behavior:
 - `DigestModule` creates Community-specific digests
 - `CalendarModule` uses the Locality time zone resolved through Place
 
-Downstream modules depend on the Location application boundary and must not query
-Location-owned Mongo models directly.
+Downstream modules depend on the owning application boundary and must not query
+Location- or Community-owned Mongo models directly.

@@ -1,10 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CommunityController } from './community/community.controller';
-import { Community, CommunitySchema } from './community/community.schema';
-import { CommunityService } from './community/community.service';
-import { COMMUNITY_REPOSITORY } from './community/repositories/community.repository';
-import { MongoCommunityRepository } from './community/repositories/mongo-community.repository';
 import { Country, CountrySchema } from './country/country.schema';
 import { CountryService } from './country/country.service';
 import { CountriesController } from './country/countries.controller';
@@ -18,20 +13,14 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Community.name, schema: CommunitySchema },
       { name: Country.name, schema: CountrySchema },
       { name: Region.name, schema: RegionSchema },
     ]),
   ],
-  controllers: [CommunityController, CountriesController],
+  controllers: [CountriesController],
   providers: [
-    CommunityService,
     CountryService,
     RegionService,
-    {
-      provide: COMMUNITY_REPOSITORY,
-      useClass: MongoCommunityRepository,
-    },
     {
       provide: COUNTRY_REPOSITORY,
       useClass: MongoCountryRepository,
@@ -41,6 +30,6 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
       useClass: MongoRegionRepository,
     },
   ],
-  exports: [CommunityService, RegionService],
+  exports: [CountryService, RegionService],
 })
 export class LocationModule {}

@@ -65,7 +65,7 @@ Dependencies:
 - `RemoteImageModule`
 - `AuthModule`
 - `TelegramModule`
-- `LocationModule`
+- `CommunityModule`
 - local `Gig` Mongoose model
 
 Main files:
@@ -98,7 +98,7 @@ Dependencies:
 - `TelegramModule`
 - `UserModule`
 - `AuthModule`
-- `LocationModule`
+- `CommunityModule`
 - local `GigCandidate` Mongoose model
 
 Main files:
@@ -206,9 +206,41 @@ Main files:
 
 Responsibilities:
 
-- owns country data and the geographic Community catalog
-- serves public geographic reference data
-- owns geographic Community lookup and will own future geographic matching without taking ownership of Gig assignments, moderation, or delivery integrations
+- owns the physical geographic catalog
+- currently owns Country and Region persistence and application behavior
+- will own future Locality and Place persistence and geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
+
+Dependencies:
+
+- local `Country` and `Region` Mongoose models
+
+Main files:
+
+- `src/modules/location/location.module.ts`
+- `src/modules/location/country/`
+- `src/modules/location/region/`
+
+#### `CommunityModule`
+
+Responsibilities:
+
+- owns the editorial Community catalog, persistence, and public API
+- resolves Communities by ID or route for feed assignment and delivery use cases
+- validates Community country references through the Location application boundary
+- will own future geography-to-Community suggestion rules and orchestration
+- keeps Community audiences independent from physical geographic boundaries
+
+Dependencies:
+
+- `LocationModule`
+- local `Community` Mongoose model
+
+Main files:
+
+- `src/modules/community/community.module.ts`
+- `src/modules/community/community.controller.ts`
+- `src/modules/community/community.service.ts`
+- `src/modules/community/community.schema.ts`
 
 Detailed ownership, target models, and rollout constraints are documented in
 [Location Architecture](./LOCATIONS.md).
@@ -382,7 +414,8 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
 - countries in `src/modules/location/country/country.schema.ts`
-- Communities in `src/modules/location/community/community.schema.ts`
+- regions in `src/modules/location/region/region.schema.ts`
+- Communities in `src/modules/community/community.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
 
@@ -399,7 +432,7 @@ This keeps schema ownership aligned with the module that owns the use case.
 
 The codebase is organized around a few practical boundaries:
 
-- public read API is mostly isolated in `GigModule`, `LocationModule`, and `LocaleModule`
+- public read API is mostly isolated in `GigModule`, `CommunityModule`, `LocationModule`, and `LocaleModule`
 - inbound Telegram orchestration is isolated in `TelegramUpdatesModule`
 - external systems are abstracted behind dedicated services instead of being called directly from controllers
 - Mongo models are registered per module rather than globally
