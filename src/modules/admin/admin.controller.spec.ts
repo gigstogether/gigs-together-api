@@ -102,8 +102,8 @@ describe('AdminController', () => {
   } satisfies Pick<TranslationRevalidateService, 'revalidateAll'>;
 
   const gigFeedRevalidationService = {
-    revalidateGigFeedOrThrow: vi.fn().mockResolvedValue(undefined),
-  } satisfies Pick<GigFeedRevalidationService, 'revalidateGigFeedOrThrow'>;
+    revalidateGigFeedsOrThrow: vi.fn().mockResolvedValue(undefined),
+  } satisfies Pick<GigFeedRevalidationService, 'revalidateGigFeedsOrThrow'>;
 
   const digestService = {
     createPost: vi.fn().mockResolvedValue(undefined),
@@ -233,12 +233,12 @@ describe('AdminController', () => {
     });
   });
 
-  describe('revalidateGigFeed', () => {
+  describe('revalidateGigFeeds', () => {
     it('should strictly revalidate all feed paths via feed revalidate service', async () => {
-      await expect(controller.revalidateGigFeed()).resolves.toBeUndefined();
+      await expect(controller.revalidateGigFeeds()).resolves.toBeUndefined();
 
       expect(
-        gigFeedRevalidationService.revalidateGigFeedOrThrow,
+        gigFeedRevalidationService.revalidateGigFeedsOrThrow,
       ).toHaveBeenCalledWith({});
     });
 
@@ -246,11 +246,11 @@ describe('AdminController', () => {
       const e = new ServiceUnavailableException(
         'Feed revalidation service is unavailable',
       );
-      gigFeedRevalidationService.revalidateGigFeedOrThrow.mockRejectedValueOnce(
+      gigFeedRevalidationService.revalidateGigFeedsOrThrow.mockRejectedValueOnce(
         e,
       );
 
-      await expect(controller.revalidateGigFeed()).rejects.toBe(e);
+      await expect(controller.revalidateGigFeeds()).rejects.toBe(e);
     });
   });
 

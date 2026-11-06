@@ -186,8 +186,8 @@ export class AdminController {
   @Post('feed/revalidate')
   @HttpCode(HttpStatus.NO_CONTENT)
   @UseGuards(AccessJwtAuthGuard, AuthenticatedUserGuard, AdminGuard)
-  revalidateGigFeed(): Promise<void> {
-    return this.gigFeedRevalidationService.revalidateGigFeedOrThrow({});
+  revalidateGigFeeds(): Promise<void> {
+    return this.gigFeedRevalidationService.revalidateGigFeedsOrThrow({});
   }
 
   @Version('1')

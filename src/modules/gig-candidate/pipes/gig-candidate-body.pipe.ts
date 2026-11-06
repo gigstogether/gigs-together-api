@@ -50,6 +50,7 @@ export class GigCandidateBodyPipe implements PipeTransform<
     value: Record<string, unknown>,
   ): V1CreateGigCandidateRequestBodyGig {
     return {
+      communityIds: this.readRequiredStringArray(value, 'communityIds'),
       title: this.readOptionalString(value, 'title') ?? '',
       date: this.readOptionalString(value, 'date') ?? '',
       city: this.readOptionalString(value, 'city') ?? '',
@@ -67,6 +68,17 @@ export class GigCandidateBodyPipe implements PipeTransform<
         ? { posterUrl: this.readOptionalString(value, 'posterUrl') }
         : {}),
     };
+  }
+
+  private readRequiredStringArray(
+    value: Record<string, unknown>,
+    field: string,
+  ): string[] {
+    const raw = value[field];
+    if (!Array.isArray(raw) || raw.some((item) => typeof item !== 'string')) {
+      throw new BadRequestException(`${field} must be an array of strings`);
+    }
+    return raw;
   }
 
   private readOptionalString(

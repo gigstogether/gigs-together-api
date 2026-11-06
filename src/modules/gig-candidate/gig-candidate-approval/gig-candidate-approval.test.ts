@@ -10,6 +10,7 @@ import {
 describe('validateGigCandidateDraftForApproval', () => {
   it('should accept a one-character title', () => {
     const gigData = validateGigCandidateDraftForApproval({
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'B',
       date: Date.UTC(2026, 5, 12),
       city: 'Barcelona',
@@ -26,6 +27,7 @@ describe('validateGigCandidateDraftForApproval', () => {
   it('should reject a title longer than 300 characters', () => {
     expect(() =>
       validateGigCandidateDraftForApproval({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'A'.repeat(301),
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -45,6 +47,7 @@ describe('validateGigCandidateDraftForApproval', () => {
   it('should return complete normalized Gig data', () => {
     expect(
       validateGigCandidateDraftForApproval({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -54,6 +57,7 @@ describe('validateGigCandidateDraftForApproval', () => {
         poster: { bucketPath: 'posters/radiohead.jpg' },
       }),
     ).toEqual({
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Radiohead',
       date: Date.UTC(2026, 5, 12),
       city: 'Barcelona',
@@ -64,9 +68,40 @@ describe('validateGigCandidateDraftForApproval', () => {
     });
   });
 
+  it.each([
+    { communityIds: [] },
+    { communityIds: ['invalid'] },
+    {
+      communityIds: ['507f1f77bcf86cd799439011', '507F1F77BCF86CD799439011'],
+    },
+  ])('should reject invalid Community assignments %#', ({ communityIds }) => {
+    expect(() =>
+      validateGigCandidateDraftForApproval({
+        communityIds,
+        title: 'Radiohead',
+        date: Date.UTC(2026, 5, 12),
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Palau Sant Jordi',
+        ticketsUrl: 'https://tickets.example/radiohead',
+        poster: { bucketPath: 'posters/radiohead.jpg' },
+      }),
+    ).toThrowError(
+      expect.objectContaining({
+        issues: expect.arrayContaining([
+          expect.objectContaining({
+            field: 'communityIds',
+            code: 'invalid',
+          }),
+        ]),
+      }),
+    );
+  });
+
   it('should return structured issues for incomplete and invalid fields', () => {
     expect(() =>
       validateGigCandidateDraftForApproval({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: '',
         date: Number.NaN,
         city: ' Barcelona ',
@@ -93,6 +128,7 @@ describe('validateGigCandidateDraftForApproval', () => {
   it('should reject approval when required venue or ticketsUrl is missing', () => {
     expect(() =>
       validateGigCandidateDraftForApproval({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -111,6 +147,7 @@ describe('validateGigCandidateDraftForApproval', () => {
   it('should reject approval when poster is missing', () => {
     expect(() =>
       validateGigCandidateDraftForApproval({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',

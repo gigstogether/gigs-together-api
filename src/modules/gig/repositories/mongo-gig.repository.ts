@@ -15,6 +15,7 @@ import type { PlainGig } from '../types/gig.types';
 import type {
   AppendGigMainPostRecordParams,
   FindGigsParams,
+  FindVisibleGigDatesParams,
   FindVisibleGigsAroundParams,
   FindVisibleGigsAroundResult,
   FindVisibleGigsInRangeParams,
@@ -284,7 +285,7 @@ export class MongoGigRepository implements GigRepository {
   async findVisibleAround(
     params: FindVisibleGigsAroundParams,
   ): Promise<FindVisibleGigsAroundResult> {
-    const baseFilter = this.buildVisibleLocationFilter(params);
+    const baseFilter = this.buildVisibleCommunityFilter(params);
     const beforeDocs =
       params.beforeLimit === 0
         ? []
@@ -321,9 +322,7 @@ export class MongoGigRepository implements GigRepository {
     };
   }
 
-  async findVisibleDates(
-    params: FindVisibleGigsInRangeParams,
-  ): Promise<number[]> {
+  async findVisibleDates(params: FindVisibleGigDatesParams): Promise<number[]> {
     // Aggregate unique dates without loading full docs.
     const rows = await this.gigModel
       .aggregate<{ _id: number }>([
@@ -343,7 +342,7 @@ export class MongoGigRepository implements GigRepository {
     if (params.to !== undefined) {
       date.$lte = params.to;
     }
-    return { ...this.buildVisibleLocationFilter(params), date };
+    return { ...this.buildVisibleCommunityFilter(params), date };
   }
 
   private buildFeedVisibleFilter(
@@ -362,20 +361,26 @@ export class MongoGigRepository implements GigRepository {
       filters.push({ date: { $lte: params.to } });
     }
     return {
-      ...this.buildVisibleLocationFilter(params),
+      ...this.buildVisibleCommunityFilter(params),
       ...(filters.length === 1 ? filters[0] : { $and: filters }),
     };
   }
 
-  private buildVisibleLocationFilter(
-    params: Pick<FindVisibleGigsInRangeParams, 'city' | 'country'>,
+  private buildVisibleCommunityFilter(
+    params: Pick<FindVisibleGigsInRangeParams, 'communityId'>,
   ): QueryFilter<GigDocument> {
     const filter: QueryFilter<GigDocument> = { isVisible: true };
-    if (params.city !== undefined && params.country !== undefined) {
-      filter.city = params.city;
-      filter.country = params.country;
+    if (params.communityId !== undefined) {
+      filter.communityIds = this.toCommunityObjectId(params.communityId);
     }
     return filter;
+  }
+
+  private toCommunityObjectId(communityId: string): Types.ObjectId {
+    if (!Types.ObjectId.isValid(communityId)) {
+      throw new Error(`Invalid Community id: ${communityId}`);
+    }
+    return new Types.ObjectId(communityId);
   }
 
   private toObjectId(gigId: string): Types.ObjectId {

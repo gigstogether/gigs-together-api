@@ -27,25 +27,37 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
 
     expect(
       pipe.transform({
-        gigDraft: JSON.stringify({ title: 'Band', city: 'Barcelona' }),
+        gigDraft: JSON.stringify({
+          communityIds: ['507f1f77bcf86cd799439011'],
+          title: 'Band',
+          city: 'Barcelona',
+        }),
       }),
     ).toEqual({
-      gigDraft: { title: 'Band', city: 'Barcelona' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        title: 'Band',
+        city: 'Barcelona',
+      },
     });
   });
 
-  it('should accept an empty gigDraft object', () => {
+  it('should reject a gigDraft without Community assignments', () => {
     const pipe = new AdminGigCandidateCreateBodyPipe();
 
-    expect(pipe.transform({ gigDraft: {} })).toEqual({ gigDraft: {} });
+    expect(() => pipe.transform({ gigDraft: {} })).toThrowError(
+      /communityIds must be an array of strings/,
+    );
   });
 
   it('should reject nullable gigDraft fields', () => {
     const pipe = new AdminGigCandidateCreateBodyPipe();
 
-    expect(() => pipe.transform({ gigDraft: { title: null } })).toThrowError(
-      /title must be a string/,
-    );
+    expect(() =>
+      pipe.transform({
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'], title: null },
+      }),
+    ).toThrowError(/title must be a string/);
   });
 
   it('should reject source fields outside gigDraft', () => {
@@ -53,7 +65,7 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
 
     expect(() =>
       pipe.transform({
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         source: { type: 'user' },
       }),
     ).toThrowError(BadRequestException);
@@ -65,8 +77,15 @@ describe('AdminGigCandidateDraftUpdateBodyPipe', () => {
     const pipe = new AdminGigCandidateDraftUpdateBodyPipe();
 
     expect(
-      pipe.transform({ expectedVersion: '2', gigDraft: '{"title":"Band"}' }),
-    ).toEqual({ expectedVersion: 2, gigDraft: { title: 'Band' } });
+      pipe.transform({
+        expectedVersion: '2',
+        gigDraft:
+          '{"communityIds":["507f1f77bcf86cd799439011"],"title":"Band"}',
+      }),
+    ).toEqual({
+      expectedVersion: 2,
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'], title: 'Band' },
+    });
   });
 
   it('should reject an invalid expectedVersion', () => {

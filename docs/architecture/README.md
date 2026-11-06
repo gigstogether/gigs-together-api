@@ -1,4 +1,4 @@
-# Architecture
+# Architecture Overview
 
 This document explains how `gigs-together-api` is structured and where the main responsibilities live.
 
@@ -53,7 +53,8 @@ In practice:
 Responsibilities:
 
 - owns gig persistence and public gig APIs
-- owns Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
+- owns explicit Gig-to-Community relationships
+- owns Community-filtered Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
 - exposes `GigService`, `GigFeedService`, and `GigFeedRevalidationService`
 - owns Gig poster validation, download, and storage through `GigPosterService` under `gig/gig-poster`
 
@@ -64,6 +65,7 @@ Dependencies:
 - `RemoteImageModule`
 - `AuthModule`
 - `TelegramModule`
+- `LocationModule`
 - local `Gig` Mongoose model
 
 Main files:
@@ -85,6 +87,7 @@ Responsibilities:
 - keeps candidate lifecycle feedback in `GigCandidateFeedbackService`
 - keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file validation and storage to `GigPosterService`
 - keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
+- validates draft Community assignments and carries them into approved Gigs
 - uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
 
 Dependencies:
@@ -95,6 +98,7 @@ Dependencies:
 - `TelegramModule`
 - `UserModule`
 - `AuthModule`
+- `LocationModule`
 - local `GigCandidate` Mongoose model
 
 Main files:
@@ -104,7 +108,7 @@ Main files:
 - `src/modules/gig-candidate/gig-candidate-feedback.service.ts`
 - `src/modules/gig-candidate/gig-candidate-poster/gig-candidate-poster.service.ts`
 - `src/modules/gig-candidate/gig-candidate-approval/gig-candidate-approval.service.ts`
-- `src/modules/gig-candidate/repositories/gig-candidate-approval/`
+- `src/modules/gig-candidate/gig-candidate-approval/repositories/`
 
 #### `DigestModule`
 
@@ -202,18 +206,12 @@ Main files:
 
 Responsibilities:
 
-- serves country/location data
+- owns country data and the geographic Community catalog
+- serves public geographic reference data
+- owns geographic Community lookup and will own future geographic matching without taking ownership of Gig assignments, moderation, or delivery integrations
 
-Persistence:
-
-- `Country`
-- `locale`
-
-Main files:
-
-- `src/modules/location/location.module.ts`
-- `src/modules/location/location.controller.ts`
-- `src/modules/location/location.service.ts`
+Detailed ownership, target models, and rollout constraints are documented in
+[Location Architecture](./LOCATIONS.md).
 
 ### Integration and infrastructure modules
 
@@ -236,7 +234,7 @@ Main files:
 - `src/modules/alerting/alert-delivery.ts`
 - `src/modules/alerting/telegram-alert-delivery.service.ts`
 
-The active alert catalog and alerting conventions are documented in [`ALERTING.md`](./ALERTING.md).
+The active alert catalog and alerting conventions are documented in [`ALERTING.md`](../ALERTING.md).
 
 #### `TelegramBotClientModule`
 
@@ -383,7 +381,8 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - gigs in `src/modules/gig/gig.schema.ts`
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
-- locations in `src/modules/location/location.schema.ts`
+- countries in `src/modules/location/country/country.schema.ts`
+- Communities in `src/modules/location/community/community.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.
 

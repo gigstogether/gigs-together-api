@@ -70,7 +70,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     const created = await this.gigCandidateModel.create({
       _id: new Types.ObjectId(params.gigCandidateId),
       source: GigCandidateRepositoryMapper.toStoredSource(params.source),
-      gigDraft: params.gigDraft,
+      gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(params.gigDraft),
       version: 0,
       status: params.status,
       posts: [],
@@ -99,7 +99,11 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
           version: params.expectedVersion,
         },
         {
-          $set: { gigDraft: params.gigDraft },
+          $set: {
+            gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(
+              params.gigDraft,
+            ),
+          },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },

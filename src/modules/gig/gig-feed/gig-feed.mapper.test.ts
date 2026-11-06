@@ -32,7 +32,7 @@ describe('gigFeedMapper', () => {
         limit: 20,
         from: 10,
         to: 20,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
@@ -41,8 +41,8 @@ describe('gigFeedMapper', () => {
       limit: 20,
       from: 10,
       to: 20,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
   });
 
@@ -72,15 +72,15 @@ describe('gigFeedMapper', () => {
         anchor: 10,
         beforeLimit: 5,
         afterLimit: 6,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
       anchor: 10,
       beforeLimit: 5,
       afterLimit: 6,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
     expect(
       mapVisibleGigsAroundResultToV1({
@@ -106,14 +106,14 @@ describe('gigFeedMapper', () => {
       mapV1GigDatesQuery({
         from: 10,
         to: 20,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
       from: 10,
       to: 20,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
     expect(mapVisibleGigDatesResultToV1({ dates: [10, 20] })).toEqual({
       dates: ['10', '20'],

@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
-import type { GigStoredSource } from '../../../gig/gig.schema';
-import { GigRepositoryMapper } from '../../../gig/repositories/gig.repository.mapper';
-import type { GigData } from '../../../gig/types/gig.types';
+import type { GigStoredSource } from '@modules/gig/gig.schema';
+import { GigRepositoryMapper } from '@modules/gig/repositories/gig.repository.mapper';
+import type { GigCandidateDraft, GigData } from '@modules/gig/types/gig.types';
 import type { GigCandidatePost } from '../../types/gig-candidate.types';
 import type {
   CreateGigAfterApprovalParams,
@@ -10,7 +10,7 @@ import type {
 
 export interface ApprovedGigCandidateStateFields {
   id: string;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   gigId?: string;
   approvedAt?: Date;
   approvedByUserId?: string;
@@ -19,6 +19,7 @@ export interface ApprovedGigCandidateStateFields {
 
 export interface GigApprovalResultLeanDocument {
   _id: Types.ObjectId;
+  communityIds: unknown;
   publicId: string;
   title: string;
   date: number;
@@ -35,6 +36,7 @@ export interface GigApprovalResultLeanDocument {
 
 export interface GigCreationPersistenceData {
   _id: Types.ObjectId;
+  communityIds: Types.ObjectId[];
   publicId: string;
   title: string;
   date: number;
@@ -66,6 +68,7 @@ export class GigCandidateApprovalRepositoryMapper {
     }
 
     const requiredFields: Array<keyof GigData> = [
+      'communityIds',
       'title',
       'date',
       'city',
@@ -88,6 +91,9 @@ export class GigCandidateApprovalRepositoryMapper {
   ): GigCreationPersistenceData {
     const data: GigCreationPersistenceData = {
       _id: new Types.ObjectId(params.gigId),
+      communityIds: GigRepositoryMapper.toStoredCommunityIds(
+        params.communityIds,
+      ),
       publicId: params.publicId,
       title: params.title,
       date: params.date,
@@ -119,6 +125,10 @@ export class GigCandidateApprovalRepositoryMapper {
   ): GigApprovalResult {
     const result: GigApprovalResult = {
       id: gig._id.toString(),
+      communityIds: GigRepositoryMapper.fromStoredCommunityIds(
+        gig.communityIds,
+        `Gig ${gig._id.toString()}`,
+      ),
       publicId: gig.publicId,
       title: gig.title,
       date: gig.date,

@@ -9,6 +9,7 @@ describe('mapGigToFormData', () => {
     const userId = '507f1f77bcf86cd799439012';
     const gig: PlainGig = {
       id: '507f1f77bcf86cd799439011',
+      communityIds: ['507f1f77bcf86cd799439011'],
       publicId: 'test-gig-2026-09-17',
       title: 'Test',
       date: Date.UTC(2026, 8, 17),
@@ -55,6 +56,7 @@ describe('mapGigToFormData', () => {
   it('should map messenger provenance without a user profile', () => {
     const gig: PlainGig = {
       id: '507f1f77bcf86cd799439011',
+      communityIds: ['507f1f77bcf86cd799439011'],
       publicId: 'test-gig-2026-09-17',
       title: 'Test',
       date: Date.UTC(2026, 8, 17),

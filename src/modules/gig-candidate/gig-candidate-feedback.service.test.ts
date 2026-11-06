@@ -279,7 +279,10 @@ function buildGigCandidate(
       userId: '507f1f77bcf86cd799439088',
       origin: { type: GigSourceUserOriginType.Form },
     },
-    gigDraft: { title: 'Radiohead' },
+    gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
+      title: 'Radiohead',
+    },
     posts: [],
     createdAt: new Date('2026-08-22T10:00:00.000Z'),
     updatedAt: new Date('2026-08-22T10:00:00.000Z'),

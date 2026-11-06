@@ -30,6 +30,7 @@ function createGigCandidate(): GigCandidate {
       origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: 1_700_000_000_000,
       city: 'Barcelona',
@@ -176,7 +177,7 @@ describe('TelegramGigCandidateService', () => {
           telegramFileId: 'source-image-file-id',
         },
       },
-      gigDraft: {},
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     };
     telegramBotClientMock.sendPhoto.mockResolvedValue({
       message_id: 41,
@@ -263,7 +264,7 @@ describe('TelegramGigCandidateService', () => {
       },
       status: GigCandidateStatus.Reviewing,
       posts: [intakePost],
-      gigDraft: {},
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     };
     telegramBotClientMock.sendPhoto.mockResolvedValue({
       message_id: 50,
@@ -306,6 +307,7 @@ describe('TelegramGigCandidateService', () => {
       status: GigCandidateStatus.Reviewing,
       posts: [intakePost],
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         poster: { externalUrl: 'https://cdn.example/draft-poster.jpg' },
       },
     };

@@ -13,6 +13,7 @@ import { MongoGigRepository } from './repositories/mongo-gig.repository';
 import { GigFeedService } from './gig-feed/gig-feed.service';
 import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
+import { LocationModule } from '@modules/location/location.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { RemoteImageModule } from '../remote-image/remote-image.module';
     RemoteImageModule,
     AuthModule,
     TelegramModule,
+    LocationModule,
   ],
   providers: [
     {

@@ -70,7 +70,9 @@ describe('MongoGigCandidateRepository', () => {
         toObject: vi.fn().mockReturnValue({
           _id: gigCandidateId,
           source,
-          gigDraft: {},
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
           version: 0,
           status: GigCandidateStatus.New,
           posts: [],
@@ -82,7 +84,7 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.createGigCandidate({
         gigCandidateId,
         source,
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         status: GigCandidateStatus.New,
       });
 
@@ -90,7 +92,7 @@ describe('MongoGigCandidateRepository', () => {
         expect.objectContaining({
           id: gigCandidateId,
           source,
-          gigDraft: {},
+          gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
           version: 0,
         }),
       );
@@ -100,7 +102,9 @@ describe('MongoGigCandidateRepository', () => {
           ...source,
           userId: expect.any(Types.ObjectId),
         },
-        gigDraft: {},
+        gigDraft: {
+          communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+        },
         version: 0,
         status: GigCandidateStatus.New,
         posts: [],
@@ -121,7 +125,10 @@ describe('MongoGigCandidateRepository', () => {
         updateQueryResult({
           _id: gigCandidateId,
           source,
-          gigDraft: { title: 'Updated title' },
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            title: 'Updated title',
+          },
           version: 2,
           status: GigCandidateStatus.Reviewing,
           posts: [],
@@ -133,7 +140,10 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.updateGigCandidateDraft({
         gigCandidateId,
         expectedVersion: 1,
-        gigDraft: { title: 'Updated title' },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          title: 'Updated title',
+        },
       });
 
       expect(result?.version).toBe(2);
@@ -144,7 +154,12 @@ describe('MongoGigCandidateRepository', () => {
           version: 1,
         },
         {
-          $set: { gigDraft: { title: 'Updated title' } },
+          $set: {
+            gigDraft: {
+              communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+              title: 'Updated title',
+            },
+          },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },
@@ -155,7 +170,7 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.updateGigCandidateDraft({
         gigCandidateId: '507f1f77bcf86cd799439099',
         expectedVersion: -1,
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
       });
 
       expect(result).toBeNull();
@@ -175,7 +190,10 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: GigSourceUserOriginType.Form },
           },
-          gigDraft: { poster },
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            poster,
+          },
           version: 1,
           status: GigCandidateStatus.Reviewing,
           posts: [],
@@ -225,7 +243,9 @@ describe('MongoGigCandidateRepository', () => {
               telegramFileId: 'source-image-file-id',
             },
           },
-          gigDraft: {},
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
           version: 1,
           status: GigCandidateStatus.Reviewing,
           posts: [],
@@ -268,7 +288,9 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: GigSourceUserOriginType.Form },
           },
-          gigDraft: {},
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
           version: 1,
           status: GigCandidateStatus.Rejected,
           posts: [],
@@ -344,7 +366,10 @@ describe('MongoGigCandidateRepository', () => {
               userId: '507f1f77bcf86cd799439088',
               origin: { type: GigSourceUserOriginType.Form },
             },
-            gigDraft: { title: 'Band' },
+            gigDraft: {
+              communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+              title: 'Band',
+            },
             version: 0,
             status: GigCandidateStatus.New,
             posts: [],
@@ -358,7 +383,10 @@ describe('MongoGigCandidateRepository', () => {
         expect.objectContaining({
           id: gigCandidateId,
           status: GigCandidateStatus.New,
-          gigDraft: { title: 'Band' },
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            title: 'Band',
+          },
         }),
       );
     });
@@ -411,7 +439,9 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: GigSourceUserOriginType.Form },
           },
-          gigDraft: {},
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
           version: 1,
           status: GigCandidateStatus.New,
           posts: [post],
@@ -465,7 +495,9 @@ describe('MongoGigCandidateRepository', () => {
             userId: '507f1f77bcf86cd799439088',
             origin: { type: GigSourceUserOriginType.Form },
           },
-          gigDraft: {},
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
           version: 4,
           status: GigCandidateStatus.Reviewing,
           posts: [post],

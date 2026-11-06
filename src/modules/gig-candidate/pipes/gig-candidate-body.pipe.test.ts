@@ -9,6 +9,7 @@ describe('GigCandidateBodyPipe', () => {
   it('should parse gig JSON string from multipart body', () => {
     const result = pipe.transform({
       gig: JSON.stringify({
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Band',
         date: '2026-08-01',
         city: 'Barcelona',
@@ -22,6 +23,7 @@ describe('GigCandidateBodyPipe', () => {
   it('should accept gig already provided as an object', () => {
     const result = pipe.transform({
       gig: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Band',
         date: '2026-08-01',
         city: 'Barcelona',
@@ -31,6 +33,7 @@ describe('GigCandidateBodyPipe', () => {
     });
 
     expect(result.gig).toEqual({
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: '2026-08-01',
       city: 'Barcelona',
@@ -61,7 +64,21 @@ describe('GigCandidateBodyPipe', () => {
     expect(() =>
       pipe.transform({
         gig: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 1,
+          date: '2026-08-01',
+          city: 'Barcelona',
+          country: 'ES',
+        },
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it('should throw when Community assignments are missing', () => {
+    expect(() =>
+      pipe.transform({
+        gig: {
+          title: 'Band',
           date: '2026-08-01',
           city: 'Barcelona',
           country: 'ES',

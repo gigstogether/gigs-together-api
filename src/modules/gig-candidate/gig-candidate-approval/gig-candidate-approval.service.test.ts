@@ -20,8 +20,8 @@ import {
   GigCandidateCommand,
 } from '../gig-candidate-state-machine';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
-import type { GigApprovalResult } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
 import type { GigCandidate } from '../types/gig-candidate.types';
 import { GigCandidateApprovalService } from './gig-candidate-approval.service';
 
@@ -37,8 +37,8 @@ describe('GigCandidateApprovalService', () => {
   const gigCandidateApprovalRepositoryMock = {
     withTransaction: vi.fn(),
   };
-  const revalidateGigFeedOrThrowMock =
-    vi.fn<GigFeedRevalidationService['revalidateGigFeedOrThrow']>();
+  const revalidateGigFeedsOrThrowMock =
+    vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
   const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
   const reportFailureBestEffortMock =
@@ -71,7 +71,7 @@ describe('GigCandidateApprovalService', () => {
       userId: 'user-id',
       origin: { type: GigSourceUserOriginType.Form },
     },
-    gigDraft: {},
+    gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     posts: [],
     gigId: 'gig-id',
     approvedAt: new Date('2026-10-30T12:00:00.000Z'),
@@ -81,6 +81,7 @@ describe('GigCandidateApprovalService', () => {
   };
   const approvedGig: GigApprovalResult = {
     id: 'gig-id',
+    communityIds: ['507f1f77bcf86cd799439011'],
     publicId: 'radiohead-madrid-2026-10-30',
     title: 'Radiohead',
     date: Date.parse('2026-10-30T20:00:00.000Z'),
@@ -105,7 +106,7 @@ describe('GigCandidateApprovalService', () => {
         work: (transaction: typeof approvalTransactionMock) => Promise<unknown>,
       ) => work(approvalTransactionMock),
     );
-    revalidateGigFeedOrThrowMock.mockResolvedValue(undefined);
+    revalidateGigFeedsOrThrowMock.mockResolvedValue(undefined);
     calendarAddEventMock.mockResolvedValue(undefined);
     gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
@@ -125,7 +126,7 @@ describe('GigCandidateApprovalService', () => {
         {
           provide: GigFeedRevalidationService,
           useValue: {
-            revalidateGigFeedOrThrow: revalidateGigFeedOrThrowMock,
+            revalidateGigFeedsOrThrow: revalidateGigFeedsOrThrowMock,
           },
         },
         {

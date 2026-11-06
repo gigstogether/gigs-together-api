@@ -14,11 +14,14 @@ import {
 import type { GigLeanDocument } from './gig.repository.mapper';
 import { MongoGigRepository } from './mongo-gig.repository';
 
+const COMMUNITY_ID = '507f1f77bcf86cd799439022';
+
 function buildDocument(
   overrides: Partial<GigLeanDocument> = {},
 ): GigLeanDocument {
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
+    communityIds: [new Types.ObjectId(COMMUNITY_ID)],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -309,8 +312,7 @@ describe('MongoGigRepository', () => {
       const result = await repository.findVisiblePage({
         from: 5,
         to: 30,
-        city: 'barcelona',
-        country: 'ES',
+        communityId: COMMUNITY_ID,
         limit: 1,
         direction: 'prev',
         cursor: { date: 25, gigId: '507f1f77bcf86cd799439015' },
@@ -324,8 +326,7 @@ describe('MongoGigRepository', () => {
         $and: [
           {
             isVisible: true,
-            city: 'barcelona',
-            country: 'ES',
+            communityIds: new Types.ObjectId(COMMUNITY_ID),
             $and: [
               { $or: [{ date: { $gte: 5 } }, { endDate: { $gte: 5 } }] },
               { date: { $lte: 30 } },
@@ -347,10 +348,22 @@ describe('MongoGigRepository', () => {
       expect(sort).toHaveBeenCalledWith({ date: -1, _id: -1 });
       expect(limit).toHaveBeenCalledWith(2);
     });
+
+    it('should reject an invalid Community ID before querying Mongo', async () => {
+      await expect(
+        repository.findVisiblePage({
+          from: 5,
+          communityId: 'invalid',
+          limit: 1,
+          direction: 'next',
+        }),
+      ).rejects.toThrow('Invalid Community id: invalid');
+      expect(find).not.toHaveBeenCalled();
+    });
   });
 
   describe('findVisibleInRange', () => {
-    it('should apply the inclusive range and location filters', async () => {
+    it('should apply the inclusive range and Community filter', async () => {
       const sort = vi.fn().mockReturnValue({
         lean: vi.fn().mockReturnValue({
           exec: vi.fn().mockResolvedValue([]),
@@ -362,14 +375,12 @@ describe('MongoGigRepository', () => {
       await repository.findVisibleInRange({
         from: 10,
         to: 20,
-        city: 'barcelona',
-        country: 'ES',
+        communityId: COMMUNITY_ID,
       });
 
       expect(find).toHaveBeenCalledWith({
         isVisible: true,
-        city: 'barcelona',
-        country: 'ES',
+        communityIds: new Types.ObjectId(COMMUNITY_ID),
         date: { $gte: 10, $lte: 20 },
       });
       expect(sort).toHaveBeenCalledWith({ date: 1, _id: 1 });
@@ -421,8 +432,7 @@ describe('MongoGigRepository', () => {
           todayStart: 5,
           beforeLimit: 1,
           afterLimit: 1,
-          city: 'barcelona',
-          country: 'ES',
+          communityId: COMMUNITY_ID,
         }),
       ).resolves.toMatchObject({
         before: [{ date: 10 }],
@@ -432,14 +442,12 @@ describe('MongoGigRepository', () => {
       });
       expect(find).toHaveBeenNthCalledWith(1, {
         isVisible: true,
-        city: 'barcelona',
-        country: 'ES',
+        communityIds: new Types.ObjectId(COMMUNITY_ID),
         date: { $gte: 5, $lt: 15 },
       });
       expect(find).toHaveBeenNthCalledWith(2, {
         isVisible: true,
-        city: 'barcelona',
-        country: 'ES',
+        communityIds: new Types.ObjectId(COMMUNITY_ID),
         date: { $gte: 15 },
       });
     });
@@ -457,8 +465,7 @@ describe('MongoGigRepository', () => {
         repository.findVisibleDates({
           from: 1,
           to: 30,
-          city: 'barcelona',
-          country: 'ES',
+          communityId: COMMUNITY_ID,
         }),
       ).resolves.toEqual([10, 20]);
 
@@ -466,8 +473,7 @@ describe('MongoGigRepository', () => {
         {
           $match: {
             isVisible: true,
-            city: 'barcelona',
-            country: 'ES',
+            communityIds: new Types.ObjectId(COMMUNITY_ID),
             date: { $gte: 1, $lte: 30 },
           },
         },
