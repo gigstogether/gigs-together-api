@@ -46,7 +46,7 @@ describe('GigController', () => {
       controller.getGigsV1({
         from: 1_781_264_000_000,
         limit: 20,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).resolves.toEqual({
@@ -68,8 +68,8 @@ describe('GigController', () => {
     expect(gigFeedService.getVisibleGigs).toHaveBeenCalledWith({
       from: 1_781_264_000_000,
       limit: 20,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
   });
 
@@ -79,7 +79,7 @@ describe('GigController', () => {
     await expect(
       controller.getGigDatesV1({
         from: 1,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).resolves.toEqual({ dates: ['10', '20'] });

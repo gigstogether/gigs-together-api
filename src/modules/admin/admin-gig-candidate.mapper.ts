@@ -71,6 +71,7 @@ export function mapV1AdminGigCandidateResponse(
     id: gigCandidate.id,
     source: mapV1AdminGigCandidateSourceResponse(gigCandidate.source),
     gigDraft: {
+      communityIds: [...gigDraft.communityIds],
       title: gigDraft.title,
       date: msToYmd(gigDraft.date),
       endDate: msToYmd(gigDraft.endDate),
@@ -173,6 +174,7 @@ function mapV1AdminGigCandidateGigDraftRequest(
 
   return {
     gigDraft: {
+      communityIds: [...input.communityIds],
       ...(title !== undefined ? { title } : {}),
       ...(date !== undefined ? { date } : {}),
       ...(endDate !== undefined ? { endDate } : {}),

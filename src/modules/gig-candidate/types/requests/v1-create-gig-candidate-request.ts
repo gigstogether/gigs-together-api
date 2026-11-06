@@ -1,4 +1,5 @@
 export interface V1CreateGigCandidateRequestBodyGig {
+  communityIds: string[];
   title: string;
   date: string;
   endDate?: string;

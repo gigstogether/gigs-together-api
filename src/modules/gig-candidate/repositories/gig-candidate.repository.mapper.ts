@@ -1,7 +1,11 @@
 import { Types } from 'mongoose';
 import { Messenger } from '@shared/types/messenger.enum';
 import { isRecord } from '@shared/utils/is-record';
-import type { GigData } from '../../gig/types/gig.types';
+import {
+  fromObjectIdArray,
+  toObjectIdArray,
+} from '@shared/utils/mongoose-object-id-array';
+import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import type { GigCandidateStoredSource } from '../gig-candidate.schema';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
@@ -15,7 +19,7 @@ import type {
   GigCandidateSourceMessengerUser,
   GigCandidateSourceProvider,
 } from '../types/gig-candidate.types';
-import { GigCandidateApprovalRepositoryMapper } from './gig-candidate-approval/gig-candidate-approval.repository.mapper';
+import { GigCandidateApprovalRepositoryMapper } from '../gig-candidate-approval/repositories/gig-candidate-approval.repository.mapper';
 
 type MongoId = { toString(): string } | string;
 type GigCandidateLeanIdentifiedUserSource = Omit<
@@ -58,7 +62,9 @@ const GIG_CANDIDATE_PROVIDER_SOURCE_KEYS = new Set(['type', 'provider']);
 export interface GigCandidateLeanDocument {
   _id: MongoId;
   source: GigCandidateLeanSource;
-  gigDraft: Partial<GigData>;
+  gigDraft: Omit<GigCandidateDraft, 'communityIds'> & {
+    communityIds: unknown;
+  };
   version: number;
   status: GigCandidateStatus;
   posts: GigCandidatePost[];
@@ -74,7 +80,7 @@ export interface GigCandidateLeanDocument {
 interface GigCandidateStateFields {
   id: string;
   status: GigCandidateStatus;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   gigId?: string;
   approvedAt?: Date;
   approvedByUserId?: string;
@@ -83,6 +89,21 @@ interface GigCandidateStateFields {
 }
 
 export class GigCandidateRepositoryMapper {
+  static toStoredGigDraft(gigDraft: GigCandidateDraft): Omit<
+    GigCandidateDraft,
+    'communityIds'
+  > & {
+    communityIds: Types.ObjectId[];
+  } {
+    return {
+      ...gigDraft,
+      communityIds: toObjectIdArray(
+        gigDraft.communityIds,
+        'GigCandidate gigDraft communityIds',
+      ),
+    };
+  }
+
   static toStoredSource(source: GigCandidateSource): GigCandidateStoredSource {
     switch (source.type) {
       case GigSourceType.User: {
@@ -130,6 +151,13 @@ export class GigCandidateRepositoryMapper {
 
   static toGigCandidate(doc: GigCandidateLeanDocument): GigCandidate {
     const id = this.toId(doc._id, 'id');
+    const gigDraft: GigCandidateDraft = {
+      ...doc.gigDraft,
+      communityIds: fromObjectIdArray(
+        doc.gigDraft.communityIds,
+        `GigCandidate ${id} gigDraft communityIds`,
+      ),
+    };
     const gigId = this.toOptionalId(doc.gigId, 'gigId');
     const approvedByUserId = this.toOptionalId(
       doc.approvedByUserId,
@@ -143,7 +171,7 @@ export class GigCandidateRepositoryMapper {
     this.assertStateInvariants({
       id,
       status: doc.status,
-      gigDraft: doc.gigDraft,
+      gigDraft,
       gigId,
       approvedAt: doc.approvedAt,
       approvedByUserId,
@@ -154,7 +182,7 @@ export class GigCandidateRepositoryMapper {
     return {
       id,
       source: this.toSource(doc.source, id),
-      gigDraft: { ...doc.gigDraft },
+      gigDraft,
       version: doc.version,
       status: doc.status,
       posts: doc.posts.map((post) => ({ ...post })),

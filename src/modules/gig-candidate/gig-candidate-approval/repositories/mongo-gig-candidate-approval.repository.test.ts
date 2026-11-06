@@ -2,6 +2,7 @@ import { getConnectionToken, getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
+
 import { Gig } from '../../../gig/gig.schema';
 import { GigSourceType } from '../../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../../gig/types/gig-source-user-origin-type.enum';
@@ -58,7 +59,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     vi.clearAllMocks();
   });
 
-  it('should use one session for the conditional approval and statusless Gig insert', async () => {
+  it('should use one session and store approval Community assignments as ObjectIds', async () => {
     const gigCandidateId = '507f1f77bcf86cd799439099';
     const gigId = '507f1f77bcf86cd799439011';
     const approvedByUserId = '507f1f77bcf86cd799439077';
@@ -79,6 +80,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     const approved = buildGigCandidateDocument({
       ...reviewing,
       gigDraft: {
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -100,6 +102,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       {
         toObject: vi.fn().mockReturnValue({
           _id: new Types.ObjectId(gigId),
+          communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -132,6 +135,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         gigId,
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -143,6 +147,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       });
       const gig = await transaction.createGig({
         gigId,
+        communityIds: ['507f1f77bcf86cd799439011'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -182,6 +187,9 @@ describe('MongoGigCandidateApprovalRepository', () => {
           status: GigCandidateStatus.Approved,
           gigId: expect.any(Types.ObjectId),
           approvedByUserId: expect.any(Types.ObjectId),
+          gigDraft: expect.objectContaining({
+            communityIds: [expect.any(Types.ObjectId)],
+          }),
         }),
         $pull: {
           posts: {
@@ -221,6 +229,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     gigFindById.mockReturnValue(
       queryResult({
         _id: new Types.ObjectId(gigId),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -262,6 +271,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
     gigFindById.mockReturnValue(
       queryResult({
         _id: new Types.ObjectId(gigId),
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -306,6 +316,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           version: 1,
           posts: [],
           gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -330,6 +341,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           gigId: '507f1f77bcf86cd799439011',
           approvedAt: new Date('2026-09-01T12:00:00.000Z'),
           gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -341,6 +353,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         });
         return transaction.createGig({
           gigId: '507f1f77bcf86cd799439011',
+          communityIds: ['507f1f77bcf86cd799439011'],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -387,6 +400,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         gigId: '507f1f77bcf86cd799439011',
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -413,6 +427,7 @@ function buildGigCandidateDocument(
       origin: { type: GigSourceUserOriginType.Admin },
     },
     gigDraft: {
+      communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
       title: 'Radiohead',
       date: Date.UTC(2026, 5, 12),
       city: 'Barcelona',

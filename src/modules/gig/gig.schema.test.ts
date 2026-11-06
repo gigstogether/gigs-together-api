@@ -5,6 +5,33 @@ import { GigSchema } from './gig.schema';
 import { GigSourceUserOriginType } from './types/gig-source-user-origin-type.enum';
 
 describe('GigSchema', () => {
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments on every Gig', () => {
+    const communityIdsPath = GigSchema.path('communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
   it('should limit titles to 300 characters', () => {
     expect(GigSchema.path('title').options.maxlength).toBe(300);
   });
@@ -95,16 +122,13 @@ describe('GigSchema', () => {
     ).toBe(false);
   });
 
-  it('should define a visibility index for location feed ordering', () => {
+  it('should define a visibility index for Community feed ordering', () => {
     const visibilityIndexes = GigSchema.indexes().filter(([fields]) =>
       Object.prototype.hasOwnProperty.call(fields, 'isVisible'),
     );
 
     expect(visibilityIndexes).toEqual([
-      [
-        { isVisible: 1, country: 1, city: 1, date: 1, _id: 1 },
-        { collation: { locale: 'en', strength: 2 } },
-      ],
+      [{ isVisible: 1, communityIds: 1, date: 1, _id: 1 }, {}],
     ]);
   });
 
@@ -112,6 +136,13 @@ describe('GigSchema', () => {
     const indexes = GigSchema.indexes().map(([fields]) => fields);
 
     expect(indexes).not.toContainEqual({ country: 1, city: 1 });
+    expect(indexes).not.toContainEqual({
+      isVisible: 1,
+      country: 1,
+      city: 1,
+      date: 1,
+      _id: 1,
+    });
     expect(indexes).not.toContainEqual({ gigCandidateId: 1 });
   });
 });

@@ -3,7 +3,7 @@ import type {
   GigCandidatePost,
   GigCandidateSource,
 } from '../types/gig-candidate.types';
-import type { GigData } from '../../gig/types/gig.types';
+import type { GigCandidateDraft, GigData } from '@modules/gig/types/gig.types';
 import type { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
   AdminGigCandidateListSortBy,
@@ -16,13 +16,13 @@ export interface CreateGigCandidateParams {
   gigCandidateId: string;
   status: GigCandidateStatus.New | GigCandidateStatus.Reviewing;
   source: GigCandidateSource;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
 }
 
 export interface UpdateGigCandidateDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
 }
 
 export interface SendGigCandidateToModerationRecordParams {

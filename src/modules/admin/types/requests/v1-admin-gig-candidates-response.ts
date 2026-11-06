@@ -60,6 +60,7 @@ export type V1AdminGigCandidateSourceResponseBody =
   | V1AdminGigCandidateProviderSourceResponseBody;
 
 interface V1AdminGigCandidateGigDraftResponseBody {
+  communityIds: string[];
   title?: string;
   date?: string;
   endDate?: string;

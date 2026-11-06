@@ -372,7 +372,7 @@ export class GigService {
         });
       }
     }
-    await this.revalidateGigFeed(updatedGig);
+    await this.revalidateGigFeeds(updatedGig);
 
     return { publicId: updatedGig.publicId };
   }
@@ -462,7 +462,7 @@ export class GigService {
       gig: updated,
       moderationPost: params.moderationPost,
     });
-    await this.revalidateGigFeed(updated);
+    await this.revalidateGigFeeds(updated);
 
     return updated;
   }
@@ -735,10 +735,9 @@ export class GigService {
     }
   }
 
-  private revalidateGigFeed(gig: PlainGig): Promise<void> {
-    return this.gigFeedRevalidationService.revalidateGigFeed({
-      country: gig.country,
-      city: gig.city,
+  private revalidateGigFeeds(gig: PlainGig): Promise<void> {
+    return this.gigFeedRevalidationService.revalidateGigFeeds({
+      communityIds: gig.communityIds,
     });
   }
 

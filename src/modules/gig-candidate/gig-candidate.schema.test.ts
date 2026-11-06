@@ -1,8 +1,37 @@
+import { Types } from 'mongoose';
+
 import { GigCandidateSchema } from './gig-candidate.schema';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 
 describe('GigCandidateSchema', () => {
+  it('should require Community assignments inside gigDraft', () => {
+    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments inside gigDraft', () => {
+    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should require Community assignments inside gigDraft', () => {
+    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
+    const validate = communityIdsPath.options.validate.validator;
+
+    expect(communityIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
   it('should keep source immutable at the persistence boundary', () => {
     expect(GigCandidateSchema.path('source').options.immutable).toBe(true);
   });

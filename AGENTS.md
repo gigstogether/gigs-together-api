@@ -190,9 +190,11 @@ request DTO -> pure request mapper -> application service -> pure response mappe
 
 ## Module data layer
 
-Persistence for a domain module follows a repository boundary. Canonical reference: `src/modules/translation/` (also applied in `src/modules/locale/`).
+Persistence must have an explicit feature owner and must not leak Mongoose types or
+query details into controllers, application/query services, or domain logic. Every
+MongoDB collection accessed by application code must have a repository boundary.
 
-Call chain:
+Required call chain:
 
 ```text
 controller → service → repository interface → mongo repository → schema / DB
@@ -235,7 +237,7 @@ src/modules/<feature>/
 ### Scope and migration
 
 - Apply this pattern to **new** persistence code and when touching an existing module's data access in a meaningful way.
-- Modules that still call Mongoose from services are legacy relative to this rule; migrate them toward the repository layout rather than extending direct `@InjectModel` usage in services.
+- When an existing service injects a Mongoose model directly, introduce the appropriate repository boundary rather than extending mixed application and persistence responsibilities.
 - Infrastructure modules that wrap external APIs (Telegram, Calendar, Bucket, AI) are not Mongo repositories; keep their client/adapter boundaries as they are unless they also own a Mongo collection.
 
 ## File placement

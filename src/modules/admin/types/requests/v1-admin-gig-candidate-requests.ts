@@ -1,4 +1,5 @@
 export interface V1AdminGigCandidateGigDraftRequestBody {
+  communityIds: string[];
   title?: string;
   date?: string;
   endDate?: string;
@@ -35,6 +36,11 @@ export interface V1AdminGigCandidateLookupRequestBody {
   location: string;
 }
 
+export type V1AdminGigCandidateLookupGigDraftResponseBody = Omit<
+  V1AdminGigCandidateGigDraftRequestBody,
+  'communityIds'
+>;
+
 export interface V1AdminGigCandidateLookupResponseBody {
-  gigDraft: V1AdminGigCandidateGigDraftRequestBody | null;
+  gigDraft: V1AdminGigCandidateLookupGigDraftResponseBody | null;
 }

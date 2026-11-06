@@ -93,6 +93,8 @@ describe('TelegramDigestComposerService', () => {
 
   beforeEach(async () => {
     vi.stubEnv('APP_BASE_URL', '');
+    vi.stubEnv('TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME', 'suggest');
+    vi.stubEnv('TELEGRAM_ADMIN_MINI_APP_SHORT_NAME', 'admin');
     vi.spyOn(Date, 'now').mockReturnValue(TELEGRAM_POSTER_CACHE_BUST);
     telegramTemplates = createMockTelegramTemplates();
 

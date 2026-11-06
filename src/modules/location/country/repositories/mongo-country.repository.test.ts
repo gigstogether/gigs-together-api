@@ -1,11 +1,11 @@
 import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { Country } from '../location.schema';
-import { MongoLocationRepository } from './mongo-location.repository';
+import { Country } from '../country.schema';
+import { MongoCountryRepository } from './mongo-country.repository';
 
-describe('MongoLocationRepository', () => {
-  let repository: MongoLocationRepository;
+describe('MongoCountryRepository', () => {
+  let repository: MongoCountryRepository;
 
   const findMock = vi.fn();
 
@@ -14,7 +14,7 @@ describe('MongoLocationRepository', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        MongoLocationRepository,
+        MongoCountryRepository,
         {
           provide: getModelToken(Country.name),
           useValue: { find: findMock },
@@ -22,7 +22,7 @@ describe('MongoLocationRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<MongoLocationRepository>(MongoLocationRepository);
+    repository = module.get<MongoCountryRepository>(MongoCountryRepository);
   });
 
   it('should return countries ordered by iso', async () => {
@@ -31,7 +31,7 @@ describe('MongoLocationRepository', () => {
     const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
     findMock.mockReturnValue({ sort: sortMock });
 
-    await expect(repository.findCountriesOrderedByIso()).resolves.toEqual([
+    await expect(repository.findAllOrderedByIso()).resolves.toEqual([
       { iso: 'ES' },
       { iso: 'FR' },
     ]);

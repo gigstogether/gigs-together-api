@@ -21,7 +21,9 @@ function buildTargetDocument(
       userId: USER_ID,
       origin: { type: GigSourceUserOriginType.Form },
     },
-    gigDraft: {},
+    gigDraft: {
+      communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+    },
     version: 0,
     status: GigCandidateStatus.New,
     posts: [],
@@ -32,6 +34,7 @@ function buildTargetDocument(
 }
 
 const completeGigDraft = {
+  communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
   title: 'Band',
   date: 1_800_000_000_000,
   city: 'Barcelona',
@@ -41,6 +44,29 @@ const completeGigDraft = {
 };
 
 describe('GigCandidateRepositoryMapper', () => {
+  describe('toStoredGigDraft', () => {
+    it('should map Community identifiers to ObjectIds', () => {
+      expect(
+        GigCandidateRepositoryMapper.toStoredGigDraft({
+          communityIds: ['507F1F77BCF86CD799439011'],
+        }),
+      ).toEqual({
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+      });
+    });
+
+    it('should reject duplicate Community identifiers', () => {
+      expect(() =>
+        GigCandidateRepositoryMapper.toStoredGigDraft({
+          communityIds: [
+            '507f1f77bcf86cd799439011',
+            '507F1F77BCF86CD799439011',
+          ],
+        }),
+      ).toThrow(/must not contain duplicates/);
+    });
+  });
+
   describe('toStoredSource', () => {
     it('should convert a user id to ObjectId', () => {
       const source = GigCandidateRepositoryMapper.toStoredSource({
@@ -130,6 +156,18 @@ describe('GigCandidateRepositoryMapper', () => {
   });
 
   describe('toGigCandidate', () => {
+    it('should reject duplicate stored Community identifiers', () => {
+      const communityId = new Types.ObjectId('507f1f77bcf86cd799439011');
+
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(
+          buildTargetDocument({
+            gigDraft: { communityIds: [communityId, communityId] },
+          }),
+        ),
+      ).toThrow(/must not contain duplicates/);
+    });
+
     it.each([
       {
         name: 'New',
@@ -139,7 +177,10 @@ describe('GigCandidateRepositoryMapper', () => {
         name: 'Reviewing',
         document: buildTargetDocument({
           status: GigCandidateStatus.Reviewing,
-          gigDraft: { title: 'Draft title' },
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            title: 'Draft title',
+          },
         }),
       },
       {
@@ -209,7 +250,10 @@ describe('GigCandidateRepositoryMapper', () => {
         name: 'Approved with incomplete gigDraft',
         document: buildTargetDocument({
           status: GigCandidateStatus.Approved,
-          gigDraft: { title: 'Band' },
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            title: 'Band',
+          },
           gigId: GIG_ID,
           approvedAt: new Date('2026-01-03T00:00:00.000Z'),
           approvedByUserId: USER_ID,

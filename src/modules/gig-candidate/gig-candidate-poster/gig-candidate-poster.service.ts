@@ -6,11 +6,14 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from '../../gig/types/gig-poster.types';
-import type { GigData, GigPoster } from '../../gig/types/gig.types';
+import type {
+  GigCandidateDraft,
+  GigPoster,
+} from '@modules/gig/types/gig.types';
 
 export interface PrepareGigCandidateDraftPosterParams {
   gigCandidateId: string;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
   existingPoster?: GigPoster;
@@ -18,7 +21,7 @@ export interface PrepareGigCandidateDraftPosterParams {
 }
 
 export interface PreparedGigCandidateDraftPoster {
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterFile?: PreparedGigPosterFile;
 }
 

@@ -8,6 +8,10 @@ import type {
 } from '../types/gig.types';
 import { Messenger } from '@shared/types/messenger.enum';
 import { isRecord } from '@shared/utils/is-record';
+import {
+  fromObjectIdArray,
+  toObjectIdArray,
+} from '@shared/utils/mongoose-object-id-array';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import type { GigStoredSource } from '../gig.schema';
@@ -19,6 +23,7 @@ interface StringableId {
 
 export interface GigLeanDocument {
   _id: string | StringableId;
+  communityIds: unknown;
   publicId: string;
   title: string;
   date: number;
@@ -50,6 +55,16 @@ function stringifyId(value: unknown, field: string): string {
 }
 
 export class GigRepositoryMapper {
+  static toStoredCommunityIds(
+    communityIds: readonly string[],
+  ): Types.ObjectId[] {
+    return toObjectIdArray(communityIds, 'Gig communityIds');
+  }
+
+  static fromStoredCommunityIds(value: unknown, owner = 'Gig'): string[] {
+    return fromObjectIdArray(value, `${owner} communityIds`);
+  }
+
   static toStoredSource(source: GigSource): GigStoredSource {
     switch (source.type) {
       case GigSourceType.User: {
@@ -164,6 +179,7 @@ export class GigRepositoryMapper {
   static toGig(doc: GigLeanDocument): PlainGig {
     return {
       id: stringifyId(doc._id, '_id'),
+      communityIds: this.fromStoredCommunityIds(doc.communityIds),
       publicId: doc.publicId,
       title: doc.title,
       date: doc.date,

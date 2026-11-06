@@ -10,7 +10,7 @@ import { decodeGigCursorOrThrow, encodeGigCursor } from '../utils/gig-cursor';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
 import type {
   FindVisibleGigsAroundParams,
-  FindVisibleGigsInRangeParams,
+  FindVisibleGigDatesParams,
   FindVisibleGigsPageParams,
   GigRepository,
 } from '../repositories/gig.repository';
@@ -18,6 +18,7 @@ import { GigService } from '../gig.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { CalendarService } from '../../calendar/calendar.service';
 import { PostType } from '@shared/types/post-type.enum';
+import { CommunityService } from '@modules/location/community/community.service';
 
 export interface GigVisibleInclusiveMsRangeParams {
   fromMs: number;
@@ -30,27 +31,32 @@ export interface GetVisibleGigsParams {
   limit?: number;
   from: number;
   to?: number;
-  city: string;
-  country: string;
+  communitySlug: string;
+  countryIso: string;
 }
 
 export interface GetVisibleGigsAroundParams {
   anchor: number;
   beforeLimit?: number;
   afterLimit?: number;
-  city: string;
-  country: string;
+  communitySlug: string;
+  countryIso: string;
 }
 
 export interface GetVisibleGigDatesParams {
   from: number;
   to?: number;
-  city: string;
-  country: string;
+  communitySlug: string;
+  countryIso: string;
 }
 
 export interface GetVisibleGigDateByPublicIdParams {
   publicId: string;
+}
+
+interface ResolveActiveCommunityIdParams {
+  countryIso: string;
+  communitySlug: string;
 }
 
 export interface GigFeedItem {
@@ -98,6 +104,7 @@ export class GigFeedService {
     private readonly gigService: GigService,
     private readonly telegramGigService: TelegramGigService,
     private readonly calendarService: CalendarService,
+    private readonly communityService: CommunityService,
   ) {}
 
   /** Maps domain Gigs to enriched public feed items. */
@@ -148,8 +155,8 @@ export class GigFeedService {
       cursor,
       from,
       to,
-      city,
-      country,
+      communitySlug,
+      countryIso,
       direction = 'next',
     } = query;
 
@@ -163,19 +170,19 @@ export class GigFeedService {
       );
     }
 
+    const communityId = await this.resolveActiveCommunityId({
+      countryIso,
+      communitySlug,
+    });
+
     const findVisibleGigsPageParams: FindVisibleGigsPageParams = {
       from,
       limit,
       direction,
+      communityId,
     };
     if (to !== undefined) {
       findVisibleGigsPageParams.to = to;
-    }
-    if (city !== undefined) {
-      findVisibleGigsPageParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsPageParams.country = country;
     }
     if (cursor !== undefined) {
       const decodedCursor = decodeGigCursorOrThrow(cursor);
@@ -251,8 +258,8 @@ export class GigFeedService {
       anchor,
       beforeLimit = 100,
       afterLimit = 100,
-      city,
-      country,
+      communitySlug,
+      countryIso,
     } = query;
 
     if (
@@ -264,18 +271,18 @@ export class GigFeedService {
       );
     }
 
+    const communityId = await this.resolveActiveCommunityId({
+      countryIso,
+      communitySlug,
+    });
+
     const findVisibleGigsAroundParams: FindVisibleGigsAroundParams = {
       anchor,
       todayStart: startOfTodayMs(),
       beforeLimit,
       afterLimit,
+      communityId,
     };
-    if (city !== undefined) {
-      findVisibleGigsAroundParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsAroundParams.country = country;
-    }
 
     const result = await this.gigRepository.findVisibleAround(
       findVisibleGigsAroundParams,
@@ -305,23 +312,23 @@ export class GigFeedService {
   async getVisibleGigDates(
     query: GetVisibleGigDatesParams,
   ): Promise<GetVisibleGigDatesResult> {
-    const { from, to, city, country } = query;
+    const { from, to, communitySlug, countryIso } = query;
 
     if (to !== undefined && to < from) {
       throw new BadRequestException('to must be >= from');
     }
 
-    const findVisibleGigsInRangeParams: FindVisibleGigsInRangeParams = {
+    const communityId = await this.resolveActiveCommunityId({
+      countryIso,
+      communitySlug,
+    });
+
+    const findVisibleGigsInRangeParams: FindVisibleGigDatesParams = {
       from,
+      communityId,
     };
     if (to !== undefined) {
       findVisibleGigsInRangeParams.to = to;
-    }
-    if (city !== undefined) {
-      findVisibleGigsInRangeParams.city = city;
-    }
-    if (country !== undefined) {
-      findVisibleGigsInRangeParams.country = country;
     }
 
     const dates = await this.gigRepository.findVisibleDates(
@@ -331,5 +338,20 @@ export class GigFeedService {
     return {
       dates,
     };
+  }
+
+  private async resolveActiveCommunityId(
+    params: ResolveActiveCommunityIdParams,
+  ): Promise<string> {
+    const community = await this.communityService.findByRoute({
+      countryIso: params.countryIso,
+      communitySlug: params.communitySlug,
+    });
+    if (community === null || !community.isActive) {
+      throw new NotFoundException(
+        `Active Community "${params.countryIso}/${params.communitySlug}" not found`,
+      );
+    }
+    return community.id;
   }
 }
