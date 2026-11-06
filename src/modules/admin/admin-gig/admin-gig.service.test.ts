@@ -1,0 +1,216 @@
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
+import { Messenger } from '@shared/types/messenger.enum';
+import { PostType } from '@shared/types/post-type.enum';
+import { GigService } from '@modules/gig/gig.service';
+import type { GigPost, PlainGig } from '@modules/gig/types/gig.types';
+import { GigSourceType } from '@modules/gig/types/gig-source-type.enum';
+import { GigSourceUserOriginType } from '@modules/gig/types/gig-source-user-origin-type.enum';
+import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
+import { TelegramGigService } from '@modules/telegram/telegram-gig/telegram-gig.service';
+import type { BuildPostUrlPayload } from '@modules/telegram/telegram-composer.service.types';
+import { UserService } from '@modules/user/user.service';
+import { UserRole } from '@modules/user/types/user-role.enum';
+import { AdminGigService } from './admin-gig.service';
+
+function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
+  return {
+    id: '507f1f77bcf86cd799439011',
+    communityIds: ['507f1f77bcf86cd799439022'],
+    publicId: 'radiohead-barcelona-2026-06-12',
+    title: 'Radiohead',
+    date: new Date('2026-06-12T12:00:00.000Z').getTime(),
+    city: 'barcelona',
+    country: 'ES',
+    venue: 'Palau Sant Jordi',
+    ticketsUrl: 'https://example.com/tickets',
+    isVisible: false,
+    version: 3,
+    source: {
+      type: GigSourceType.User,
+      userId: '507f1f77bcf86cd799439012',
+      origin: { type: GigSourceUserOriginType.Admin },
+    },
+    posts: [
+      {
+        to: Messenger.Telegram,
+        type: PostType.Moderation,
+        chatId: -100123,
+        id: 42,
+        date: new Date('2026-05-30T14:22:00.000Z').getTime(),
+      },
+    ],
+    createdAt: new Date('2026-05-30T14:22:00.000Z'),
+    updatedAt: new Date('2026-05-30T14:22:00.000Z'),
+    ...overrides,
+  };
+}
+
+describe('AdminGigService', () => {
+  let service: AdminGigService;
+
+  const gigServiceMock = {
+    getGigs: vi.fn(),
+    getGigByPublicId: vi.fn(),
+    resolveGigPosterPublicUrl: vi.fn(),
+  };
+  const telegramComposerMock = {
+    buildPostUrl: vi.fn(),
+  };
+  const telegramGigServiceMock = {
+    pickPost: vi.fn(),
+    resolveMainPostUrl: vi.fn(),
+  };
+  const userServiceMock = { findActiveUsersByIds: vi.fn() };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    userServiceMock.findActiveUsersByIds.mockResolvedValue([
+      {
+        id: '507f1f77bcf86cd799439012',
+        status: 'active',
+        roles: [UserRole.Admin],
+        identities: [
+          {
+            type: 'messenger',
+            messenger: Messenger.Telegram,
+            externalUserId: '42',
+            username: 'test_admin',
+          },
+        ],
+        displayName: 'Test Admin',
+        createdAt: new Date('2026-05-01T10:00:00.000Z'),
+        updatedAt: new Date('2026-05-01T10:00:00.000Z'),
+      },
+    ]);
+    telegramGigServiceMock.pickPost.mockImplementation(
+      (posts: GigPost[] | undefined, type: PostType): GigPost | undefined =>
+        posts?.find(
+          (post) => post.to === Messenger.Telegram && post.type === type,
+        ),
+    );
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
+    telegramComposerMock.buildPostUrl.mockImplementation(
+      (payload: BuildPostUrlPayload): string | undefined => {
+        if ('chatUsername' in payload && payload.chatUsername) {
+          return `https://t.me/${payload.chatUsername}/${payload.messageId}`;
+        }
+        if ('chatId' in payload && payload.chatId) {
+          const rawChatId = String(payload.chatId);
+          const internalChatId = rawChatId.startsWith('-100')
+            ? rawChatId.slice(4)
+            : rawChatId;
+          return `https://t.me/c/${internalChatId}/${payload.messageId}`;
+        }
+        return undefined;
+      },
+    );
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AdminGigService,
+        { provide: GigService, useValue: gigServiceMock },
+        { provide: TelegramComposerService, useValue: telegramComposerMock },
+        { provide: TelegramGigService, useValue: telegramGigServiceMock },
+        { provide: UserService, useValue: userServiceMock },
+      ],
+    }).compile();
+    service = module.get(AdminGigService);
+  });
+
+  it('should map Gig fields and source for the admin list', async () => {
+    const gig = buildPlainGig();
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(
+      'https://cdn.example/poster.jpg',
+    );
+
+    const result = await service.getGigsList({ limit: 50 });
+
+    expect(result.gigs[0]).toEqual(
+      expect.objectContaining({
+        publicId: gig.publicId,
+        title: gig.title,
+        source: expect.objectContaining({
+          displayName: 'Test Admin',
+          isCurrentlyAdmin: true,
+        }),
+        posterUrl: 'https://cdn.example/poster.jpg',
+      }),
+    );
+  });
+
+  it('should preserve messenger provenance without loading a user', async () => {
+    const gig = buildPlainGig({
+      source: {
+        type: GigSourceType.User,
+        origin: {
+          type: GigSourceUserOriginType.Messenger,
+          messenger: Messenger.Telegram,
+        },
+      },
+    });
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+
+    const result = await service.getGigsList({ limit: 50 });
+
+    expect(result.gigs[0]?.source).toEqual({
+      type: 'user',
+      origin: {
+        type: 'messenger',
+        messenger: Messenger.Telegram,
+      },
+      isCurrentlyAdmin: false,
+    });
+    expect(userServiceMock.findActiveUsersByIds).toHaveBeenCalledWith([]);
+  });
+
+  it('should map Main and Moderation post metadata for admin detail', async () => {
+    const mainPost: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Main,
+      chatId: -100456,
+      id: 99,
+      date: 1_700_000_002_000,
+    };
+    const moderationPost: GigPost = {
+      to: Messenger.Telegram,
+      type: PostType.Moderation,
+      chatId: -100123,
+      id: 42,
+      date: 1_700_000_001_000,
+    };
+    const gig = buildPlainGig({ posts: [moderationPost, mainPost] });
+    gigServiceMock.getGigByPublicId.mockResolvedValue(gig);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+    telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(
+      'https://t.me/channel/99',
+    );
+
+    const result = await service.getGigByPublicId(gig.publicId);
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        mainPostUrl: 'https://t.me/channel/99',
+        mainPostDate: mainPost.date,
+        moderationPostUrl: 'https://t.me/c/123/42',
+        moderationPostDate: moderationPost.date,
+      }),
+    );
+    expect(telegramGigServiceMock.resolveMainPostUrl).toHaveBeenCalledWith(
+      mainPost,
+    );
+  });
+
+  it('should omit an empty tickets URL from the admin list', async () => {
+    const gig = buildPlainGig({ ticketsUrl: '   ' });
+    gigServiceMock.getGigs.mockResolvedValue([gig]);
+    gigServiceMock.resolveGigPosterPublicUrl.mockReturnValue(undefined);
+
+    const result = await service.getGigsList({ limit: 50 });
+
+    expect(result.gigs[0]?.ticketsUrl).toBeUndefined();
+  });
+});
