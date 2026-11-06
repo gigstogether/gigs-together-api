@@ -16,12 +16,12 @@ import { AccessJwtAuthGuard } from '@modules/auth/guards/access-jwt-auth.guard';
 import { AdminGuard } from '@modules/auth/guards/admin.guard';
 import { AuthenticatedUserGuard } from '@modules/auth/guards/authenticated-user.guard';
 import { RegionService } from '@modules/location/region/region.service';
-import type {
-  CreateRegionParams,
-  FindRegionsParams,
-  UpdateRegionParams,
-} from '@modules/location/region/region.service';
-import type { Region } from '@modules/location/region/types/region.types';
+import {
+  mapV1AdminRegionCreateRequest,
+  mapV1AdminRegionResponse,
+  mapV1AdminRegionsGetRequest,
+  mapV1AdminRegionUpdateRequest,
+} from './admin-region.mapper';
 import {
   V1AdminRegionCreateBodyDto,
   V1AdminRegionIdParamsDto,
@@ -91,54 +91,4 @@ export class AdminRegionController {
   deleteRegionV1(@Param() params: V1AdminRegionIdParamsDto): Promise<void> {
     return this.regionService.deleteRegion(params.id);
   }
-}
-
-function mapV1AdminRegionsGetRequest(
-  query: V1AdminRegionsGetQueryDto,
-): FindRegionsParams {
-  const params: FindRegionsParams = {};
-
-  if (query.countryIso !== undefined) {
-    params.countryIso = query.countryIso;
-  }
-  if (query.search !== undefined) {
-    params.search = query.search;
-  }
-
-  return params;
-}
-
-function mapV1AdminRegionCreateRequest(
-  body: V1AdminRegionCreateBodyDto,
-): CreateRegionParams {
-  return {
-    countryIso: body.countryIso,
-    name: body.name,
-    aliases: [...body.aliases],
-  };
-}
-
-function mapV1AdminRegionUpdateRequest(
-  id: string,
-  body: V1AdminRegionPatchBodyDto,
-): UpdateRegionParams {
-  const params: UpdateRegionParams = { id };
-
-  if (body.name !== undefined) {
-    params.name = body.name;
-  }
-  if (body.aliases !== undefined) {
-    params.aliases = [...body.aliases];
-  }
-
-  return params;
-}
-
-function mapV1AdminRegionResponse(region: Region): V1AdminRegionResponseBody {
-  return {
-    id: region.id,
-    countryIso: region.countryIso,
-    name: region.name,
-    aliases: [...region.aliases],
-  };
 }
