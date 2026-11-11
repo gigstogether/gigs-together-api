@@ -6,7 +6,6 @@ import { firstValueFrom } from 'rxjs';
 const COUNTRY_REFERENCE_URL =
   'https://unstats.un.org/unsd/methodology/m49/overview';
 const COUNTRY_REFERENCE_TABLE_SELECTOR = '#downloadTableEN';
-const COUNTRY_NAME_HEADER = 'Country or Area';
 const COUNTRY_ISO_HEADER = 'ISO-alpha2 Code';
 const COUNTRY_REFERENCE_CACHE_TTL_MS = 60 * 60 * 1_000; // 1 hour.
 const COUNTRY_REFERENCE_REQUEST_TIMEOUT_MS = 10_000; // 10 seconds.
@@ -15,7 +14,6 @@ const COUNTRY_ISO_PATTERN = /^[A-Z]{2}$/;
 
 export interface CountryReference {
   iso: string;
-  name: string;
 }
 
 interface CountryReferenceCache {
@@ -96,11 +94,10 @@ export function parseCountryReferences(html: string): CountryReference[] {
     .children('th,td')
     .map((_, cell) => document(cell).text().trim())
     .get();
-  const nameIndex = headers.indexOf(COUNTRY_NAME_HEADER);
   const isoIndex = headers.indexOf(COUNTRY_ISO_HEADER);
 
-  if (nameIndex === -1 || isoIndex === -1) {
-    throw new Error('UNSD country table headers do not match the contract');
+  if (isoIndex === -1) {
+    throw new Error('UNSD country table must contain the ISO alpha-2 header');
   }
 
   const countries: CountryReference[] = [];
@@ -111,12 +108,8 @@ export function parseCountryReferences(html: string): CountryReference[] {
       .children('th,td')
       .map((__, cell) => document(cell).text().trim())
       .get();
-    const name = cells[nameIndex];
     const iso = cells[isoIndex];
 
-    if (name === undefined || name.length === 0) {
-      throw new Error('UNSD country row must contain a name');
-    }
     if (iso === undefined || !COUNTRY_ISO_PATTERN.test(iso)) {
       throw new Error('UNSD country row must contain an ISO alpha-2 code');
     }
@@ -125,12 +118,12 @@ export function parseCountryReferences(html: string): CountryReference[] {
     }
 
     countryIsos.add(iso);
-    countries.push({ iso, name });
+    countries.push({ iso });
   });
 
   if (countries.length < MIN_EXPECTED_COUNTRY_COUNT) {
     throw new Error('UNSD country table contains fewer rows than expected');
   }
 
-  return countries.sort((left, right) => left.name.localeCompare(right.name));
+  return countries.sort((left, right) => left.iso.localeCompare(right.iso));
 }

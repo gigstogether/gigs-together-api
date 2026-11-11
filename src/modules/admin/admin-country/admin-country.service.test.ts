@@ -36,10 +36,7 @@ describe('AdminCountryService', () => {
 
   it('should mark already configured country options', async () => {
     getCountriesMock.mockResolvedValue([{ iso: 'ES' }]);
-    getCountryReferencesMock.mockResolvedValue([
-      { iso: 'ES', name: 'Spain' },
-      { iso: 'FR', name: 'France' },
-    ]);
+    getCountryReferencesMock.mockResolvedValue([{ iso: 'ES' }, { iso: 'FR' }]);
 
     await expect(service.getCountryOptions()).resolves.toEqual([
       { iso: 'ES', isConfigured: true },

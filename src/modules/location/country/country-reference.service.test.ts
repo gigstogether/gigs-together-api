@@ -8,23 +8,23 @@ import {
   parseCountryReferences,
 } from './country-reference.service';
 
-const HEADER_CELLS = ['Country or Area', 'ISO-alpha2 Code', 'ISO-alpha3 Code'];
+const HEADER_CELLS = ['ISO-alpha2 Code', 'ISO-alpha3 Code'];
 
 describe('parseCountryReferences', () => {
-  it('should parse and sort the English UNSD country table', () => {
+  it('should parse and sort UNSD country ISO codes', () => {
     const html = createCountryTableHtml(200);
 
     const countries = parseCountryReferences(html);
 
     expect(countries).toHaveLength(200);
-    expect(countries[0]).toEqual({ iso: 'AA', name: 'Country 000' });
+    expect(countries[0]).toEqual({ iso: 'AA' });
   });
 
-  it('should reject a table without the expected headers', () => {
+  it('should reject a table without the ISO alpha-2 header', () => {
     const html = '<table id="downloadTableEN"><tr><td>Name</td></tr></table>';
 
     expect(() => parseCountryReferences(html)).toThrow(
-      'UNSD country table headers do not match the contract',
+      'UNSD country table must contain the ISO alpha-2 header',
     );
   });
 });
@@ -70,10 +70,11 @@ function createCountryTableHtml(countryCount: number): string {
   const rows = Array.from({ length: countryCount }, (_, index) => {
     const firstLetter = String.fromCharCode(65 + Math.floor(index / 26));
     const secondLetter = String.fromCharCode(65 + (index % 26));
-    const numericName = index.toString().padStart(3, '0');
 
-    return `<tr><td>Country ${numericName}</td><td>${firstLetter}${secondLetter}</td><td>AAA</td></tr>`;
-  }).join('');
+    return `<tr><td>${firstLetter}${secondLetter}</td><td>AAA</td></tr>`;
+  })
+    .reverse()
+    .join('');
 
   return `<table id="downloadTableEN"><tr>${headers}</tr>${rows}</table>`;
 }
