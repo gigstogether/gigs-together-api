@@ -208,6 +208,7 @@ Responsibilities:
 
 - owns the physical geographic catalog
 - owns Country, Region, Locality, and Place persistence and application behavior
+- loads official UNSD country choices only for authenticated Country administration
 - owns geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Dependencies:

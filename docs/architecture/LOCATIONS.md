@@ -42,10 +42,10 @@ on another feature's application service, but a repository must not query a mode
 owned by another feature. For example, Region creation verifies `countryIso`
 through `CountryService`; `RegionRepository` does not query the Country model.
 
-`LocationModule` owns Region, Locality, and Place persistence and application
-behavior and exports their application services. `AdminModule` owns the
-authenticated administrative HTTP controllers and their versioned Region,
-Locality, and Place request and response contracts.
+`LocationModule` owns Country, Region, Locality, and Place persistence and
+application behavior and exports their application services. `AdminModule` owns
+the authenticated administrative HTTP controllers and their versioned Country,
+Region, Locality, and Place request and response contracts.
 
 Gig relationships are introduced separately. Gig responses and physical-location
 integrations continue to use the legacy `country`, `city`, and `venue` fields
@@ -61,12 +61,21 @@ Creating a Region must verify through the Country application and repository
 boundary that its `countryIso` exists in the Country collection. A syntactically
 valid but unsupported code must not create a Region.
 
-`CountryService` lazily loads the small reference collection and keeps both the
+The Country collection contains only countries explicitly configured for this
+project. `CountryService` lazily loads that small collection and keeps both the
 ordered catalog and a set of ISO codes in process memory. HTTP DTOs normalize and
 validate external ISO syntax, while application services ask CountryService
-whether the code is part of the supported catalog. Region and Community do not
-maintain a separate ISO regex. Because Country has no runtime mutation API,
-catalog changes take effect after an application restart.
+whether the code is part of the configured catalog. Region and Community do not
+maintain a separate ISO regex.
+
+The authenticated Country administration API can add a configured country. Its
+selection list is loaded from the English table in the official UNSD M49
+overview and cached in process for one hour. The external table is consulted
+only while listing add-country options or validating a create request; ordinary
+Country, Region, and Community reads never depend on UNSD availability. An
+already configured country remains visible but disabled in the selection list.
+After a successful insert, `CountryService` invalidates its configured-country
+cache immediately. Country deletion is not part of the current API.
 
 ## Region
 

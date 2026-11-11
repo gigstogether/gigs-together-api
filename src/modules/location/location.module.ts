@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Country, CountrySchema } from './country/country.schema';
 import { CountryService } from './country/country.service';
+import { CountryReferenceService } from './country/country-reference.service';
 import { CountriesController } from './country/countries.controller';
 import { COUNTRY_REPOSITORY } from './country/repositories/country.repository';
 import { MongoCountryRepository } from './country/repositories/mongo-country.repository';
@@ -20,6 +22,7 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
 
 @Module({
   imports: [
+    HttpModule,
     MongooseModule.forFeature([
       { name: Country.name, schema: CountrySchema },
       { name: Locality.name, schema: LocalitySchema },
@@ -30,6 +33,7 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
   controllers: [CountriesController],
   providers: [
     CountryService,
+    CountryReferenceService,
     LocalityService,
     PlaceService,
     RegionService,
@@ -50,6 +54,12 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
       useClass: MongoRegionRepository,
     },
   ],
-  exports: [CountryService, LocalityService, PlaceService, RegionService],
+  exports: [
+    CountryReferenceService,
+    CountryService,
+    LocalityService,
+    PlaceService,
+    RegionService,
+  ],
 })
 export class LocationModule {}

@@ -11,6 +11,8 @@ import { TranslationModule } from '@modules/translation/translation.module';
 import { UserModule } from '@modules/user/user.module';
 import { AdminDashboardController } from './admin-dashboard/admin-dashboard.controller';
 import { AdminDashboardService } from './admin-dashboard/admin-dashboard.service';
+import { AdminCountryController } from './admin-country/admin-country.controller';
+import { AdminCountryService } from './admin-country/admin-country.service';
 import { AdminDigestController } from './admin-digest/admin-digest.controller';
 import { AdminFeedController } from './admin-feed/admin-feed.controller';
 import { AdminGigCandidateController } from './admin-gig-candidate/admin-gig-candidate.controller';
@@ -49,6 +51,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     BucketModule,
   ],
   controllers: [
+    AdminCountryController,
     AdminDashboardController,
     AdminDigestController,
     AdminFeedController,
@@ -61,6 +64,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     AdminTranslationController,
   ],
   providers: [
+    AdminCountryService,
     AdminDashboardService,
     AdminGigService,
     AdminGigCandidateService,

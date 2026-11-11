@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
+import { isRecord } from '@shared/utils/is-record';
+import { CountryIsoConflictError } from '../country.errors';
 import { Country as CountrySchema } from '../country.schema';
 import type { CountryDocument } from '../country.schema';
 import type { Country } from '../types/country.types';
@@ -22,6 +24,19 @@ export class MongoCountryRepository implements CountryRepository {
     private readonly countryModel: Model<CountryDocument>,
   ) {}
 
+  async create(country: Country): Promise<Country> {
+    try {
+      const doc = await this.countryModel.create(country);
+
+      return CountryRepositoryMapper.toCountry({ iso: doc.iso });
+    } catch (e) {
+      if (isDuplicateKeyError(e)) {
+        throw new CountryIsoConflictError(e);
+      }
+      throw e;
+    }
+  }
+
   async findAllOrderedByIso(): Promise<readonly Country[]> {
     const docs = await this.countryModel
       .find({}, COUNTRY_PROJECTION)
@@ -31,4 +46,8 @@ export class MongoCountryRepository implements CountryRepository {
 
     return CountryRepositoryMapper.toCountries(docs);
   }
+}
+
+function isDuplicateKeyError(e: unknown): boolean {
+  return isRecord(e) && e.code === 11000;
 }
