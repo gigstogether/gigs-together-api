@@ -1,10 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import type { HydratedDocument } from 'mongoose';
+import { isValidIanaTimeZone } from '@shared/utils/is-valid-iana-time-zone';
 import { isValidTranslationKey } from '@modules/translation/translation-identifiers';
-import {
-  isValidCommunitySlug,
-  isValidCommunityTimeZone,
-} from './community.validators';
+import { isValidCommunitySlug } from './community.validators';
 
 @Schema()
 export class Community {
@@ -37,7 +35,7 @@ export class Community {
     type: String,
     required: true,
     trim: true,
-    validate: isValidCommunityTimeZone,
+    validate: isValidIanaTimeZone,
   })
   timeZone: string;
 

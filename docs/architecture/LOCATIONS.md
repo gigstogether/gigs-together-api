@@ -8,7 +8,7 @@ event Places, and future geographic matching.
 ## Module Boundary
 
 `LocationModule` owns physical geographic reference data. It currently serves
-countries and owns Region persistence and lookup. It will also own Locality and
+countries and owns Region and Locality persistence and lookup. It will also own
 Place. It does not own Community persistence, Gig moderation, feed delivery,
 Telegram workflows, or calendar integration.
 
@@ -20,6 +20,7 @@ Current persistence:
 
 - `Country`
 - `Region`
+- `Locality`
 
 Current editorial-audience persistence:
 
@@ -40,13 +41,15 @@ on another feature's application service, but a repository must not query a mode
 owned by another feature. For example, Region creation verifies `countryIso`
 through `CountryService`; `RegionRepository` does not query the Country model.
 
-`LocationModule` owns Region persistence and application behavior and exports
-`RegionService`. `AdminModule` owns the authenticated administrative HTTP
-controller and its versioned Region request and response contracts.
+`LocationModule` owns Region and Locality persistence and application behavior
+and exports `RegionService` and `LocalityService`. `AdminModule` owns the
+authenticated administrative HTTP controllers and their versioned Region and
+Locality request and response contracts.
 
-Region, Locality, and Place are introduced incrementally. Gig responses and
-physical-location integrations continue to use the legacy `country`, `city`, and
-`venue` fields until the catalog, runtime relationships, and migration are ready.
+Place and Gig relationships are introduced incrementally. Gig responses and
+physical-location integrations continue to use the legacy `country`, `city`,
+and `venue` fields until the catalog, runtime relationships, and migration are
+ready.
 
 ## Country
 
@@ -84,13 +87,13 @@ translation records. The canonical name remains available for administration,
 search, and data integrity even when no locale-specific display name exists.
 
 Region has no `isActive` state. An unused erroneous Region may be deleted. Once
-Locality is introduced, a Region referenced by a Locality must not be deleted
-until those references have been moved or removed.
+Locality is introduced, a Region referenced by a Locality cannot be deleted
+until those references have been removed.
 
 ## Locality
 
 `Locality` represents the city, town, settlement, municipality, or other local
-territory used to locate a Place. The target model contains:
+territory used to locate a Place. The current model contains:
 
 - an opaque stable `id`
 - `regionId`, which references a Region
@@ -102,6 +105,10 @@ Country is resolved through Locality's Region and is not duplicated on Locality.
 Locality has no `isActive` state. Geographic names remain canonical stored data;
 aliases may initially cover alternative-language spellings without introducing a
 translation dependency.
+
+The pair `regionId + name` is unique using case-insensitive collation. Admin
+catalog reads may filter by `regionId` and search canonical names and aliases.
+The Region relationship is immutable in the current update contract.
 
 ## Place
 

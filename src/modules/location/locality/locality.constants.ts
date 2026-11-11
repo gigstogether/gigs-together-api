@@ -1,0 +1,3 @@
+export const LOCALITY_NAME_MAX_LENGTH = 120;
+export const LOCALITY_ALIAS_MAX_COUNT = 20;
+export const LOCALITY_TIME_ZONE_MAX_LENGTH = 100;

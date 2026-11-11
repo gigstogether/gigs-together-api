@@ -1,9 +1,7 @@
 import { Types } from 'mongoose';
+import { isValidIanaTimeZone } from '@shared/utils/is-valid-iana-time-zone';
 import { isValidTranslationKey } from '@modules/translation/translation-identifiers';
-import {
-  isValidCommunitySlug,
-  isValidCommunityTimeZone,
-} from '../community.validators';
+import { isValidCommunitySlug } from '../community.validators';
 import type { Community } from '../types/community.types';
 
 export interface CommunityLeanDocument {
@@ -34,7 +32,7 @@ export class CommunityRepositoryMapper {
     }
     if (
       typeof doc.timeZone !== 'string' ||
-      !isValidCommunityTimeZone(doc.timeZone)
+      !isValidIanaTimeZone(doc.timeZone)
     ) {
       throw new Error('Community timeZone must be a valid IANA time zone');
     }

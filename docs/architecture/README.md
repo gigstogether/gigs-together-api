@@ -207,18 +207,19 @@ Main files:
 Responsibilities:
 
 - owns the physical geographic catalog
-- currently owns Country and Region persistence and application behavior
-- will own future Locality and Place persistence and geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
+- currently owns Country, Region, and Locality persistence and application behavior
+- will own future Place persistence and geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Dependencies:
 
-- local `Country` and `Region` Mongoose models
+- local `Country`, `Region`, and `Locality` Mongoose models
 
 Main files:
 
 - `src/modules/location/location.module.ts`
 - `src/modules/location/country/`
 - `src/modules/location/region/`
+- `src/modules/location/locality/`
 
 #### `CommunityModule`
 
@@ -415,6 +416,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - locales and translations in `src/modules/locale/*.schema.ts`
 - countries in `src/modules/location/country/country.schema.ts`
 - regions in `src/modules/location/region/region.schema.ts`
+- localities in `src/modules/location/locality/locality.schema.ts`
 - Communities in `src/modules/community/community.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.

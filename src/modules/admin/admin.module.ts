@@ -29,6 +29,7 @@ import { AdminGigController } from './admin-gig/admin-gig.controller';
 import { AdminGigService } from './admin-gig/admin-gig.service';
 import { AdminGigUpdateBodyPipe } from './admin-gig/pipes/admin-gig-update-body.pipe';
 import { AdminLocaleController } from './admin-locale/admin-locale.controller';
+import { AdminLocalityController } from './admin-locality/admin-locality.controller';
 import { AdminRegionController } from './admin-region/admin-region.controller';
 import { AdminTranslationController } from './admin-translation/admin-translation.controller';
 
@@ -53,6 +54,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     AdminGigController,
     AdminGigCandidateController,
     AdminLocaleController,
+    AdminLocalityController,
     AdminRegionController,
     AdminTranslationController,
   ],
