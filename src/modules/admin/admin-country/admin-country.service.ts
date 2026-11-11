@@ -6,7 +6,6 @@ import type { Country } from '@modules/location/country/types/country.types';
 
 export interface AdminCountryOption {
   iso: string;
-  name: string;
   isConfigured: boolean;
 }
 
@@ -32,7 +31,6 @@ export class AdminCountryService {
 
     return countryReferences.map((country) => ({
       iso: country.iso,
-      name: country.name,
       isConfigured: configuredIsos.has(country.iso),
     }));
   }

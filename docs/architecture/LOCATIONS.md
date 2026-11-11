@@ -74,6 +74,9 @@ overview and cached in process for one hour. The external table is consulted
 only while listing add-country options or validating a create request; ordinary
 Country, Region, and Community reads never depend on UNSD availability. An
 already configured country remains visible but disabled in the selection list.
+The admin API exposes only ISO codes and configuration state; clients localize
+country names with `Intl.DisplayNames` instead of storing country-name
+translations or depending on the English UNSD label.
 After a successful insert, `CountryService` invalidates its configured-country
 cache immediately. Country deletion is not part of the current API.
 

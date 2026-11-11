@@ -57,11 +57,11 @@ describe('AdminCountryController', () => {
 
   it('should return country options with configuration state', async () => {
     getCountryOptionsMock.mockResolvedValue([
-      { iso: 'ES', name: 'Spain', isConfigured: true },
+      { iso: 'ES', isConfigured: true },
     ]);
 
     await expect(controller.getCountryOptionsV1()).resolves.toEqual({
-      countries: [{ iso: 'ES', name: 'Spain', isConfigured: true }],
+      countries: [{ iso: 'ES', isConfigured: true }],
     });
   });
 

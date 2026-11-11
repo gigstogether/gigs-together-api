@@ -42,8 +42,8 @@ describe('AdminCountryService', () => {
     ]);
 
     await expect(service.getCountryOptions()).resolves.toEqual([
-      { iso: 'ES', name: 'Spain', isConfigured: true },
-      { iso: 'FR', name: 'France', isConfigured: false },
+      { iso: 'ES', isConfigured: true },
+      { iso: 'FR', isConfigured: false },
     ]);
   });
 

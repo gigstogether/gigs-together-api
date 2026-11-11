@@ -24,7 +24,6 @@ export function mapV1AdminCountryOptionResponse(
 ): V1AdminCountryOptionResponseBody {
   return {
     iso: option.iso,
-    name: option.name,
     isConfigured: option.isConfigured,
   };
 }

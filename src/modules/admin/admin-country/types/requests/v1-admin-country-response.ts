@@ -8,7 +8,6 @@ export interface V1AdminCountriesListResponseBody {
 
 export interface V1AdminCountryOptionResponseBody {
   iso: string;
-  name: string;
   isConfigured: boolean;
 }
 
