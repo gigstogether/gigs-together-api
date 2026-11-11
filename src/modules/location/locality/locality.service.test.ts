@@ -6,6 +6,7 @@ import {
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { RegionService } from '../region/region.service';
+import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LocalityService } from './locality.service';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
@@ -29,10 +30,12 @@ describe('LocalityService', () => {
   const updateMock = vi.fn();
   const deleteByIdMock = vi.fn();
   const hasRegionMock = vi.fn();
+  const existsByLocalityIdMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     hasRegionMock.mockResolvedValue(true);
+    existsByLocalityIdMock.mockResolvedValue(false);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -50,6 +53,10 @@ describe('LocalityService', () => {
         {
           provide: RegionService,
           useValue: { hasRegion: hasRegionMock },
+        },
+        {
+          provide: PLACE_REPOSITORY,
+          useValue: { existsByLocalityId: existsByLocalityIdMock },
         },
       ],
     }).compile();
@@ -134,6 +141,12 @@ describe('LocalityService', () => {
     );
   });
 
+  it('should report whether a Locality exists', async () => {
+    findByIdMock.mockResolvedValue(LOCALITY);
+
+    await expect(service.hasLocality(LOCALITY_ID)).resolves.toBe(true);
+  });
+
   it('should reject a stored Locality with an unknown Region', async () => {
     findByIdMock.mockResolvedValue(LOCALITY);
     hasRegionMock.mockResolvedValue(false);
@@ -188,5 +201,14 @@ describe('LocalityService', () => {
 
     await expect(service.deleteLocality(LOCALITY_ID)).resolves.toBeUndefined();
     expect(deleteByIdMock).toHaveBeenCalledWith(LOCALITY_ID);
+  });
+
+  it('should reject deletion of a Locality referenced by Places', async () => {
+    existsByLocalityIdMock.mockResolvedValue(true);
+
+    await expect(service.deleteLocality(LOCALITY_ID)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(deleteByIdMock).not.toHaveBeenCalled();
   });
 });

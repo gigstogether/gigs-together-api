@@ -6,6 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { RegionService } from '../region/region.service';
+import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
+import type { PlaceRepository } from '../place/repositories/place.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
 import type { LocalityRepository } from './repositories/locality.repository';
@@ -44,6 +46,8 @@ export class LocalityService {
     @Inject(LOCALITY_REPOSITORY)
     private readonly localityRepository: LocalityRepository,
     private readonly regionService: RegionService,
+    @Inject(PLACE_REPOSITORY)
+    private readonly placeRepository: PlaceRepository,
   ) {}
 
   async createLocality(params: CreateLocalityParams): Promise<Locality> {
@@ -76,6 +80,18 @@ export class LocalityService {
     await this.assertRegionsExist([locality]);
 
     return locality;
+  }
+
+  async hasLocality(id: string): Promise<boolean> {
+    const locality = await this.localityRepository.findById(id);
+
+    if (!locality) {
+      return false;
+    }
+
+    await this.assertRegionsExist([locality]);
+
+    return true;
   }
 
   async findLocalities(
@@ -140,6 +156,14 @@ export class LocalityService {
   }
 
   async deleteLocality(id: string): Promise<void> {
+    const hasPlaces = await this.placeRepository.existsByLocalityId(id);
+
+    if (hasPlaces) {
+      throw new ConflictException(
+        'Locality with id "' + id + '" is referenced by Places',
+      );
+    }
+
     const isDeleted = await this.localityRepository.deleteById(id);
 
     if (!isDeleted) {

@@ -8,9 +8,9 @@ event Places, and future geographic matching.
 ## Module Boundary
 
 `LocationModule` owns physical geographic reference data. It currently serves
-countries and owns Region and Locality persistence and lookup. It will also own
-Place. It does not own Community persistence, Gig moderation, feed delivery,
-Telegram workflows, or calendar integration.
+countries and owns Region, Locality, and Place persistence and lookup. It does
+not own Community persistence, Gig moderation, feed delivery, Telegram
+workflows, or calendar integration.
 
 `CommunityModule` owns Community persistence, public catalog reads, and lookup
 by ID or route. It depends on `LocationModule` through `CountryService` to verify
@@ -21,6 +21,7 @@ Current persistence:
 - `Country`
 - `Region`
 - `Locality`
+- `Place`
 
 Current editorial-audience persistence:
 
@@ -41,15 +42,14 @@ on another feature's application service, but a repository must not query a mode
 owned by another feature. For example, Region creation verifies `countryIso`
 through `CountryService`; `RegionRepository` does not query the Country model.
 
-`LocationModule` owns Region and Locality persistence and application behavior
-and exports `RegionService` and `LocalityService`. `AdminModule` owns the
-authenticated administrative HTTP controllers and their versioned Region and
-Locality request and response contracts.
+`LocationModule` owns Region, Locality, and Place persistence and application
+behavior and exports their application services. `AdminModule` owns the
+authenticated administrative HTTP controllers and their versioned Region,
+Locality, and Place request and response contracts.
 
-Place and Gig relationships are introduced incrementally. Gig responses and
-physical-location integrations continue to use the legacy `country`, `city`,
-and `venue` fields until the catalog, runtime relationships, and migration are
-ready.
+Gig relationships are introduced separately. Gig responses and physical-location
+integrations continue to use the legacy `country`, `city`, and `venue` fields
+until the runtime relationships and migration are ready.
 
 ## Country
 
@@ -109,6 +109,7 @@ translation dependency.
 The pair `regionId + name` is unique using case-insensitive collation. Admin
 catalog reads may filter by `regionId` and search canonical names and aliases.
 The Region relationship is immutable in the current update contract.
+Localities referenced by Places cannot be deleted.
 
 ## Place
 
@@ -117,7 +118,7 @@ location. It replaces the previous plan for an embedded Place value object and a
 separate future Venue entity. Clubs, concert halls, festival grounds, and
 temporary festival locations use the same Place model.
 
-The target Place model contains:
+The current Place model contains:
 
 - an opaque stable `id`
 - `localityId`, which references a Locality
@@ -134,10 +135,12 @@ reliable data-entry or geocoding boundary exist. Multiple stages inside one
 festival site remain one Place. Independently addressable venues used by the same
 festival are separate Places.
 
-Place names are not unique. Two physical locations may share a name, including
-within one Locality. Aliases support variants such as `Razzmatazz`,
-`Sala Razzmatazz`, and `Razzmatazz 1`; catalog search and moderation provide the
-deduplication workflow instead of a potentially incorrect unique-name constraint.
+The pair `localityId + name` is unique using case-insensitive collation because
+the current model has no address or coordinates with which to distinguish exact
+name collisions inside one Locality. When a real collision exists, the canonical
+names must include a stable qualifier such as a district or branch. Aliases
+support variants such as `Razzmatazz` and `Sala Razzmatazz` without creating
+duplicate Places.
 
 ## Community
 
@@ -238,9 +241,9 @@ selects an existing Place or creates a catalog entry. Approval requires all fina
 physical locations to be resolved to `placeIds`. The exact candidate proposal
 wire contract must be reviewed before implementation.
 
-Legacy `country`, `city`, and `venue` remain in runtime contracts until Region,
-Locality, and Place persistence and the Gig relationship migration are complete.
-The migration must run only after the final runtime schemas have been reviewed.
+Legacy `country`, `city`, and `venue` remain in runtime contracts until the Gig
+relationships and their migration are complete. The migration must run only
+after the final runtime schemas have been reviewed.
 
 ## Geographic Suggestions
 
