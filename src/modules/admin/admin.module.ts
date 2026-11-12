@@ -33,7 +33,6 @@ import { AdminGigUpdateBodyPipe } from './admin-gig/pipes/admin-gig-update-body.
 import { AdminLocaleController } from './admin-locale/admin-locale.controller';
 import { AdminLocalityController } from './admin-locality/admin-locality.controller';
 import { AdminPlaceController } from './admin-place/admin-place.controller';
-import { AdminRegionController } from './admin-region/admin-region.controller';
 import { AdminTranslationController } from './admin-translation/admin-translation.controller';
 
 /** Admin UI API composition root for domain-oriented administration features. */
@@ -60,7 +59,6 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     AdminLocaleController,
     AdminLocalityController,
     AdminPlaceController,
-    AdminRegionController,
     AdminTranslationController,
   ],
   providers: [

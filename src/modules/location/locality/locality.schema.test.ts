@@ -8,7 +8,6 @@ describe('LocalitySchema', () => {
 
     expect(LocalitySchema.path('qualifier').options.required).toBe(false);
     expect(LocalitySchema.path('isActive')).toBeUndefined();
-    expect(LocalitySchema.path('regionId')).toBeUndefined();
   });
 
   it('should enforce a case-insensitive unique identity within a Country', () => {

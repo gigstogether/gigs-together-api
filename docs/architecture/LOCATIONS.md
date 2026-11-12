@@ -2,13 +2,13 @@
 
 This document defines the boundary between physical geography in
 `LocationModule` and editorial audiences in `CommunityModule`, together with the
-target domain model for Countries, Regions, Localities, Communities, physical
+target domain model for Countries, Localities, Communities, physical
 event Places, and future geographic matching.
 
 ## Module Boundary
 
 `LocationModule` owns physical geographic reference data. It currently serves
-countries and owns Region, Locality, and Place persistence and lookup. It does
+countries and owns Locality and Place persistence and lookup. It does
 not own Community persistence, Gig moderation, feed delivery, Telegram
 workflows, or calendar integration.
 
@@ -19,7 +19,6 @@ that every Community references a supported country.
 Current persistence:
 
 - `Country`
-- `Region`
 - `Locality`
 - `Place`
 
@@ -30,22 +29,22 @@ Current editorial-audience persistence:
 Target geographic catalog:
 
 ```text
-Country -> Region -> Locality -> Place
+Country -> Locality -> Place
 ```
 
-`Country`, `Region`, and `Locality` describe physical geography. `Place`
+`Country` and `Locality` describe physical geography. `Place`
 identifies a reusable physical event location. `Community` remains an independent
 editorial audience and feed assignment.
 
 Every collection has its own repository boundary. One feature service may depend
 on another feature's application service, but a repository must not query a model
-owned by another feature. For example, Region creation verifies `countryIso`
-through `CountryService`; `RegionRepository` does not query the Country model.
+owned by another feature. For example, Locality creation verifies `countryIso`
+through `CountryService`; `LocalityRepository` does not query the Country model.
 
-`LocationModule` owns Country, Region, Locality, and Place persistence and
+`LocationModule` owns Country, Locality, and Place persistence and
 application behavior and exports their application services. `AdminModule` owns
 the authenticated administrative HTTP controllers and their versioned Country,
-Region, Locality, and Place request and response contracts.
+Locality, and Place request and response contracts.
 
 Gig relationships are introduced separately. Gig responses and physical-location
 integrations continue to use the legacy `country`, `city`, and `venue` fields
@@ -54,25 +53,25 @@ until the runtime relationships and migration are ready.
 ## Country
 
 `Country` is the root of the physical geographic catalog. Its unique uppercase
-ISO 3166-1 alpha-2 `iso` value is the relationship key used by Region. Region does
-not store a separate Country ObjectId.
+ISO 3166-1 alpha-2 `iso` value is the relationship key used by Locality. Locality
+does not store a separate Country ObjectId.
 
-Creating a Region must verify through the Country application and repository
+Creating a Locality must verify through the Country application and repository
 boundary that its `countryIso` exists in the Country collection. A syntactically
-valid but unsupported code must not create a Region.
+valid but unsupported code must not create a Locality.
 
 The Country collection contains only countries explicitly configured for this
 project. `CountryService` lazily loads that small collection and keeps both the
 ordered catalog and a set of ISO codes in process memory. HTTP DTOs normalize and
 validate external ISO syntax, while application services ask CountryService
-whether the code is part of the configured catalog. Region and Community do not
+whether the code is part of the configured catalog. Locality and Community do not
 maintain a separate ISO regex.
 
 The authenticated Country administration API can add a configured country. Its
 selection list is loaded from the English table in the official UNSD M49
 overview and cached in process for one hour. The external table is consulted
 only while listing add-country options or validating a create request; ordinary
-Country, Region, and Community reads never depend on UNSD availability. An
+Country, Locality, and Community reads never depend on UNSD availability. An
 already configured country remains visible but disabled in the selection list.
 The admin API exposes only ISO codes and configuration state; clients localize
 country names with `Intl.DisplayNames` instead of storing country-name
@@ -80,47 +79,26 @@ translations or depending on the English UNSD label.
 After a successful insert, `CountryService` invalidates its configured-country
 cache immediately. Country deletion is not part of the current API.
 
-## Region
-
-`Region` is a deliberately simple grouping below Country. The model does not yet
-declare whether a Region is an autonomous community, province, state, department,
-or another administrative category. That distinction may be introduced after
-the catalog has real multi-country requirements.
-
-The Region model contains:
-
-- an opaque stable `id`
-- `countryIso`, which references an existing Country by its unique ISO code
-- a required canonical `name`
-- required `aliases`, which may be empty and provide alternative searchable names
-
-Region names and aliases are stored directly in the entity. They do not depend on
-translation records. The canonical name remains available for administration,
-search, and data integrity even when no locale-specific display name exists.
-
-Region has no `isActive` state. An unused erroneous Region may be deleted. Once
-Locality is introduced, a Region referenced by a Locality cannot be deleted
-until those references have been removed.
-
 ## Locality
 
 `Locality` represents the city, town, settlement, municipality, or other local
 territory used to locate a Place. The current model contains:
 
 - an opaque stable `id`
-- `regionId`, which references a Region
+- `countryIso`, which references an existing Country by its unique ISO code
 - a required canonical `name`
+- an optional canonical `qualifier` for disambiguating equal names
 - required searchable `aliases`, which may be empty
 - a required IANA `timeZone`
 
-Country is resolved through Locality's Region and is not duplicated on Locality.
-Locality has no `isActive` state. Geographic names remain canonical stored data;
-aliases may initially cover alternative-language spellings without introducing a
-translation dependency.
+Locality has no `isActive` state. Geographic names and qualifiers remain
+canonical stored data; aliases may initially cover alternative-language
+spellings without introducing a translation dependency.
 
-The pair `regionId + name` is unique using case-insensitive collation. Admin
-catalog reads may filter by `regionId` and search canonical names and aliases.
-The Region relationship is immutable in the current update contract.
+The tuple `countryIso + name + qualifier` is unique using case-insensitive
+collation. Admin catalog reads may filter by `countryIso` and search canonical
+names, qualifiers, and aliases. The Country relationship is immutable in the
+current update contract.
 Localities referenced by Places cannot be deleted.
 
 ## Place
@@ -138,7 +116,7 @@ The current Place model contains:
 - required searchable `aliases`, which may be empty
 - `isActive`, which controls whether the Place may be assigned to new events
 
-Country, Region, and time zone are resolved through Locality. They are not
+Country and time zone are resolved through Locality. They are not
 duplicated on Place. A temporary or closed Place remains available to historical
 Gigs but is excluded from new assignments after deactivation.
 
@@ -171,7 +149,7 @@ The current Community model contains:
 - `isActive`, which controls new assignments and public catalog visibility
 
 Community does not also store a canonical `name`. Its label is translatable UI
-content, while Region, Locality, and Place names are canonical catalog data.
+content, while Locality and Place names are canonical catalog data.
 
 The pair `countryIso + slug` is unique. The opaque `id`, rather than the slug, is
 stored on Gigs and GigCandidates so a route slug can change without rewriting all
@@ -260,7 +238,7 @@ after the final runtime schemas have been reviewed.
 ## Geographic Suggestions
 
 Geographic coverage is not part of the initial Community persistence model. A
-later increment may use explicit Region and Locality coverage to suggest
+later increment may use explicit Country and Locality coverage to suggest
 Communities during moderation. Radius-based matching may be added after Place has
 a reliable coordinate source.
 
@@ -273,7 +251,7 @@ over physical distance.
 
 `LocationModule` owns:
 
-- Country, Region, Locality, and Place persistence through separate repository
+- Country, Locality, and Place persistence through separate repository
   boundaries
 
 `CommunityModule` owns:

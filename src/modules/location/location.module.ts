@@ -15,10 +15,6 @@ import { Place, PlaceSchema } from './place/place.schema';
 import { PlaceService } from './place/place.service';
 import { PLACE_REPOSITORY } from './place/repositories/place.repository';
 import { MongoPlaceRepository } from './place/repositories/mongo-place.repository';
-import { Region, RegionSchema } from './region/region.schema';
-import { RegionService } from './region/region.service';
-import { REGION_REPOSITORY } from './region/repositories/region.repository';
-import { MongoRegionRepository } from './region/repositories/mongo-region.repository';
 
 @Module({
   imports: [
@@ -27,7 +23,6 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
       { name: Country.name, schema: CountrySchema },
       { name: Locality.name, schema: LocalitySchema },
       { name: Place.name, schema: PlaceSchema },
-      { name: Region.name, schema: RegionSchema },
     ]),
   ],
   controllers: [CountriesController],
@@ -36,7 +31,6 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
     CountryReferenceService,
     LocalityService,
     PlaceService,
-    RegionService,
     {
       provide: COUNTRY_REPOSITORY,
       useClass: MongoCountryRepository,
@@ -49,17 +43,12 @@ import { MongoRegionRepository } from './region/repositories/mongo-region.reposi
       provide: PLACE_REPOSITORY,
       useClass: MongoPlaceRepository,
     },
-    {
-      provide: REGION_REPOSITORY,
-      useClass: MongoRegionRepository,
-    },
   ],
   exports: [
     CountryReferenceService,
     CountryService,
     LocalityService,
     PlaceService,
-    RegionService,
   ],
 })
 export class LocationModule {}

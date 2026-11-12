@@ -207,19 +207,18 @@ Main files:
 Responsibilities:
 
 - owns the physical geographic catalog
-- owns Country, Region, Locality, and Place persistence and application behavior
+- owns Country, Locality, and Place persistence and application behavior
 - loads official UNSD country choices only for authenticated Country administration
 - owns geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Dependencies:
 
-- local `Country`, `Region`, `Locality`, and `Place` Mongoose models
+- local `Country`, `Locality`, and `Place` Mongoose models
 
 Main files:
 
 - `src/modules/location/location.module.ts`
 - `src/modules/location/country/`
-- `src/modules/location/region/`
 - `src/modules/location/locality/`
 - `src/modules/location/place/`
 
@@ -417,7 +416,6 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
 - countries in `src/modules/location/country/country.schema.ts`
-- regions in `src/modules/location/region/region.schema.ts`
 - localities in `src/modules/location/locality/locality.schema.ts`
 - Places in `src/modules/location/place/place.schema.ts`
 - Communities in `src/modules/community/community.schema.ts`

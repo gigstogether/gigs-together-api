@@ -1,2 +1,0 @@
-export const REGION_NAME_MAX_LENGTH = 120;
-export const REGION_ALIAS_MAX_COUNT = 20;
