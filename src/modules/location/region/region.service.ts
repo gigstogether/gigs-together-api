@@ -6,8 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CountryService } from '../country/country.service';
-import { LOCALITY_REPOSITORY } from '../locality/repositories/locality.repository';
-import type { LocalityRepository } from '../locality/repositories/locality.repository';
 import { RegionNameConflictError } from './region.errors';
 import { REGION_REPOSITORY } from './repositories/region.repository';
 import type { RegionRepository } from './repositories/region.repository';
@@ -42,8 +40,6 @@ export class RegionService {
     @Inject(REGION_REPOSITORY)
     private readonly regionRepository: RegionRepository,
     private readonly countryService: CountryService,
-    @Inject(LOCALITY_REPOSITORY)
-    private readonly localityRepository: LocalityRepository,
   ) {}
 
   async createRegion(params: CreateRegionParams): Promise<Region> {
@@ -136,14 +132,6 @@ export class RegionService {
   }
 
   async deleteRegion(id: string): Promise<void> {
-    const hasLocalities = await this.localityRepository.existsByRegionId(id);
-
-    if (hasLocalities) {
-      throw new ConflictException(
-        'Region with id "' + id + '" is referenced by Localities',
-      );
-    }
-
     const isDeleted = await this.regionRepository.deleteById(id);
 
     if (!isDeleted) {

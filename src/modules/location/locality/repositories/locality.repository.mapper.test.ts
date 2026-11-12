@@ -3,49 +3,47 @@ import { LocalityRepositoryMapper } from './locality.repository.mapper';
 import type { LocalityLeanDocument } from './locality.repository.mapper';
 
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const REGION_ID = '690a1fdb17f0a7771e9c1c31';
 
 function createLocalityDocument(): LocalityLeanDocument {
   return {
     _id: new Types.ObjectId(LOCALITY_ID),
-    regionId: new Types.ObjectId(REGION_ID),
+    countryIso: 'ES',
     name: 'Barcelona',
+    qualifier: 'Barcelona province',
     aliases: ['Barna', 'BCN'],
     timeZone: 'Europe/Madrid',
   };
 }
 
 describe('LocalityRepositoryMapper', () => {
-  it('should map a Region id to its stored ObjectId', () => {
-    expect(LocalityRepositoryMapper.toStoredRegionId(REGION_ID)).toEqual(
-      new Types.ObjectId(REGION_ID),
-    );
-  });
-
-  it('should reject an invalid Region id before persistence', () => {
-    expect(() => LocalityRepositoryMapper.toStoredRegionId('invalid')).toThrow(
-      'Region id must be a valid ObjectId',
-    );
-  });
-
   it('should map a stored Locality to the domain model', () => {
     expect(
       LocalityRepositoryMapper.toLocality(createLocalityDocument()),
     ).toEqual({
       id: LOCALITY_ID,
-      regionId: REGION_ID,
+      countryIso: 'ES',
       name: 'Barcelona',
+      qualifier: 'Barcelona province',
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Madrid',
     });
   });
 
-  it('should reject an invalid Region id', () => {
+  it('should reject an invalid Country ISO', () => {
     const doc = createLocalityDocument();
-    doc.regionId = 'invalid';
+    doc.countryIso = '';
 
     expect(() => LocalityRepositoryMapper.toLocality(doc)).toThrow(
-      'Locality regionId must be an ObjectId',
+      'Locality countryIso must be a non-empty string',
+    );
+  });
+
+  it('should reject an invalid qualifier', () => {
+    const doc = createLocalityDocument();
+    doc.qualifier = '';
+
+    expect(() => LocalityRepositoryMapper.toLocality(doc)).toThrow(
+      'Locality qualifier must be a non-empty canonical name when provided',
     );
   });
 

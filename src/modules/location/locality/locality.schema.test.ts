@@ -1,19 +1,19 @@
 import { LocalitySchema } from './locality.schema';
 
 describe('LocalitySchema', () => {
-  it('should require all Locality fields without country or active state', () => {
-    for (const fieldName of ['regionId', 'name', 'aliases', 'timeZone']) {
+  it('should require Country, name, aliases, and time zone', () => {
+    for (const fieldName of ['countryIso', 'name', 'aliases', 'timeZone']) {
       expect(LocalitySchema.path(fieldName).options.required).toBe(true);
     }
 
-    expect(LocalitySchema.path('countryIso')).toBeUndefined();
+    expect(LocalitySchema.path('qualifier').options.required).toBe(false);
     expect(LocalitySchema.path('isActive')).toBeUndefined();
-    expect(LocalitySchema.path('regionId').instance).toBe('ObjectId');
+    expect(LocalitySchema.path('regionId')).toBeUndefined();
   });
 
-  it('should enforce a case-insensitive unique name within a Region', () => {
+  it('should enforce a case-insensitive unique identity within a Country', () => {
     expect(LocalitySchema.indexes()).toContainEqual([
-      { regionId: 1, name: 1 },
+      { countryIso: 1, name: 1, qualifier: 1 },
       expect.objectContaining({
         unique: true,
         collation: { locale: 'en', strength: 2 },

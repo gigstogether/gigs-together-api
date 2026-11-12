@@ -2,6 +2,7 @@ import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsISO31661Alpha2,
   IsMongoId,
   IsOptional,
   IsString,
@@ -12,6 +13,7 @@ import {
 import {
   LOCALITY_ALIAS_MAX_COUNT,
   LOCALITY_NAME_MAX_LENGTH,
+  LOCALITY_QUALIFIER_MAX_LENGTH,
   LOCALITY_TIME_ZONE_MAX_LENGTH,
 } from '@modules/location/locality/locality.constants';
 
@@ -22,8 +24,11 @@ export class V1AdminLocalityIdParamsDto {
 
 export class V1AdminLocalitiesGetQueryDto {
   @IsOptional()
-  @IsMongoId()
-  regionId?: string;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsISO31661Alpha2()
+  countryIso?: string;
 
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -33,14 +38,24 @@ export class V1AdminLocalitiesGetQueryDto {
 }
 
 export class V1AdminLocalityCreateBodyDto {
-  @IsMongoId()
-  regionId!: string;
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsISO31661Alpha2()
+  countryIso!: string;
 
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(LOCALITY_NAME_MAX_LENGTH)
   name!: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(LOCALITY_QUALIFIER_MAX_LENGTH)
+  qualifier?: string;
 
   @IsArray()
   @ArrayMaxSize(LOCALITY_ALIAS_MAX_COUNT)
@@ -63,6 +78,13 @@ export class V1AdminLocalityPatchBodyDto {
   @MinLength(1)
   @MaxLength(LOCALITY_NAME_MAX_LENGTH)
   name?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(LOCALITY_QUALIFIER_MAX_LENGTH)
+  qualifier?: string | null;
 
   @IsOptional()
   @IsArray()

@@ -8,11 +8,11 @@ import { LocalityService } from '@modules/location/locality/locality.service';
 import { AdminLocalityController } from './admin-locality.controller';
 
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const REGION_ID = '690a1fdb17f0a7771e9c1c31';
 const LOCALITY = {
   id: LOCALITY_ID,
-  regionId: REGION_ID,
+  countryIso: 'ES',
   name: 'Barcelona',
+  qualifier: 'Barcelona province',
   aliases: ['Barna', 'BCN'],
   timeZone: 'Europe/Madrid',
 };
@@ -65,10 +65,10 @@ describe('AdminLocalityController', () => {
     findLocalitiesMock.mockResolvedValue([LOCALITY]);
 
     await expect(
-      controller.getLocalitiesV1({ regionId: REGION_ID, search: 'bar' }),
+      controller.getLocalitiesV1({ countryIso: 'ES', search: 'bar' }),
     ).resolves.toEqual({ localities: [LOCALITY] });
     expect(findLocalitiesMock).toHaveBeenCalledWith({
-      regionId: REGION_ID,
+      countryIso: 'ES',
       search: 'bar',
     });
   });
@@ -78,15 +78,17 @@ describe('AdminLocalityController', () => {
 
     await expect(
       controller.createLocalityV1({
-        regionId: REGION_ID,
+        countryIso: 'ES',
         name: 'Barcelona',
+        qualifier: 'Barcelona province',
         aliases: ['Barna', 'BCN'],
         timeZone: 'Europe/Madrid',
       }),
     ).resolves.toEqual(LOCALITY);
     expect(createLocalityMock).toHaveBeenCalledWith({
-      regionId: REGION_ID,
+      countryIso: 'ES',
       name: 'Barcelona',
+      qualifier: 'Barcelona province',
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Madrid',
     });

@@ -7,18 +7,19 @@ import { Locality } from '../locality.schema';
 import { MongoLocalityRepository } from './mongo-locality.repository';
 
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const REGION_ID = '690a1fdb17f0a7771e9c1c31';
 const LOCALITY_DOCUMENT = {
   _id: new Types.ObjectId(LOCALITY_ID),
-  regionId: new Types.ObjectId(REGION_ID),
+  countryIso: 'ES',
   name: 'Barcelona',
+  qualifier: 'Barcelona province',
   aliases: ['Barna', 'BCN'],
   timeZone: 'Europe/Madrid',
 };
 const LOCALITY_PROJECTION = {
   _id: 1,
-  regionId: 1,
+  countryIso: 1,
   name: 1,
+  qualifier: 1,
   aliases: 1,
   timeZone: 1,
 };
@@ -29,7 +30,6 @@ describe('MongoLocalityRepository', () => {
   const createMock = vi.fn();
   const findOneMock = vi.fn();
   const findMock = vi.fn();
-  const existsMock = vi.fn();
   const findOneAndUpdateMock = vi.fn();
   const deleteOneMock = vi.fn();
 
@@ -45,7 +45,6 @@ describe('MongoLocalityRepository', () => {
             create: createMock,
             findOne: findOneMock,
             find: findMock,
-            exists: existsMock,
             findOneAndUpdate: findOneAndUpdateMock,
             deleteOne: deleteOneMock,
           },
@@ -61,15 +60,17 @@ describe('MongoLocalityRepository', () => {
 
     await expect(
       repository.create({
-        regionId: REGION_ID,
+        countryIso: 'ES',
         name: 'Barcelona',
+        qualifier: 'Barcelona province',
         aliases: ['Barna', 'BCN'],
         timeZone: 'Europe/Madrid',
       }),
     ).resolves.toEqual({
       id: LOCALITY_ID,
-      regionId: REGION_ID,
+      countryIso: 'ES',
       name: 'Barcelona',
+      qualifier: 'Barcelona province',
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Madrid',
     });
@@ -80,7 +81,7 @@ describe('MongoLocalityRepository', () => {
     createMock.mockRejectedValue(duplicateError);
 
     const operation = repository.create({
-      regionId: REGION_ID,
+      countryIso: 'ES',
       name: 'Barcelona',
       aliases: [],
       timeZone: 'Europe/Madrid',
@@ -106,36 +107,32 @@ describe('MongoLocalityRepository', () => {
     );
   });
 
-  it('should search Localities by Region, name, and aliases', async () => {
+  it('should search Localities by Country, name, qualifier, and aliases', async () => {
     const execMock = vi.fn().mockResolvedValue([LOCALITY_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
     findMock.mockReturnValue({ sort: sortMock });
 
     await expect(
-      repository.find({ regionId: REGION_ID, search: 'bar' }),
+      repository.find({ countryIso: 'ES', search: 'bar' }),
     ).resolves.toEqual([expect.objectContaining({ id: LOCALITY_ID })]);
 
     expect(findMock).toHaveBeenCalledWith(
       {
-        regionId: new Types.ObjectId(REGION_ID),
-        $or: [{ name: expect.any(RegExp) }, { aliases: expect.any(RegExp) }],
+        countryIso: 'ES',
+        $or: [
+          { name: expect.any(RegExp) },
+          { qualifier: expect.any(RegExp) },
+          { aliases: expect.any(RegExp) },
+        ],
       },
       LOCALITY_PROJECTION,
     );
     expect(sortMock).toHaveBeenCalledWith({
-      regionId: 1,
+      countryIso: 1,
       name: 1,
+      qualifier: 1,
       _id: 1,
-    });
-  });
-
-  it('should report whether a Region has Localities', async () => {
-    existsMock.mockResolvedValue({ _id: new Types.ObjectId(LOCALITY_ID) });
-
-    await expect(repository.existsByRegionId(REGION_ID)).resolves.toBe(true);
-    expect(existsMock).toHaveBeenCalledWith({
-      regionId: new Types.ObjectId(REGION_ID),
     });
   });
 
@@ -152,6 +149,7 @@ describe('MongoLocalityRepository', () => {
       repository.update({
         id: LOCALITY_ID,
         name: 'Barcelona',
+        qualifier: 'Barcelona province',
         aliases: ['BCN'],
         timeZone: 'Europe/Madrid',
       }),
@@ -161,9 +159,46 @@ describe('MongoLocalityRepository', () => {
       {
         $set: {
           name: 'Barcelona',
+          qualifier: 'Barcelona province',
           aliases: ['BCN'],
           timeZone: 'Europe/Madrid',
         },
+      },
+      { returnDocument: 'after', runValidators: true },
+    );
+  });
+
+  it('should unset an omitted qualifier during a full record update', async () => {
+    const updatedDocument = {
+      _id: LOCALITY_DOCUMENT._id,
+      countryIso: LOCALITY_DOCUMENT.countryIso,
+      name: LOCALITY_DOCUMENT.name,
+      aliases: LOCALITY_DOCUMENT.aliases,
+      timeZone: LOCALITY_DOCUMENT.timeZone,
+    };
+    const execMock = vi.fn().mockResolvedValue(updatedDocument);
+    const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+    findOneAndUpdateMock.mockReturnValue({ lean: leanMock });
+
+    await expect(
+      repository.update({
+        id: LOCALITY_ID,
+        name: 'Barcelona',
+        aliases: ['Barna', 'BCN'],
+        timeZone: 'Europe/Madrid',
+      }),
+    ).resolves.toEqual(
+      expect.not.objectContaining({ qualifier: expect.anything() }),
+    );
+    expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+      { _id: new Types.ObjectId(LOCALITY_ID) },
+      {
+        $set: {
+          name: 'Barcelona',
+          aliases: ['Barna', 'BCN'],
+          timeZone: 'Europe/Madrid',
+        },
+        $unset: { qualifier: 1 },
       },
       { returnDocument: 'after', runValidators: true },
     );

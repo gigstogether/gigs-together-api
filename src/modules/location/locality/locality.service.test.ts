@@ -5,18 +5,19 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
-import { RegionService } from '../region/region.service';
+import { CountryService } from '../country/country.service';
 import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LocalityService } from './locality.service';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
 
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const REGION_ID = '690a1fdb17f0a7771e9c1c31';
+const COUNTRY_ISO = 'ES';
 const LOCALITY = {
   id: LOCALITY_ID,
-  regionId: REGION_ID,
+  countryIso: COUNTRY_ISO,
   name: 'Barcelona',
+  qualifier: 'Barcelona province',
   aliases: ['Barna', 'BCN'],
   timeZone: 'Europe/Madrid',
 };
@@ -29,12 +30,12 @@ describe('LocalityService', () => {
   const findMock = vi.fn();
   const updateMock = vi.fn();
   const deleteByIdMock = vi.fn();
-  const hasRegionMock = vi.fn();
+  const hasCountryMock = vi.fn();
   const existsByLocalityIdMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    hasRegionMock.mockResolvedValue(true);
+    hasCountryMock.mockResolvedValue(true);
     existsByLocalityIdMock.mockResolvedValue(false);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -51,8 +52,8 @@ describe('LocalityService', () => {
           },
         },
         {
-          provide: RegionService,
-          useValue: { hasRegion: hasRegionMock },
+          provide: CountryService,
+          useValue: { hasCountry: hasCountryMock },
         },
         {
           provide: PLACE_REPOSITORY,
@@ -64,33 +65,35 @@ describe('LocalityService', () => {
     service = module.get<LocalityService>(LocalityService);
   });
 
-  it('should create a normalized Locality for an existing Region', async () => {
+  it('should create a normalized Locality for an existing Country', async () => {
     createMock.mockResolvedValue(LOCALITY);
 
     await expect(
       service.createLocality({
-        regionId: REGION_ID,
+        countryIso: COUNTRY_ISO,
         name: ' Barcelona ',
+        qualifier: ' Barcelona province ',
         aliases: [' Barna ', ' BCN '],
         timeZone: ' Europe/Madrid ',
       }),
     ).resolves.toEqual(LOCALITY);
 
-    expect(hasRegionMock).toHaveBeenCalledWith(REGION_ID);
+    expect(hasCountryMock).toHaveBeenCalledWith(COUNTRY_ISO);
     expect(createMock).toHaveBeenCalledWith({
-      regionId: REGION_ID,
+      countryIso: COUNTRY_ISO,
       name: 'Barcelona',
+      qualifier: 'Barcelona province',
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Madrid',
     });
   });
 
-  it('should reject a Locality for an unknown Region', async () => {
-    hasRegionMock.mockResolvedValue(false);
+  it('should reject a Locality for an unknown Country', async () => {
+    hasCountryMock.mockResolvedValue(false);
 
     await expect(
       service.createLocality({
-        regionId: REGION_ID,
+        countryIso: COUNTRY_ISO,
         name: 'Barcelona',
         aliases: [],
         timeZone: 'Europe/Madrid',
@@ -102,13 +105,13 @@ describe('LocalityService', () => {
   it('should reject an invalid time zone', async () => {
     await expect(
       service.createLocality({
-        regionId: REGION_ID,
+        countryIso: COUNTRY_ISO,
         name: 'Barcelona',
         aliases: [],
         timeZone: 'Europe/Invalid',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(hasRegionMock).not.toHaveBeenCalled();
+    expect(hasCountryMock).not.toHaveBeenCalled();
   });
 
   it('should translate a repository name conflict', async () => {
@@ -116,7 +119,7 @@ describe('LocalityService', () => {
 
     await expect(
       service.createLocality({
-        regionId: REGION_ID,
+        countryIso: COUNTRY_ISO,
         name: 'Barcelona',
         aliases: [],
         timeZone: 'Europe/Madrid',
@@ -147,12 +150,14 @@ describe('LocalityService', () => {
     await expect(service.hasLocality(LOCALITY_ID)).resolves.toBe(true);
   });
 
-  it('should reject a stored Locality with an unknown Region', async () => {
+  it('should reject a stored Locality with an unknown Country', async () => {
     findByIdMock.mockResolvedValue(LOCALITY);
-    hasRegionMock.mockResolvedValue(false);
+    hasCountryMock.mockResolvedValue(false);
 
     await expect(service.getLocalityById(LOCALITY_ID)).rejects.toThrow(
-      'Locality regionId "' + REGION_ID + '" must reference an existing Region',
+      'Locality countryIso "' +
+        COUNTRY_ISO +
+        '" must reference an existing Country',
     );
   });
 
@@ -160,10 +165,10 @@ describe('LocalityService', () => {
     findMock.mockResolvedValue([LOCALITY]);
 
     await expect(
-      service.findLocalities({ regionId: REGION_ID, search: ' bar ' }),
+      service.findLocalities({ countryIso: COUNTRY_ISO, search: ' bar ' }),
     ).resolves.toEqual([LOCALITY]);
     expect(findMock).toHaveBeenCalledWith({
-      regionId: REGION_ID,
+      countryIso: COUNTRY_ISO,
       search: 'bar',
     });
   });
@@ -184,8 +189,34 @@ describe('LocalityService', () => {
     expect(updateMock).toHaveBeenCalledWith({
       id: LOCALITY_ID,
       name: 'Barcelona',
+      qualifier: 'Barcelona province',
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Paris',
+    });
+  });
+
+  it('should clear an existing qualifier', async () => {
+    findByIdMock.mockResolvedValue(LOCALITY);
+    const localityWithoutQualifier = {
+      id: LOCALITY.id,
+      countryIso: LOCALITY.countryIso,
+      name: LOCALITY.name,
+      aliases: LOCALITY.aliases,
+      timeZone: LOCALITY.timeZone,
+    };
+    updateMock.mockResolvedValue(localityWithoutQualifier);
+
+    await expect(
+      service.updateLocality({
+        id: LOCALITY_ID,
+        qualifier: null,
+      }),
+    ).resolves.toEqual(localityWithoutQualifier);
+    expect(updateMock).toHaveBeenCalledWith({
+      id: LOCALITY_ID,
+      name: 'Barcelona',
+      aliases: ['Barna', 'BCN'],
+      timeZone: 'Europe/Madrid',
     });
   });
 

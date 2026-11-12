@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RegionService } from '../region/region.service';
+import { CountryService } from '../country/country.service';
 import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
 import type { PlaceRepository } from '../place/repositories/place.repository';
 import { LocalityNameConflictError } from './locality.errors';
@@ -15,27 +15,31 @@ import type { Locality } from './types/locality.types';
 import {
   isValidLocalityAliases,
   isValidLocalityName,
+  isValidLocalityQualifier,
   isValidLocalityTimeZone,
   normalizeLocalityAliases,
   normalizeLocalityName,
+  normalizeLocalityQualifier,
   normalizeLocalityTimeZone,
 } from './locality.validators';
 
 export interface CreateLocalityParams {
-  regionId: string;
+  countryIso: string;
   name: string;
+  qualifier?: string;
   aliases: string[];
   timeZone: string;
 }
 
 export interface FindLocalitiesParams {
-  regionId?: string;
+  countryIso?: string;
   search?: string;
 }
 
 export interface UpdateLocalityParams {
   id: string;
   name?: string;
+  qualifier?: string | null;
   aliases?: string[];
   timeZone?: string;
 }
@@ -45,7 +49,7 @@ export class LocalityService {
   constructor(
     @Inject(LOCALITY_REPOSITORY)
     private readonly localityRepository: LocalityRepository,
-    private readonly regionService: RegionService,
+    private readonly countryService: CountryService,
     @Inject(PLACE_REPOSITORY)
     private readonly placeRepository: PlaceRepository,
   ) {}
@@ -53,14 +57,15 @@ export class LocalityService {
   async createLocality(params: CreateLocalityParams): Promise<Locality> {
     const localityData = this.normalizeLocalityData(
       params.name,
+      params.qualifier,
       params.aliases,
       params.timeZone,
     );
-    await this.requireRegion(params.regionId);
+    await this.requireCountry(params.countryIso);
 
     try {
       return await this.localityRepository.create({
-        regionId: params.regionId,
+        countryIso: params.countryIso,
         ...localityData,
       });
     } catch (e) {
@@ -77,7 +82,7 @@ export class LocalityService {
       );
     }
 
-    await this.assertRegionsExist([locality]);
+    await this.assertCountriesExist([locality]);
 
     return locality;
   }
@@ -89,7 +94,7 @@ export class LocalityService {
       return false;
     }
 
-    await this.assertRegionsExist([locality]);
+    await this.assertCountriesExist([locality]);
 
     return true;
   }
@@ -97,12 +102,12 @@ export class LocalityService {
   async findLocalities(
     params: FindLocalitiesParams,
   ): Promise<readonly Locality[]> {
-    let regionId: string | undefined;
+    let countryIso: string | undefined;
     let search: string | undefined;
 
-    if (params.regionId !== undefined) {
-      await this.requireRegion(params.regionId);
-      regionId = params.regionId;
+    if (params.countryIso !== undefined) {
+      await this.requireCountry(params.countryIso);
+      countryIso = params.countryIso;
     }
     if (params.search !== undefined) {
       search = params.search.trim();
@@ -112,10 +117,10 @@ export class LocalityService {
     }
 
     const localities = await this.localityRepository.find({
-      regionId,
+      countryIso,
       search,
     });
-    await this.assertRegionsExist(localities);
+    await this.assertCountriesExist(localities);
 
     return localities;
   }
@@ -123,19 +128,29 @@ export class LocalityService {
   async updateLocality(params: UpdateLocalityParams): Promise<Locality> {
     if (
       params.name === undefined &&
+      params.qualifier === undefined &&
       params.aliases === undefined &&
       params.timeZone === undefined
     ) {
       throw new BadRequestException(
-        'Locality update must include name, aliases, or timeZone',
+        'Locality update must include name, qualifier, aliases, or timeZone',
       );
     }
 
     const existing = await this.getLocalityById(params.id);
     const name = params.name ?? existing.name;
+    const qualifier =
+      params.qualifier === undefined
+        ? existing.qualifier
+        : (params.qualifier ?? undefined);
     const aliases = params.aliases ?? existing.aliases;
     const timeZone = params.timeZone ?? existing.timeZone;
-    const localityData = this.normalizeLocalityData(name, aliases, timeZone);
+    const localityData = this.normalizeLocalityData(
+      name,
+      qualifier,
+      aliases,
+      timeZone,
+    );
 
     try {
       const locality = await this.localityRepository.update({
@@ -175,16 +190,23 @@ export class LocalityService {
 
   private normalizeLocalityData(
     rawName: string,
+    rawQualifier: string | undefined,
     rawAliases: string[],
     rawTimeZone: string,
-  ): Pick<Locality, 'name' | 'aliases' | 'timeZone'> {
+  ): Pick<Locality, 'name' | 'qualifier' | 'aliases' | 'timeZone'> {
     const name = normalizeLocalityName(rawName);
+    const qualifier = normalizeLocalityQualifier(rawQualifier);
     const aliases = normalizeLocalityAliases(rawAliases);
     const timeZone = normalizeLocalityTimeZone(rawTimeZone);
 
     if (!isValidLocalityName(name)) {
       throw new BadRequestException(
         'Locality name must be a non-empty canonical name',
+      );
+    }
+    if (!isValidLocalityQualifier(qualifier)) {
+      throw new BadRequestException(
+        'Locality qualifier must be a non-empty canonical name when provided',
       );
     }
     if (!isValidLocalityAliases(name, aliases)) {
@@ -198,31 +220,46 @@ export class LocalityService {
       );
     }
 
-    return { name, aliases, timeZone };
+    const localityData: Pick<
+      Locality,
+      'name' | 'qualifier' | 'aliases' | 'timeZone'
+    > = {
+      name,
+      aliases,
+      timeZone,
+    };
+
+    if (qualifier !== undefined) {
+      localityData.qualifier = qualifier;
+    }
+
+    return localityData;
   }
 
-  private async requireRegion(regionId: string): Promise<void> {
-    const hasRegion = await this.regionService.hasRegion(regionId);
+  private async requireCountry(countryIso: string): Promise<void> {
+    const hasCountry = await this.countryService.hasCountry(countryIso);
 
-    if (!hasRegion) {
+    if (!hasCountry) {
       throw new BadRequestException(
-        'Region with id "' + regionId + '" does not exist',
+        'Country with ISO code "' + countryIso + '" does not exist',
       );
     }
   }
 
-  private async assertRegionsExist(
+  private async assertCountriesExist(
     localities: readonly Locality[],
   ): Promise<void> {
-    const regionIds = new Set(localities.map((locality) => locality.regionId));
+    const countryIsos = new Set(
+      localities.map((locality) => locality.countryIso),
+    );
 
-    for (const regionId of regionIds) {
-      const hasRegion = await this.regionService.hasRegion(regionId);
-      if (!hasRegion) {
+    for (const countryIso of countryIsos) {
+      const hasCountry = await this.countryService.hasCountry(countryIso);
+      if (!hasCountry) {
         throw new Error(
-          'Locality regionId "' +
-            regionId +
-            '" must reference an existing Region',
+          'Locality countryIso "' +
+            countryIso +
+            '" must reference an existing Country',
         );
       }
     }

@@ -16,8 +16,8 @@ export function mapV1AdminLocalitiesGetRequest(
 ): FindLocalitiesParams {
   const params: FindLocalitiesParams = {};
 
-  if (query.regionId !== undefined) {
-    params.regionId = query.regionId;
+  if (query.countryIso !== undefined) {
+    params.countryIso = query.countryIso;
   }
   if (query.search !== undefined) {
     params.search = query.search;
@@ -29,12 +29,18 @@ export function mapV1AdminLocalitiesGetRequest(
 export function mapV1AdminLocalityCreateRequest(
   body: V1AdminLocalityCreateBodyDto,
 ): CreateLocalityParams {
-  return {
-    regionId: body.regionId,
+  const params: CreateLocalityParams = {
+    countryIso: body.countryIso,
     name: body.name,
     aliases: [...body.aliases],
     timeZone: body.timeZone,
   };
+
+  if (body.qualifier !== undefined) {
+    params.qualifier = body.qualifier;
+  }
+
+  return params;
 }
 
 export function mapV1AdminLocalityUpdateRequest(
@@ -45,6 +51,9 @@ export function mapV1AdminLocalityUpdateRequest(
 
   if (body.name !== undefined) {
     params.name = body.name;
+  }
+  if (body.qualifier !== undefined) {
+    params.qualifier = body.qualifier;
   }
   if (body.aliases !== undefined) {
     params.aliases = [...body.aliases];
@@ -59,11 +68,17 @@ export function mapV1AdminLocalityUpdateRequest(
 export function mapV1AdminLocalityResponse(
   locality: Locality,
 ): V1AdminLocalityResponseBody {
-  return {
+  const response: V1AdminLocalityResponseBody = {
     id: locality.id,
-    regionId: locality.regionId,
+    countryIso: locality.countryIso,
     name: locality.name,
     aliases: [...locality.aliases],
     timeZone: locality.timeZone,
   };
+
+  if (locality.qualifier !== undefined) {
+    response.qualifier = locality.qualifier;
+  }
+
+  return response;
 }

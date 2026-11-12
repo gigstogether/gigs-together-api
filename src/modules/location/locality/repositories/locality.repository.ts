@@ -3,20 +3,22 @@ import type { Locality } from '../types/locality.types';
 export const LOCALITY_REPOSITORY = Symbol('LOCALITY_REPOSITORY');
 
 export interface CreateLocalityRecordParams {
-  regionId: string;
+  countryIso: string;
   name: string;
+  qualifier?: string;
   aliases: string[];
   timeZone: string;
 }
 
 export interface FindLocalitiesParams {
-  regionId?: string;
+  countryIso?: string;
   search?: string;
 }
 
 export interface UpdateLocalityRecordParams {
   id: string;
   name: string;
+  qualifier?: string;
   aliases: string[];
   timeZone: string;
 }
@@ -27,8 +29,6 @@ export interface LocalityRepository {
   findById(id: string): Promise<Locality | null>;
 
   find(params: FindLocalitiesParams): Promise<readonly Locality[]>;
-
-  existsByRegionId(regionId: string): Promise<boolean>;
 
   update(params: UpdateLocalityRecordParams): Promise<Locality | null>;
 

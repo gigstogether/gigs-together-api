@@ -6,7 +6,6 @@ import {
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { CountryService } from '../country/country.service';
-import { LOCALITY_REPOSITORY } from '../locality/repositories/locality.repository';
 import { RegionNameConflictError } from './region.errors';
 import { REGION_REPOSITORY } from './repositories/region.repository';
 import { RegionService } from './region.service';
@@ -28,12 +27,10 @@ describe('RegionService', () => {
   const updateMock = vi.fn();
   const deleteByIdMock = vi.fn();
   const hasCountryMock = vi.fn();
-  const existsByRegionIdMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     hasCountryMock.mockResolvedValue(true);
-    existsByRegionIdMock.mockResolvedValue(false);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -51,12 +48,6 @@ describe('RegionService', () => {
         {
           provide: CountryService,
           useValue: { hasCountry: hasCountryMock },
-        },
-        {
-          provide: LOCALITY_REPOSITORY,
-          useValue: {
-            existsByRegionId: existsByRegionIdMock,
-          },
         },
       ],
     }).compile();
@@ -208,15 +199,6 @@ describe('RegionService', () => {
 
     await expect(service.deleteRegion(REGION_ID)).resolves.toBeUndefined();
     expect(deleteByIdMock).toHaveBeenCalledWith(REGION_ID);
-  });
-
-  it('should reject deletion of a Region referenced by Localities', async () => {
-    existsByRegionIdMock.mockResolvedValue(true);
-
-    await expect(service.deleteRegion(REGION_ID)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
-    expect(deleteByIdMock).not.toHaveBeenCalled();
   });
 
   it('should reject deletion of an unknown Region', async () => {

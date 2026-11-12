@@ -18,17 +18,33 @@ import type {
 
 const LOCALITY_PROJECTION = {
   _id: 1,
-  regionId: 1,
+  countryIso: 1,
   name: 1,
+  qualifier: 1,
   aliases: 1,
   timeZone: 1,
 } as const;
 
-const LOCALITY_SORT = { regionId: 1, name: 1, _id: 1 } as const;
+const LOCALITY_SORT = {
+  countryIso: 1,
+  name: 1,
+  qualifier: 1,
+  _id: 1,
+} as const;
 
 interface LocalityMongoFilter {
-  regionId?: Types.ObjectId;
-  $or?: Array<{ name: RegExp } | { aliases: RegExp }>;
+  countryIso?: string;
+  $or?: Array<{ name: RegExp } | { qualifier: RegExp } | { aliases: RegExp }>;
+}
+
+interface LocalityMongoUpdate {
+  $set: {
+    name: string;
+    qualifier?: string;
+    aliases: string[];
+    timeZone: string;
+  };
+  $unset?: { qualifier: 1 };
 }
 
 @Injectable()
@@ -40,15 +56,24 @@ export class MongoLocalityRepository implements LocalityRepository {
 
   async create(params: CreateLocalityRecordParams): Promise<Locality> {
     try {
-      const doc = await this.localityModel.create({
-        ...params,
-        regionId: LocalityRepositoryMapper.toStoredRegionId(params.regionId),
-      });
+      const record: CreateLocalityRecordParams = {
+        countryIso: params.countryIso,
+        name: params.name,
+        aliases: params.aliases,
+        timeZone: params.timeZone,
+      };
+
+      if (params.qualifier !== undefined) {
+        record.qualifier = params.qualifier;
+      }
+
+      const doc = await this.localityModel.create(record);
 
       return LocalityRepositoryMapper.toLocality({
         _id: doc._id,
-        regionId: doc.regionId,
+        countryIso: doc.countryIso,
         name: doc.name,
+        qualifier: doc.qualifier,
         aliases: doc.aliases,
         timeZone: doc.timeZone,
       });
@@ -80,14 +105,16 @@ export class MongoLocalityRepository implements LocalityRepository {
   async find(params: FindLocalitiesParams): Promise<readonly Locality[]> {
     const filter: LocalityMongoFilter = {};
 
-    if (params.regionId !== undefined) {
-      filter.regionId = LocalityRepositoryMapper.toStoredRegionId(
-        params.regionId,
-      );
+    if (params.countryIso !== undefined) {
+      filter.countryIso = params.countryIso;
     }
     if (params.search !== undefined) {
       const pattern = new RegExp(escapeRegExp(params.search), 'iu');
-      filter.$or = [{ name: pattern }, { aliases: pattern }];
+      filter.$or = [
+        { name: pattern },
+        { qualifier: pattern },
+        { aliases: pattern },
+      ];
     }
 
     const docs = await this.localityModel
@@ -99,32 +126,31 @@ export class MongoLocalityRepository implements LocalityRepository {
     return LocalityRepositoryMapper.toLocalities(docs);
   }
 
-  async existsByRegionId(regionId: string): Promise<boolean> {
-    const result = await this.localityModel.exists({
-      regionId: LocalityRepositoryMapper.toStoredRegionId(regionId),
-    });
-
-    return result !== null;
-  }
-
   async update(params: UpdateLocalityRecordParams): Promise<Locality | null> {
     if (!Types.ObjectId.isValid(params.id)) {
       throw new Error('Locality id must be a valid ObjectId');
     }
 
     try {
+      const update: LocalityMongoUpdate = {
+        $set: {
+          name: params.name,
+          aliases: params.aliases,
+          timeZone: params.timeZone,
+        },
+      };
+
+      if (params.qualifier !== undefined) {
+        update.$set.qualifier = params.qualifier;
+      } else {
+        update.$unset = { qualifier: 1 };
+      }
+
       const doc = await this.localityModel
-        .findOneAndUpdate(
-          { _id: new Types.ObjectId(params.id) },
-          {
-            $set: {
-              name: params.name,
-              aliases: params.aliases,
-              timeZone: params.timeZone,
-            },
-          },
-          { returnDocument: 'after', runValidators: true },
-        )
+        .findOneAndUpdate({ _id: new Types.ObjectId(params.id) }, update, {
+          returnDocument: 'after',
+          runValidators: true,
+        })
         .lean<LocalityLeanDocument>()
         .exec();
 
