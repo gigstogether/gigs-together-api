@@ -26,15 +26,27 @@ Current editorial-audience persistence:
 
 - `Community`, owned by `CommunityModule`
 
-Target geographic catalog:
+The two independent relationship axes are:
 
 ```text
-Country -> Locality -> Place
+Country → Locality → Place
+Gig / GigCandidate → Community[]
 ```
 
-`Country` and `Locality` describe physical geography. `Place`
-identifies a reusable physical event location. `Community` remains an independent
-editorial audience and feed assignment.
+`Locality` is a named geographic context used to locate a Place. It is not
+necessarily a city: it may represent a town, municipality, broader
+administrative area, or another useful geographic context for an event.
+
+`Place` is a concrete reusable physical event location, such as a club, concert
+hall, festival ground, or temporary festival site.
+
+`Community` is an event audience and feed assignment. It is independent from the
+physical location hierarchy, so one Gig may be assigned to multiple Communities
+regardless of where its Places are located.
+
+`Region` is not an entity in the project. Administrative context needed to
+distinguish equal Locality names belongs in `Locality.qualifier`; the project does
+not maintain a separate Region catalog or relationship.
 
 Every collection has its own repository boundary. One feature service may depend
 on another feature's application service, but a repository must not query a model
@@ -81,8 +93,10 @@ cache immediately. Country deletion is not part of the current API.
 
 ## Locality
 
-`Locality` represents the city, town, settlement, municipality, or other local
-territory used to locate a Place. The current model contains:
+`Locality` represents a named geographic context used to locate a Place. It is
+not required to be a city: a town, settlement, municipality, broader
+administrative area, or another useful geographic context is valid. The current
+model contains:
 
 - an opaque stable `id`
 - `countryIso`, which references an existing Country by its unique ISO code
@@ -134,7 +148,7 @@ duplicate Places.
 
 ## Community
 
-A Community represents a geographic audience and feed, not a municipal boundary
+A Community represents an event audience and feed, not a municipal boundary
 and not the physical place of an event. For example, the Barcelona Community may
 contain an event in Badalona or a festival outside Barcelona.
 

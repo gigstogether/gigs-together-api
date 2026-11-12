@@ -222,6 +222,11 @@ Main files:
 - `src/modules/location/locality/`
 - `src/modules/location/place/`
 
+Physical locations use the hierarchy `Country → Locality → Place`. A Locality is
+a named geographic context and is not required to be a city; a Place is a
+concrete physical event location. Region is deliberately not an entity or
+catalog in the project.
+
 #### `CommunityModule`
 
 Responsibilities:
@@ -243,6 +248,10 @@ Main files:
 - `src/modules/community/community.controller.ts`
 - `src/modules/community/community.service.ts`
 - `src/modules/community/community.schema.ts`
+
+Community is an event audience rather than a physical boundary. Gigs and
+GigCandidates reference one or more Communities independently from their Places:
+`Gig / GigCandidate → Community[]`.
 
 Detailed ownership, target models, and rollout constraints are documented in
 [Location Architecture](./LOCATIONS.md).
