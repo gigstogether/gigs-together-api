@@ -9,6 +9,7 @@ import { LocalityService } from '../locality/locality.service';
 import { VenueNameConflictError } from './venue.errors';
 import { VENUE_REPOSITORY } from './repositories/venue.repository';
 import type { VenueRepository } from './repositories/venue.repository';
+import type { Locality } from '../locality/types/locality.types';
 import type { Venue } from './types/venue.types';
 import {
   isValidVenueAliases,
@@ -35,6 +36,25 @@ export interface UpdateVenueParams {
   name?: string;
   aliases?: string[];
   isActive?: boolean;
+}
+
+export interface FindActiveVenueCatalogParams {
+  localityId: string;
+}
+
+export interface ActiveVenueCatalog {
+  locality: Locality;
+  venues: readonly Venue[];
+}
+
+export interface ResolveVenueSelectionParams {
+  venueIds: readonly string[];
+  isActiveRequired: boolean;
+}
+
+export interface ResolvedVenueSelection {
+  locality: Locality;
+  venues: readonly Venue[];
 }
 
 @Injectable()
@@ -80,11 +100,7 @@ export class VenueService {
       repositoryParams.localityId = params.localityId;
     }
     if (params.search !== undefined) {
-      const search = params.search.trim();
-      if (search.length === 0) {
-        throw new BadRequestException('Venue search must not be blank');
-      }
-      repositoryParams.search = search;
+      repositoryParams.search = this.normalizeSearch(params.search);
     }
     if (params.isActive !== undefined) {
       repositoryParams.isActive = params.isActive;
@@ -94,6 +110,76 @@ export class VenueService {
     await this.assertLocalitiesExist(venues);
 
     return venues;
+  }
+
+  async findActiveVenueCatalog(
+    params: FindActiveVenueCatalogParams,
+  ): Promise<ActiveVenueCatalog> {
+    const locality = await this.localityService.getLocalityById(
+      params.localityId,
+    );
+    const repositoryParams: FindVenuesParams = {
+      localityId: params.localityId,
+      isActive: true,
+    };
+
+    const venues = await this.venueRepository.find(repositoryParams);
+
+    return { locality, venues };
+  }
+
+  async resolveVenueSelection(
+    params: ResolveVenueSelectionParams,
+  ): Promise<ResolvedVenueSelection> {
+    if (params.venueIds.length === 0) {
+      throw new BadRequestException(
+        'venueIds must contain at least one Venue id',
+      );
+    }
+
+    const normalizedVenueIds = params.venueIds.map((venueId) =>
+      venueId.toLowerCase(),
+    );
+    if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
+      throw new BadRequestException('venueIds must not contain duplicates');
+    }
+
+    const foundVenues =
+      await this.venueRepository.findByIds(normalizedVenueIds);
+    const venuesById = new Map(
+      foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
+    );
+    const venues = normalizedVenueIds.map((venueId) => {
+      const venue = venuesById.get(venueId);
+      if (!venue) {
+        throw new BadRequestException(
+          'venueIds must reference existing Venues',
+        );
+      }
+      return venue;
+    });
+
+    if (params.isActiveRequired && venues.some((venue) => !venue.isActive)) {
+      throw new BadRequestException(
+        'venueIds must reference active Venues for new assignments',
+      );
+    }
+
+    const localityIds = new Set(venues.map((venue) => venue.localityId));
+    if (localityIds.size !== 1) {
+      throw new BadRequestException(
+        'All assigned Venues must belong to the same Locality',
+      );
+    }
+
+    const firstVenue = venues[0];
+    if (firstVenue === undefined) {
+      throw new Error('Resolved Venue selection must not be empty');
+    }
+    const localityId = firstVenue.localityId;
+    const locality = await this.localityService.getLocalityById(localityId);
+
+    return { locality, venues };
   }
 
   async updateVenue(params: UpdateVenueParams): Promise<Venue> {
@@ -159,6 +245,15 @@ export class VenueService {
     }
 
     return { name, aliases };
+  }
+
+  private normalizeSearch(rawSearch: string): string {
+    const search = rawSearch.trim();
+    if (search.length === 0) {
+      throw new BadRequestException('Venue search must not be blank');
+    }
+
+    return search;
   }
 
   private async requireLocality(localityId: string): Promise<void> {

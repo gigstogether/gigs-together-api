@@ -112,6 +112,38 @@ describe('MongoVenueRepository', () => {
     );
   });
 
+  it('should find Venues by ids', async () => {
+    const secondVenueId = '690a1fdb17f0a7771e9c1c34';
+    const secondVenueDocument = {
+      ...VENUE_DOCUMENT,
+      _id: new Types.ObjectId(secondVenueId),
+      name: 'Paral·lel 62',
+    };
+    const execMock = vi
+      .fn()
+      .mockResolvedValue([VENUE_DOCUMENT, secondVenueDocument]);
+    const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+    findMock.mockReturnValue({ lean: leanMock });
+
+    await expect(
+      repository.findByIds([VENUE_ID, secondVenueId]),
+    ).resolves.toEqual([
+      expect.objectContaining({ id: VENUE_ID }),
+      expect.objectContaining({ id: secondVenueId }),
+    ]);
+    expect(findMock).toHaveBeenCalledWith(
+      {
+        _id: {
+          $in: [
+            new Types.ObjectId(VENUE_ID),
+            new Types.ObjectId(secondVenueId),
+          ],
+        },
+      },
+      VENUE_PROJECTION,
+    );
+  });
+
   it('should search Venues by Locality, active state, name, and aliases', async () => {
     const execMock = vi.fn().mockResolvedValue([VENUE_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
