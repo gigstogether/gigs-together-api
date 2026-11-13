@@ -7,8 +7,8 @@ event Places, and future geographic matching.
 
 ## Module Boundary
 
-`LocationModule` owns physical geographic reference data. It currently serves
-countries and owns Locality and Place persistence and lookup. It does
+`LocationModule` owns physical geographic reference data. It serves the
+supported ISO country catalog and owns Locality and Place persistence and lookup. It does
 not own Community persistence, Gig moderation, feed delivery, Telegram
 workflows, or calendar integration.
 
@@ -18,7 +18,6 @@ that every Community references a supported country.
 
 Current persistence:
 
-- `Country`
 - `Locality`
 - `Place`
 
@@ -29,7 +28,7 @@ Current editorial-audience persistence:
 The two independent relationship axes are:
 
 ```text
-Country → Locality → Place
+ISO country code → Locality → Place
 Gig / GigCandidate → Community[]
 ```
 
@@ -50,13 +49,13 @@ not maintain a separate Region catalog or relationship.
 
 Every collection has its own repository boundary. One feature service may depend
 on another feature's application service, but a repository must not query a model
-owned by another feature. For example, Locality creation verifies `countryIso`
-through `CountryService`; `LocalityRepository` does not query the Country model.
+owned by another feature. Locality creation verifies `countryIso` through
+`CountryService` before `LocalityRepository` persists it.
 
-`LocationModule` owns Country, Locality, and Place persistence and
-application behavior and exports their application services. `AdminModule` owns
-the authenticated administrative HTTP controllers and their versioned Country,
-Locality, and Place request and response contracts.
+`LocationModule` owns the static Country catalog together with Locality and Place
+persistence and application behavior. `AdminModule` owns the authenticated
+administrative HTTP controllers and their versioned Locality and Place request
+and response contracts.
 
 Gig relationships are introduced separately. Gig responses and physical-location
 integrations continue to use the legacy `country`, `city`, and `venue` fields
@@ -64,32 +63,20 @@ until the runtime relationships and migration are ready.
 
 ## Country
 
-`Country` is the root of the physical geographic catalog. Its unique uppercase
-ISO 3166-1 alpha-2 `iso` value is the relationship key used by Locality. Locality
-does not store a separate Country ObjectId.
+Country is reference data rather than a Mongo entity. `CountryService` owns the
+versioned in-code snapshot of supported uppercase ISO 3166-1 alpha-2 codes and
+exposes both the complete public catalog and membership validation. The snapshot
+is sourced from the English UNSD M49 table and is updated explicitly in code so
+ordinary requests never depend on external network or HTML availability.
 
-Creating a Locality must verify through the Country application and repository
-boundary that its `countryIso` exists in the Country collection. A syntactically
-valid but unsupported code must not create a Locality.
+`GET /v1/countries` returns every supported ISO code. Clients localize country
+names with `Intl.DisplayNames`; country-name translations are not stored. There
+is no Country collection, ObjectId, repository, configured-country state, or
+Country administration API.
 
-The Country collection contains only countries explicitly configured for this
-project. `CountryService` lazily loads that small collection and keeps both the
-ordered catalog and a set of ISO codes in process memory. HTTP DTOs normalize and
-validate external ISO syntax, while application services ask CountryService
-whether the code is part of the configured catalog. Locality and Community do not
-maintain a separate ISO regex.
-
-The authenticated Country administration API can add a configured country. Its
-selection list is loaded from the English table in the official UNSD M49
-overview and cached in process for one hour. The external table is consulted
-only while listing add-country options or validating a create request; ordinary
-Country, Locality, and Community reads never depend on UNSD availability. An
-already configured country remains visible but disabled in the selection list.
-The admin API exposes only ISO codes and configuration state; clients localize
-country names with `Intl.DisplayNames` instead of storing country-name
-translations or depending on the English UNSD label.
-After a successful insert, `CountryService` invalidates its configured-country
-cache immediately. Country deletion is not part of the current API.
+Locality and Community store `countryIso` directly and validate it through
+`CountryService`. HTTP DTOs still normalize and validate external ISO syntax,
+while application services enforce membership in the supported catalog.
 
 ## Locality
 
@@ -99,7 +86,7 @@ administrative area, or another useful geographic context is valid. The current
 model contains:
 
 - an opaque stable `id`
-- `countryIso`, which references an existing Country by its unique ISO code
+- `countryIso`, which must be a supported ISO 3166-1 alpha-2 code
 - a required canonical `name`
 - an optional canonical `qualifier` for disambiguating equal names
 - required searchable `aliases`, which may be empty
@@ -111,7 +98,7 @@ spellings without introducing a translation dependency.
 
 The tuple `countryIso + name + qualifier` is unique using case-insensitive
 collation. Admin catalog reads may filter by `countryIso` and search canonical
-names, qualifiers, and aliases. The Country relationship is immutable in the
+names, qualifiers, and aliases. The `countryIso` relationship is immutable in the
 current update contract.
 Localities referenced by Places cannot be deleted.
 
@@ -265,8 +252,8 @@ over physical distance.
 
 `LocationModule` owns:
 
-- Country, Locality, and Place persistence through separate repository
-  boundaries
+- the static supported Country catalog through `CountryService`
+- Locality and Place persistence through separate repository boundaries
 
 `CommunityModule` owns:
 

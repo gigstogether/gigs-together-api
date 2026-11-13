@@ -207,13 +207,13 @@ Main files:
 Responsibilities:
 
 - owns the physical geographic catalog
-- owns Country, Locality, and Place persistence and application behavior
-- loads official UNSD country choices only for authenticated Country administration
+- owns the static supported Country catalog and Locality and Place application behavior
+- serves all supported ISO country codes without runtime external dependencies
 - owns geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Dependencies:
 
-- local `Country`, `Locality`, and `Place` Mongoose models
+- local `Locality` and `Place` Mongoose models
 
 Main files:
 
@@ -222,7 +222,7 @@ Main files:
 - `src/modules/location/locality/`
 - `src/modules/location/place/`
 
-Physical locations use the hierarchy `Country → Locality → Place`. A Locality is
+Physical locations use the hierarchy `ISO country code → Locality → Place`. A Locality is
 a named geographic context and is not required to be a city; a Place is a
 concrete physical event location. Region is deliberately not an entity or
 catalog in the project.
@@ -424,7 +424,6 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - gigs in `src/modules/gig/gig.schema.ts`
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
-- countries in `src/modules/location/country/country.schema.ts`
 - localities in `src/modules/location/locality/locality.schema.ts`
 - Places in `src/modules/location/place/place.schema.ts`
 - Communities in `src/modules/community/community.schema.ts`
