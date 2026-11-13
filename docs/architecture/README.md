@@ -207,23 +207,23 @@ Main files:
 Responsibilities:
 
 - owns the physical geographic catalog
-- owns the static supported Country catalog and Locality and Place application behavior
+- owns the static supported Country catalog and Locality and Venue application behavior
 - serves all supported ISO country codes without runtime external dependencies
 - owns geographic lookup without taking ownership of Gig assignments, moderation, or delivery integrations
 
 Dependencies:
 
-- local `Locality` and `Place` Mongoose models
+- local `Locality` and `Venue` Mongoose models
 
 Main files:
 
 - `src/modules/location/location.module.ts`
 - `src/modules/location/country/`
 - `src/modules/location/locality/`
-- `src/modules/location/place/`
+- `src/modules/location/venue/`
 
-Physical locations use the hierarchy `ISO country code → Locality → Place`. A Locality is
-a named geographic context and is not required to be a city; a Place is a
+Physical locations use the hierarchy `ISO country code → Locality → Venue`. A Locality is
+a named geographic context and is not required to be a city; a Venue is a
 concrete physical event location. Region is deliberately not an entity or
 catalog in the project.
 
@@ -250,7 +250,7 @@ Main files:
 - `src/modules/community/community.schema.ts`
 
 Community is an event audience rather than a physical boundary. Gigs and
-GigCandidates reference one or more Communities independently from their Places:
+GigCandidates reference one or more Communities independently from their Venues:
 `Gig / GigCandidate → Community[]`.
 
 Detailed ownership, target models, and rollout constraints are documented in
@@ -425,7 +425,7 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - admins in `src/shared/schemas/admin.schema.ts`
 - locales and translations in `src/modules/locale/*.schema.ts`
 - localities in `src/modules/location/locality/locality.schema.ts`
-- Places in `src/modules/location/place/place.schema.ts`
+- Venues in `src/modules/location/venue/venue.schema.ts`
 - Communities in `src/modules/community/community.schema.ts`
 
 This keeps schema ownership aligned with the module that owns the use case.

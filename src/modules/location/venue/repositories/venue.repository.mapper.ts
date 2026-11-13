@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
-import type { Place } from '../types/place.types';
-import { isValidPlaceAliases, isValidPlaceName } from '../place.validators';
+import type { Venue } from '../types/venue.types';
+import { isValidVenueAliases, isValidVenueName } from '../venue.validators';
 
-export interface PlaceLeanDocument {
+export interface VenueLeanDocument {
   _id: unknown;
   localityId: unknown;
   name: unknown;
@@ -10,7 +10,7 @@ export interface PlaceLeanDocument {
   isActive: unknown;
 }
 
-export class PlaceRepositoryMapper {
+export class VenueRepositoryMapper {
   static toStoredLocalityId(localityId: string): Types.ObjectId {
     if (!Types.ObjectId.isValid(localityId)) {
       throw new Error('Locality id must be a valid ObjectId');
@@ -19,25 +19,25 @@ export class PlaceRepositoryMapper {
     return new Types.ObjectId(localityId);
   }
 
-  static toPlace(doc: PlaceLeanDocument): Place {
+  static toVenue(doc: VenueLeanDocument): Venue {
     if (!(doc._id instanceof Types.ObjectId)) {
-      throw new Error('Place _id must be an ObjectId');
+      throw new Error('Venue _id must be an ObjectId');
     }
     if (!(doc.localityId instanceof Types.ObjectId)) {
-      throw new Error('Place localityId must be an ObjectId');
+      throw new Error('Venue localityId must be an ObjectId');
     }
-    if (typeof doc.name !== 'string' || !isValidPlaceName(doc.name)) {
-      throw new Error('Place name must be a non-empty canonical name');
+    if (typeof doc.name !== 'string' || !isValidVenueName(doc.name)) {
+      throw new Error('Venue name must be a non-empty canonical name');
     }
     if (
       !Array.isArray(doc.aliases) ||
       doc.aliases.some((alias) => typeof alias !== 'string') ||
-      !isValidPlaceAliases(doc.name, doc.aliases)
+      !isValidVenueAliases(doc.name, doc.aliases)
     ) {
-      throw new Error('Place aliases must be unique non-empty names');
+      throw new Error('Venue aliases must be unique non-empty names');
     }
     if (typeof doc.isActive !== 'boolean') {
-      throw new Error('Place isActive must be a boolean');
+      throw new Error('Venue isActive must be a boolean');
     }
 
     return {
@@ -49,7 +49,7 @@ export class PlaceRepositoryMapper {
     };
   }
 
-  static toPlaces(docs: readonly PlaceLeanDocument[]): readonly Place[] {
-    return docs.map((doc) => PlaceRepositoryMapper.toPlace(doc));
+  static toVenues(docs: readonly VenueLeanDocument[]): readonly Venue[] {
+    return docs.map((doc) => VenueRepositoryMapper.toVenue(doc));
   }
 }

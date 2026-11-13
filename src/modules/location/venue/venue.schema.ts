@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { SchemaTypes, Types } from 'mongoose';
 import type { HydratedDocument } from 'mongoose';
-import { isValidPlaceAliasList, isValidPlaceName } from './place.validators';
+import { isValidVenueAliasList, isValidVenueName } from './venue.validators';
 
-@Schema()
-export class Place {
+@Schema({ collection: 'venues' })
+export class Venue {
   @Prop({ type: SchemaTypes.ObjectId, required: true, ref: 'Locality' })
   localityId: Types.ObjectId;
 
@@ -12,7 +12,7 @@ export class Place {
     type: String,
     required: true,
     trim: true,
-    validate: isValidPlaceName,
+    validate: isValidVenueName,
   })
   name: string;
 
@@ -20,7 +20,7 @@ export class Place {
     type: [String],
     required: true,
     default: undefined,
-    validate: isValidPlaceAliasList,
+    validate: isValidVenueAliasList,
   })
   aliases: string[];
 
@@ -28,14 +28,14 @@ export class Place {
   isActive: boolean;
 }
 
-export type PlaceDocument = HydratedDocument<Place>;
-export const PlaceSchema = SchemaFactory.createForClass(Place);
+export type VenueDocument = HydratedDocument<Venue>;
+export const VenueSchema = SchemaFactory.createForClass(Venue);
 
-PlaceSchema.index(
+VenueSchema.index(
   { localityId: 1, name: 1 },
   {
     unique: true,
     collation: { locale: 'en', strength: 2 },
   },
 );
-PlaceSchema.index({ isActive: 1, localityId: 1, name: 1 });
+VenueSchema.index({ isActive: 1, localityId: 1, name: 1 });

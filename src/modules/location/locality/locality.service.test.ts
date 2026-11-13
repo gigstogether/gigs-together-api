@@ -6,7 +6,7 @@ import {
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { CountryService } from '../country/country.service';
-import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
+import { VENUE_REPOSITORY } from '../venue/repositories/venue.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LocalityService } from './locality.service';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
@@ -56,7 +56,7 @@ describe('LocalityService', () => {
           useValue: { hasCountry: hasCountryMock },
         },
         {
-          provide: PLACE_REPOSITORY,
+          provide: VENUE_REPOSITORY,
           useValue: { existsByLocalityId: existsByLocalityIdMock },
         },
       ],
@@ -234,7 +234,7 @@ describe('LocalityService', () => {
     expect(deleteByIdMock).toHaveBeenCalledWith(LOCALITY_ID);
   });
 
-  it('should reject deletion of a Locality referenced by Places', async () => {
+  it('should reject deletion of a Locality referenced by Venues', async () => {
     existsByLocalityIdMock.mockResolvedValue(true);
 
     await expect(service.deleteLocality(LOCALITY_ID)).rejects.toBeInstanceOf(

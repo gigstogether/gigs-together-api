@@ -2,20 +2,20 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
-import { PlaceNameConflictError } from '../place.errors';
-import { Place } from '../place.schema';
-import { MongoPlaceRepository } from './mongo-place.repository';
+import { VenueNameConflictError } from '../venue.errors';
+import { Venue } from '../venue.schema';
+import { MongoVenueRepository } from './mongo-venue.repository';
 
-const PLACE_ID = '690a1fdb17f0a7771e9c1c33';
+const VENUE_ID = '690a1fdb17f0a7771e9c1c33';
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const PLACE_DOCUMENT = {
-  _id: new Types.ObjectId(PLACE_ID),
+const VENUE_DOCUMENT = {
+  _id: new Types.ObjectId(VENUE_ID),
   localityId: new Types.ObjectId(LOCALITY_ID),
   name: 'Sala Apolo',
   aliases: ['Apolo'],
   isActive: true,
 };
-const PLACE_PROJECTION = {
+const VENUE_PROJECTION = {
   _id: 1,
   localityId: 1,
   name: 1,
@@ -23,8 +23,8 @@ const PLACE_PROJECTION = {
   isActive: 1,
 };
 
-describe('MongoPlaceRepository', () => {
-  let repository: MongoPlaceRepository;
+describe('MongoVenueRepository', () => {
+  let repository: MongoVenueRepository;
 
   const createMock = vi.fn();
   const findOneMock = vi.fn();
@@ -38,9 +38,9 @@ describe('MongoPlaceRepository', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        MongoPlaceRepository,
+        MongoVenueRepository,
         {
-          provide: getModelToken(Place.name),
+          provide: getModelToken(Venue.name),
           useValue: {
             create: createMock,
             findOne: findOneMock,
@@ -53,11 +53,11 @@ describe('MongoPlaceRepository', () => {
       ],
     }).compile();
 
-    repository = module.get<MongoPlaceRepository>(MongoPlaceRepository);
+    repository = module.get<MongoVenueRepository>(MongoVenueRepository);
   });
 
-  it('should create and map a Place', async () => {
-    createMock.mockResolvedValue(PLACE_DOCUMENT);
+  it('should create and map a Venue', async () => {
+    createMock.mockResolvedValue(VENUE_DOCUMENT);
 
     await expect(
       repository.create({
@@ -67,7 +67,7 @@ describe('MongoPlaceRepository', () => {
         isActive: true,
       }),
     ).resolves.toEqual({
-      id: PLACE_ID,
+      id: VENUE_ID,
       localityId: LOCALITY_ID,
       name: 'Sala Apolo',
       aliases: ['Apolo'],
@@ -93,27 +93,27 @@ describe('MongoPlaceRepository', () => {
     });
 
     await expect(operation).rejects.toMatchObject({
-      name: PlaceNameConflictError.name,
+      name: VenueNameConflictError.name,
       cause: duplicateError,
     });
   });
 
-  it('should find a Place by id', async () => {
-    const execMock = vi.fn().mockResolvedValue(PLACE_DOCUMENT);
+  it('should find a Venue by id', async () => {
+    const execMock = vi.fn().mockResolvedValue(VENUE_DOCUMENT);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     findOneMock.mockReturnValue({ lean: leanMock });
 
-    await expect(repository.findById(PLACE_ID)).resolves.toEqual(
-      expect.objectContaining({ id: PLACE_ID }),
+    await expect(repository.findById(VENUE_ID)).resolves.toEqual(
+      expect.objectContaining({ id: VENUE_ID }),
     );
     expect(findOneMock).toHaveBeenCalledWith(
-      { _id: new Types.ObjectId(PLACE_ID) },
-      PLACE_PROJECTION,
+      { _id: new Types.ObjectId(VENUE_ID) },
+      VENUE_PROJECTION,
     );
   });
 
-  it('should search Places by Locality, active state, name, and aliases', async () => {
-    const execMock = vi.fn().mockResolvedValue([PLACE_DOCUMENT]);
+  it('should search Venues by Locality, active state, name, and aliases', async () => {
+    const execMock = vi.fn().mockResolvedValue([VENUE_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
     findMock.mockReturnValue({ sort: sortMock });
@@ -124,19 +124,19 @@ describe('MongoPlaceRepository', () => {
         search: 'apolo',
         isActive: true,
       }),
-    ).resolves.toEqual([expect.objectContaining({ id: PLACE_ID })]);
+    ).resolves.toEqual([expect.objectContaining({ id: VENUE_ID })]);
     expect(findMock).toHaveBeenCalledWith(
       {
         localityId: new Types.ObjectId(LOCALITY_ID),
         isActive: true,
         $or: [{ name: expect.any(RegExp) }, { aliases: expect.any(RegExp) }],
       },
-      PLACE_PROJECTION,
+      VENUE_PROJECTION,
     );
   });
 
-  it('should report whether a Locality has Places', async () => {
-    existsMock.mockResolvedValue({ _id: new Types.ObjectId(PLACE_ID) });
+  it('should report whether a Locality has Venues', async () => {
+    existsMock.mockResolvedValue({ _id: new Types.ObjectId(VENUE_ID) });
 
     await expect(repository.existsByLocalityId(LOCALITY_ID)).resolves.toBe(
       true,
@@ -146,22 +146,22 @@ describe('MongoPlaceRepository', () => {
     });
   });
 
-  it('should update a Place', async () => {
-    const updatedDocument = { ...PLACE_DOCUMENT, isActive: false };
+  it('should update a Venue', async () => {
+    const updatedDocument = { ...VENUE_DOCUMENT, isActive: false };
     const execMock = vi.fn().mockResolvedValue(updatedDocument);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     findOneAndUpdateMock.mockReturnValue({ lean: leanMock });
 
     await expect(
       repository.update({
-        id: PLACE_ID,
+        id: VENUE_ID,
         name: 'Sala Apolo',
         aliases: ['Apolo'],
         isActive: false,
       }),
     ).resolves.toEqual(expect.objectContaining({ isActive: false }));
     expect(findOneAndUpdateMock).toHaveBeenCalledWith(
-      { _id: new Types.ObjectId(PLACE_ID) },
+      { _id: new Types.ObjectId(VENUE_ID) },
       {
         $set: {
           name: 'Sala Apolo',
@@ -173,13 +173,13 @@ describe('MongoPlaceRepository', () => {
     );
   });
 
-  it('should delete a Place by id', async () => {
+  it('should delete a Venue by id', async () => {
     const execMock = vi.fn().mockResolvedValue({ deletedCount: 1 });
     deleteOneMock.mockReturnValue({ exec: execMock });
 
-    await expect(repository.deleteById(PLACE_ID)).resolves.toBe(true);
+    await expect(repository.deleteById(VENUE_ID)).resolves.toBe(true);
     expect(deleteOneMock).toHaveBeenCalledWith({
-      _id: new Types.ObjectId(PLACE_ID),
+      _id: new Types.ObjectId(VENUE_ID),
     });
   });
 });

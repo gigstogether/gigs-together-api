@@ -3,20 +3,20 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
 import type { Model } from 'mongoose';
 import { isRecord } from '@shared/utils/is-record';
-import { PlaceNameConflictError } from '../place.errors';
-import { Place as PlaceSchema } from '../place.schema';
-import type { PlaceDocument } from '../place.schema';
-import type { Place } from '../types/place.types';
-import { PlaceRepositoryMapper } from './place.repository.mapper';
-import type { PlaceLeanDocument } from './place.repository.mapper';
+import { VenueNameConflictError } from '../venue.errors';
+import { Venue as VenueSchema } from '../venue.schema';
+import type { VenueDocument } from '../venue.schema';
+import type { Venue } from '../types/venue.types';
+import { VenueRepositoryMapper } from './venue.repository.mapper';
+import type { VenueLeanDocument } from './venue.repository.mapper';
 import type {
-  CreatePlaceRecordParams,
-  FindPlacesParams,
-  PlaceRepository,
-  UpdatePlaceRecordParams,
-} from './place.repository';
+  CreateVenueRecordParams,
+  FindVenuesParams,
+  VenueRepository,
+  UpdateVenueRecordParams,
+} from './venue.repository';
 
-const PLACE_PROJECTION = {
+const VENUE_PROJECTION = {
   _id: 1,
   localityId: 1,
   name: 1,
@@ -24,29 +24,29 @@ const PLACE_PROJECTION = {
   isActive: 1,
 } as const;
 
-const PLACE_SORT = { localityId: 1, name: 1, _id: 1 } as const;
+const VENUE_SORT = { localityId: 1, name: 1, _id: 1 } as const;
 
-interface PlaceMongoFilter {
+interface VenueMongoFilter {
   localityId?: Types.ObjectId;
   isActive?: boolean;
   $or?: Array<{ name: RegExp } | { aliases: RegExp }>;
 }
 
 @Injectable()
-export class MongoPlaceRepository implements PlaceRepository {
+export class MongoVenueRepository implements VenueRepository {
   constructor(
-    @InjectModel(PlaceSchema.name)
-    private readonly placeModel: Model<PlaceDocument>,
+    @InjectModel(VenueSchema.name)
+    private readonly venueModel: Model<VenueDocument>,
   ) {}
 
-  async create(params: CreatePlaceRecordParams): Promise<Place> {
+  async create(params: CreateVenueRecordParams): Promise<Venue> {
     try {
-      const doc = await this.placeModel.create({
+      const doc = await this.venueModel.create({
         ...params,
-        localityId: PlaceRepositoryMapper.toStoredLocalityId(params.localityId),
+        localityId: VenueRepositoryMapper.toStoredLocalityId(params.localityId),
       });
 
-      return PlaceRepositoryMapper.toPlace({
+      return VenueRepositoryMapper.toVenue({
         _id: doc._id,
         localityId: doc.localityId,
         name: doc.name,
@@ -55,34 +55,34 @@ export class MongoPlaceRepository implements PlaceRepository {
       });
     } catch (e) {
       if (isDuplicateKeyError(e)) {
-        throw new PlaceNameConflictError(e);
+        throw new VenueNameConflictError(e);
       }
       throw e;
     }
   }
 
-  async findById(id: string): Promise<Place | null> {
+  async findById(id: string): Promise<Venue | null> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new Error('Place id must be a valid ObjectId');
+      throw new Error('Venue id must be a valid ObjectId');
     }
 
-    const doc = await this.placeModel
-      .findOne({ _id: new Types.ObjectId(id) }, PLACE_PROJECTION)
-      .lean<PlaceLeanDocument>()
+    const doc = await this.venueModel
+      .findOne({ _id: new Types.ObjectId(id) }, VENUE_PROJECTION)
+      .lean<VenueLeanDocument>()
       .exec();
 
     if (!doc) {
       return null;
     }
 
-    return PlaceRepositoryMapper.toPlace(doc);
+    return VenueRepositoryMapper.toVenue(doc);
   }
 
-  async find(params: FindPlacesParams): Promise<readonly Place[]> {
-    const filter: PlaceMongoFilter = {};
+  async find(params: FindVenuesParams): Promise<readonly Venue[]> {
+    const filter: VenueMongoFilter = {};
 
     if (params.localityId !== undefined) {
-      filter.localityId = PlaceRepositoryMapper.toStoredLocalityId(
+      filter.localityId = VenueRepositoryMapper.toStoredLocalityId(
         params.localityId,
       );
     }
@@ -94,30 +94,30 @@ export class MongoPlaceRepository implements PlaceRepository {
       filter.$or = [{ name: pattern }, { aliases: pattern }];
     }
 
-    const docs = await this.placeModel
-      .find(filter, PLACE_PROJECTION)
-      .sort(PLACE_SORT)
-      .lean<readonly PlaceLeanDocument[]>()
+    const docs = await this.venueModel
+      .find(filter, VENUE_PROJECTION)
+      .sort(VENUE_SORT)
+      .lean<readonly VenueLeanDocument[]>()
       .exec();
 
-    return PlaceRepositoryMapper.toPlaces(docs);
+    return VenueRepositoryMapper.toVenues(docs);
   }
 
   async existsByLocalityId(localityId: string): Promise<boolean> {
-    const result = await this.placeModel.exists({
-      localityId: PlaceRepositoryMapper.toStoredLocalityId(localityId),
+    const result = await this.venueModel.exists({
+      localityId: VenueRepositoryMapper.toStoredLocalityId(localityId),
     });
 
     return result !== null;
   }
 
-  async update(params: UpdatePlaceRecordParams): Promise<Place | null> {
+  async update(params: UpdateVenueRecordParams): Promise<Venue | null> {
     if (!Types.ObjectId.isValid(params.id)) {
-      throw new Error('Place id must be a valid ObjectId');
+      throw new Error('Venue id must be a valid ObjectId');
     }
 
     try {
-      const doc = await this.placeModel
+      const doc = await this.venueModel
         .findOneAndUpdate(
           { _id: new Types.ObjectId(params.id) },
           {
@@ -129,17 +129,17 @@ export class MongoPlaceRepository implements PlaceRepository {
           },
           { returnDocument: 'after', runValidators: true },
         )
-        .lean<PlaceLeanDocument>()
+        .lean<VenueLeanDocument>()
         .exec();
 
       if (!doc) {
         return null;
       }
 
-      return PlaceRepositoryMapper.toPlace(doc);
+      return VenueRepositoryMapper.toVenue(doc);
     } catch (e) {
       if (isDuplicateKeyError(e)) {
-        throw new PlaceNameConflictError(e);
+        throw new VenueNameConflictError(e);
       }
       throw e;
     }
@@ -147,10 +147,10 @@ export class MongoPlaceRepository implements PlaceRepository {
 
   async deleteById(id: string): Promise<boolean> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new Error('Place id must be a valid ObjectId');
+      throw new Error('Venue id must be a valid ObjectId');
     }
 
-    const result = await this.placeModel
+    const result = await this.venueModel
       .deleteOne({ _id: new Types.ObjectId(id) })
       .exec();
 

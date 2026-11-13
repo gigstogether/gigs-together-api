@@ -1,15 +1,15 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import {
-  V1AdminPlaceCreateBodyDto,
-  V1AdminPlacesGetQueryDto,
-} from './v1-admin-place-request';
+  V1AdminVenueCreateBodyDto,
+  V1AdminVenuesGetQueryDto,
+} from './v1-admin-venue-request';
 
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
 
-describe('V1AdminPlaceCreateBodyDto', () => {
-  it('should accept a valid Place request', async () => {
-    const dto = plainToInstance(V1AdminPlaceCreateBodyDto, {
+describe('V1AdminVenueCreateBodyDto', () => {
+  it('should accept a valid Venue request', async () => {
+    const dto = plainToInstance(V1AdminVenueCreateBodyDto, {
       localityId: LOCALITY_ID,
       name: ' Sala Apolo ',
       aliases: ['Apolo'],
@@ -21,7 +21,7 @@ describe('V1AdminPlaceCreateBodyDto', () => {
   });
 
   it('should reject a non-boolean active state', async () => {
-    const dto = plainToInstance(V1AdminPlaceCreateBodyDto, {
+    const dto = plainToInstance(V1AdminVenueCreateBodyDto, {
       localityId: LOCALITY_ID,
       name: 'Sala Apolo',
       aliases: [],
@@ -34,9 +34,9 @@ describe('V1AdminPlaceCreateBodyDto', () => {
   });
 });
 
-describe('V1AdminPlacesGetQueryDto', () => {
+describe('V1AdminVenuesGetQueryDto', () => {
   it('should parse an active-state query filter', async () => {
-    const dto = plainToInstance(V1AdminPlacesGetQueryDto, {
+    const dto = plainToInstance(V1AdminVenuesGetQueryDto, {
       isActive: 'false',
     });
 
@@ -45,7 +45,7 @@ describe('V1AdminPlacesGetQueryDto', () => {
   });
 
   it('should reject an invalid active-state query filter', async () => {
-    const dto = plainToInstance(V1AdminPlacesGetQueryDto, {
+    const dto = plainToInstance(V1AdminVenuesGetQueryDto, {
       isActive: 'yes',
     });
 

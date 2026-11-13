@@ -6,8 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CountryService } from '../country/country.service';
-import { PLACE_REPOSITORY } from '../place/repositories/place.repository';
-import type { PlaceRepository } from '../place/repositories/place.repository';
+import { VENUE_REPOSITORY } from '../venue/repositories/venue.repository';
+import type { VenueRepository } from '../venue/repositories/venue.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
 import type { LocalityRepository } from './repositories/locality.repository';
@@ -50,8 +50,8 @@ export class LocalityService {
     @Inject(LOCALITY_REPOSITORY)
     private readonly localityRepository: LocalityRepository,
     private readonly countryService: CountryService,
-    @Inject(PLACE_REPOSITORY)
-    private readonly placeRepository: PlaceRepository,
+    @Inject(VENUE_REPOSITORY)
+    private readonly venueRepository: VenueRepository,
   ) {}
 
   async createLocality(params: CreateLocalityParams): Promise<Locality> {
@@ -171,11 +171,11 @@ export class LocalityService {
   }
 
   async deleteLocality(id: string): Promise<void> {
-    const hasPlaces = await this.placeRepository.existsByLocalityId(id);
+    const hasVenues = await this.venueRepository.existsByLocalityId(id);
 
-    if (hasPlaces) {
+    if (hasVenues) {
       throw new ConflictException(
-        'Locality with id "' + id + '" is referenced by Places',
+        'Locality with id "' + id + '" is referenced by Venues',
       );
     }
 

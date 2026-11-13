@@ -6,32 +6,32 @@ import { Locality, LocalitySchema } from './locality/locality.schema';
 import { LocalityService } from './locality/locality.service';
 import { LOCALITY_REPOSITORY } from './locality/repositories/locality.repository';
 import { MongoLocalityRepository } from './locality/repositories/mongo-locality.repository';
-import { Place, PlaceSchema } from './place/place.schema';
-import { PlaceService } from './place/place.service';
-import { PLACE_REPOSITORY } from './place/repositories/place.repository';
-import { MongoPlaceRepository } from './place/repositories/mongo-place.repository';
+import { Venue, VenueSchema } from './venue/venue.schema';
+import { VenueService } from './venue/venue.service';
+import { VENUE_REPOSITORY } from './venue/repositories/venue.repository';
+import { MongoVenueRepository } from './venue/repositories/mongo-venue.repository';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Locality.name, schema: LocalitySchema },
-      { name: Place.name, schema: PlaceSchema },
+      { name: Venue.name, schema: VenueSchema },
     ]),
   ],
   controllers: [CountriesController],
   providers: [
     CountryService,
     LocalityService,
-    PlaceService,
+    VenueService,
     {
       provide: LOCALITY_REPOSITORY,
       useClass: MongoLocalityRepository,
     },
     {
-      provide: PLACE_REPOSITORY,
-      useClass: MongoPlaceRepository,
+      provide: VENUE_REPOSITORY,
+      useClass: MongoVenueRepository,
     },
   ],
-  exports: [CountryService, LocalityService, PlaceService],
+  exports: [CountryService, LocalityService, VenueService],
 })
 export class LocationModule {}

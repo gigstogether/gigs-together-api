@@ -6,22 +6,22 @@ import {
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { LocalityService } from '../locality/locality.service';
-import { PlaceNameConflictError } from './place.errors';
-import { PlaceService } from './place.service';
-import { PLACE_REPOSITORY } from './repositories/place.repository';
+import { VenueNameConflictError } from './venue.errors';
+import { VenueService } from './venue.service';
+import { VENUE_REPOSITORY } from './repositories/venue.repository';
 
-const PLACE_ID = '690a1fdb17f0a7771e9c1c33';
+const VENUE_ID = '690a1fdb17f0a7771e9c1c33';
 const LOCALITY_ID = '690a1fdb17f0a7771e9c1c32';
-const PLACE = {
-  id: PLACE_ID,
+const VENUE = {
+  id: VENUE_ID,
   localityId: LOCALITY_ID,
   name: 'Sala Apolo',
   aliases: ['Apolo'],
   isActive: true,
 };
 
-describe('PlaceService', () => {
-  let service: PlaceService;
+describe('VenueService', () => {
+  let service: VenueService;
 
   const createMock = vi.fn();
   const findByIdMock = vi.fn();
@@ -36,9 +36,9 @@ describe('PlaceService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        PlaceService,
+        VenueService,
         {
-          provide: PLACE_REPOSITORY,
+          provide: VENUE_REPOSITORY,
           useValue: {
             create: createMock,
             findById: findByIdMock,
@@ -54,20 +54,20 @@ describe('PlaceService', () => {
       ],
     }).compile();
 
-    service = module.get<PlaceService>(PlaceService);
+    service = module.get<VenueService>(VenueService);
   });
 
-  it('should create a normalized Place for an existing Locality', async () => {
-    createMock.mockResolvedValue(PLACE);
+  it('should create a normalized Venue for an existing Locality', async () => {
+    createMock.mockResolvedValue(VENUE);
 
     await expect(
-      service.createPlace({
+      service.createVenue({
         localityId: LOCALITY_ID,
         name: ' Sala Apolo ',
         aliases: [' Apolo '],
         isActive: true,
       }),
-    ).resolves.toEqual(PLACE);
+    ).resolves.toEqual(VENUE);
     expect(hasLocalityMock).toHaveBeenCalledWith(LOCALITY_ID);
     expect(createMock).toHaveBeenCalledWith({
       localityId: LOCALITY_ID,
@@ -77,11 +77,11 @@ describe('PlaceService', () => {
     });
   });
 
-  it('should reject a Place for an unknown Locality', async () => {
+  it('should reject a Venue for an unknown Locality', async () => {
     hasLocalityMock.mockResolvedValue(false);
 
     await expect(
-      service.createPlace({
+      service.createVenue({
         localityId: LOCALITY_ID,
         name: 'Sala Apolo',
         aliases: [],
@@ -93,7 +93,7 @@ describe('PlaceService', () => {
 
   it('should reject an alias equal to the canonical name', async () => {
     await expect(
-      service.createPlace({
+      service.createVenue({
         localityId: LOCALITY_ID,
         name: 'Sala Apolo',
         aliases: ['SALA APOLO'],
@@ -104,10 +104,10 @@ describe('PlaceService', () => {
   });
 
   it('should translate a repository name conflict', async () => {
-    createMock.mockRejectedValue(new PlaceNameConflictError());
+    createMock.mockRejectedValue(new VenueNameConflictError());
 
     await expect(
-      service.createPlace({
+      service.createVenue({
         localityId: LOCALITY_ID,
         name: 'Sala Apolo',
         aliases: [],
@@ -116,42 +116,42 @@ describe('PlaceService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('should return a Place by id', async () => {
-    findByIdMock.mockResolvedValue(PLACE);
+  it('should return a Venue by id', async () => {
+    findByIdMock.mockResolvedValue(VENUE);
 
-    await expect(service.getPlaceById(PLACE_ID)).resolves.toEqual(PLACE);
-    expect(findByIdMock).toHaveBeenCalledWith(PLACE_ID);
+    await expect(service.getVenueById(VENUE_ID)).resolves.toEqual(VENUE);
+    expect(findByIdMock).toHaveBeenCalledWith(VENUE_ID);
   });
 
-  it('should reject an unknown Place id', async () => {
+  it('should reject an unknown Venue id', async () => {
     findByIdMock.mockResolvedValue(null);
 
-    await expect(service.getPlaceById(PLACE_ID)).rejects.toBeInstanceOf(
+    await expect(service.getVenueById(VENUE_ID)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
-  it('should reject a stored Place with an unknown Locality', async () => {
-    findByIdMock.mockResolvedValue(PLACE);
+  it('should reject a stored Venue with an unknown Locality', async () => {
+    findByIdMock.mockResolvedValue(VENUE);
     hasLocalityMock.mockResolvedValue(false);
 
-    await expect(service.getPlaceById(PLACE_ID)).rejects.toThrow(
-      'Place localityId "' +
+    await expect(service.getVenueById(VENUE_ID)).rejects.toThrow(
+      'Venue localityId "' +
         LOCALITY_ID +
         '" must reference an existing Locality',
     );
   });
 
   it('should normalize search and forward filters', async () => {
-    findMock.mockResolvedValue([PLACE]);
+    findMock.mockResolvedValue([VENUE]);
 
     await expect(
-      service.findPlaces({
+      service.findVenues({
         localityId: LOCALITY_ID,
         search: ' apolo ',
         isActive: true,
       }),
-    ).resolves.toEqual([PLACE]);
+    ).resolves.toEqual([VENUE]);
     expect(findMock).toHaveBeenCalledWith({
       localityId: LOCALITY_ID,
       search: 'apolo',
@@ -159,15 +159,15 @@ describe('PlaceService', () => {
     });
   });
 
-  it('should deactivate a Place while retaining its names', async () => {
-    findByIdMock.mockResolvedValue(PLACE);
-    updateMock.mockResolvedValue({ ...PLACE, isActive: false });
+  it('should deactivate a Venue while retaining its names', async () => {
+    findByIdMock.mockResolvedValue(VENUE);
+    updateMock.mockResolvedValue({ ...VENUE, isActive: false });
 
     await expect(
-      service.updatePlace({ id: PLACE_ID, isActive: false }),
-    ).resolves.toEqual({ ...PLACE, isActive: false });
+      service.updateVenue({ id: VENUE_ID, isActive: false }),
+    ).resolves.toEqual({ ...VENUE, isActive: false });
     expect(updateMock).toHaveBeenCalledWith({
-      id: PLACE_ID,
+      id: VENUE_ID,
       name: 'Sala Apolo',
       aliases: ['Apolo'],
       isActive: false,
@@ -175,16 +175,16 @@ describe('PlaceService', () => {
   });
 
   it('should reject an empty update', async () => {
-    await expect(service.updatePlace({ id: PLACE_ID })).rejects.toBeInstanceOf(
+    await expect(service.updateVenue({ id: VENUE_ID })).rejects.toBeInstanceOf(
       BadRequestException,
     );
     expect(findByIdMock).not.toHaveBeenCalled();
   });
 
-  it('should delete an existing Place', async () => {
+  it('should delete an existing Venue', async () => {
     deleteByIdMock.mockResolvedValue(true);
 
-    await expect(service.deletePlace(PLACE_ID)).resolves.toBeUndefined();
-    expect(deleteByIdMock).toHaveBeenCalledWith(PLACE_ID);
+    await expect(service.deleteVenue(VENUE_ID)).resolves.toBeUndefined();
+    expect(deleteByIdMock).toHaveBeenCalledWith(VENUE_ID);
   });
 });

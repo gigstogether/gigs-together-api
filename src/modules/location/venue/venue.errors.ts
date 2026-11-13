@@ -1,9 +1,9 @@
-export class PlaceNameConflictError extends Error {
+export class VenueNameConflictError extends Error {
   cause?: unknown;
 
   constructor(cause?: unknown) {
-    super('A Place with this name already exists in the Locality');
-    this.name = 'PlaceNameConflictError';
+    super('A Venue with this name already exists in the Locality');
+    this.name = 'VenueNameConflictError';
 
     if (cause !== undefined) {
       Object.defineProperty(this, 'cause', {

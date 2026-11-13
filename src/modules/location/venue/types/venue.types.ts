@@ -1,4 +1,4 @@
-export interface Place {
+export interface Venue {
   id: string;
   localityId: string;
   name: string;
