@@ -5,8 +5,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
-import { CommunityService } from '@modules/location/community/community.service';
-import type { Community } from '@modules/location/community/types/community.types';
+import { CommunityService } from '@modules/community/community.service';
+import type { Community } from '@modules/community/types/community.types';
 
 import { GigFeedRevalidationService } from './gig-feed-revalidation.service';
 

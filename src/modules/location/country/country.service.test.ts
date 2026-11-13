@@ -1,38 +1,30 @@
-import { Test } from '@nestjs/testing';
-import type { TestingModule } from '@nestjs/testing';
 import { CountryService } from './country.service';
-import { COUNTRY_REPOSITORY } from './repositories/country.repository';
 
 describe('CountryService', () => {
-  let service: CountryService;
+  const service = new CountryService();
 
-  const findAllOrderedByIsoMock = vi.fn();
+  it('should return the complete ordered ISO country catalog', () => {
+    const countries = service.getCountries();
 
-  beforeEach(async () => {
-    findAllOrderedByIsoMock.mockReset();
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        CountryService,
-        {
-          provide: COUNTRY_REPOSITORY,
-          useValue: {
-            findAllOrderedByIso: findAllOrderedByIsoMock,
-          },
-        },
-      ],
-    }).compile();
-
-    service = module.get<CountryService>(CountryService);
+    expect(countries).toHaveLength(249);
+    expect(countries[0]).toEqual({ iso: 'ES' });
+    expect(countries[countries.length - 1]).toEqual({ iso: 'ZW' });
   });
 
-  it('should return countries from the repository', async () => {
-    findAllOrderedByIsoMock.mockResolvedValue([{ iso: 'ES' }, { iso: 'FR' }]);
+  it('should return independent country objects', () => {
+    const firstResult = service.getCountries();
 
-    await expect(service.getCountries()).resolves.toEqual([
-      { iso: 'ES' },
-      { iso: 'FR' },
-    ]);
-    expect(findAllOrderedByIsoMock).toHaveBeenCalledOnce();
+    firstResult[0].iso = 'ZZ';
+
+    expect(service.getCountries()[0]).toEqual({ iso: 'ES' });
+  });
+
+  it('should accept a current ISO 3166-1 alpha-2 code', () => {
+    expect(service.hasCountry('FR')).toBe(true);
+  });
+
+  it('should reject an unknown or incorrectly cased code', () => {
+    expect(service.hasCountry('ZZ')).toBe(false);
+    expect(service.hasCountry('fr')).toBe(false);
   });
 });

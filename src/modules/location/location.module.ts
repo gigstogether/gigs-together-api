@@ -1,36 +1,37 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { CommunityController } from './community/community.controller';
-import { Community, CommunitySchema } from './community/community.schema';
-import { CommunityService } from './community/community.service';
-import { COMMUNITY_REPOSITORY } from './community/repositories/community.repository';
-import { MongoCommunityRepository } from './community/repositories/mongo-community.repository';
-import { Country, CountrySchema } from './country/country.schema';
 import { CountryService } from './country/country.service';
 import { CountriesController } from './country/countries.controller';
-import { COUNTRY_REPOSITORY } from './country/repositories/country.repository';
-import { MongoCountryRepository } from './country/repositories/mongo-country.repository';
+import { Locality, LocalitySchema } from './locality/locality.schema';
+import { LocalityService } from './locality/locality.service';
+import { LOCALITY_REPOSITORY } from './locality/repositories/locality.repository';
+import { MongoLocalityRepository } from './locality/repositories/mongo-locality.repository';
+import { Venue, VenueSchema } from './venue/venue.schema';
+import { VenueService } from './venue/venue.service';
+import { VENUE_REPOSITORY } from './venue/repositories/venue.repository';
+import { MongoVenueRepository } from './venue/repositories/mongo-venue.repository';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: Community.name, schema: CommunitySchema },
-      { name: Country.name, schema: CountrySchema },
+      { name: Locality.name, schema: LocalitySchema },
+      { name: Venue.name, schema: VenueSchema },
     ]),
   ],
-  controllers: [CommunityController, CountriesController],
+  controllers: [CountriesController],
   providers: [
-    CommunityService,
     CountryService,
+    LocalityService,
+    VenueService,
     {
-      provide: COMMUNITY_REPOSITORY,
-      useClass: MongoCommunityRepository,
+      provide: LOCALITY_REPOSITORY,
+      useClass: MongoLocalityRepository,
     },
     {
-      provide: COUNTRY_REPOSITORY,
-      useClass: MongoCountryRepository,
+      provide: VENUE_REPOSITORY,
+      useClass: MongoVenueRepository,
     },
   ],
-  exports: [CommunityService],
+  exports: [CountryService, LocalityService, VenueService],
 })
 export class LocationModule {}

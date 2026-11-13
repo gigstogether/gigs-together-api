@@ -34,7 +34,7 @@ import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 import { BucketService } from '@modules/bucket/bucket.service';
 import { AlertingService } from '@modules/alerting/alerting.service';
-import { CommunityService } from '../location/community/community.service';
+import { CommunityService } from '@modules/community/community.service';
 
 describe('GigCandidateService', () => {
   const jpegContentType = 'image/jpeg';

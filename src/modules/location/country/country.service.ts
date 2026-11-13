@@ -1,16 +1,19 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { COUNTRY_REPOSITORY } from './repositories/country.repository';
-import type { CountryRepository } from './repositories/country.repository';
-import type { Country } from './types/country.types';
+import { Injectable } from '@nestjs/common';
+import { COUNTRY_ISO_CODES } from './country.constants';
+
+export interface Country {
+  iso: string;
+}
+
+const COUNTRY_ISOS = new Set(COUNTRY_ISO_CODES);
 
 @Injectable()
 export class CountryService {
-  constructor(
-    @Inject(COUNTRY_REPOSITORY)
-    private readonly countryRepository: CountryRepository,
-  ) {}
+  getCountries(): Country[] {
+    return COUNTRY_ISO_CODES.map((iso) => ({ iso }));
+  }
 
-  getCountries(): Promise<readonly Country[]> {
-    return this.countryRepository.findAllOrderedByIso();
+  hasCountry(iso: string): boolean {
+    return COUNTRY_ISOS.has(iso);
   }
 }
