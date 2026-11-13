@@ -18,7 +18,7 @@ import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/teleg
 import { AiService } from '../ai/ai.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
-import { CommunityService } from '@modules/location/community/community.service';
+import { CommunityService } from '@modules/community/community.service';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
