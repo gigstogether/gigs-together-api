@@ -28,7 +28,7 @@ describe('CommunityService', () => {
     findByIdsMock.mockReset();
     findByRouteMock.mockReset();
     hasCountryMock.mockReset();
-    hasCountryMock.mockResolvedValue(true);
+    hasCountryMock.mockReturnValue(true);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -86,7 +86,7 @@ describe('CommunityService', () => {
   });
 
   it('should return null for a route outside the Country catalog', async () => {
-    hasCountryMock.mockResolvedValue(false);
+    hasCountryMock.mockReturnValue(false);
 
     await expect(
       service.findByRoute({
@@ -119,10 +119,10 @@ describe('CommunityService', () => {
     findActiveMock.mockResolvedValue([
       { id: 'community-id', countryIso: 'ZZ' },
     ]);
-    hasCountryMock.mockResolvedValue(false);
+    hasCountryMock.mockReturnValue(false);
 
     await expect(service.findActive()).rejects.toThrow(
-      'Community countryIso "ZZ" must reference an existing Country',
+      'Community countryIso "ZZ" must be a supported ISO 3166-1 alpha-2 code',
     );
   });
 });

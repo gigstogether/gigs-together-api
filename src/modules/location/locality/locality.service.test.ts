@@ -35,7 +35,7 @@ describe('LocalityService', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    hasCountryMock.mockResolvedValue(true);
+    hasCountryMock.mockReturnValue(true);
     existsByLocalityIdMock.mockResolvedValue(false);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -89,7 +89,7 @@ describe('LocalityService', () => {
   });
 
   it('should reject a Locality for an unknown Country', async () => {
-    hasCountryMock.mockResolvedValue(false);
+    hasCountryMock.mockReturnValue(false);
 
     await expect(
       service.createLocality({
@@ -152,12 +152,12 @@ describe('LocalityService', () => {
 
   it('should reject a stored Locality with an unknown Country', async () => {
     findByIdMock.mockResolvedValue(LOCALITY);
-    hasCountryMock.mockResolvedValue(false);
+    hasCountryMock.mockReturnValue(false);
 
     await expect(service.getLocalityById(LOCALITY_ID)).rejects.toThrow(
       'Locality countryIso "' +
         COUNTRY_ISO +
-        '" must reference an existing Country',
+        '" must be a supported ISO 3166-1 alpha-2 code',
     );
   });
 

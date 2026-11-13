@@ -61,7 +61,7 @@ export class LocalityService {
       params.aliases,
       params.timeZone,
     );
-    await this.requireCountry(params.countryIso);
+    this.requireCountry(params.countryIso);
 
     try {
       return await this.localityRepository.create({
@@ -82,7 +82,7 @@ export class LocalityService {
       );
     }
 
-    await this.assertCountriesExist([locality]);
+    this.assertCountriesExist([locality]);
 
     return locality;
   }
@@ -94,7 +94,7 @@ export class LocalityService {
       return false;
     }
 
-    await this.assertCountriesExist([locality]);
+    this.assertCountriesExist([locality]);
 
     return true;
   }
@@ -106,7 +106,7 @@ export class LocalityService {
     let search: string | undefined;
 
     if (params.countryIso !== undefined) {
-      await this.requireCountry(params.countryIso);
+      this.requireCountry(params.countryIso);
       countryIso = params.countryIso;
     }
     if (params.search !== undefined) {
@@ -120,7 +120,7 @@ export class LocalityService {
       countryIso,
       search,
     });
-    await this.assertCountriesExist(localities);
+    this.assertCountriesExist(localities);
 
     return localities;
   }
@@ -236,30 +236,28 @@ export class LocalityService {
     return localityData;
   }
 
-  private async requireCountry(countryIso: string): Promise<void> {
-    const hasCountry = await this.countryService.hasCountry(countryIso);
+  private requireCountry(countryIso: string): void {
+    const hasCountry = this.countryService.hasCountry(countryIso);
 
     if (!hasCountry) {
       throw new BadRequestException(
-        'Country with ISO code "' + countryIso + '" does not exist',
+        'Country ISO code "' + countryIso + '" is not supported',
       );
     }
   }
 
-  private async assertCountriesExist(
-    localities: readonly Locality[],
-  ): Promise<void> {
+  private assertCountriesExist(localities: readonly Locality[]): void {
     const countryIsos = new Set(
       localities.map((locality) => locality.countryIso),
     );
 
     for (const countryIso of countryIsos) {
-      const hasCountry = await this.countryService.hasCountry(countryIso);
+      const hasCountry = this.countryService.hasCountry(countryIso);
       if (!hasCountry) {
         throw new Error(
           'Locality countryIso "' +
             countryIso +
-            '" must reference an existing Country',
+            '" must be a supported ISO 3166-1 alpha-2 code',
         );
       }
     }

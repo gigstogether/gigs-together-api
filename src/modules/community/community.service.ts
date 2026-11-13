@@ -22,7 +22,7 @@ export class CommunityService {
     const community = await this.communityRepository.findById(id);
 
     if (community !== null) {
-      await this.assertCountriesExist([community]);
+      this.assertCountriesExist([community]);
     }
 
     return community;
@@ -30,7 +30,7 @@ export class CommunityService {
 
   async findByIds(ids: string[]): Promise<readonly Community[]> {
     const communities = await this.communityRepository.findByIds(ids);
-    await this.assertCountriesExist(communities);
+    this.assertCountriesExist(communities);
 
     return communities;
   }
@@ -42,7 +42,7 @@ export class CommunityService {
       throw new Error('Community slug must be a lowercase route slug');
     }
 
-    const hasCountry = await this.countryService.hasCountry(params.countryIso);
+    const hasCountry = this.countryService.hasCountry(params.countryIso);
     if (!hasCountry) {
       return null;
     }
@@ -52,25 +52,23 @@ export class CommunityService {
 
   async findActive(): Promise<readonly Community[]> {
     const communities = await this.communityRepository.findActive();
-    await this.assertCountriesExist(communities);
+    this.assertCountriesExist(communities);
 
     return communities;
   }
 
-  private async assertCountriesExist(
-    communities: readonly Community[],
-  ): Promise<void> {
+  private assertCountriesExist(communities: readonly Community[]): void {
     const countryIsos = new Set(
       communities.map((community) => community.countryIso),
     );
 
     for (const countryIso of countryIsos) {
-      const hasCountry = await this.countryService.hasCountry(countryIso);
+      const hasCountry = this.countryService.hasCountry(countryIso);
       if (!hasCountry) {
         throw new Error(
           'Community countryIso "' +
             countryIso +
-            '" must reference an existing Country',
+            '" must be a supported ISO 3166-1 alpha-2 code',
         );
       }
     }
