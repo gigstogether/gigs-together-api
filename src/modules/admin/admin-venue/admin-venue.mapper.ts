@@ -19,9 +19,6 @@ export function mapV1AdminVenuesGetRequest(
   if (query.localityId !== undefined) {
     params.localityId = query.localityId;
   }
-  if (query.search !== undefined) {
-    params.search = query.search;
-  }
   if (query.isActive !== undefined) {
     params.isActive = query.isActive;
   }

@@ -29,7 +29,6 @@ const VENUE_SORT = { localityId: 1, name: 1, _id: 1 } as const;
 interface VenueMongoFilter {
   localityId?: Types.ObjectId;
   isActive?: boolean;
-  $or?: Array<{ name: RegExp } | { aliases: RegExp }>;
 }
 
 @Injectable()
@@ -106,10 +105,6 @@ export class MongoVenueRepository implements VenueRepository {
     if (params.isActive !== undefined) {
       filter.isActive = params.isActive;
     }
-    if (params.search !== undefined) {
-      const pattern = new RegExp(escapeRegExp(params.search), 'iu');
-      filter.$or = [{ name: pattern }, { aliases: pattern }];
-    }
 
     const docs = await this.venueModel
       .find(filter, VENUE_PROJECTION)
@@ -173,10 +168,6 @@ export class MongoVenueRepository implements VenueRepository {
 
     return result.deletedCount === 1;
   }
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^\x24{}()|[\]\\]/g, '\\$&');
 }
 
 function isDuplicateKeyError(e: unknown): boolean {

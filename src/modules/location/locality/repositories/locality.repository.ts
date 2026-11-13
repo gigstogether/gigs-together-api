@@ -12,7 +12,6 @@ export interface CreateLocalityRecordParams {
 
 export interface FindLocalitiesParams {
   countryIso?: string;
-  search?: string;
 }
 
 export interface UpdateLocalityRecordParams {

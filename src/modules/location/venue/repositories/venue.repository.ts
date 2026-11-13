@@ -11,7 +11,6 @@ export interface CreateVenueRecordParams {
 
 export interface FindVenuesParams {
   localityId?: string;
-  search?: string;
   isActive?: boolean;
 }
 

@@ -27,7 +27,6 @@ export interface CreateVenueParams {
 
 export interface FindVenuesParams {
   localityId?: string;
-  search?: string;
   isActive?: boolean;
 }
 
@@ -98,9 +97,6 @@ export class VenueService {
     if (params.localityId !== undefined) {
       await this.requireLocality(params.localityId);
       repositoryParams.localityId = params.localityId;
-    }
-    if (params.search !== undefined) {
-      repositoryParams.search = this.normalizeSearch(params.search);
     }
     if (params.isActive !== undefined) {
       repositoryParams.isActive = params.isActive;
@@ -245,15 +241,6 @@ export class VenueService {
     }
 
     return { name, aliases };
-  }
-
-  private normalizeSearch(rawSearch: string): string {
-    const search = rawSearch.trim();
-    if (search.length === 0) {
-      throw new BadRequestException('Venue search must not be blank');
-    }
-
-    return search;
   }
 
   private async requireLocality(localityId: string): Promise<void> {

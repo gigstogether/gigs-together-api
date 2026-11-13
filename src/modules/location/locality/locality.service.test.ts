@@ -161,15 +161,14 @@ describe('LocalityService', () => {
     );
   });
 
-  it('should normalize search and forward filters', async () => {
+  it('should forward a supported Country filter', async () => {
     findMock.mockResolvedValue([LOCALITY]);
 
     await expect(
-      service.findLocalities({ countryIso: COUNTRY_ISO, search: ' bar ' }),
+      service.findLocalities({ countryIso: COUNTRY_ISO }),
     ).resolves.toEqual([LOCALITY]);
     expect(findMock).toHaveBeenCalledWith({
       countryIso: COUNTRY_ISO,
-      search: 'bar',
     });
   });
 

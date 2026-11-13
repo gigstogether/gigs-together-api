@@ -33,7 +33,6 @@ export interface CreateLocalityParams {
 
 export interface FindLocalitiesParams {
   countryIso?: string;
-  search?: string;
 }
 
 export interface UpdateLocalityParams {
@@ -103,23 +102,13 @@ export class LocalityService {
     params: FindLocalitiesParams,
   ): Promise<readonly Locality[]> {
     let countryIso: string | undefined;
-    let search: string | undefined;
 
     if (params.countryIso !== undefined) {
       this.requireCountry(params.countryIso);
       countryIso = params.countryIso;
     }
-    if (params.search !== undefined) {
-      search = params.search.trim();
-      if (search.length === 0) {
-        throw new BadRequestException('Locality search must not be blank');
-      }
-    }
 
-    const localities = await this.localityRepository.find({
-      countryIso,
-      search,
-    });
+    const localities = await this.localityRepository.find({ countryIso });
     this.assertCountriesExist(localities);
 
     return localities;

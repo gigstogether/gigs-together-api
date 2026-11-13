@@ -163,19 +163,17 @@ describe('VenueService', () => {
     );
   });
 
-  it('should normalize search and forward filters', async () => {
+  it('should forward Locality and active-state filters', async () => {
     findMock.mockResolvedValue([VENUE]);
 
     await expect(
       service.findVenues({
         localityId: LOCALITY_ID,
-        search: ' apolo ',
         isActive: true,
       }),
     ).resolves.toEqual([VENUE]);
     expect(findMock).toHaveBeenCalledWith({
       localityId: LOCALITY_ID,
-      search: 'apolo',
       isActive: true,
     });
   });

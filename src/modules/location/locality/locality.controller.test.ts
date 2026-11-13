@@ -39,7 +39,7 @@ describe('LocalityController', () => {
     );
   });
 
-  it('should return Localities with qualifier and without search aliases', async () => {
+  it('should return Localities with qualifier and without aliases', async () => {
     findLocalitiesMock.mockResolvedValue([LOCALITY]);
 
     await expect(

@@ -144,7 +144,7 @@ describe('MongoVenueRepository', () => {
     );
   });
 
-  it('should search Venues by Locality, active state, name, and aliases', async () => {
+  it('should find Venues by Locality and active state', async () => {
     const execMock = vi.fn().mockResolvedValue([VENUE_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
@@ -153,7 +153,6 @@ describe('MongoVenueRepository', () => {
     await expect(
       repository.find({
         localityId: LOCALITY_ID,
-        search: 'apolo',
         isActive: true,
       }),
     ).resolves.toEqual([expect.objectContaining({ id: VENUE_ID })]);
@@ -161,7 +160,6 @@ describe('MongoVenueRepository', () => {
       {
         localityId: new Types.ObjectId(LOCALITY_ID),
         isActive: true,
-        $or: [{ name: expect.any(RegExp) }, { aliases: expect.any(RegExp) }],
       },
       VENUE_PROJECTION,
     );

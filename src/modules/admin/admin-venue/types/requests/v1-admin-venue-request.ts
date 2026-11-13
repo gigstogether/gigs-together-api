@@ -25,12 +25,6 @@ export class V1AdminVenuesGetQueryDto {
   localityId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
-  @MinLength(1)
-  search?: string;
-
-  @IsOptional()
   @Transform(({ value }) => {
     if (value === 'true') {
       return true;
