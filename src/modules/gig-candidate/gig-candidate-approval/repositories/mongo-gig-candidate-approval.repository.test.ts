@@ -81,6 +81,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       ...reviewing,
       gigDraft: {
         communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439012')],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
@@ -103,6 +104,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         toObject: vi.fn().mockReturnValue({
           _id: new Types.ObjectId(gigId),
           communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          venueIds: [new Types.ObjectId('507f1f77bcf86cd799439012')],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -136,6 +138,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -148,6 +151,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       const gig = await transaction.createGig({
         gigId,
         communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439012'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -189,6 +193,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           approvedByUserId: expect.any(Types.ObjectId),
           gigDraft: expect.objectContaining({
             communityIds: [expect.any(Types.ObjectId)],
+            venueIds: [expect.any(Types.ObjectId)],
           }),
         }),
         $pull: {
@@ -208,6 +213,8 @@ describe('MongoGigCandidateApprovalRepository', () => {
     expect(createdGigDocument).not.toHaveProperty('suggestedBy');
     expect(createdGigDocument).not.toHaveProperty('gigCandidateId');
     expect(createdGigDocument).toMatchObject({
+      communityIds: [expect.any(Types.ObjectId)],
+      venueIds: [expect.any(Types.ObjectId)],
       version: 0,
       isVisible: true,
       source: {
@@ -230,6 +237,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       queryResult({
         _id: new Types.ObjectId(gigId),
         communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439012')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -272,6 +280,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
       queryResult({
         _id: new Types.ObjectId(gigId),
         communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439012')],
         publicId: 'provider-gig-2026-09-20',
         title: 'Provider Gig',
         date: Date.UTC(2026, 8, 20),
@@ -317,6 +326,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           posts: [],
           gigDraft: {
             communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            venueIds: [new Types.ObjectId('507f1f77bcf86cd799439012')],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -342,6 +352,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
           approvedAt: new Date('2026-09-01T12:00:00.000Z'),
           gigDraft: {
             communityIds: ['507f1f77bcf86cd799439011'],
+            venueIds: ['507f1f77bcf86cd799439012'],
             title: 'Radiohead',
             date: Date.UTC(2026, 5, 12),
             city: 'Barcelona',
@@ -354,6 +365,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         return transaction.createGig({
           gigId: '507f1f77bcf86cd799439011',
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           publicId: 'radiohead-2026-06-12',
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
@@ -401,6 +413,7 @@ describe('MongoGigCandidateApprovalRepository', () => {
         approvedAt: new Date('2026-09-01T12:00:00.000Z'),
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',

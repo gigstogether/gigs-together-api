@@ -2058,6 +2058,7 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2093,6 +2094,11 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(gig);
 
+      expect(venueServiceMock.resolveVenueSelection).toHaveBeenCalledWith({
+        venueIds: ['507f1f77bcf86cd799439012'],
+        isActiveRequired: true,
+      });
+
       expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
         expect.objectContaining({
           gigCandidateId: reviewing.id,
@@ -2106,6 +2112,7 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).toHaveBeenCalledWith({
         gigId: gig.id,
         communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439012'],
         publicId: gig.publicId,
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -2157,6 +2164,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2245,6 +2253,41 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
     });
 
+    it('should leave Reviewing unchanged when Venue assignments cannot be resolved', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
+        },
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      venueServiceMock.resolveVenueSelection.mockRejectedValueOnce(
+        new BadRequestException(
+          'All assigned Venues must belong to the same Locality',
+        ),
+      );
+
+      await expect(
+        approvalService.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toThrow('All assigned Venues must belong to the same Locality');
+      expect(
+        approvalTransactionMock.approveGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+    });
+
     it('should return the existing Gig for an already Approved GigCandidate', async () => {
       const gig = buildGigApprovalResult();
       const approved = buildGigCandidate({
@@ -2291,6 +2334,7 @@ describe('GigCandidateService', () => {
         source,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2333,6 +2377,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2367,6 +2412,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2919,6 +2965,7 @@ function buildGigApprovalResult(
   return {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'radiohead-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),

@@ -72,6 +72,7 @@ describe('AdminGigCandidateController', () => {
   const gigApprovalResult: GigApprovalResult = {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'band-2026-09-20',
     title: 'Band',
     date: Date.UTC(2026, 8, 20),

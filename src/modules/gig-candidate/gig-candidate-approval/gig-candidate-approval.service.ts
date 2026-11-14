@@ -16,6 +16,7 @@ import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
 import { GigCandidateFeedbackService } from '../gig-candidate-feedback.service';
@@ -64,6 +65,7 @@ export class GigCandidateApprovalService {
     @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigService: GigService,
+    private readonly venueService: VenueService,
     private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly calendarService: CalendarService,
     private readonly alertingService: AlertingService,
@@ -121,6 +123,10 @@ export class GigCandidateApprovalService {
 
     this.assertExpectedVersionMatches(gigCandidate, params.expectedVersion);
     const gigData = validateGigCandidateDraftForApproval(gigCandidate.gigDraft);
+    await this.venueService.resolveVenueSelection({
+      venueIds: gigData.venueIds,
+      isActiveRequired: true,
+    });
     const gigId = transaction.createGigId();
     const publicId = await this.generateUniqueGigPublicId(
       gigData.title,

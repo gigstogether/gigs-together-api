@@ -9,6 +9,7 @@ import type { GigApprovalResultLeanDocument } from './gig-candidate-approval.rep
 
 const completeGigDraft = {
   communityIds: ['507f1f77bcf86cd799439011'],
+  venueIds: ['507f1f77bcf86cd799439012'],
   title: 'Radiohead',
   date: Date.UTC(2026, 5, 12),
   city: 'Barcelona',
@@ -54,6 +55,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
       const data = GigCandidateApprovalRepositoryMapper.toGigCreationData({
         gigId: '507f1f77bcf86cd799439011',
         communityIds: ['507f1f77bcf86cd799439022'],
+        venueIds: ['507f1f77bcf86cd799439033'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -81,6 +83,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
       expect(data).toEqual({
         _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
         communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439033')],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -116,6 +119,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
       const document: GigApprovalResultLeanDocument = {
         _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
         communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439033')],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -140,6 +144,7 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
       expect(result).toEqual({
         id: '507f1f77bcf86cd799439011',
         communityIds: ['507f1f77bcf86cd799439022'],
+        venueIds: ['507f1f77bcf86cd799439033'],
         publicId: 'radiohead-2026-06-12',
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),

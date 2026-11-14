@@ -9,6 +9,7 @@ import {
 import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import type { CalendarEvent } from '@modules/calendar/calendar.types';
+import { VenueService } from '@modules/location/venue/venue.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
 import { GigService } from '../../gig/gig.service';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
@@ -41,6 +42,8 @@ describe('GigCandidateApprovalService', () => {
     vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
   const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
+  const resolveVenueSelectionMock =
+    vi.fn<VenueService['resolveVenueSelection']>();
   const reportFailureBestEffortMock =
     vi.fn<AlertingService['reportFailureBestEffort']>();
   const sendFeedbackBestEffortMock =
@@ -82,6 +85,7 @@ describe('GigCandidateApprovalService', () => {
   const approvedGig: GigApprovalResult = {
     id: 'gig-id',
     communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'radiohead-madrid-2026-10-30',
     title: 'Radiohead',
     date: Date.parse('2026-10-30T20:00:00.000Z'),
@@ -111,6 +115,24 @@ describe('GigCandidateApprovalService', () => {
     gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
+    resolveVenueSelectionMock.mockResolvedValue({
+      locality: {
+        id: '507f1f77bcf86cd799439013',
+        countryIso: 'ES',
+        name: 'Madrid',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [
+        {
+          id: '507f1f77bcf86cd799439012',
+          localityId: '507f1f77bcf86cd799439013',
+          name: 'La Riviera',
+          aliases: [],
+          isActive: true,
+        },
+      ],
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -122,6 +144,10 @@ describe('GigCandidateApprovalService', () => {
         {
           provide: GigService,
           useValue: { gigToCalendarPayload: gigToCalendarPayloadMock },
+        },
+        {
+          provide: VenueService,
+          useValue: { resolveVenueSelection: resolveVenueSelectionMock },
         },
         {
           provide: GigFeedRevalidationService,

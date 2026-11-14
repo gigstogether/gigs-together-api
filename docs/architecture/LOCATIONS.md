@@ -57,10 +57,10 @@ persistence and application behavior. `AdminModule` owns the authenticated
 administrative HTTP controllers and their versioned Locality and Venue request
 and response contracts.
 
-Gig relationships are introduced separately. Public GigCandidate creation uses
-Locality and Venue IDs, while Gig responses, moderation, and physical-location
-integrations continue to use the legacy `country`, `city`, and `venue` fields
-until the remaining runtime relationships and migration are ready.
+Public GigCandidate creation, approval, and Gig persistence use Locality and
+Venue IDs. Gig responses, moderation forms, and physical-location integrations
+continue to use the legacy `country`, `city`, and `venue` fields until their
+runtime contracts and the historical-data migration are ready.
 
 ## Country
 
@@ -227,6 +227,12 @@ active Venues at creation time. All Venues assigned to one Gig must belong to th
 same Locality. A
 multi-venue festival stores every independently addressable venue in `venueIds`;
 the array order does not imply a primary venue.
+
+Approval validates the complete draft, resolves `venueIds` through
+`VenueService`, and rejects missing, unknown, inactive, duplicate, or
+cross-Locality assignments before the Gig and approved candidate state are
+written in one transaction. Gig persistence stores Venue references as MongoDB
+ObjectIds and maps them back to opaque string IDs at the repository boundary.
 
 `GigCandidate.gigDraft.communityIds` remains required for every source. Other
 draft fields remain optional so messenger suggestions may be incomplete. A web
