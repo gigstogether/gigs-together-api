@@ -19,16 +19,19 @@ import { AiService } from '../ai/ai.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
 import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
 import { CommunityService } from '@modules/community/community.service';
+import { LocalityService } from '@modules/location/locality/locality.service';
+import { VenueService } from '@modules/location/venue/venue.service';
+import type { Locality } from '@modules/location/locality/types/locality.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { formatTelegramErrorMessage } from '../telegram/utils/telegram-error';
 import { PostEditKind } from '../telegram/telegram-composer.service.types';
 import { GIG_CANDIDATE_REPOSITORY } from './repositories/gig-candidate.repository';
 import type {
+  CreateGigCandidateParams,
   GigCandidateRepository,
   SendGigCandidateToModerationRecordParams,
 } from './repositories/gig-candidate.repository';
-import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import type {
   GigCandidate,
@@ -125,13 +128,24 @@ export interface UpdateGigCandidateDraftApplicationParams {
 }
 
 const DATE_YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
-const COMMUNITY_ID_RE = /^[a-f\d]{24}$/i;
+const MONGO_ID_RE = /^[a-f\d]{24}$/i;
 const MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX = 'suggestions';
 
-interface HandleGigCandidateSubmitParams {
-  body: V1CreateGigCandidateRequestBody;
+export interface PublicGigCandidateInput {
+  communityId: string;
+  localityId: string;
+  venueId?: string;
+  title: string;
+  date: string;
+  endDate?: string;
+  ticketsUrl?: string;
+  posterUrl?: string;
+}
+
+export interface CreatePublicGigCandidateParams {
+  gig: PublicGigCandidateInput;
   user: User;
-  posterFile: GigPosterFile | undefined;
+  posterFile?: GigPosterFile;
 }
 
 interface CreatedGigCandidate {
@@ -140,13 +154,12 @@ interface CreatedGigCandidate {
 }
 
 interface ParsedCreateGigCandidateFields {
-  communityIds: string[];
+  communityId: string;
+  localityId: string;
+  venueId?: string;
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue?: string;
   ticketsUrl?: string;
   posterUrl?: string;
 }
@@ -168,14 +181,16 @@ export class GigCandidateService {
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
     private readonly bucketService: BucketService,
     private readonly communityService: CommunityService,
+    private readonly localityService: LocalityService,
+    private readonly venueService: VenueService,
   ) {}
 
   private readonly logger = new Logger(GigCandidateService.name);
 
-  async handleSubmit(
-    params: HandleGigCandidateSubmitParams,
+  async createPublicGigCandidate(
+    params: CreatePublicGigCandidateParams,
   ): Promise<V1CreateGigCandidateResponseBody> {
-    const created = await this.createGigCandidate(params);
+    const created = await this.createPublicGigCandidateRecord(params);
     const saved = created.gigCandidate;
     const telegramPosterFile = mapPreparedGigPosterToTelegramInputFile(
       created.posterFile,
@@ -619,11 +634,11 @@ export class GigCandidateService {
     );
   }
 
-  private async createGigCandidate(
-    params: HandleGigCandidateSubmitParams,
+  private async createPublicGigCandidateRecord(
+    params: CreatePublicGigCandidateParams,
   ): Promise<CreatedGigCandidate> {
-    const { body, user, posterFile } = params;
-    const gig = this.parseAndValidateCreateBody(body.gig);
+    const { gig: rawGig, user, posterFile } = params;
+    const gig = this.parseAndValidateCreateBody(rawGig);
 
     const dateMs = this.parseRequiredDateMs(gig.date, 'date');
     let endDateMs: number | undefined;
@@ -632,34 +647,65 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const communityIds = await this.requireActiveCommunityIds(gig.communityIds);
+    const communityIds = await this.requireActiveCommunityIds([
+      gig.communityId,
+    ]);
     const gigDraft: GigCandidateDraft = {
       communityIds,
       title: gig.title,
       date: dateMs,
-      city: gig.city,
-      country: gig.country,
     };
     if (endDateMs !== undefined) {
       gigDraft.endDate = endDateMs;
     }
-    if (gig.venue !== undefined) {
-      gigDraft.venue = gig.venue;
-    }
     if (gig.ticketsUrl !== undefined) {
       gigDraft.ticketsUrl = gig.ticketsUrl;
+    }
+
+    let localityId: string | undefined;
+    let locality: Locality;
+    if (gig.venueId === undefined) {
+      try {
+        locality = await this.localityService.getLocalityById(gig.localityId);
+      } catch (e) {
+        if (!(e instanceof NotFoundException)) {
+          throw e;
+        }
+        throw new BadRequestException(
+          'localityId must reference an existing Locality',
+          { cause: e },
+        );
+      }
+      localityId = gig.localityId;
+    } else {
+      const resolvedVenueSelection =
+        await this.venueService.resolveVenueSelection({
+          venueIds: [gig.venueId],
+          isActiveRequired: true,
+        });
+      if (resolvedVenueSelection.locality.id !== gig.localityId) {
+        throw new BadRequestException(
+          'venueId must reference a Venue in the selected Locality',
+        );
+      }
+      locality = resolvedVenueSelection.locality;
+      gigDraft.venueIds = [gig.venueId];
     }
 
     const preparedPoster =
       await this.gigCandidatePosterService.prepareDraftPoster({
         gigCandidateId: id,
         gigDraft,
+        location: {
+          name: locality.name,
+          countryIso: locality.countryIso,
+        },
         posterUrl: gig.posterUrl,
         posterFile,
         shouldUseDefaultPoster: false,
       });
 
-    const gigCandidate = await this.gigCandidateRepository.createGigCandidate({
+    const createParams: CreateGigCandidateParams = {
       gigCandidateId: id,
       status: GigCandidateStatus.New,
       source: {
@@ -668,7 +714,13 @@ export class GigCandidateService {
         origin: { type: GigSourceUserOriginType.Form },
       },
       gigDraft: preparedPoster.gigDraft,
-    });
+    };
+    if (localityId !== undefined) {
+      createParams.localityId = localityId;
+    }
+
+    const gigCandidate =
+      await this.gigCandidateRepository.createGigCandidate(createParams);
 
     const result: CreatedGigCandidate = { gigCandidate };
     if (preparedPoster.posterFile !== undefined) {
@@ -686,7 +738,7 @@ export class GigCandidateService {
       );
     }
     const normalizedCommunityIds = communityIds.map((communityId) => {
-      if (!COMMUNITY_ID_RE.test(communityId)) {
+      if (!MONGO_ID_RE.test(communityId)) {
         throw new BadRequestException(
           'communityIds must contain valid Community ids',
         );
@@ -715,19 +767,17 @@ export class GigCandidateService {
   }
 
   private parseAndValidateCreateBody(
-    raw: V1CreateGigCandidateRequestBody['gig'],
+    raw: PublicGigCandidateInput,
   ): ParsedCreateGigCandidateFields {
+    const communityId = this.requireMongoId(raw.communityId, 'communityId');
+    const localityId = this.requireMongoId(raw.localityId, 'localityId');
+    const venueId = this.optionalMongoId(raw.venueId, 'venueId');
     const title = this.requireNonEmptyString(raw.title, 'title');
     if (title.length > GIG_TITLE_MAX_LENGTH) {
       throw new BadRequestException(
         `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
       );
     }
-    const city = this.requireNonEmptyString(raw.city, 'city');
-    const country = this.requireNonEmptyString(
-      raw.country,
-      'country',
-    ).toUpperCase();
     const date = this.requireNonEmptyString(raw.date, 'date');
     if (!DATE_YMD_RE.test(date)) {
       throw new BadRequestException('date must be in YYYY-MM-DD format');
@@ -742,7 +792,6 @@ export class GigCandidateService {
       throw new BadRequestException('endDate must be on or after date');
     }
 
-    const venue = this.optionalNonEmptyString(raw.venue);
     const ticketsUrl = this.optionalNonEmptyString(raw.ticketsUrl);
     if (ticketsUrl !== undefined) {
       try {
@@ -759,17 +808,39 @@ export class GigCandidateService {
       throw new BadRequestException('posterUrl is temporarily disabled');
     }
 
-    return {
-      communityIds: [...raw.communityIds],
+    const parsed: ParsedCreateGigCandidateFields = {
+      communityId,
+      localityId,
       title,
       date,
-      ...(endDate !== undefined ? { endDate } : {}),
-      city,
-      country,
-      ...(venue !== undefined ? { venue } : {}),
-      ...(ticketsUrl !== undefined ? { ticketsUrl } : {}),
-      ...(posterUrl !== undefined ? { posterUrl } : {}),
     };
+    if (venueId !== undefined) {
+      parsed.venueId = venueId;
+    }
+    if (endDate !== undefined) {
+      parsed.endDate = endDate;
+    }
+    if (ticketsUrl !== undefined) {
+      parsed.ticketsUrl = ticketsUrl;
+    }
+    if (posterUrl !== undefined) {
+      parsed.posterUrl = posterUrl;
+    }
+
+    return parsed;
+  }
+
+  private requireMongoId(value: unknown, field: string): string {
+    const id = this.requireNonEmptyString(value, field).toLowerCase();
+    if (!MONGO_ID_RE.test(id)) {
+      throw new BadRequestException(`${field} must be a valid ObjectId`);
+    }
+    return id;
+  }
+
+  private optionalMongoId(value: unknown, field: string): string | undefined {
+    const id = this.optionalNonEmptyString(value);
+    return id === undefined ? undefined : this.requireMongoId(id, field);
   }
 
   private requireNonEmptyString(value: unknown, field: string): string {

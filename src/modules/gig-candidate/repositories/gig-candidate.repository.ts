@@ -16,6 +16,7 @@ export interface CreateGigCandidateParams {
   gigCandidateId: string;
   status: GigCandidateStatus.New | GigCandidateStatus.Reviewing;
   source: GigCandidateSource;
+  localityId?: string;
   gigDraft: GigCandidateDraft;
 }
 

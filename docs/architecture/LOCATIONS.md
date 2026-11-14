@@ -57,9 +57,10 @@ persistence and application behavior. `AdminModule` owns the authenticated
 administrative HTTP controllers and their versioned Locality and Venue request
 and response contracts.
 
-Gig relationships are introduced separately. Gig responses and physical-location
+Gig relationships are introduced separately. Public GigCandidate creation uses
+Locality and Venue IDs, while Gig responses, moderation, and physical-location
 integrations continue to use the legacy `country`, `city`, and `venue` fields
-until the runtime relationships and migration are ready.
+until the remaining runtime relationships and migration are ready.
 
 ## Country
 
@@ -222,15 +223,24 @@ GigCandidate.gigDraft.venueIds[]
 ```
 
 Approved Gig assignments are non-empty, contain no duplicate IDs, and reference
-active Venues at creation time. All Venues assigned to one Gig must resolve to the
-same Country and IANA time zone, while different Localities are allowed. A
+active Venues at creation time. All Venues assigned to one Gig must belong to the
+same Locality. A
 multi-venue festival stores every independently addressable venue in `venueIds`;
 the array order does not imply a primary venue.
 
-GigCandidate may additionally preserve unresolved source proposals until an admin
-selects an existing Venue or creates a catalog entry. Approval requires all final
-physical locations to be resolved to `venueIds`. The exact candidate proposal
-wire contract must be reviewed before implementation.
+`GigCandidate.gigDraft.communityIds` remains required for every source. Other
+draft fields remain optional so messenger suggestions may be incomplete. A web
+form submission selects one existing Locality and may optionally select one
+active Venue from that Locality. The Country field is only a Locality catalog
+filter and is not persisted on the candidate.
+
+When the web form does not select a Venue, the candidate stores the selected
+Locality temporarily at `GigCandidate.localityId`. When it selects a Venue, the
+candidate stores `gigDraft.venueIds` and omits the root `localityId`. The two
+forms of assignment must never coexist. Approval requires the final physical
+location to be resolved to a non-empty `venueIds` array; moderation may replace
+the temporary Locality assignment with one or more Venues from that same
+Locality.
 
 Legacy `country`, `city`, and `venue` remain in runtime contracts until the Gig
 relationships and their migration are complete. The migration must run only

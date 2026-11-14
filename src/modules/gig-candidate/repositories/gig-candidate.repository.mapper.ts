@@ -62,8 +62,10 @@ const GIG_CANDIDATE_PROVIDER_SOURCE_KEYS = new Set(['type', 'provider']);
 export interface GigCandidateLeanDocument {
   _id: MongoId;
   source: GigCandidateLeanSource;
-  gigDraft: Omit<GigCandidateDraft, 'communityIds'> & {
+  localityId?: MongoId;
+  gigDraft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> & {
     communityIds: unknown;
+    venueIds?: unknown;
   };
   version: number;
   status: GigCandidateStatus;
@@ -80,6 +82,7 @@ export interface GigCandidateLeanDocument {
 interface GigCandidateStateFields {
   id: string;
   status: GigCandidateStatus;
+  localityId?: string;
   gigDraft: GigCandidateDraft;
   gigId?: string;
   approvedAt?: Date;
@@ -91,17 +94,31 @@ interface GigCandidateStateFields {
 export class GigCandidateRepositoryMapper {
   static toStoredGigDraft(gigDraft: GigCandidateDraft): Omit<
     GigCandidateDraft,
-    'communityIds'
+    'communityIds' | 'venueIds'
   > & {
     communityIds: Types.ObjectId[];
+    venueIds?: Types.ObjectId[];
   } {
-    return {
-      ...gigDraft,
+    const { communityIds, venueIds, ...draft } = gigDraft;
+    const storedDraft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> & {
+      communityIds: Types.ObjectId[];
+      venueIds?: Types.ObjectId[];
+    } = {
+      ...draft,
       communityIds: toObjectIdArray(
-        gigDraft.communityIds,
+        communityIds,
         'GigCandidate gigDraft communityIds',
       ),
     };
+
+    if (venueIds !== undefined) {
+      storedDraft.venueIds = toObjectIdArray(
+        venueIds,
+        'GigCandidate gigDraft venueIds',
+      );
+    }
+
+    return storedDraft;
   }
 
   static toStoredSource(source: GigCandidateSource): GigCandidateStoredSource {
@@ -151,13 +168,21 @@ export class GigCandidateRepositoryMapper {
 
   static toGigCandidate(doc: GigCandidateLeanDocument): GigCandidate {
     const id = this.toId(doc._id, 'id');
+    const { communityIds, venueIds, ...draft } = doc.gigDraft;
     const gigDraft: GigCandidateDraft = {
-      ...doc.gigDraft,
+      ...draft,
       communityIds: fromObjectIdArray(
-        doc.gigDraft.communityIds,
+        communityIds,
         `GigCandidate ${id} gigDraft communityIds`,
       ),
     };
+    if (venueIds !== undefined) {
+      gigDraft.venueIds = fromObjectIdArray(
+        venueIds,
+        `GigCandidate ${id} gigDraft venueIds`,
+      );
+    }
+    const localityId = this.toOptionalId(doc.localityId, 'localityId');
     const gigId = this.toOptionalId(doc.gigId, 'gigId');
     const approvedByUserId = this.toOptionalId(
       doc.approvedByUserId,
@@ -171,6 +196,7 @@ export class GigCandidateRepositoryMapper {
     this.assertStateInvariants({
       id,
       status: doc.status,
+      localityId,
       gigDraft,
       gigId,
       approvedAt: doc.approvedAt,
@@ -179,21 +205,36 @@ export class GigCandidateRepositoryMapper {
       rejectedByUserId,
     });
 
-    return {
+    const gigCandidate: GigCandidate = {
       id,
       source: this.toSource(doc.source, id),
       gigDraft,
       version: doc.version,
       status: doc.status,
       posts: doc.posts.map((post) => ({ ...post })),
-      ...(gigId !== undefined ? { gigId } : {}),
-      ...(doc.approvedAt !== undefined ? { approvedAt: doc.approvedAt } : {}),
-      ...(approvedByUserId !== undefined ? { approvedByUserId } : {}),
-      ...(doc.rejectedAt !== undefined ? { rejectedAt: doc.rejectedAt } : {}),
-      ...(rejectedByUserId !== undefined ? { rejectedByUserId } : {}),
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     };
+    if (localityId !== undefined) {
+      gigCandidate.localityId = localityId;
+    }
+    if (gigId !== undefined) {
+      gigCandidate.gigId = gigId;
+    }
+    if (doc.approvedAt !== undefined) {
+      gigCandidate.approvedAt = doc.approvedAt;
+    }
+    if (approvedByUserId !== undefined) {
+      gigCandidate.approvedByUserId = approvedByUserId;
+    }
+    if (doc.rejectedAt !== undefined) {
+      gigCandidate.rejectedAt = doc.rejectedAt;
+    }
+    if (rejectedByUserId !== undefined) {
+      gigCandidate.rejectedByUserId = rejectedByUserId;
+    }
+
+    return gigCandidate;
   }
 
   private static toSource(
@@ -384,6 +425,15 @@ export class GigCandidateRepositoryMapper {
   }
 
   private static assertStateInvariants(params: GigCandidateStateFields): void {
+    if (
+      params.localityId !== undefined &&
+      params.gigDraft.venueIds !== undefined
+    ) {
+      throw new Error(
+        `GigCandidate ${params.id} must not store localityId and gigDraft.venueIds together.`,
+      );
+    }
+
     const hasApprovalAudit =
       params.approvedAt !== undefined || params.approvedByUserId !== undefined;
     const hasRejectionAudit =

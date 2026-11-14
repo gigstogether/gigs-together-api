@@ -18,6 +18,10 @@ import { GigCandidateBodyPipe } from './pipes/gig-candidate-body.pipe';
 import type { V1CreateGigCandidateRequestBody } from './types/requests/v1-create-gig-candidate-request';
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import { GigCandidateService } from './gig-candidate.service';
+import type {
+  CreatePublicGigCandidateParams,
+  PublicGigCandidateInput,
+} from './gig-candidate.service';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
@@ -38,12 +42,46 @@ export class GigCandidateController {
     @AuthenticatedUser() user: User,
     @Body(GigCandidateBodyPipe) body: V1CreateGigCandidateRequestBody,
   ): Promise<V1CreateGigCandidateResponseBody> {
-    return this.gigCandidateService.handleSubmit({
-      body,
-      user,
-      posterFile: posterFile
-        ? { buffer: posterFile.buffer, mimetype: posterFile.mimetype }
-        : undefined,
-    });
+    const params = mapV1CreateGigCandidateRequest(body, user, posterFile);
+
+    return this.gigCandidateService.createPublicGigCandidate(params);
   }
+}
+
+function mapV1CreateGigCandidateRequest(
+  body: V1CreateGigCandidateRequestBody,
+  user: User,
+  posterFile: Express.Multer.File | undefined,
+): CreatePublicGigCandidateParams {
+  const gig: PublicGigCandidateInput = {
+    communityId: body.gig.communityId,
+    localityId: body.gig.localityId,
+    title: body.gig.title,
+    date: body.gig.date,
+  };
+  if (body.gig.venueId !== undefined) {
+    gig.venueId = body.gig.venueId;
+  }
+  if (body.gig.endDate !== undefined) {
+    gig.endDate = body.gig.endDate;
+  }
+  if (body.gig.ticketsUrl !== undefined) {
+    gig.ticketsUrl = body.gig.ticketsUrl;
+  }
+  if (body.gig.posterUrl !== undefined) {
+    gig.posterUrl = body.gig.posterUrl;
+  }
+
+  const params: CreatePublicGigCandidateParams = {
+    gig,
+    user,
+  };
+  if (posterFile !== undefined) {
+    params.posterFile = {
+      buffer: posterFile.buffer,
+      mimetype: posterFile.mimetype,
+    };
+  }
+
+  return params;
 }

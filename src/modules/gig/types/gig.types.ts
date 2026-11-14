@@ -73,7 +73,9 @@ export interface GigData {
 }
 
 export type GigCandidateDraft = Partial<GigData> &
-  Pick<GigData, 'communityIds'>;
+  Pick<GigData, 'communityIds'> & {
+    venueIds?: string[];
+  };
 
 interface GigSourceUserIdentifiedOrigin {
   type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;

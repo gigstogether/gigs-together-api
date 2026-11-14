@@ -65,6 +65,18 @@ describe('GigCandidateRepositoryMapper', () => {
         }),
       ).toThrow(/must not contain duplicates/);
     });
+
+    it('should map optional Venue identifiers to ObjectIds', () => {
+      expect(
+        GigCandidateRepositoryMapper.toStoredGigDraft({
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507F1F77BCF86CD799439022'],
+        }),
+      ).toEqual({
+        communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+        venueIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
+      });
+    });
   });
 
   describe('toStoredSource', () => {
@@ -166,6 +178,30 @@ describe('GigCandidateRepositoryMapper', () => {
           }),
         ),
       ).toThrow(/must not contain duplicates/);
+    });
+
+    it('should map an unresolved Locality assignment', () => {
+      const result = GigCandidateRepositoryMapper.toGigCandidate(
+        buildTargetDocument({
+          localityId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+        }),
+      );
+
+      expect(result.localityId).toBe('507f1f77bcf86cd799439012');
+    });
+
+    it('should reject simultaneous Locality and Venue assignments', () => {
+      expect(() =>
+        GigCandidateRepositoryMapper.toGigCandidate(
+          buildTargetDocument({
+            localityId: new Types.ObjectId('507f1f77bcf86cd799439012'),
+            gigDraft: {
+              communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+              venueIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
+            },
+          }),
+        ),
+      ).toThrow(/must not store localityId and gigDraft\.venueIds together/);
     });
 
     it.each([

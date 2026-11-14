@@ -82,6 +82,7 @@ export interface GigCandidate {
   status: GigCandidateStatus;
   version: number;
   source: GigCandidateSource;
+  localityId?: string;
   gigDraft: GigCandidateDraft;
   posts: GigCandidatePost[];
   gigId?: string;
