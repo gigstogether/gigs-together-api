@@ -77,7 +77,7 @@ describe('GigFeedService', () => {
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
   const communityService = { findByRoute: vi.fn() };
-  const venueService = { resolveStoredVenueSelections: vi.fn() };
+  const venueService = { getAllVenueSelections: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -103,10 +103,10 @@ describe('GigFeedService', () => {
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
-    venueService.resolveStoredVenueSelections.mockImplementation(
-      (params: { venueIdsBySelection: readonly (readonly string[])[] }) =>
+    venueService.getAllVenueSelections.mockImplementation(
+      (params: { venueIdGroups: readonly (readonly string[])[] }) =>
         Promise.resolve(
-          params.venueIdsBySelection.map((venueIds) => ({
+          params.venueIdGroups.map((venueIds) => ({
             locality: {
               id: '507f1f77bcf86cd799439044',
               countryIso: 'ES',
@@ -202,8 +202,8 @@ describe('GigFeedService', () => {
       countryIso: 'ES',
       communitySlug: 'barcelona',
     });
-    expect(venueService.resolveStoredVenueSelections).toHaveBeenCalledWith({
-      venueIdsBySelection: [gig.venueIds],
+    expect(venueService.getAllVenueSelections).toHaveBeenCalledWith({
+      venueIdGroups: [gig.venueIds],
     });
     expect(gigCalendarService.toCalendarEvent).toHaveBeenCalledWith({
       gig: {

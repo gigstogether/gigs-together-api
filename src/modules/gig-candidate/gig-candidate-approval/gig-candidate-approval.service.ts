@@ -141,9 +141,8 @@ export class GigCandidateApprovalService {
 
     this.assertExpectedVersionMatches(gigCandidate, params.expectedVersion);
     const gigData = validateGigCandidateDraftForApproval(gigCandidate.gigDraft);
-    const venueSelection = await this.venueService.resolveVenueSelection({
+    const venueSelection = await this.venueService.getActiveVenueSelection({
       venueIds: gigData.venueIds,
-      isActiveRequired: true,
     });
     const gigId = transaction.createGigId();
     const publicId = await this.generateUniqueGigPublicId(

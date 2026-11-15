@@ -46,8 +46,8 @@ describe('GigCandidateApprovalService', () => {
     vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
   const toCalendarEventMock = vi.fn<GigCalendarService['toCalendarEvent']>();
-  const resolveVenueSelectionMock =
-    vi.fn<VenueService['resolveVenueSelection']>();
+  const getActiveVenueSelectionMock =
+    vi.fn<VenueService['getActiveVenueSelection']>();
   const reportFailureBestEffortMock =
     vi.fn<AlertingService['reportFailureBestEffort']>();
   const sendFeedbackBestEffortMock =
@@ -137,7 +137,7 @@ describe('GigCandidateApprovalService', () => {
     toCalendarEventMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
-    resolveVenueSelectionMock.mockResolvedValue(resolvedVenueSelection);
+    getActiveVenueSelectionMock.mockResolvedValue(resolvedVenueSelection);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -156,7 +156,7 @@ describe('GigCandidateApprovalService', () => {
         },
         {
           provide: VenueService,
-          useValue: { resolveVenueSelection: resolveVenueSelectionMock },
+          useValue: { getActiveVenueSelection: getActiveVenueSelectionMock },
         },
         {
           provide: GigFeedRevalidationService,

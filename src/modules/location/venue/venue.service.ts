@@ -46,23 +46,17 @@ export interface ActiveVenueCatalog {
   venues: readonly Venue[];
 }
 
-export interface ResolveVenueSelectionParams {
+export interface GetActiveVenueSelectionParams {
   venueIds: readonly string[];
-  isActiveRequired: boolean;
 }
 
-export interface ResolveStoredVenueSelectionsParams {
-  venueIdsBySelection: readonly (readonly string[])[];
+export interface GetAllVenueSelectionsParams {
+  venueIdGroups: readonly (readonly string[])[];
 }
 
 export interface ResolvedVenueSelection {
   locality: Locality;
   venues: readonly Venue[];
-}
-
-interface ResolveVenueSelectionsParams {
-  venueIdsBySelection: readonly (readonly string[])[];
-  isActiveRequired: boolean;
 }
 
 class VenueSelectionValidationError extends Error {
@@ -140,14 +134,13 @@ export class VenueService {
     return { locality, venues };
   }
 
-  async resolveVenueSelection(
-    params: ResolveVenueSelectionParams,
+  async getActiveVenueSelection(
+    params: GetActiveVenueSelectionParams,
   ): Promise<ResolvedVenueSelection> {
     try {
-      const selections = await this.resolveVenueSelections({
-        venueIdsBySelection: [params.venueIds],
-        isActiveRequired: params.isActiveRequired,
-      });
+      const venueGroups = await this.getVenueGroups([params.venueIds]);
+      this.assertVenueGroupsAreActive(venueGroups);
+      const selections = await this.buildVenueSelections(venueGroups);
       const selection = selections[0];
       if (selection === undefined) {
         throw new Error('Resolved Venue selection must not be empty');
@@ -162,13 +155,12 @@ export class VenueService {
     }
   }
 
-  resolveStoredVenueSelections(
-    params: ResolveStoredVenueSelectionsParams,
+  async getAllVenueSelections(
+    params: GetAllVenueSelectionsParams,
   ): Promise<readonly ResolvedVenueSelection[]> {
-    return this.resolveVenueSelections({
-      venueIdsBySelection: params.venueIdsBySelection,
-      isActiveRequired: false,
-    });
+    const venueGroups = await this.getVenueGroups(params.venueIdGroups);
+
+    return this.buildVenueSelections(venueGroups);
   }
 
   async updateVenue(params: UpdateVenueParams): Promise<Venue> {
@@ -261,14 +253,14 @@ export class VenueService {
     }
   }
 
-  private async resolveVenueSelections(
-    params: ResolveVenueSelectionsParams,
-  ): Promise<readonly ResolvedVenueSelection[]> {
-    if (params.venueIdsBySelection.length === 0) {
+  private async getVenueGroups(
+    venueIdGroups: readonly (readonly string[])[],
+  ): Promise<readonly (readonly Venue[])[]> {
+    if (venueIdGroups.length === 0) {
       return [];
     }
 
-    const normalizedSelections = params.venueIdsBySelection.map((venueIds) => {
+    const normalizedVenueIdGroups = venueIdGroups.map((venueIds) => {
       if (venueIds.length === 0) {
         throw new VenueSelectionValidationError(
           'venueIds must contain at least one Venue id',
@@ -286,12 +278,13 @@ export class VenueService {
 
       return normalizedVenueIds;
     });
-    const uniqueVenueIds = Array.from(new Set(normalizedSelections.flat()));
+    const uniqueVenueIds = Array.from(new Set(normalizedVenueIdGroups.flat()));
     const foundVenues = await this.venueRepository.findByIds(uniqueVenueIds);
     const venuesById = new Map(
       foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
     );
-    const venueSelections = normalizedSelections.map((venueIds) =>
+
+    return normalizedVenueIdGroups.map((venueIds) =>
       venueIds.map((venueId) => {
         const venue = venuesById.get(venueId);
         if (!venue) {
@@ -303,17 +296,26 @@ export class VenueService {
         return venue;
       }),
     );
+  }
 
-    if (
-      params.isActiveRequired &&
-      venueSelections.some((venues) => venues.some((venue) => !venue.isActive))
-    ) {
+  private assertVenueGroupsAreActive(
+    venueGroups: readonly (readonly Venue[])[],
+  ): void {
+    if (venueGroups.some((venues) => venues.some((venue) => !venue.isActive))) {
       throw new VenueSelectionValidationError(
         'venueIds must reference active Venues for new assignments',
       );
     }
+  }
 
-    const localityIdsBySelection = venueSelections.map((venues) => {
+  private async buildVenueSelections(
+    venueGroups: readonly (readonly Venue[])[],
+  ): Promise<readonly ResolvedVenueSelection[]> {
+    if (venueGroups.length === 0) {
+      return [];
+    }
+
+    const localityIdsByGroup = venueGroups.map((venues) => {
       const localityIds = new Set(venues.map((venue) => venue.localityId));
       if (localityIds.size !== 1) {
         throw new VenueSelectionValidationError(
@@ -328,15 +330,15 @@ export class VenueService {
 
       return localityId;
     });
-    const uniqueLocalityIds = Array.from(new Set(localityIdsBySelection));
+    const uniqueLocalityIds = Array.from(new Set(localityIdsByGroup));
     const localities =
       await this.localityService.getLocalitiesByIds(uniqueLocalityIds);
     const localitiesById = new Map(
       localities.map((locality) => [locality.id, locality]),
     );
 
-    return venueSelections.map((venues, index) => {
-      const localityId = localityIdsBySelection[index];
+    return venueGroups.map((venues, index) => {
+      const localityId = localityIdsByGroup[index];
       const locality =
         localityId === undefined ? undefined : localitiesById.get(localityId);
       if (!locality) {

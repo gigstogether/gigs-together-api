@@ -127,10 +127,9 @@ export class GigFeedService {
 
   /** Maps domain Gigs to enriched public feed items. */
   private async mapGigs(gigs: PlainGig[]): Promise<GigFeedItem[]> {
-    const venueSelections =
-      await this.venueService.resolveStoredVenueSelections({
-        venueIdsBySelection: gigs.map((gig) => gig.venueIds),
-      });
+    const venueSelections = await this.venueService.getAllVenueSelections({
+      venueIdGroups: gigs.map((gig) => gig.venueIds),
+    });
     const mapped: GigFeedItem[] = [];
     for (const [index, gig] of gigs.entries()) {
       const venueSelection = venueSelections[index];

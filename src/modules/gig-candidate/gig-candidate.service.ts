@@ -679,9 +679,8 @@ export class GigCandidateService {
       localityId = gig.localityId;
     } else {
       const resolvedVenueSelection =
-        await this.venueService.resolveVenueSelection({
+        await this.venueService.getActiveVenueSelection({
           venueIds: [gig.venueId],
-          isActiveRequired: true,
         });
       if (resolvedVenueSelection.locality.id !== gig.localityId) {
         throw new BadRequestException(

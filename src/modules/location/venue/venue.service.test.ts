@@ -200,9 +200,8 @@ describe('VenueService', () => {
     findByIdsMock.mockResolvedValue([VENUE, SECOND_VENUE]);
 
     await expect(
-      service.resolveVenueSelection({
+      service.getActiveVenueSelection({
         venueIds: [SECOND_VENUE_ID, VENUE_ID],
-        isActiveRequired: true,
       }),
     ).resolves.toEqual({
       locality: LOCALITY,
@@ -216,9 +215,8 @@ describe('VenueService', () => {
     findByIdsMock.mockResolvedValue([{ ...VENUE, isActive: false }]);
 
     await expect(
-      service.resolveVenueSelection({
+      service.getActiveVenueSelection({
         venueIds: [VENUE_ID],
-        isActiveRequired: true,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
@@ -231,9 +229,8 @@ describe('VenueService', () => {
     ]);
 
     await expect(
-      service.resolveVenueSelection({
+      service.getActiveVenueSelection({
         venueIds: [VENUE_ID, SECOND_VENUE_ID],
-        isActiveRequired: true,
       }),
     ).rejects.toThrow('All assigned Venues must belong to the same Locality');
     expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
@@ -241,9 +238,8 @@ describe('VenueService', () => {
 
   it('should reject Venue selections containing duplicate ids', async () => {
     await expect(
-      service.resolveVenueSelection({
+      service.getActiveVenueSelection({
         venueIds: [VENUE_ID, VENUE_ID.toUpperCase()],
-        isActiveRequired: true,
       }),
     ).rejects.toThrow('venueIds must not contain duplicates');
     expect(findByIdsMock).not.toHaveBeenCalled();
@@ -253,9 +249,8 @@ describe('VenueService', () => {
     findByIdsMock.mockResolvedValue([VENUE]);
 
     await expect(
-      service.resolveVenueSelection({
+      service.getActiveVenueSelection({
         venueIds: [VENUE_ID, SECOND_VENUE_ID],
-        isActiveRequired: true,
       }),
     ).rejects.toThrow('venueIds must reference existing Venues');
     expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
@@ -268,8 +263,8 @@ describe('VenueService', () => {
     ]);
 
     await expect(
-      service.resolveStoredVenueSelections({
-        venueIdsBySelection: [[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]],
+      service.getAllVenueSelections({
+        venueIdGroups: [[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]],
       }),
     ).resolves.toEqual([
       { locality: LOCALITY, venues: [{ ...VENUE, isActive: false }] },
@@ -284,12 +279,20 @@ describe('VenueService', () => {
     expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
   });
 
+  it('should return no Venue selections when no Venue id groups are provided', async () => {
+    await expect(
+      service.getAllVenueSelections({ venueIdGroups: [] }),
+    ).resolves.toEqual([]);
+    expect(findByIdsMock).not.toHaveBeenCalled();
+    expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
+  });
+
   it('should report an invalid stored Venue selection as an internal validation error', async () => {
     findByIdsMock.mockResolvedValue([]);
 
     await expect(
-      service.resolveStoredVenueSelections({
-        venueIdsBySelection: [[VENUE_ID]],
+      service.getAllVenueSelections({
+        venueIdGroups: [[VENUE_ID]],
       }),
     ).rejects.toMatchObject({
       name: 'VenueSelectionValidationError',

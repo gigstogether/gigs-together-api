@@ -130,7 +130,7 @@ describe('GigCandidateService', () => {
   };
 
   const venueServiceMock = {
-    resolveVenueSelection: vi.fn(),
+    getActiveVenueSelection: vi.fn(),
   };
 
   const calendarServiceMock = { addEvent: vi.fn() };
@@ -245,7 +245,7 @@ describe('GigCandidateService', () => {
       aliases: [],
       timeZone: 'Europe/Madrid',
     });
-    venueServiceMock.resolveVenueSelection.mockResolvedValue({
+    venueServiceMock.getActiveVenueSelection.mockResolvedValue({
       locality: {
         id: '507f1f77bcf86cd799439012',
         countryIso: 'ES',
@@ -689,7 +689,7 @@ describe('GigCandidateService', () => {
     });
 
     it('should reject a Venue outside the selected Locality', async () => {
-      venueServiceMock.resolveVenueSelection.mockResolvedValueOnce({
+      venueServiceMock.getActiveVenueSelection.mockResolvedValueOnce({
         locality: {
           id: '507f1f77bcf86cd799439099',
           countryIso: 'ES',
@@ -2096,9 +2096,8 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(gig);
 
-      expect(venueServiceMock.resolveVenueSelection).toHaveBeenCalledWith({
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith({
         venueIds: ['507f1f77bcf86cd799439012'],
-        isActiveRequired: true,
       });
 
       expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
@@ -2271,7 +2270,7 @@ describe('GigCandidateService', () => {
         },
       });
       approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
-      venueServiceMock.resolveVenueSelection.mockRejectedValueOnce(
+      venueServiceMock.getActiveVenueSelection.mockRejectedValueOnce(
         new BadRequestException(
           'All assigned Venues must belong to the same Locality',
         ),
