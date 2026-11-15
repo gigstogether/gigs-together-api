@@ -23,7 +23,7 @@ const VENUE = {
 
 describe('VenueController', () => {
   let controller: VenueController;
-  const findActiveVenueCatalogMock = vi.fn();
+  const getActiveVenueCatalogMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -34,7 +34,7 @@ describe('VenueController', () => {
         {
           provide: VenueService,
           useValue: {
-            findActiveVenueCatalog: findActiveVenueCatalogMock,
+            getActiveVenueCatalog: getActiveVenueCatalogMock,
           },
         },
       ],
@@ -48,7 +48,7 @@ describe('VenueController', () => {
   });
 
   it('should return active Venue options with qualified Locality data', async () => {
-    findActiveVenueCatalogMock.mockResolvedValue({
+    getActiveVenueCatalogMock.mockResolvedValue({
       locality: LOCALITY,
       venues: [VENUE],
     });
@@ -65,7 +65,7 @@ describe('VenueController', () => {
       },
       venues: [{ id: VENUE.id, name: 'Festival Grounds' }],
     });
-    expect(findActiveVenueCatalogMock).toHaveBeenCalledWith({
+    expect(getActiveVenueCatalogMock).toHaveBeenCalledWith({
       localityId: LOCALITY_ID,
     });
   });

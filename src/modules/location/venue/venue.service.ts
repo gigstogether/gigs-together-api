@@ -37,7 +37,7 @@ export interface UpdateVenueParams {
   isActive?: boolean;
 }
 
-export interface FindActiveVenueCatalogParams {
+export interface GetActiveVenueCatalogParams {
   localityId: string;
 }
 
@@ -118,8 +118,8 @@ export class VenueService {
     return venues;
   }
 
-  async findActiveVenueCatalog(
-    params: FindActiveVenueCatalogParams,
+  async getActiveVenueCatalog(
+    params: GetActiveVenueCatalogParams,
   ): Promise<ActiveVenueCatalog> {
     const locality = await this.localityService.getLocalityById(
       params.localityId,
@@ -139,8 +139,10 @@ export class VenueService {
   ): Promise<VenueSelection> {
     try {
       const venueIds = this.normalizeVenueIds(params.venueIds);
-      const venuesById = await this.loadVenuesByIds(venueIds);
-      const venues = this.mapVenueIdsToVenues(venueIds, venuesById);
+      const venuesById = await this.getVenuesByIds(venueIds);
+      const venues = venueIds.map((venueId) =>
+        this.mapVenueIdToVenue(venueId, venuesById),
+      );
       this.assertVenuesAreActive(venues);
 
       return this.buildVenueSelection(venues);
@@ -163,9 +165,9 @@ export class VenueService {
       this.normalizeVenueIds(venueIds),
     );
     const uniqueVenueIds = Array.from(new Set(normalizedVenueIdGroups.flat()));
-    const venuesById = await this.loadVenuesByIds(uniqueVenueIds);
+    const venuesById = await this.getVenuesByIds(uniqueVenueIds);
     const venueGroups = normalizedVenueIdGroups.map((venueIds) =>
-      this.mapVenueIdsToVenues(venueIds, venuesById),
+      venueIds.map((venueId) => this.mapVenueIdToVenue(venueId, venuesById)),
     );
 
     return this.buildVenueSelections(venueGroups);
@@ -278,7 +280,7 @@ export class VenueService {
     return normalizedVenueIds;
   }
 
-  private async loadVenuesByIds(
+  private async getVenuesByIds(
     venueIds: readonly string[],
   ): Promise<ReadonlyMap<string, Venue>> {
     const foundVenues = await this.venueRepository.findByIds(venueIds);
@@ -295,18 +297,16 @@ export class VenueService {
     return venuesById;
   }
 
-  private mapVenueIdsToVenues(
-    venueIds: readonly string[],
+  private mapVenueIdToVenue(
+    venueId: string,
     venuesById: ReadonlyMap<string, Venue>,
-  ): readonly Venue[] {
-    return venueIds.map((venueId) => {
-      const venue = venuesById.get(venueId);
-      if (venue === undefined) {
-        throw new Error('Loaded Venue must exist');
-      }
+  ): Venue {
+    const venue = venuesById.get(venueId);
+    if (venue === undefined) {
+      throw new Error('Loaded Venue must exist');
+    }
 
-      return venue;
-    });
+    return venue;
   }
 
   private assertVenuesAreActive(venues: readonly Venue[]): void {
@@ -321,7 +321,7 @@ export class VenueService {
     venues: readonly Venue[],
   ): Promise<VenueSelection> {
     const localityId = this.getVenueGroupLocalityId(venues);
-    const localitiesById = await this.loadLocalitiesByIds([localityId]);
+    const localitiesById = await this.getLocalitiesByIds([localityId]);
 
     return {
       locality: this.getLoadedLocality(localityId, localitiesById),
@@ -335,7 +335,7 @@ export class VenueService {
     const localityIdsByGroup = venueGroups.map((venues) =>
       this.getVenueGroupLocalityId(venues),
     );
-    const localitiesById = await this.loadLocalitiesByIds(localityIdsByGroup);
+    const localitiesById = await this.getLocalitiesByIds(localityIdsByGroup);
 
     return venueGroups.map((venues, index) => {
       const localityId = localityIdsByGroup[index];
@@ -366,7 +366,7 @@ export class VenueService {
     return localityId;
   }
 
-  private async loadLocalitiesByIds(
+  private async getLocalitiesByIds(
     localityIds: readonly string[],
   ): Promise<ReadonlyMap<string, Locality>> {
     const uniqueLocalityIds = Array.from(new Set(localityIds));

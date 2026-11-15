@@ -185,7 +185,7 @@ describe('VenueService', () => {
     findMock.mockResolvedValue([VENUE]);
 
     await expect(
-      service.findActiveVenueCatalog({
+      service.getActiveVenueCatalog({
         localityId: LOCALITY_ID,
       }),
     ).resolves.toEqual({ locality: LOCALITY, venues: [VENUE] });
