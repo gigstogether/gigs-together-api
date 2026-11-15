@@ -245,7 +245,13 @@ Gig response → Locality { id, countryIso, name, qualifier? }
 
 Historical Gigs may continue to display inactive Venues. New assignments still
 require active Venues. Calendar links and approval-side Calendar creation use
-the resolved Locality time zone and all assigned Venue names.
+the resolved Locality time zone, all assigned Venue names, and an English
+country name resolved from `countryIso` through `Intl.DisplayNames`. If the
+runtime has no English display name for a supported code, Calendar text falls
+back to the ISO code and the backend logs a warning. The
+Calendar locale is explicitly set to English at the call site and may later be
+replaced with a dynamically selected locale without changing country-name
+resolution.
 
 `GigCandidate.gigDraft.communityIds` remains required for every source. Other
 draft fields remain optional so messenger suggestions may be incomplete. A web

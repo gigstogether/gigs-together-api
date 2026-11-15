@@ -44,6 +44,24 @@ import type {
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
 
+const CALENDAR_TEXT_LOCALE = 'en';
+const countryDisplayNamesByLocale = new Map<string, Intl.DisplayNames>();
+
+function getCountryDisplayNames(locale: string): Intl.DisplayNames {
+  const cachedDisplayNames = countryDisplayNamesByLocale.get(locale);
+  if (cachedDisplayNames !== undefined) {
+    return cachedDisplayNames;
+  }
+
+  const displayNames = new Intl.DisplayNames([locale], {
+    type: 'region',
+    fallback: 'none',
+  });
+  countryDisplayNamesByLocale.set(locale, displayNames);
+
+  return displayNames;
+}
+
 function formatCalendarDate(value: number, field: 'date' | 'endDate'): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -742,6 +760,12 @@ export class GigService {
   }
 
   gigToCalendarPayload(gig: GigCalendarSource): CalendarEvent {
+    // Shared Calendar event text currently uses one explicit locale; callers can supply a dynamic locale later.
+    const countryName = this.getCountryName(
+      gig.locality.countryIso,
+      CALENDAR_TEXT_LOCALE,
+    );
+
     // Use an evening window from 20:00 to 22:00 in the event's local time
     // zone. Google resolves the UTC offset from the IANA time zone.
     const startDate = formatCalendarDate(gig.date, 'date');
@@ -758,11 +782,10 @@ export class GigService {
     return {
       title: gig.title,
       description: `Tickets: ${gig.ticketsUrl}`,
-      // TODO: add country name?
       location: [
         gig.venues.map((venue) => venue.name).join(', '),
         gig.locality.name,
-        gig.locality.countryIso,
+        countryName,
       ]
         .filter((str) => !!str)
         .join(', '),
@@ -770,6 +793,19 @@ export class GigService {
       endLocalDateTime: `${endDate}T22:00:00`,
       timeZone: gig.locality.timeZone,
     };
+  }
+
+  private getCountryName(countryIso: string, locale: string): string {
+    const countryName = getCountryDisplayNames(locale).of(countryIso);
+    if (countryName !== undefined) {
+      return countryName;
+    }
+
+    this.logger.warn(
+      `Country ISO code "${countryIso}" has no display name for locale "${locale}"; using the ISO code in Calendar location text.`,
+    );
+
+    return countryIso;
   }
 
   private uploadPoster: GigPosterService['upload'] =

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -180,7 +180,7 @@ describe('GigService', () => {
       expect(result).toEqual({
         title: 'Radiohead',
         description: 'Tickets: https://tickets.example/radiohead',
-        location: 'Palau Sant Jordi, Barcelona, ES',
+        location: 'Palau Sant Jordi, Barcelona, Spain',
         startLocalDateTime: '2026-06-12T20:00:00',
         endLocalDateTime: '2026-06-12T22:00:00',
         timeZone: 'Europe/Madrid',
@@ -217,10 +217,42 @@ describe('GigService', () => {
 
       expect(result).toEqual(
         expect.objectContaining({
-          location: 'Venue One, Venue Two, Lisbon, PT',
+          location: 'Venue One, Venue Two, Lisbon, Portugal',
           timeZone: 'Europe/Lisbon',
         }),
       );
+    });
+
+    it('should log and fall back to a Country ISO code without an English display name', () => {
+      const warn = vi
+        .spyOn(Logger.prototype, 'warn')
+        .mockImplementation(() => undefined);
+
+      const firstResult = service.gigToCalendarPayload(
+        buildGigCalendarSource({
+          locality: {
+            countryIso: 'AA',
+            name: 'Unknown',
+            timeZone: 'Etc/UTC',
+          },
+        }),
+      );
+      const secondResult = service.gigToCalendarPayload(
+        buildGigCalendarSource({
+          locality: {
+            countryIso: 'AA',
+            name: 'Unknown',
+            timeZone: 'Etc/UTC',
+          },
+        }),
+      );
+
+      expect([firstResult.location, secondResult.location]).toEqual([
+        'Palau Sant Jordi, Unknown, AA',
+        'Palau Sant Jordi, Unknown, AA',
+      ]);
+      expect(warn).toHaveBeenCalledTimes(2);
+      warn.mockRestore();
     });
   });
 
