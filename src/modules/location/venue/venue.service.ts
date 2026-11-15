@@ -63,7 +63,13 @@ export interface ResolvedVenueSelection {
 interface ResolveVenueSelectionsParams {
   venueIdsBySelection: readonly (readonly string[])[];
   isActiveRequired: boolean;
-  createError: (message: string) => Error;
+}
+
+class VenueSelectionValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = VenueSelectionValidationError.name;
+  }
 }
 
 @Injectable()
@@ -137,17 +143,23 @@ export class VenueService {
   async resolveVenueSelection(
     params: ResolveVenueSelectionParams,
   ): Promise<ResolvedVenueSelection> {
-    const selections = await this.resolveVenueSelections({
-      venueIdsBySelection: [params.venueIds],
-      isActiveRequired: params.isActiveRequired,
-      createError: (message) => new BadRequestException(message),
-    });
-    const selection = selections[0];
-    if (selection === undefined) {
-      throw new Error('Resolved Venue selection must not be empty');
-    }
+    try {
+      const selections = await this.resolveVenueSelections({
+        venueIdsBySelection: [params.venueIds],
+        isActiveRequired: params.isActiveRequired,
+      });
+      const selection = selections[0];
+      if (selection === undefined) {
+        throw new Error('Resolved Venue selection must not be empty');
+      }
 
-    return selection;
+      return selection;
+    } catch (e) {
+      if (e instanceof VenueSelectionValidationError) {
+        throw new BadRequestException(e.message, { cause: e });
+      }
+      throw e;
+    }
   }
 
   resolveStoredVenueSelections(
@@ -156,7 +168,6 @@ export class VenueService {
     return this.resolveVenueSelections({
       venueIdsBySelection: params.venueIdsBySelection,
       isActiveRequired: false,
-      createError: (message) => new Error(message),
     });
   }
 
@@ -259,14 +270,18 @@ export class VenueService {
 
     const normalizedSelections = params.venueIdsBySelection.map((venueIds) => {
       if (venueIds.length === 0) {
-        throw params.createError('venueIds must contain at least one Venue id');
+        throw new VenueSelectionValidationError(
+          'venueIds must contain at least one Venue id',
+        );
       }
 
       const normalizedVenueIds = venueIds.map((venueId) =>
         venueId.toLowerCase(),
       );
       if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
-        throw params.createError('venueIds must not contain duplicates');
+        throw new VenueSelectionValidationError(
+          'venueIds must not contain duplicates',
+        );
       }
 
       return normalizedVenueIds;
@@ -280,7 +295,9 @@ export class VenueService {
       venueIds.map((venueId) => {
         const venue = venuesById.get(venueId);
         if (!venue) {
-          throw params.createError('venueIds must reference existing Venues');
+          throw new VenueSelectionValidationError(
+            'venueIds must reference existing Venues',
+          );
         }
 
         return venue;
@@ -291,7 +308,7 @@ export class VenueService {
       params.isActiveRequired &&
       venueSelections.some((venues) => venues.some((venue) => !venue.isActive))
     ) {
-      throw params.createError(
+      throw new VenueSelectionValidationError(
         'venueIds must reference active Venues for new assignments',
       );
     }
@@ -299,7 +316,7 @@ export class VenueService {
     const localityIdsBySelection = venueSelections.map((venues) => {
       const localityIds = new Set(venues.map((venue) => venue.localityId));
       if (localityIds.size !== 1) {
-        throw params.createError(
+        throw new VenueSelectionValidationError(
           'All assigned Venues must belong to the same Locality',
         );
       }

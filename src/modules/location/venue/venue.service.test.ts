@@ -284,6 +284,19 @@ describe('VenueService', () => {
     expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
   });
 
+  it('should report an invalid stored Venue selection as an internal validation error', async () => {
+    findByIdsMock.mockResolvedValue([]);
+
+    await expect(
+      service.resolveStoredVenueSelections({
+        venueIdsBySelection: [[VENUE_ID]],
+      }),
+    ).rejects.toMatchObject({
+      name: 'VenueSelectionValidationError',
+      message: 'venueIds must reference existing Venues',
+    });
+  });
+
   it('should deactivate a Venue while retaining its names', async () => {
     findByIdMock.mockResolvedValue(VENUE);
     updateMock.mockResolvedValue({ ...VENUE, isActive: false });
