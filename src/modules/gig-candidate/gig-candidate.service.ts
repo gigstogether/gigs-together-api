@@ -678,16 +678,15 @@ export class GigCandidateService {
       }
       localityId = gig.localityId;
     } else {
-      const resolvedVenueSelection =
-        await this.venueService.getActiveVenueSelection({
-          venueIds: [gig.venueId],
-        });
-      if (resolvedVenueSelection.locality.id !== gig.localityId) {
+      const venueSelection = await this.venueService.getActiveVenueSelection({
+        venueIds: [gig.venueId],
+      });
+      if (venueSelection.locality.id !== gig.localityId) {
         throw new BadRequestException(
           'venueId must reference a Venue in the selected Locality',
         );
       }
-      locality = resolvedVenueSelection.locality;
+      locality = venueSelection.locality;
       gigDraft.venueIds = [gig.venueId];
     }
 

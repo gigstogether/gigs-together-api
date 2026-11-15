@@ -54,7 +54,7 @@ export interface GetAllVenueSelectionsParams {
   venueIdGroups: readonly (readonly string[])[];
 }
 
-export interface ResolvedVenueSelection {
+export interface VenueSelection {
   locality: Locality;
   venues: readonly Venue[];
 }
@@ -136,17 +136,14 @@ export class VenueService {
 
   async getActiveVenueSelection(
     params: GetActiveVenueSelectionParams,
-  ): Promise<ResolvedVenueSelection> {
+  ): Promise<VenueSelection> {
     try {
-      const venueGroups = await this.getVenueGroups([params.venueIds]);
-      this.assertVenueGroupsAreActive(venueGroups);
-      const selections = await this.buildVenueSelections(venueGroups);
-      const selection = selections[0];
-      if (selection === undefined) {
-        throw new Error('Resolved Venue selection must not be empty');
-      }
+      const venueIds = this.normalizeVenueIds(params.venueIds);
+      const venuesById = await this.loadVenuesByIds(venueIds);
+      const venues = this.mapVenueIdsToVenues(venueIds, venuesById);
+      this.assertVenuesAreActive(venues);
 
-      return selection;
+      return this.buildVenueSelection(venues);
     } catch (e) {
       if (e instanceof VenueSelectionValidationError) {
         throw new BadRequestException(e.message, { cause: e });
@@ -157,8 +154,19 @@ export class VenueService {
 
   async getAllVenueSelections(
     params: GetAllVenueSelectionsParams,
-  ): Promise<readonly ResolvedVenueSelection[]> {
-    const venueGroups = await this.getVenueGroups(params.venueIdGroups);
+  ): Promise<readonly VenueSelection[]> {
+    if (params.venueIdGroups.length === 0) {
+      return [];
+    }
+
+    const normalizedVenueIdGroups = params.venueIdGroups.map((venueIds) =>
+      this.normalizeVenueIds(venueIds),
+    );
+    const uniqueVenueIds = Array.from(new Set(normalizedVenueIdGroups.flat()));
+    const venuesById = await this.loadVenuesByIds(uniqueVenueIds);
+    const venueGroups = normalizedVenueIdGroups.map((venueIds) =>
+      this.mapVenueIdsToVenues(venueIds, venuesById),
+    );
 
     return this.buildVenueSelections(venueGroups);
   }
@@ -253,100 +261,131 @@ export class VenueService {
     }
   }
 
-  private async getVenueGroups(
-    venueIdGroups: readonly (readonly string[])[],
-  ): Promise<readonly (readonly Venue[])[]> {
-    if (venueIdGroups.length === 0) {
-      return [];
+  private normalizeVenueIds(venueIds: readonly string[]): string[] {
+    if (venueIds.length === 0) {
+      throw new VenueSelectionValidationError(
+        'venueIds must contain at least one Venue id',
+      );
     }
 
-    const normalizedVenueIdGroups = venueIdGroups.map((venueIds) => {
-      if (venueIds.length === 0) {
-        throw new VenueSelectionValidationError(
-          'venueIds must contain at least one Venue id',
-        );
-      }
-
-      const normalizedVenueIds = venueIds.map((venueId) =>
-        venueId.toLowerCase(),
+    const normalizedVenueIds = venueIds.map((venueId) => venueId.toLowerCase());
+    if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
+      throw new VenueSelectionValidationError(
+        'venueIds must not contain duplicates',
       );
-      if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
-        throw new VenueSelectionValidationError(
-          'venueIds must not contain duplicates',
-        );
-      }
+    }
 
-      return normalizedVenueIds;
-    });
-    const uniqueVenueIds = Array.from(new Set(normalizedVenueIdGroups.flat()));
-    const foundVenues = await this.venueRepository.findByIds(uniqueVenueIds);
+    return normalizedVenueIds;
+  }
+
+  private async loadVenuesByIds(
+    venueIds: readonly string[],
+  ): Promise<ReadonlyMap<string, Venue>> {
+    const foundVenues = await this.venueRepository.findByIds(venueIds);
     const venuesById = new Map(
       foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
     );
 
-    return normalizedVenueIdGroups.map((venueIds) =>
-      venueIds.map((venueId) => {
-        const venue = venuesById.get(venueId);
-        if (!venue) {
-          throw new VenueSelectionValidationError(
-            'venueIds must reference existing Venues',
-          );
-        }
+    if (venueIds.some((venueId) => !venuesById.has(venueId))) {
+      throw new VenueSelectionValidationError(
+        'venueIds must reference existing Venues',
+      );
+    }
 
-        return venue;
-      }),
-    );
+    return venuesById;
   }
 
-  private assertVenueGroupsAreActive(
-    venueGroups: readonly (readonly Venue[])[],
-  ): void {
-    if (venueGroups.some((venues) => venues.some((venue) => !venue.isActive))) {
+  private mapVenueIdsToVenues(
+    venueIds: readonly string[],
+    venuesById: ReadonlyMap<string, Venue>,
+  ): readonly Venue[] {
+    return venueIds.map((venueId) => {
+      const venue = venuesById.get(venueId);
+      if (venue === undefined) {
+        throw new Error('Loaded Venue must exist');
+      }
+
+      return venue;
+    });
+  }
+
+  private assertVenuesAreActive(venues: readonly Venue[]): void {
+    if (venues.some((venue) => !venue.isActive)) {
       throw new VenueSelectionValidationError(
         'venueIds must reference active Venues for new assignments',
       );
     }
   }
 
+  private async buildVenueSelection(
+    venues: readonly Venue[],
+  ): Promise<VenueSelection> {
+    const localityId = this.getVenueGroupLocalityId(venues);
+    const localitiesById = await this.loadLocalitiesByIds([localityId]);
+
+    return {
+      locality: this.getLoadedLocality(localityId, localitiesById),
+      venues,
+    };
+  }
+
   private async buildVenueSelections(
     venueGroups: readonly (readonly Venue[])[],
-  ): Promise<readonly ResolvedVenueSelection[]> {
-    if (venueGroups.length === 0) {
-      return [];
-    }
+  ): Promise<readonly VenueSelection[]> {
+    const localityIdsByGroup = venueGroups.map((venues) =>
+      this.getVenueGroupLocalityId(venues),
+    );
+    const localitiesById = await this.loadLocalitiesByIds(localityIdsByGroup);
 
-    const localityIdsByGroup = venueGroups.map((venues) => {
-      const localityIds = new Set(venues.map((venue) => venue.localityId));
-      if (localityIds.size !== 1) {
-        throw new VenueSelectionValidationError(
-          'All assigned Venues must belong to the same Locality',
-        );
-      }
-
-      const localityId = localityIds.values().next().value;
+    return venueGroups.map((venues, index) => {
+      const localityId = localityIdsByGroup[index];
       if (localityId === undefined) {
         throw new Error('Resolved Venue selection must not be empty');
       }
 
-      return localityId;
+      return {
+        locality: this.getLoadedLocality(localityId, localitiesById),
+        venues,
+      };
     });
-    const uniqueLocalityIds = Array.from(new Set(localityIdsByGroup));
+  }
+
+  private getVenueGroupLocalityId(venues: readonly Venue[]): string {
+    const localityIds = new Set(venues.map((venue) => venue.localityId));
+    if (localityIds.size !== 1) {
+      throw new VenueSelectionValidationError(
+        'All assigned Venues must belong to the same Locality',
+      );
+    }
+
+    const localityId = localityIds.values().next().value;
+    if (localityId === undefined) {
+      throw new Error('Resolved Venue selection must not be empty');
+    }
+
+    return localityId;
+  }
+
+  private async loadLocalitiesByIds(
+    localityIds: readonly string[],
+  ): Promise<ReadonlyMap<string, Locality>> {
+    const uniqueLocalityIds = Array.from(new Set(localityIds));
     const localities =
       await this.localityService.getLocalitiesByIds(uniqueLocalityIds);
-    const localitiesById = new Map(
-      localities.map((locality) => [locality.id, locality]),
-    );
 
-    return venueGroups.map((venues, index) => {
-      const localityId = localityIdsByGroup[index];
-      const locality =
-        localityId === undefined ? undefined : localitiesById.get(localityId);
-      if (!locality) {
-        throw new Error('Resolved Venue Locality must exist');
-      }
+    return new Map(localities.map((locality) => [locality.id, locality]));
+  }
 
-      return { locality, venues };
-    });
+  private getLoadedLocality(
+    localityId: string,
+    localitiesById: ReadonlyMap<string, Locality>,
+  ): Locality {
+    const locality = localitiesById.get(localityId);
+    if (locality === undefined) {
+      throw new Error('Resolved Venue Locality must exist');
+    }
+
+    return locality;
   }
 
   private throwVenueWriteError(e: unknown): never {

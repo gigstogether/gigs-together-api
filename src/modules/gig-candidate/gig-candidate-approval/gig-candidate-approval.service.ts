@@ -21,7 +21,7 @@ import {
 } from '../../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { VenueService } from '@modules/location/venue/venue.service';
-import type { ResolvedVenueSelection } from '@modules/location/venue/venue.service';
+import type { VenueSelection } from '@modules/location/venue/venue.service';
 import type { GigCalendarSource } from '../../gig/types/gig.types';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
@@ -66,7 +66,7 @@ interface NewGigCandidateApprovalTransactionResult {
   gig: GigApprovalResult;
   gigCandidate: GigCandidate;
   moderationPost?: GigCandidate['posts'][number];
-  venueSelection: ResolvedVenueSelection;
+  venueSelection: VenueSelection;
   isNewApproval: true;
 }
 
