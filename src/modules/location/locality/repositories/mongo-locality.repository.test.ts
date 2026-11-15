@@ -107,6 +107,20 @@ describe('MongoLocalityRepository', () => {
     );
   });
 
+  it('should find Localities by ids', async () => {
+    const execMock = vi.fn().mockResolvedValue([LOCALITY_DOCUMENT]);
+    const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+    findMock.mockReturnValue({ lean: leanMock });
+
+    await expect(repository.findByIds([LOCALITY_ID])).resolves.toEqual([
+      expect.objectContaining({ id: LOCALITY_ID }),
+    ]);
+    expect(findMock).toHaveBeenCalledWith(
+      { _id: { $in: [new Types.ObjectId(LOCALITY_ID)] } },
+      LOCALITY_PROJECTION,
+    );
+  });
+
   it('should find Localities by Country', async () => {
     const execMock = vi.fn().mockResolvedValue([LOCALITY_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });

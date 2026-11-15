@@ -101,6 +101,24 @@ describe('GigCandidateApprovalService', () => {
       origin: { type: GigSourceUserOriginType.Form },
     },
   };
+  const resolvedVenueSelection = {
+    locality: {
+      id: '507f1f77bcf86cd799439013',
+      countryIso: 'ES',
+      name: 'Madrid',
+      aliases: [],
+      timeZone: 'Europe/Madrid',
+    },
+    venues: [
+      {
+        id: '507f1f77bcf86cd799439012',
+        localityId: '507f1f77bcf86cd799439013',
+        name: 'La Riviera',
+        aliases: [],
+        isActive: true,
+      },
+    ],
+  };
 
   let service: GigCandidateApprovalService;
 
@@ -115,24 +133,7 @@ describe('GigCandidateApprovalService', () => {
     gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
-    resolveVenueSelectionMock.mockResolvedValue({
-      locality: {
-        id: '507f1f77bcf86cd799439013',
-        countryIso: 'ES',
-        name: 'Madrid',
-        aliases: [],
-        timeZone: 'Europe/Madrid',
-      },
-      venues: [
-        {
-          id: '507f1f77bcf86cd799439012',
-          localityId: '507f1f77bcf86cd799439013',
-          name: 'La Riviera',
-          aliases: [],
-          isActive: true,
-        },
-      ],
-    });
+    resolveVenueSelectionMock.mockResolvedValue(resolvedVenueSelection);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -185,11 +186,39 @@ describe('GigCandidateApprovalService', () => {
     gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
       gig: approvedGig,
       gigCandidate: approvedGigCandidate,
+      venueSelection: resolvedVenueSelection,
       isNewApproval: true,
     });
     calendarAddEventMock.mockRejectedValueOnce(calendarFailure);
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   }
+
+  it('should build the Calendar event from the resolved Venue selection', async () => {
+    gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
+      gig: approvedGig,
+      gigCandidate: approvedGigCandidate,
+      venueSelection: resolvedVenueSelection,
+      isNewApproval: true,
+    });
+
+    await service.approveGigCandidate({
+      gigCandidateId: approvedGigCandidate.id,
+      expectedVersion: 1,
+      approvedByUserId: 'admin-user-id',
+    });
+
+    expect(gigToCalendarPayloadMock).toHaveBeenCalledWith({
+      title: approvedGig.title,
+      date: approvedGig.date,
+      locality: {
+        countryIso: 'ES',
+        name: 'Madrid',
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [{ name: 'La Riviera' }],
+      ticketsUrl: approvedGig.ticketsUrl,
+    });
+  });
 
   it('should reject an invalid expected version before opening a transaction', async () => {
     await expect(

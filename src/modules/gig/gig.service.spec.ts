@@ -19,7 +19,7 @@ import {
   AdminGigListSortBy,
   AdminGigListSortOrder,
 } from './types/admin-gig-list-sort.types';
-import type { PlainGig } from './types/gig.types';
+import type { GigCalendarSource, PlainGig } from './types/gig.types';
 import type {
   GigPosterFile,
   PreparedGigPosterFile,
@@ -47,6 +47,23 @@ function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
     posts: [],
     createdAt: new Date('2026-05-30T14:22:00.000Z'),
     updatedAt: new Date('2026-05-30T14:22:00.000Z'),
+    ...overrides,
+  };
+}
+
+function buildGigCalendarSource(
+  overrides: Partial<GigCalendarSource> = {},
+): GigCalendarSource {
+  return {
+    title: 'Radiohead',
+    date: Date.UTC(2026, 5, 12),
+    locality: {
+      countryIso: 'ES',
+      name: 'Barcelona',
+      timeZone: 'Europe/Madrid',
+    },
+    venues: [{ name: 'Palau Sant Jordi' }],
+    ticketsUrl: 'https://tickets.example/radiohead',
     ...overrides,
   };
 }
@@ -158,12 +175,12 @@ describe('GigService', () => {
 
   describe('gigToCalendarPayload', () => {
     it('should preserve local event time without a UTC suffix', () => {
-      const result = service.gigToCalendarPayload(buildGig());
+      const result = service.gigToCalendarPayload(buildGigCalendarSource());
 
       expect(result).toEqual({
         title: 'Radiohead',
         description: 'Tickets: https://tickets.example/radiohead',
-        location: 'Palau Sant Jordi, barcelona, ES',
+        location: 'Palau Sant Jordi, Barcelona, ES',
         startLocalDateTime: '2026-06-12T20:00:00',
         endLocalDateTime: '2026-06-12T22:00:00',
         timeZone: 'Europe/Madrid',
@@ -172,7 +189,7 @@ describe('GigService', () => {
 
     it('should use the final local day for a multi-day event', () => {
       const result = service.gigToCalendarPayload(
-        buildGig({ endDate: Date.UTC(2026, 5, 14) }),
+        buildGigCalendarSource({ endDate: Date.UTC(2026, 5, 14) }),
       );
 
       expect(result.endLocalDateTime).toBe('2026-06-14T22:00:00');
@@ -180,8 +197,30 @@ describe('GigService', () => {
 
     it('should reject an invalid start date', () => {
       expect(() =>
-        service.gigToCalendarPayload(buildGig({ date: Number.NaN })),
+        service.gigToCalendarPayload(
+          buildGigCalendarSource({ date: Number.NaN }),
+        ),
       ).toThrow('Gig date must be a valid timestamp');
+    });
+
+    it('should use all Venue names and the Locality time zone', () => {
+      const result = service.gigToCalendarPayload(
+        buildGigCalendarSource({
+          locality: {
+            countryIso: 'PT',
+            name: 'Lisbon',
+            timeZone: 'Europe/Lisbon',
+          },
+          venues: [{ name: 'Venue One' }, { name: 'Venue Two' }],
+        }),
+      );
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          location: 'Venue One, Venue Two, Lisbon, PT',
+          timeZone: 'Europe/Lisbon',
+        }),
+      );
     });
   });
 

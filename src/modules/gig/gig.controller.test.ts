@@ -32,9 +32,18 @@ describe('GigController', () => {
           title: 'Radiohead',
           date: 1_781_264_000_000,
           endDate: 1_781_350_400_000,
-          city: 'barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
+          locality: {
+            id: '507f1f77bcf86cd799439044',
+            countryIso: 'ES',
+            name: 'Barcelona',
+            qualifier: 'Catalonia',
+          },
+          venues: [
+            {
+              id: '507f1f77bcf86cd799439033',
+              name: 'Palau Sant Jordi',
+            },
+          ],
           ticketsUrl: 'https://tickets.example',
           calendarUrl: 'https://calendar.example',
         },
@@ -56,9 +65,18 @@ describe('GigController', () => {
           title: 'Radiohead',
           date: '1781264000000',
           endDate: '1781350400000',
-          city: 'barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
+          locality: {
+            id: '507f1f77bcf86cd799439044',
+            countryIso: 'ES',
+            name: 'Barcelona',
+            qualifier: 'Catalonia',
+          },
+          venues: [
+            {
+              id: '507f1f77bcf86cd799439033',
+              name: 'Palau Sant Jordi',
+            },
+          ],
           ticketsUrl: 'https://tickets.example',
           calendarUrl: 'https://calendar.example',
         },

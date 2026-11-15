@@ -14,6 +14,7 @@ import { GigFeedService } from './gig-feed/gig-feed.service';
 import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.service';
 import { RemoteImageModule } from '../remote-image/remote-image.module';
 import { CommunityModule } from '@modules/community/community.module';
+import { LocationModule } from '@modules/location/location.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { CommunityModule } from '@modules/community/community.module';
     AuthModule,
     TelegramModule,
     CommunityModule,
+    LocationModule,
   ],
   providers: [
     {

@@ -86,6 +86,34 @@ export class LocalityService {
     return locality;
   }
 
+  async getLocalitiesByIds(
+    ids: readonly string[],
+  ): Promise<readonly Locality[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const normalizedIds = ids.map((id) => id.toLowerCase());
+    const localities = await this.localityRepository.findByIds(normalizedIds);
+    const localitiesById = new Map(
+      localities.map((locality) => [locality.id.toLowerCase(), locality]),
+    );
+    const orderedLocalities = normalizedIds.map((id) => {
+      const locality = localitiesById.get(id);
+      if (!locality) {
+        throw new NotFoundException(
+          'Locality with id "' + id + '" does not exist',
+        );
+      }
+
+      return locality;
+    });
+
+    this.assertCountriesExist(orderedLocalities);
+
+    return orderedLocalities;
+  }
+
   async hasLocality(id: string): Promise<boolean> {
     const locality = await this.localityRepository.findById(id);
 

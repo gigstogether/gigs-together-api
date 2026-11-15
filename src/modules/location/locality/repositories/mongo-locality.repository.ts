@@ -101,6 +101,23 @@ export class MongoLocalityRepository implements LocalityRepository {
     return LocalityRepositoryMapper.toLocality(doc);
   }
 
+  async findByIds(ids: readonly string[]): Promise<readonly Locality[]> {
+    const storedIds = ids.map((id) => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new Error('Locality id must be a valid ObjectId');
+      }
+
+      return new Types.ObjectId(id);
+    });
+
+    const docs = await this.localityModel
+      .find({ _id: { $in: storedIds } }, LOCALITY_PROJECTION)
+      .lean<readonly LocalityLeanDocument[]>()
+      .exec();
+
+    return LocalityRepositoryMapper.toLocalities(docs);
+  }
+
   async find(params: FindLocalitiesParams): Promise<readonly Locality[]> {
     const filter: LocalityMongoFilter = {};
 

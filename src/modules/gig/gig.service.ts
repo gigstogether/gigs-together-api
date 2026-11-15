@@ -742,8 +742,6 @@ export class GigService {
   }
 
   gigToCalendarPayload(gig: GigCalendarSource): CalendarEvent {
-    const timeZone = 'Europe/Madrid';
-
     // Use an evening window from 20:00 to 22:00 in the event's local time
     // zone. Google resolves the UTC offset from the IANA time zone.
     const startDate = formatCalendarDate(gig.date, 'date');
@@ -760,12 +758,17 @@ export class GigService {
     return {
       title: gig.title,
       description: `Tickets: ${gig.ticketsUrl}`,
-      location: [gig.venue, gig.city, gig.country] // TODO: add country name?
+      // TODO: add country name?
+      location: [
+        gig.venues.map((venue) => venue.name).join(', '),
+        gig.locality.name,
+        gig.locality.countryIso,
+      ]
         .filter((str) => !!str)
         .join(', '),
       startLocalDateTime: `${startDate}T20:00:00`,
       endLocalDateTime: `${endDate}T22:00:00`,
-      timeZone,
+      timeZone: gig.locality.timeZone,
     };
   }
 

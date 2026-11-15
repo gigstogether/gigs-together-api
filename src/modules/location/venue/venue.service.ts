@@ -51,9 +51,19 @@ export interface ResolveVenueSelectionParams {
   isActiveRequired: boolean;
 }
 
+export interface ResolveStoredVenueSelectionsParams {
+  venueIdsBySelection: readonly (readonly string[])[];
+}
+
 export interface ResolvedVenueSelection {
   locality: Locality;
   venues: readonly Venue[];
+}
+
+interface ResolveVenueSelectionsParams {
+  venueIdsBySelection: readonly (readonly string[])[];
+  isActiveRequired: boolean;
+  createError: (message: string) => Error;
 }
 
 @Injectable()
@@ -127,55 +137,27 @@ export class VenueService {
   async resolveVenueSelection(
     params: ResolveVenueSelectionParams,
   ): Promise<ResolvedVenueSelection> {
-    if (params.venueIds.length === 0) {
-      throw new BadRequestException(
-        'venueIds must contain at least one Venue id',
-      );
-    }
-
-    const normalizedVenueIds = params.venueIds.map((venueId) =>
-      venueId.toLowerCase(),
-    );
-    if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
-      throw new BadRequestException('venueIds must not contain duplicates');
-    }
-
-    const foundVenues =
-      await this.venueRepository.findByIds(normalizedVenueIds);
-    const venuesById = new Map(
-      foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
-    );
-    const venues = normalizedVenueIds.map((venueId) => {
-      const venue = venuesById.get(venueId);
-      if (!venue) {
-        throw new BadRequestException(
-          'venueIds must reference existing Venues',
-        );
-      }
-      return venue;
+    const selections = await this.resolveVenueSelections({
+      venueIdsBySelection: [params.venueIds],
+      isActiveRequired: params.isActiveRequired,
+      createError: (message) => new BadRequestException(message),
     });
-
-    if (params.isActiveRequired && venues.some((venue) => !venue.isActive)) {
-      throw new BadRequestException(
-        'venueIds must reference active Venues for new assignments',
-      );
-    }
-
-    const localityIds = new Set(venues.map((venue) => venue.localityId));
-    if (localityIds.size !== 1) {
-      throw new BadRequestException(
-        'All assigned Venues must belong to the same Locality',
-      );
-    }
-
-    const firstVenue = venues[0];
-    if (firstVenue === undefined) {
+    const selection = selections[0];
+    if (selection === undefined) {
       throw new Error('Resolved Venue selection must not be empty');
     }
-    const localityId = firstVenue.localityId;
-    const locality = await this.localityService.getLocalityById(localityId);
 
-    return { locality, venues };
+    return selection;
+  }
+
+  resolveStoredVenueSelections(
+    params: ResolveStoredVenueSelectionsParams,
+  ): Promise<readonly ResolvedVenueSelection[]> {
+    return this.resolveVenueSelections({
+      venueIdsBySelection: params.venueIdsBySelection,
+      isActiveRequired: false,
+      createError: (message) => new Error(message),
+    });
   }
 
   async updateVenue(params: UpdateVenueParams): Promise<Venue> {
@@ -266,6 +248,86 @@ export class VenueService {
         );
       }
     }
+  }
+
+  private async resolveVenueSelections(
+    params: ResolveVenueSelectionsParams,
+  ): Promise<readonly ResolvedVenueSelection[]> {
+    if (params.venueIdsBySelection.length === 0) {
+      return [];
+    }
+
+    const normalizedSelections = params.venueIdsBySelection.map((venueIds) => {
+      if (venueIds.length === 0) {
+        throw params.createError('venueIds must contain at least one Venue id');
+      }
+
+      const normalizedVenueIds = venueIds.map((venueId) =>
+        venueId.toLowerCase(),
+      );
+      if (new Set(normalizedVenueIds).size !== normalizedVenueIds.length) {
+        throw params.createError('venueIds must not contain duplicates');
+      }
+
+      return normalizedVenueIds;
+    });
+    const uniqueVenueIds = Array.from(new Set(normalizedSelections.flat()));
+    const foundVenues = await this.venueRepository.findByIds(uniqueVenueIds);
+    const venuesById = new Map(
+      foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
+    );
+    const venueSelections = normalizedSelections.map((venueIds) =>
+      venueIds.map((venueId) => {
+        const venue = venuesById.get(venueId);
+        if (!venue) {
+          throw params.createError('venueIds must reference existing Venues');
+        }
+
+        return venue;
+      }),
+    );
+
+    if (
+      params.isActiveRequired &&
+      venueSelections.some((venues) => venues.some((venue) => !venue.isActive))
+    ) {
+      throw params.createError(
+        'venueIds must reference active Venues for new assignments',
+      );
+    }
+
+    const localityIdsBySelection = venueSelections.map((venues) => {
+      const localityIds = new Set(venues.map((venue) => venue.localityId));
+      if (localityIds.size !== 1) {
+        throw params.createError(
+          'All assigned Venues must belong to the same Locality',
+        );
+      }
+
+      const localityId = localityIds.values().next().value;
+      if (localityId === undefined) {
+        throw new Error('Resolved Venue selection must not be empty');
+      }
+
+      return localityId;
+    });
+    const uniqueLocalityIds = Array.from(new Set(localityIdsBySelection));
+    const localities =
+      await this.localityService.getLocalitiesByIds(uniqueLocalityIds);
+    const localitiesById = new Map(
+      localities.map((locality) => [locality.id, locality]),
+    );
+
+    return venueSelections.map((venues, index) => {
+      const localityId = localityIdsBySelection[index];
+      const locality =
+        localityId === undefined ? undefined : localitiesById.get(localityId);
+      if (!locality) {
+        throw new Error('Resolved Venue Locality must exist');
+      }
+
+      return { locality, venues };
+    });
   }
 
   private throwVenueWriteError(e: unknown): never {

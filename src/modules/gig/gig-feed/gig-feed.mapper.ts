@@ -28,9 +28,8 @@ function mapGigFeedItemToV1(item: GigFeedItem): V1GetGigsResponseBodyGig {
     id: item.id,
     title: item.title,
     date: item.date.toString(),
-    city: item.city,
-    country: item.country,
-    venue: item.venue,
+    locality: item.locality,
+    venues: item.venues,
     ticketsUrl: item.ticketsUrl,
     calendarUrl: item.calendarUrl,
   };

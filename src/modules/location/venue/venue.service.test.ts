@@ -45,11 +45,13 @@ describe('VenueService', () => {
   const deleteByIdMock = vi.fn();
   const hasLocalityMock = vi.fn();
   const getLocalityByIdMock = vi.fn();
+  const getLocalitiesByIdsMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     hasLocalityMock.mockResolvedValue(true);
     getLocalityByIdMock.mockResolvedValue(LOCALITY);
+    getLocalitiesByIdsMock.mockResolvedValue([LOCALITY]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -70,6 +72,7 @@ describe('VenueService', () => {
           useValue: {
             hasLocality: hasLocalityMock,
             getLocalityById: getLocalityByIdMock,
+            getLocalitiesByIds: getLocalitiesByIdsMock,
           },
         },
       ],
@@ -206,7 +209,7 @@ describe('VenueService', () => {
       venues: [SECOND_VENUE, VENUE],
     });
     expect(findByIdsMock).toHaveBeenCalledWith([SECOND_VENUE_ID, VENUE_ID]);
-    expect(getLocalityByIdMock).toHaveBeenCalledWith(LOCALITY_ID);
+    expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
   });
 
   it('should reject Venue selections containing an inactive Venue', async () => {
@@ -218,7 +221,7 @@ describe('VenueService', () => {
         isActiveRequired: true,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(getLocalityByIdMock).not.toHaveBeenCalled();
+    expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
   });
 
   it('should reject Venue selections spanning multiple Localities', async () => {
@@ -233,7 +236,7 @@ describe('VenueService', () => {
         isActiveRequired: true,
       }),
     ).rejects.toThrow('All assigned Venues must belong to the same Locality');
-    expect(getLocalityByIdMock).not.toHaveBeenCalled();
+    expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
   });
 
   it('should reject Venue selections containing duplicate ids', async () => {
@@ -255,7 +258,30 @@ describe('VenueService', () => {
         isActiveRequired: true,
       }),
     ).rejects.toThrow('venueIds must reference existing Venues');
-    expect(getLocalityByIdMock).not.toHaveBeenCalled();
+    expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
+  });
+
+  it('should batch stored Venue selections and allow inactive historical Venues', async () => {
+    findByIdsMock.mockResolvedValue([
+      { ...VENUE, isActive: false },
+      SECOND_VENUE,
+    ]);
+
+    await expect(
+      service.resolveStoredVenueSelections({
+        venueIdsBySelection: [[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]],
+      }),
+    ).resolves.toEqual([
+      { locality: LOCALITY, venues: [{ ...VENUE, isActive: false }] },
+      {
+        locality: LOCALITY,
+        venues: [SECOND_VENUE, { ...VENUE, isActive: false }],
+      },
+    ]);
+    expect(findByIdsMock).toHaveBeenCalledOnce();
+    expect(findByIdsMock).toHaveBeenCalledWith([VENUE_ID, SECOND_VENUE_ID]);
+    expect(getLocalitiesByIdsMock).toHaveBeenCalledOnce();
+    expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
   });
 
   it('should deactivate a Venue while retaining its names', async () => {

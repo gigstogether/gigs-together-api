@@ -57,10 +57,11 @@ persistence and application behavior. `AdminModule` owns the authenticated
 administrative HTTP controllers and their versioned Locality and Venue request
 and response contracts.
 
-Public GigCandidate creation, approval, and Gig persistence use Locality and
-Venue IDs. Gig responses, moderation forms, and physical-location integrations
-continue to use the legacy `country`, `city`, and `venue` fields until their
-runtime contracts and the historical-data migration are ready.
+Public GigCandidate creation, approval, Gig persistence, public Gig feed
+responses, and calendar creation use Locality and Venue IDs. Admin moderation
+forms, Telegram text, and the remaining physical-location integrations continue
+to use the legacy `country`, `city`, and `venue` fields until their runtime
+contracts and the historical-data migration are ready.
 
 ## Country
 
@@ -234,6 +235,18 @@ cross-Locality assignments before the Gig and approved candidate state are
 written in one transaction. Gig persistence stores Venue references as MongoDB
 ObjectIds and maps them back to opaque string IDs at the repository boundary.
 
+Public Gig feed reads resolve every page of Venue assignments in batches and
+return canonical location data instead of legacy strings:
+
+```text
+Gig response → Locality { id, countryIso, name, qualifier? }
+             → Venue[] { id, name }
+```
+
+Historical Gigs may continue to display inactive Venues. New assignments still
+require active Venues. Calendar links and approval-side Calendar creation use
+the resolved Locality time zone and all assigned Venue names.
+
 `GigCandidate.gigDraft.communityIds` remains required for every source. Other
 draft fields remain optional so messenger suggestions may be incomplete. A web
 form submission selects one existing Locality and may optionally select one
@@ -248,9 +261,10 @@ location to be resolved to a non-empty `venueIds` array; moderation may replace
 the temporary Locality assignment with one or more Venues from that same
 Locality.
 
-Legacy `country`, `city`, and `venue` remain in runtime contracts until the Gig
-relationships and their migration are complete. The migration must run only
-after the final runtime schemas have been reviewed.
+Legacy `country`, `city`, and `venue` remain in internal moderation and
+integration contracts until the remaining runtime relationships and their
+migration are complete. They are no longer part of the public Gig feed response.
+The migration must run only after the final runtime schemas have been reviewed.
 
 ## Geographic Suggestions
 

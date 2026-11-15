@@ -27,6 +27,8 @@ export interface LocalityRepository {
 
   findById(id: string): Promise<Locality | null>;
 
+  findByIds(ids: readonly string[]): Promise<readonly Locality[]>;
+
   find(params: FindLocalitiesParams): Promise<readonly Locality[]>;
 
   update(params: UpdateLocalityRecordParams): Promise<Locality | null>;

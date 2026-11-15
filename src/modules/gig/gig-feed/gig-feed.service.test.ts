@@ -12,6 +12,7 @@ import type { PlainGig } from '../types/gig.types';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import { CommunityService } from '@modules/community/community.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
@@ -72,6 +73,7 @@ describe('GigFeedService', () => {
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
   const communityService = { findByRoute: vi.fn() };
+  const venueService = { resolveStoredVenueSelections: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -97,6 +99,28 @@ describe('GigFeedService', () => {
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
+    venueService.resolveStoredVenueSelections.mockImplementation(
+      (params: { venueIdsBySelection: readonly (readonly string[])[] }) =>
+        Promise.resolve(
+          params.venueIdsBySelection.map((venueIds) => ({
+            locality: {
+              id: '507f1f77bcf86cd799439044',
+              countryIso: 'ES',
+              name: 'Barcelona',
+              qualifier: 'Catalonia',
+              aliases: [],
+              timeZone: 'Europe/Madrid',
+            },
+            venues: venueIds.map((id) => ({
+              id,
+              localityId: '507f1f77bcf86cd799439044',
+              name: 'Palau Sant Jordi',
+              aliases: [],
+              isActive: true,
+            })),
+          })),
+        ),
+    );
     communityService.findByRoute.mockResolvedValue({
       id: '507f1f77bcf86cd799439022',
       countryIso: 'ES',
@@ -114,6 +138,7 @@ describe('GigFeedService', () => {
         { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
         { provide: CommunityService, useValue: communityService },
+        { provide: VenueService, useValue: venueService },
       ],
     }).compile();
     service = module.get(GigFeedService);
@@ -146,6 +171,18 @@ describe('GigFeedService', () => {
       expect.objectContaining({
         id: gig.publicId,
         title: gig.title,
+        locality: {
+          id: '507f1f77bcf86cd799439044',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          qualifier: 'Catalonia',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439033',
+            name: 'Palau Sant Jordi',
+          },
+        ],
         calendarUrl: 'https://calendar.example/event',
       }),
     );
@@ -159,6 +196,20 @@ describe('GigFeedService', () => {
     expect(communityService.findByRoute).toHaveBeenCalledWith({
       countryIso: 'ES',
       communitySlug: 'barcelona',
+    });
+    expect(venueService.resolveStoredVenueSelections).toHaveBeenCalledWith({
+      venueIdsBySelection: [gig.venueIds],
+    });
+    expect(gigService.gigToCalendarPayload).toHaveBeenCalledWith({
+      title: gig.title,
+      date: gig.date,
+      locality: {
+        countryIso: 'ES',
+        name: 'Barcelona',
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [{ name: 'Palau Sant Jordi' }],
+      ticketsUrl: gig.ticketsUrl,
     });
   });
 
