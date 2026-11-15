@@ -4,6 +4,10 @@ import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../../calendar/calendar.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../gig-calendar/gig-calendar.service';
 import { GigService } from '../gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
@@ -64,9 +68,9 @@ describe('GigFeedService', () => {
   };
   const gigService = {
     normalizeAndValidatePublicId: vi.fn(),
-    gigToCalendarPayload: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
+  const gigCalendarService = { toCalendarEvent: vi.fn() };
   const telegramGigService = {
     pickPost: vi.fn(),
     resolveMainPostUrl: vi.fn(),
@@ -92,7 +96,7 @@ describe('GigFeedService', () => {
     gigService.normalizeAndValidatePublicId.mockImplementation(
       (publicId: string) => publicId,
     );
-    gigService.gigToCalendarPayload.mockReturnValue({});
+    gigCalendarService.toCalendarEvent.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
     telegramGigService.pickPost.mockReturnValue(undefined);
     telegramGigService.resolveMainPostUrl.mockResolvedValue(undefined);
@@ -135,6 +139,7 @@ describe('GigFeedService', () => {
         GigFeedService,
         { provide: GIG_REPOSITORY, useValue: gigRepository },
         { provide: GigService, useValue: gigService },
+        { provide: GigCalendarService, useValue: gigCalendarService },
         { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
         { provide: CommunityService, useValue: communityService },
@@ -200,16 +205,19 @@ describe('GigFeedService', () => {
     expect(venueService.resolveStoredVenueSelections).toHaveBeenCalledWith({
       venueIdsBySelection: [gig.venueIds],
     });
-    expect(gigService.gigToCalendarPayload).toHaveBeenCalledWith({
-      title: gig.title,
-      date: gig.date,
-      locality: {
-        countryIso: 'ES',
-        name: 'Barcelona',
-        timeZone: 'Europe/Madrid',
+    expect(gigCalendarService.toCalendarEvent).toHaveBeenCalledWith({
+      gig: {
+        title: gig.title,
+        date: gig.date,
+        locality: {
+          countryIso: 'ES',
+          name: 'Barcelona',
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [{ name: 'Palau Sant Jordi' }],
+        ticketsUrl: gig.ticketsUrl,
       },
-      venues: [{ name: 'Palau Sant Jordi' }],
-      ticketsUrl: gig.ticketsUrl,
+      locale: GIG_CALENDAR_TEXT_LOCALE,
     });
   });
 

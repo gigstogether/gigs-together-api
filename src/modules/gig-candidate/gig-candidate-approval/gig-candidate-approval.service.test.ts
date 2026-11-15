@@ -11,6 +11,10 @@ import { CalendarService } from '@modules/calendar/calendar.service';
 import type { CalendarEvent } from '@modules/calendar/calendar.types';
 import { VenueService } from '@modules/location/venue/venue.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
@@ -41,7 +45,7 @@ describe('GigCandidateApprovalService', () => {
   const revalidateGigFeedsOrThrowMock =
     vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
-  const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
+  const toCalendarEventMock = vi.fn<GigCalendarService['toCalendarEvent']>();
   const resolveVenueSelectionMock =
     vi.fn<VenueService['resolveVenueSelection']>();
   const reportFailureBestEffortMock =
@@ -130,7 +134,7 @@ describe('GigCandidateApprovalService', () => {
     );
     revalidateGigFeedsOrThrowMock.mockResolvedValue(undefined);
     calendarAddEventMock.mockResolvedValue(undefined);
-    gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
+    toCalendarEventMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
     resolveVenueSelectionMock.mockResolvedValue(resolvedVenueSelection);
@@ -144,7 +148,11 @@ describe('GigCandidateApprovalService', () => {
         },
         {
           provide: GigService,
-          useValue: { gigToCalendarPayload: gigToCalendarPayloadMock },
+          useValue: {},
+        },
+        {
+          provide: GigCalendarService,
+          useValue: { toCalendarEvent: toCalendarEventMock },
         },
         {
           provide: VenueService,
@@ -207,16 +215,19 @@ describe('GigCandidateApprovalService', () => {
       approvedByUserId: 'admin-user-id',
     });
 
-    expect(gigToCalendarPayloadMock).toHaveBeenCalledWith({
-      title: approvedGig.title,
-      date: approvedGig.date,
-      locality: {
-        countryIso: 'ES',
-        name: 'Madrid',
-        timeZone: 'Europe/Madrid',
+    expect(toCalendarEventMock).toHaveBeenCalledWith({
+      gig: {
+        title: approvedGig.title,
+        date: approvedGig.date,
+        locality: {
+          countryIso: 'ES',
+          name: 'Madrid',
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [{ name: 'La Riviera' }],
+        ticketsUrl: approvedGig.ticketsUrl,
       },
-      venues: [{ name: 'La Riviera' }],
-      ticketsUrl: approvedGig.ticketsUrl,
+      locale: GIG_CALENDAR_TEXT_LOCALE,
     });
   });
 

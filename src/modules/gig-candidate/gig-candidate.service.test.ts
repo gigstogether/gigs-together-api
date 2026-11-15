@@ -13,6 +13,7 @@ import { Messenger } from '@shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
+import { GigCalendarService } from '../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
@@ -138,8 +139,8 @@ describe('GigCandidateService', () => {
   };
   const gigServiceMock = {
     generateUniquePublicId: vi.fn(),
-    gigToCalendarPayload: vi.fn(),
   };
+  const gigCalendarServiceMock = { toCalendarEvent: vi.fn() };
 
   async function createService(
     configService: ConfigService,
@@ -178,6 +179,7 @@ describe('GigCandidateService', () => {
           useValue: gigFeedRevalidationServiceMock,
         },
         { provide: GigService, useValue: gigServiceMock },
+        { provide: GigCalendarService, useValue: gigCalendarServiceMock },
         { provide: UserService, useValue: userServiceMock },
         { provide: CommunityService, useValue: communityServiceMock },
         { provide: LocalityService, useValue: localityServiceMock },
@@ -2084,7 +2086,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
-      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+      gigCalendarServiceMock.toCalendarEvent.mockReturnValue({ event: true });
 
       await expect(
         approvalService.approveGigCandidate({
@@ -2446,7 +2448,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
-      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+      gigCalendarServiceMock.toCalendarEvent.mockReturnValue({ event: true });
       gigFeedRevalidationServiceMock.revalidateGigFeedsOrThrow.mockRejectedValue(
         new Error('Revalidation unavailable'),
       );

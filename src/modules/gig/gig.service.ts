@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
-  GigCalendarSource,
   GigFormInput,
   GigId,
   GigPost,
@@ -16,7 +15,6 @@ import type {
   PlainGig,
 } from './types/gig.types';
 import { getConfigBoolean } from '@shared/utils/env';
-import type { CalendarEvent } from '../calendar/calendar.types';
 import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
@@ -43,33 +41,6 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
-
-const CALENDAR_TEXT_LOCALE = 'en';
-const countryDisplayNamesByLocale = new Map<string, Intl.DisplayNames>();
-
-function getCountryDisplayNames(locale: string): Intl.DisplayNames {
-  const cachedDisplayNames = countryDisplayNamesByLocale.get(locale);
-  if (cachedDisplayNames !== undefined) {
-    return cachedDisplayNames;
-  }
-
-  const displayNames = new Intl.DisplayNames([locale], {
-    type: 'region',
-    fallback: 'none',
-  });
-  countryDisplayNamesByLocale.set(locale, displayNames);
-
-  return displayNames;
-}
-
-function formatCalendarDate(value: number, field: 'date' | 'endDate'): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Gig ${field} must be a valid timestamp`);
-  }
-
-  return date.toISOString().slice(0, 10);
-}
 
 export interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -757,55 +728,6 @@ export class GigService {
     return this.gigFeedRevalidationService.revalidateGigFeeds({
       communityIds: gig.communityIds,
     });
-  }
-
-  gigToCalendarPayload(gig: GigCalendarSource): CalendarEvent {
-    // Shared Calendar event text currently uses one explicit locale; callers can supply a dynamic locale later.
-    const countryName = this.getCountryName(
-      gig.locality.countryIso,
-      CALENDAR_TEXT_LOCALE,
-    );
-
-    // Use an evening window from 20:00 to 22:00 in the event's local time
-    // zone. Google resolves the UTC offset from the IANA time zone.
-    const startDate = formatCalendarDate(gig.date, 'date');
-
-    // Multi-day events end at 22:00 on the final day. Clamp an invalid
-    // earlier end date to the start day so the end never precedes the start.
-    const requestedEndDate =
-      gig.endDate !== undefined
-        ? formatCalendarDate(gig.endDate, 'endDate')
-        : startDate;
-    const endDate =
-      requestedEndDate >= startDate ? requestedEndDate : startDate;
-
-    return {
-      title: gig.title,
-      description: `Tickets: ${gig.ticketsUrl}`,
-      location: [
-        gig.venues.map((venue) => venue.name).join(', '),
-        gig.locality.name,
-        countryName,
-      ]
-        .filter((str) => !!str)
-        .join(', '),
-      startLocalDateTime: `${startDate}T20:00:00`,
-      endLocalDateTime: `${endDate}T22:00:00`,
-      timeZone: gig.locality.timeZone,
-    };
-  }
-
-  private getCountryName(countryIso: string, locale: string): string {
-    const countryName = getCountryDisplayNames(locale).of(countryIso);
-    if (countryName !== undefined) {
-      return countryName;
-    }
-
-    this.logger.warn(
-      `Country ISO code "${countryIso}" has no display name for locale "${locale}"; using the ISO code in Calendar location text.`,
-    );
-
-    return countryIso;
   }
 
   private uploadPoster: GigPosterService['upload'] =

@@ -15,6 +15,7 @@ import { GigFeedRevalidationService } from './gig-feed/gig-feed-revalidation.ser
 import { RemoteImageModule } from '../remote-image/remote-image.module';
 import { CommunityModule } from '@modules/community/community.module';
 import { LocationModule } from '@modules/location/location.module';
+import { GigCalendarService } from './gig-calendar/gig-calendar.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { LocationModule } from '@modules/location/location.module';
       useClass: MongoGigRepository,
     },
     GigService,
+    GigCalendarService,
     GigFeedService,
     GigFeedRevalidationService,
     GigPosterService,
@@ -40,6 +42,7 @@ import { LocationModule } from '@modules/location/location.module';
   exports: [
     MongooseModule,
     GigService,
+    GigCalendarService,
     GigFeedService,
     GigFeedRevalidationService,
     GigPosterService,

@@ -15,6 +15,10 @@ import {
 import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { VenueService } from '@modules/location/venue/venue.service';
 import type { ResolvedVenueSelection } from '@modules/location/venue/venue.service';
@@ -81,6 +85,7 @@ export class GigCandidateApprovalService {
     private readonly venueService: VenueService,
     private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly calendarService: CalendarService,
+    private readonly gigCalendarService: GigCalendarService,
     private readonly alertingService: AlertingService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
@@ -226,7 +231,10 @@ export class GigCandidateApprovalService {
         calendarSource.endDate = gig.endDate;
       }
       await this.calendarService.addEvent(
-        this.gigService.gigToCalendarPayload(calendarSource),
+        this.gigCalendarService.toCalendarEvent({
+          gig: calendarSource,
+          locale: GIG_CALENDAR_TEXT_LOCALE,
+        }),
       );
     } catch (e) {
       const attributes: Record<string, AlertAttributeValue> = {
