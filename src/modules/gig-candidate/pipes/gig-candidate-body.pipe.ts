@@ -56,8 +56,8 @@ export class GigCandidateBodyPipe implements PipeTransform<
       date: this.readOptionalString(value, 'date') ?? '',
     };
 
-    if (value.venueId !== undefined) {
-      gig.venueId = this.readOptionalString(value, 'venueId');
+    if (value.venueIds !== undefined) {
+      gig.venueIds = this.readOptionalStringArray(value, 'venueIds');
     }
     if (value.endDate !== undefined) {
       gig.endDate = this.readOptionalString(value, 'endDate');
@@ -94,6 +94,18 @@ export class GigCandidateBodyPipe implements PipeTransform<
     if (typeof raw !== 'string') {
       throw new BadRequestException(`${field} must be a string`);
     }
+    return raw;
+  }
+
+  private readOptionalStringArray(
+    value: Record<string, unknown>,
+    field: string,
+  ): string[] {
+    const raw = value[field];
+    if (!Array.isArray(raw) || raw.some((item) => typeof item !== 'string')) {
+      throw new BadRequestException(`${field} must be an array of strings`);
+    }
+
     return raw;
   }
 

@@ -1,7 +1,7 @@
 export interface V1CreateGigCandidateRequestBodyGig {
   communityId: string;
   localityId: string;
-  venueId?: string;
+  venueIds?: string[];
   title: string;
   date: string;
   endDate?: string;

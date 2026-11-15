@@ -705,7 +705,7 @@ describe('GigCandidateService', () => {
           gig: {
             communityId: '507f1f77bcf86cd799439011',
             localityId: '507f1f77bcf86cd799439012',
-            venueId: '507f1f77bcf86cd799439013',
+            venueIds: ['507f1f77bcf86cd799439013'],
             title: 'Band',
             date: '2026-08-01',
           },
@@ -730,7 +730,7 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          venueIds: ['507f1f77bcf86cd799439013'],
+          venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
         },
@@ -745,7 +745,7 @@ describe('GigCandidateService', () => {
         gig: {
           communityId: '507f1f77bcf86cd799439011',
           localityId: '507f1f77bcf86cd799439012',
-          venueId: '507f1f77bcf86cd799439013',
+          venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
           title: 'Band',
           date: '2026-08-01',
         },
@@ -761,10 +761,13 @@ describe('GigCandidateService', () => {
       ).toHaveBeenCalledWith(
         expect.objectContaining({
           gigDraft: expect.objectContaining({
-            venueIds: ['507f1f77bcf86cd799439013'],
+            venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
           }),
         }),
       );
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith({
+        venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
+      });
       const createParams =
         gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
       expect(createParams).not.toHaveProperty('localityId');

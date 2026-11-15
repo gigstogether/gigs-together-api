@@ -134,7 +134,7 @@ const MESSENGER_GIG_CANDIDATE_IMAGE_KEY_PREFIX = 'suggestions';
 export interface PublicGigCandidateInput {
   communityId: string;
   localityId: string;
-  venueId?: string;
+  venueIds?: string[];
   title: string;
   date: string;
   endDate?: string;
@@ -156,7 +156,7 @@ interface CreatedGigCandidate {
 interface ParsedCreateGigCandidateFields {
   communityId: string;
   localityId: string;
-  venueId?: string;
+  venueIds?: string[];
   title: string;
   date: string;
   endDate?: string;
@@ -664,7 +664,7 @@ export class GigCandidateService {
 
     let localityId: string | undefined;
     let locality: Locality;
-    if (gig.venueId === undefined) {
+    if (gig.venueIds === undefined) {
       try {
         locality = await this.localityService.getLocalityById(gig.localityId);
       } catch (e) {
@@ -679,15 +679,15 @@ export class GigCandidateService {
       localityId = gig.localityId;
     } else {
       const venueSelection = await this.venueService.getActiveVenueSelection({
-        venueIds: [gig.venueId],
+        venueIds: gig.venueIds,
       });
       if (venueSelection.locality.id !== gig.localityId) {
         throw new BadRequestException(
-          'venueId must reference a Venue in the selected Locality',
+          'venueIds must reference Venues in the selected Locality',
         );
       }
       locality = venueSelection.locality;
-      gigDraft.venueIds = [gig.venueId];
+      gigDraft.venueIds = gig.venueIds;
     }
 
     const preparedPoster =
@@ -769,7 +769,7 @@ export class GigCandidateService {
   ): ParsedCreateGigCandidateFields {
     const communityId = this.requireMongoId(raw.communityId, 'communityId');
     const localityId = this.requireMongoId(raw.localityId, 'localityId');
-    const venueId = this.optionalMongoId(raw.venueId, 'venueId');
+    const venueIds = this.optionalMongoIdArray(raw.venueIds, 'venueIds');
     const title = this.requireNonEmptyString(raw.title, 'title');
     if (title.length > GIG_TITLE_MAX_LENGTH) {
       throw new BadRequestException(
@@ -812,8 +812,8 @@ export class GigCandidateService {
       title,
       date,
     };
-    if (venueId !== undefined) {
-      parsed.venueId = venueId;
+    if (venueIds !== undefined) {
+      parsed.venueIds = venueIds;
     }
     if (endDate !== undefined) {
       parsed.endDate = endDate;
@@ -836,9 +836,20 @@ export class GigCandidateService {
     return id;
   }
 
-  private optionalMongoId(value: unknown, field: string): string | undefined {
-    const id = this.optionalNonEmptyString(value);
-    return id === undefined ? undefined : this.requireMongoId(id, field);
+  private optionalMongoIdArray(
+    value: unknown,
+    field: string,
+  ): string[] | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+    if (!Array.isArray(value)) {
+      throw new BadRequestException(`${field} must be an array`);
+    }
+
+    return value.map((item, index) =>
+      this.requireMongoId(item, `${field}[${index}]`),
+    );
   }
 
   private requireNonEmptyString(value: unknown, field: string): string {

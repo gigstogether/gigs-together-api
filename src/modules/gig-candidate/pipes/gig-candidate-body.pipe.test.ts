@@ -26,7 +26,7 @@ describe('GigCandidateBodyPipe', () => {
         localityId: '507f1f77bcf86cd799439012',
         title: 'Band',
         date: '2026-08-01',
-        venueId: '507f1f77bcf86cd799439013',
+        venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
       },
     });
 
@@ -35,7 +35,7 @@ describe('GigCandidateBodyPipe', () => {
       localityId: '507f1f77bcf86cd799439012',
       title: 'Band',
       date: '2026-08-01',
-      venueId: '507f1f77bcf86cd799439013',
+      venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
     });
   });
 
@@ -65,6 +65,20 @@ describe('GigCandidateBodyPipe', () => {
           localityId: '507f1f77bcf86cd799439012',
           title: 1,
           date: '2026-08-01',
+        },
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it('should throw when Venue assignments are not an array of strings', () => {
+    expect(() =>
+      pipe.transform({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          title: 'Band',
+          date: '2026-08-01',
+          venueIds: ['507f1f77bcf86cd799439013', 1],
         },
       }),
     ).toThrow(BadRequestException);

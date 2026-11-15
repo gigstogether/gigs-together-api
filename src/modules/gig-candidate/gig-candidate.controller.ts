@@ -59,8 +59,8 @@ function mapV1CreateGigCandidateRequest(
     title: body.gig.title,
     date: body.gig.date,
   };
-  if (body.gig.venueId !== undefined) {
-    gig.venueId = body.gig.venueId;
+  if (body.gig.venueIds !== undefined) {
+    gig.venueIds = body.gig.venueIds;
   }
   if (body.gig.endDate !== undefined) {
     gig.endDate = body.gig.endDate;
