@@ -121,13 +121,18 @@ export class VenueService {
   async getActiveVenueSelection(venueIds: string[]): Promise<VenueSelection> {
     try {
       const normalizedVenueIds = this.normalizeVenueIds(venueIds);
-      const venuesById = await this.getVenuesByIds(normalizedVenueIds);
+      const venuesById = await this.getVenueMap(normalizedVenueIds);
       const venues = normalizedVenueIds.map((venueId) =>
         this.mapVenueIdToVenue(venueId, venuesById),
       );
       this.assertVenuesAreActive(venues);
 
-      return this.buildVenueSelection(venues);
+      const localityId = this.getVenueGroupLocalityId(venues);
+      const locality = await this.localityService.getLocalityById(localityId);
+      return {
+        locality,
+        venues,
+      };
     } catch (e) {
       if (e instanceof VenueSelectionValidationError) {
         throw new BadRequestException(e.message, { cause: e });
@@ -147,7 +152,7 @@ export class VenueService {
       this.normalizeVenueIds(venueIds),
     );
     const uniqueVenueIds = Array.from(new Set(normalizedVenueIdGroups.flat()));
-    const venuesById = await this.getVenuesByIds(uniqueVenueIds);
+    const venuesById = await this.getVenueMap(uniqueVenueIds);
     const venueGroups = normalizedVenueIdGroups.map((venueIds) =>
       venueIds.map((venueId) => this.mapVenueIdToVenue(venueId, venuesById)),
     );
@@ -262,9 +267,7 @@ export class VenueService {
     return normalizedVenueIds;
   }
 
-  private async getVenuesByIds(
-    venueIds: string[],
-  ): Promise<Map<string, Venue>> {
+  private async getVenueMap(venueIds: string[]): Promise<Map<string, Venue>> {
     const foundVenues = await this.venueRepository.findByIds(venueIds);
     const venuesById = new Map(
       foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
@@ -297,16 +300,6 @@ export class VenueService {
         'venueIds must reference active Venues for new assignments',
       );
     }
-  }
-
-  private async buildVenueSelection(venues: Venue[]): Promise<VenueSelection> {
-    const localityId = this.getVenueGroupLocalityId(venues);
-    const locality = await this.localityService.getLocalityById(localityId);
-
-    return {
-      locality,
-      venues,
-    };
   }
 
   private async buildVenueSelections(
