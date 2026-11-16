@@ -312,20 +312,16 @@ export class VenueService {
   private async buildVenueSelections(
     venueGroups: Venue[][],
   ): Promise<VenueSelection[]> {
-    const venueGroupsWithLocalityId = venueGroups.map((venues) => ({
-      localityId: this.getVenueGroupLocalityId(venues),
+    const localityIds = venueGroups.map((venues) =>
+      this.getVenueGroupLocalityId(venues),
+    );
+    const localities =
+      await this.localityService.getLocalitiesByIds(localityIds);
+
+    return venueGroups.map((venues, index) => ({
+      locality: localities[index],
       venues,
     }));
-    const localitiesById = await this.getLocalitiesByIds(
-      venueGroupsWithLocalityId.map(({ localityId }) => localityId),
-    );
-
-    return venueGroupsWithLocalityId.map(({ localityId, venues }) => {
-      return {
-        locality: this.getLoadedLocality(localityId, localitiesById),
-        venues,
-      };
-    });
   }
 
   private getVenueGroupLocalityId(venues: Venue[]): string {
@@ -342,28 +338,6 @@ export class VenueService {
     }
 
     return localityId;
-  }
-
-  private async getLocalitiesByIds(
-    localityIds: string[],
-  ): Promise<Map<string, Locality>> {
-    const uniqueLocalityIds = Array.from(new Set(localityIds));
-    const localities =
-      await this.localityService.getLocalitiesByIds(uniqueLocalityIds);
-
-    return new Map(localities.map((locality) => [locality.id, locality]));
-  }
-
-  private getLoadedLocality(
-    localityId: string,
-    localitiesById: Map<string, Locality>,
-  ): Locality {
-    const locality = localitiesById.get(localityId);
-    if (locality === undefined) {
-      throw new Error('Venue Locality must exist');
-    }
-
-    return locality;
   }
 
   private throwVenueWriteError(e: unknown): never {

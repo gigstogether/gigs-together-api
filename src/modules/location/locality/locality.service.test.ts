@@ -107,6 +107,14 @@ describe('LocalityService', () => {
     ]);
   });
 
+  it('should preserve repeated Locality ids in the result', async () => {
+    findByIdsMock.mockResolvedValue([LOCALITY]);
+
+    await expect(
+      service.getLocalitiesByIds([LOCALITY_ID, LOCALITY_ID]),
+    ).resolves.toEqual([LOCALITY, LOCALITY]);
+  });
+
   it('should reject a missing Locality from an id batch', async () => {
     findByIdsMock.mockResolvedValue([LOCALITY]);
 

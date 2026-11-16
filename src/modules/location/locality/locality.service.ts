@@ -86,6 +86,10 @@ export class LocalityService {
     return locality;
   }
 
+  /**
+   * Returns Localities in the same order as the requested ids, preserving
+   * repeated ids, and throws when any requested Locality does not exist.
+   */
   async getLocalitiesByIds(
     ids: readonly string[],
   ): Promise<readonly Locality[]> {

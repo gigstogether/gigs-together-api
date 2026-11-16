@@ -251,6 +251,7 @@ describe('VenueService', () => {
       { ...VENUE, isActive: false },
       SECOND_VENUE,
     ]);
+    getLocalitiesByIdsMock.mockResolvedValue([LOCALITY, LOCALITY]);
 
     await expect(
       service.getVenueSelections([[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]]),
@@ -264,7 +265,10 @@ describe('VenueService', () => {
     expect(findByIdsMock).toHaveBeenCalledOnce();
     expect(findByIdsMock).toHaveBeenCalledWith([VENUE_ID, SECOND_VENUE_ID]);
     expect(getLocalitiesByIdsMock).toHaveBeenCalledOnce();
-    expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
+    expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([
+      LOCALITY_ID,
+      LOCALITY_ID,
+    ]);
   });
 
   it('should return no Venue selections when no Venue id groups are provided', async () => {
