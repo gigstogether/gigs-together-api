@@ -31,6 +31,10 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## Naming
 
+- Avoid `resolve` and `resolved` in identifiers and prose when a more concrete
+  word can describe the operation or result, such as `get`, `find`, `map`, `select`, `validate`, etc.
+  Keep these terms when they are part of a third-party API or when no clearer replacement exists.
+  Do not refactor unrelated existing occurrences solely to apply this rule.
 - Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
 - The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables, constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
 - Choose a concrete domain action instead, such as `post`, `send` or another term that precisely describes the behavior.

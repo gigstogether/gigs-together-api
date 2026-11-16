@@ -35,6 +35,7 @@ function buildTargetDocument(
 
 const completeGigDraft = {
   communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+  venueIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
   title: 'Band',
   date: 1_800_000_000_000,
   city: 'Barcelona',
@@ -180,7 +181,7 @@ describe('GigCandidateRepositoryMapper', () => {
       ).toThrow(/must not contain duplicates/);
     });
 
-    it('should map an unresolved Locality assignment', () => {
+    it('should map a temporary Locality assignment', () => {
       const result = GigCandidateRepositoryMapper.toGigCandidate(
         buildTargetDocument({
           localityId: new Types.ObjectId('507f1f77bcf86cd799439012'),

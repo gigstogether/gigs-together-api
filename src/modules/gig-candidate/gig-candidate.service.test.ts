@@ -2258,7 +2258,7 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
     });
 
-    it('should leave Reviewing unchanged when Venue assignments cannot be resolved', async () => {
+    it('should leave Reviewing unchanged when Venue assignment validation fails', async () => {
       const reviewing = buildGigCandidate({
         status: GigCandidateStatus.Reviewing,
         gigDraft: {

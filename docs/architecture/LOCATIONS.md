@@ -119,7 +119,7 @@ The current Venue model contains:
 - required searchable `aliases`, which may be empty
 - `isActive`, which controls whether the Venue may be assigned to new events
 
-Country and time zone are resolved through Locality. They are not
+Country and time zone come from Locality. They are not
 duplicated on Venue. A temporary or closed Venue remains available to historical
 Gigs but is excluded from new assignments after deactivation.
 
@@ -229,13 +229,13 @@ same Locality. A
 multi-venue festival stores every independently addressable venue in `venueIds`;
 the array order does not imply a primary venue.
 
-Approval validates the complete draft, resolves `venueIds` through
+Approval validates the complete draft and loads `venueIds` through
 `VenueService`, and rejects missing, unknown, inactive, duplicate, or
 cross-Locality assignments before the Gig and approved candidate state are
 written in one transaction. Gig persistence stores Venue references as MongoDB
 ObjectIds and maps them back to opaque string IDs at the repository boundary.
 
-Public Gig feed reads resolve every page of Venue assignments in batches and
+Public Gig feed reads load every page of Venue assignments in batches and
 return canonical location data instead of legacy strings:
 
 ```text
@@ -245,8 +245,8 @@ Gig response → Locality { id, countryIso, name, qualifier? }
 
 Historical Gigs may continue to display inactive Venues. New assignments still
 require active Venues. Calendar links and approval-side Calendar creation use
-the resolved Locality time zone, all assigned Venue names, and an English
-country name resolved from `countryIso` through `Intl.DisplayNames`. If the
+the assigned Locality time zone, all assigned Venue names, and an English
+country name obtained from `countryIso` through `Intl.DisplayNames`. If the
 runtime has no English display name for a supported code, Calendar text falls
 back to the ISO code and the backend logs a warning. The
 Calendar locale is explicitly set to English at the call site and may later be
@@ -263,7 +263,7 @@ When the web form does not select a Venue, the candidate stores the selected
 Locality temporarily at `GigCandidate.localityId`. When it selects a Venue, the
 candidate stores `gigDraft.venueIds` and omits the root `localityId`. The two
 forms of assignment must never coexist. Approval requires the final physical
-location to be resolved to a non-empty `venueIds` array; moderation may replace
+location to contain a non-empty `venueIds` array; moderation may replace
 the temporary Locality assignment with one or more Venues from that same
 Locality.
 
@@ -306,7 +306,7 @@ Downstream feature modules own their application behavior:
 - `TelegramUpdatesModule` resolves the source Community for incoming suggestions
 - `TelegramModule` resolves Community-specific delivery destinations
 - `DigestModule` creates Community-specific digests
-- `CalendarModule` uses the Locality time zone resolved through Venue
+- `CalendarModule` uses the Locality time zone obtained through Venue
 
 Downstream modules depend on the owning application boundary and must not query
 Location- or Community-owned Mongo models directly.

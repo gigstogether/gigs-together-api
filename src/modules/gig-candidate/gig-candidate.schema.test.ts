@@ -23,7 +23,7 @@ describe('GigCandidateSchema', () => {
     expect(validate([])).toBe(false);
   });
 
-  it('should keep the unresolved Locality assignment optional', () => {
+  it('should keep the temporary Locality assignment optional', () => {
     expect(GigCandidateSchema.path('localityId').options.required).toBe(false);
   });
 

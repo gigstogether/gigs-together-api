@@ -105,7 +105,7 @@ describe('GigCandidateApprovalService', () => {
       origin: { type: GigSourceUserOriginType.Form },
     },
   };
-  const resolvedVenueSelection = {
+  const venueSelection = {
     locality: {
       id: '507f1f77bcf86cd799439013',
       countryIso: 'ES',
@@ -137,7 +137,7 @@ describe('GigCandidateApprovalService', () => {
     toCalendarEventMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
-    getActiveVenueSelectionMock.mockResolvedValue(resolvedVenueSelection);
+    getActiveVenueSelectionMock.mockResolvedValue(venueSelection);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -194,18 +194,18 @@ describe('GigCandidateApprovalService', () => {
     gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
       gig: approvedGig,
       gigCandidate: approvedGigCandidate,
-      venueSelection: resolvedVenueSelection,
+      venueSelection,
       isNewApproval: true,
     });
     calendarAddEventMock.mockRejectedValueOnce(calendarFailure);
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   }
 
-  it('should build the Calendar event from the resolved Venue selection', async () => {
+  it('should build the Calendar event from the validated Venue selection', async () => {
     gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
       gig: approvedGig,
       gigCandidate: approvedGigCandidate,
-      venueSelection: resolvedVenueSelection,
+      venueSelection,
       isNewApproval: true,
     });
 

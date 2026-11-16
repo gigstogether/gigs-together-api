@@ -134,7 +134,7 @@ export class GigFeedService {
     for (const [index, gig] of gigs.entries()) {
       const venueSelection = venueSelections[index];
       if (venueSelection === undefined) {
-        throw new Error('Every Gig must resolve to a Venue selection');
+        throw new Error('Every Gig must have a Venue selection');
       }
 
       const post = this.telegramGigService.pickPost(gig.posts, PostType.Main);

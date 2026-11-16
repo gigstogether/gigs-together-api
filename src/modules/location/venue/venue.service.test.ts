@@ -195,7 +195,7 @@ describe('VenueService', () => {
     });
   });
 
-  it('should resolve unique active Venues from one Locality in request order', async () => {
+  it('should return unique active Venues from one Locality in request order', async () => {
     findByIdsMock.mockResolvedValue([VENUE, SECOND_VENUE]);
 
     await expect(
