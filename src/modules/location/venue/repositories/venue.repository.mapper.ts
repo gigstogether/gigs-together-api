@@ -49,7 +49,7 @@ export class VenueRepositoryMapper {
     };
   }
 
-  static toVenues(docs: readonly VenueLeanDocument[]): readonly Venue[] {
+  static toVenues(docs: VenueLeanDocument[]): Venue[] {
     return docs.map((doc) => VenueRepositoryMapper.toVenue(doc));
   }
 }

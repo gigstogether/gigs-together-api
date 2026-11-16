@@ -104,7 +104,7 @@ describe('GigFeedService', () => {
       'https://calendar.example/event',
     );
     venueService.getAllVenueSelections.mockImplementation(
-      (venueIdGroups: readonly (readonly string[])[]) =>
+      (venueIdGroups: string[][]) =>
         Promise.resolve(
           venueIdGroups.map((venueIds) => ({
             locality: {

@@ -77,7 +77,7 @@ export class MongoVenueRepository implements VenueRepository {
     return VenueRepositoryMapper.toVenue(doc);
   }
 
-  async findByIds(ids: readonly string[]): Promise<readonly Venue[]> {
+  async findByIds(ids: string[]): Promise<Venue[]> {
     const storedIds = ids.map((id) => {
       if (!Types.ObjectId.isValid(id)) {
         throw new Error('Venue id must be a valid ObjectId');
@@ -88,13 +88,13 @@ export class MongoVenueRepository implements VenueRepository {
 
     const docs = await this.venueModel
       .find({ _id: { $in: storedIds } }, VENUE_PROJECTION)
-      .lean<readonly VenueLeanDocument[]>()
+      .lean<VenueLeanDocument[]>()
       .exec();
 
     return VenueRepositoryMapper.toVenues(docs);
   }
 
-  async find(params: FindVenuesParams): Promise<readonly Venue[]> {
+  async find(params: FindVenuesParams): Promise<Venue[]> {
     const filter: VenueMongoFilter = {};
 
     if (params.localityId !== undefined) {
@@ -109,7 +109,7 @@ export class MongoVenueRepository implements VenueRepository {
     const docs = await this.venueModel
       .find(filter, VENUE_PROJECTION)
       .sort(VENUE_SORT)
-      .lean<readonly VenueLeanDocument[]>()
+      .lean<VenueLeanDocument[]>()
       .exec();
 
     return VenueRepositoryMapper.toVenues(docs);

@@ -26,9 +26,9 @@ export interface VenueRepository {
 
   findById(id: string): Promise<Venue | null>;
 
-  findByIds(ids: readonly string[]): Promise<readonly Venue[]>;
+  findByIds(ids: string[]): Promise<Venue[]>;
 
-  find(params: FindVenuesParams): Promise<readonly Venue[]>;
+  find(params: FindVenuesParams): Promise<Venue[]>;
 
   existsByLocalityId(localityId: string): Promise<boolean>;
 

@@ -39,12 +39,12 @@ export interface UpdateVenueParams {
 
 export interface ActiveVenueCatalog {
   locality: Locality;
-  venues: readonly Venue[];
+  venues: Venue[];
 }
 
 export interface VenueSelection {
   locality: Locality;
-  venues: readonly Venue[];
+  venues: Venue[];
 }
 
 class VenueSelectionValidationError extends Error {
@@ -89,7 +89,7 @@ export class VenueService {
     return venue;
   }
 
-  async findVenues(params: FindVenuesParams): Promise<readonly Venue[]> {
+  async findVenues(params: FindVenuesParams): Promise<Venue[]> {
     const repositoryParams: FindVenuesParams = {};
 
     if (params.localityId !== undefined) {
@@ -118,9 +118,7 @@ export class VenueService {
     return { locality, venues };
   }
 
-  async getActiveVenueSelection(
-    venueIds: readonly string[],
-  ): Promise<VenueSelection> {
+  async getActiveVenueSelection(venueIds: string[]): Promise<VenueSelection> {
     try {
       const normalizedVenueIds = this.normalizeVenueIds(venueIds);
       const venuesById = await this.getVenuesByIds(normalizedVenueIds);
@@ -139,8 +137,8 @@ export class VenueService {
   }
 
   async getAllVenueSelections(
-    venueIdGroups: readonly (readonly string[])[],
-  ): Promise<readonly VenueSelection[]> {
+    venueIdGroups: string[][],
+  ): Promise<VenueSelection[]> {
     if (venueIdGroups.length === 0) {
       return [];
     }
@@ -232,7 +230,7 @@ export class VenueService {
     }
   }
 
-  private async assertLocalitiesExist(venues: readonly Venue[]): Promise<void> {
+  private async assertLocalitiesExist(venues: Venue[]): Promise<void> {
     const localityIds = new Set(venues.map((venue) => venue.localityId));
 
     for (const localityId of localityIds) {
@@ -247,7 +245,7 @@ export class VenueService {
     }
   }
 
-  private normalizeVenueIds(venueIds: readonly string[]): string[] {
+  private normalizeVenueIds(venueIds: string[]): string[] {
     if (venueIds.length === 0) {
       throw new VenueSelectionValidationError(
         'venueIds must contain at least one Venue id',
@@ -265,8 +263,8 @@ export class VenueService {
   }
 
   private async getVenuesByIds(
-    venueIds: readonly string[],
-  ): Promise<ReadonlyMap<string, Venue>> {
+    venueIds: string[],
+  ): Promise<Map<string, Venue>> {
     const foundVenues = await this.venueRepository.findByIds(venueIds);
     const venuesById = new Map(
       foundVenues.map((venue) => [venue.id.toLowerCase(), venue]),
@@ -283,7 +281,7 @@ export class VenueService {
 
   private mapVenueIdToVenue(
     venueId: string,
-    venuesById: ReadonlyMap<string, Venue>,
+    venuesById: Map<string, Venue>,
   ): Venue {
     const venue = venuesById.get(venueId);
     if (venue === undefined) {
@@ -293,7 +291,7 @@ export class VenueService {
     return venue;
   }
 
-  private assertVenuesAreActive(venues: readonly Venue[]): void {
+  private assertVenuesAreActive(venues: Venue[]): void {
     if (venues.some((venue) => !venue.isActive)) {
       throw new VenueSelectionValidationError(
         'venueIds must reference active Venues for new assignments',
@@ -301,9 +299,7 @@ export class VenueService {
     }
   }
 
-  private async buildVenueSelection(
-    venues: readonly Venue[],
-  ): Promise<VenueSelection> {
+  private async buildVenueSelection(venues: Venue[]): Promise<VenueSelection> {
     const localityId = this.getVenueGroupLocalityId(venues);
     const localitiesById = await this.getLocalitiesByIds([localityId]);
 
@@ -314,8 +310,8 @@ export class VenueService {
   }
 
   private async buildVenueSelections(
-    venueGroups: readonly (readonly Venue[])[],
-  ): Promise<readonly VenueSelection[]> {
+    venueGroups: Venue[][],
+  ): Promise<VenueSelection[]> {
     const venueGroupsWithLocalityId = venueGroups.map((venues) => ({
       localityId: this.getVenueGroupLocalityId(venues),
       venues,
@@ -332,7 +328,7 @@ export class VenueService {
     });
   }
 
-  private getVenueGroupLocalityId(venues: readonly Venue[]): string {
+  private getVenueGroupLocalityId(venues: Venue[]): string {
     const localityIds = new Set(venues.map((venue) => venue.localityId));
     if (localityIds.size !== 1) {
       throw new VenueSelectionValidationError(
@@ -349,8 +345,8 @@ export class VenueService {
   }
 
   private async getLocalitiesByIds(
-    localityIds: readonly string[],
-  ): Promise<ReadonlyMap<string, Locality>> {
+    localityIds: string[],
+  ): Promise<Map<string, Locality>> {
     const uniqueLocalityIds = Array.from(new Set(localityIds));
     const localities =
       await this.localityService.getLocalitiesByIds(uniqueLocalityIds);
@@ -360,7 +356,7 @@ export class VenueService {
 
   private getLoadedLocality(
     localityId: string,
-    localitiesById: ReadonlyMap<string, Locality>,
+    localitiesById: Map<string, Locality>,
   ): Locality {
     const locality = localitiesById.get(localityId);
     if (locality === undefined) {

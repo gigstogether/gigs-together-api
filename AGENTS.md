@@ -106,8 +106,8 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code stays strongly typed.
 - Avoid `as any` entirely.
 
-- Do **not** use `readonly` by default on DTOs, params, domain types, or props. Omit it unless there is a real need to prevent mutation at the type level for callers that would otherwise mutate shared state.
-- Add `readonly` only when immutability is part of the contract and the risk is concrete (for example a shared config object, a cached snapshot, or an API surface where callers must not reassign fields). If there is no such risk, leave fields mutable in the type.
+- Do **not** add `readonly` to DTOs, params, domain types, props, array parameters, or collection return types merely because the implementation does not mutate them. Omit `readonly` by default.
+- Add `readonly` only when immutability is an intentional part of the public contract and a concrete shared-state mutation risk exists (for example a shared config object or cached snapshot). State that reason in a nearby comment when it is not obvious from the owner. Before completing a change, inspect every `readonly` added or preserved in the changed code and remove it unless this requirement is met. Do not refactor unrelated existing code solely to apply this rule.
 
 - Prefer named types for public APIs such as service methods, controller responses, and module exports.
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
