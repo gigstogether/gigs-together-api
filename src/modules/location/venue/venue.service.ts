@@ -136,7 +136,7 @@ export class VenueService {
     }
   }
 
-  async getAllVenueSelections(
+  async getVenueSelections(
     venueIdGroups: string[][],
   ): Promise<VenueSelection[]> {
     if (venueIdGroups.length === 0) {
@@ -301,10 +301,10 @@ export class VenueService {
 
   private async buildVenueSelection(venues: Venue[]): Promise<VenueSelection> {
     const localityId = this.getVenueGroupLocalityId(venues);
-    const localitiesById = await this.getLocalitiesByIds([localityId]);
+    const locality = await this.localityService.getLocalityById(localityId);
 
     return {
-      locality: this.getLoadedLocality(localityId, localitiesById),
+      locality,
       venues,
     };
   }

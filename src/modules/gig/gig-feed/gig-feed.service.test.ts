@@ -77,7 +77,7 @@ describe('GigFeedService', () => {
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
   const communityService = { findByRoute: vi.fn() };
-  const venueService = { getAllVenueSelections: vi.fn() };
+  const venueService = { getVenueSelections: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -103,7 +103,7 @@ describe('GigFeedService', () => {
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
     );
-    venueService.getAllVenueSelections.mockImplementation(
+    venueService.getVenueSelections.mockImplementation(
       (venueIdGroups: string[][]) =>
         Promise.resolve(
           venueIdGroups.map((venueIds) => ({
@@ -202,7 +202,7 @@ describe('GigFeedService', () => {
       countryIso: 'ES',
       communitySlug: 'barcelona',
     });
-    expect(venueService.getAllVenueSelections).toHaveBeenCalledWith([
+    expect(venueService.getVenueSelections).toHaveBeenCalledWith([
       gig.venueIds,
     ]);
     expect(gigCalendarService.toCalendarEvent).toHaveBeenCalledWith({

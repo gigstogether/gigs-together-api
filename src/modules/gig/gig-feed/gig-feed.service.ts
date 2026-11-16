@@ -127,7 +127,7 @@ export class GigFeedService {
 
   /** Maps domain Gigs to enriched public feed items. */
   private async mapGigs(gigs: PlainGig[]): Promise<GigFeedItem[]> {
-    const venueSelections = await this.venueService.getAllVenueSelections(
+    const venueSelections = await this.venueService.getVenueSelections(
       gigs.map((gig) => gig.venueIds),
     );
     const mapped: GigFeedItem[] = [];

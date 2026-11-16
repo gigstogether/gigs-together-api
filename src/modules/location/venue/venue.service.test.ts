@@ -205,7 +205,8 @@ describe('VenueService', () => {
       venues: [SECOND_VENUE, VENUE],
     });
     expect(findByIdsMock).toHaveBeenCalledWith([SECOND_VENUE_ID, VENUE_ID]);
-    expect(getLocalitiesByIdsMock).toHaveBeenCalledWith([LOCALITY_ID]);
+    expect(getLocalityByIdMock).toHaveBeenCalledWith(LOCALITY_ID);
+    expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
   });
 
   it('should reject Venue selections containing an inactive Venue', async () => {
@@ -252,7 +253,7 @@ describe('VenueService', () => {
     ]);
 
     await expect(
-      service.getAllVenueSelections([[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]]),
+      service.getVenueSelections([[VENUE_ID], [SECOND_VENUE_ID, VENUE_ID]]),
     ).resolves.toEqual([
       { locality: LOCALITY, venues: [{ ...VENUE, isActive: false }] },
       {
@@ -267,7 +268,7 @@ describe('VenueService', () => {
   });
 
   it('should return no Venue selections when no Venue id groups are provided', async () => {
-    await expect(service.getAllVenueSelections([])).resolves.toEqual([]);
+    await expect(service.getVenueSelections([])).resolves.toEqual([]);
     expect(findByIdsMock).not.toHaveBeenCalled();
     expect(getLocalitiesByIdsMock).not.toHaveBeenCalled();
   });
@@ -276,7 +277,7 @@ describe('VenueService', () => {
     findByIdsMock.mockResolvedValue([]);
 
     await expect(
-      service.getAllVenueSelections([[VENUE_ID]]),
+      service.getVenueSelections([[VENUE_ID]]),
     ).rejects.toMatchObject({
       name: 'VenueSelectionValidationError',
       message: 'venueIds must reference existing Venues',
