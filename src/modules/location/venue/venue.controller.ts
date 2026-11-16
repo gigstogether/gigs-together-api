@@ -2,7 +2,6 @@ import { Controller, Get, Query, Version } from '@nestjs/common';
 import { mapV1LocalityListItemResponse } from '../locality/locality.mapper';
 import type { Venue } from './types/venue.types';
 import { VenueService } from './venue.service';
-import type { GetActiveVenueCatalogParams } from './venue.service';
 import { V1VenuesGetQueryDto } from './types/requests/v1-venue-list-request';
 import type {
   V1VenueListItemResponseBody,
@@ -18,10 +17,9 @@ export class VenueController {
   async getVenuesV1(
     @Query() query: V1VenuesGetQueryDto,
   ): Promise<V1VenueListResponseBody> {
-    const params: GetActiveVenueCatalogParams = {
-      localityId: query.localityId,
-    };
-    const catalog = await this.venueService.getActiveVenueCatalog(params);
+    const catalog = await this.venueService.getActiveVenueCatalog(
+      query.localityId,
+    );
 
     return {
       locality: mapV1LocalityListItemResponse(catalog.locality),

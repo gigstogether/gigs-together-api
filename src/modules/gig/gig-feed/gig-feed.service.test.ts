@@ -104,9 +104,9 @@ describe('GigFeedService', () => {
       'https://calendar.example/event',
     );
     venueService.getAllVenueSelections.mockImplementation(
-      (params: { venueIdGroups: readonly (readonly string[])[] }) =>
+      (venueIdGroups: readonly (readonly string[])[]) =>
         Promise.resolve(
-          params.venueIdGroups.map((venueIds) => ({
+          venueIdGroups.map((venueIds) => ({
             locality: {
               id: '507f1f77bcf86cd799439044',
               countryIso: 'ES',
@@ -202,9 +202,9 @@ describe('GigFeedService', () => {
       countryIso: 'ES',
       communitySlug: 'barcelona',
     });
-    expect(venueService.getAllVenueSelections).toHaveBeenCalledWith({
-      venueIdGroups: [gig.venueIds],
-    });
+    expect(venueService.getAllVenueSelections).toHaveBeenCalledWith([
+      gig.venueIds,
+    ]);
     expect(gigCalendarService.toCalendarEvent).toHaveBeenCalledWith({
       gig: {
         title: gig.title,

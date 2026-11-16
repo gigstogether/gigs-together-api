@@ -113,6 +113,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
 - Extract object shapes into a named `interface` or `type`, ideally colocated in `types/requests/*` for DTOs.
 - Prefer a named params object for long function signatures.
+- When a function or method needs exactly one value, prefer passing that value directly instead of wrapping it in a single-property object. This is a preference, not a strict rule: keep a params object when the contract is expected to expand or when the object form materially clarifies the API. Do not refactor unrelated existing code solely to apply this rule.
 - When an object-parameter function signature becomes long, do not destructure in the parameter list; accept `params: SomeParams` and destructure inside the function body.
 
 - Prefer `interface` over `type` for object shapes unless `type` is clearly the better fit.

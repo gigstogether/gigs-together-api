@@ -765,9 +765,10 @@ describe('GigCandidateService', () => {
           }),
         }),
       );
-      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith({
-        venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
-      });
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith([
+        '507f1f77bcf86cd799439013',
+        '507f1f77bcf86cd799439014',
+      ]);
       const createParams =
         gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
       expect(createParams).not.toHaveProperty('localityId');
@@ -2099,9 +2100,9 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(gig);
 
-      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith({
-        venueIds: ['507f1f77bcf86cd799439012'],
-      });
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith([
+        '507f1f77bcf86cd799439012',
+      ]);
 
       expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
         expect.objectContaining({

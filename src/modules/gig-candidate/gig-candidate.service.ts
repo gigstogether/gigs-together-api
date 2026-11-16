@@ -678,9 +678,9 @@ export class GigCandidateService {
       }
       localityId = gig.localityId;
     } else {
-      const venueSelection = await this.venueService.getActiveVenueSelection({
-        venueIds: gig.venueIds,
-      });
+      const venueSelection = await this.venueService.getActiveVenueSelection(
+        gig.venueIds,
+      );
       if (venueSelection.locality.id !== gig.localityId) {
         throw new BadRequestException(
           'venueIds must reference Venues in the selected Locality',

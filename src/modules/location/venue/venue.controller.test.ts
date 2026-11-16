@@ -65,8 +65,6 @@ describe('VenueController', () => {
       },
       venues: [{ id: VENUE.id, name: 'Festival Grounds' }],
     });
-    expect(getActiveVenueCatalogMock).toHaveBeenCalledWith({
-      localityId: LOCALITY_ID,
-    });
+    expect(getActiveVenueCatalogMock).toHaveBeenCalledWith(LOCALITY_ID);
   });
 });
