@@ -317,6 +317,12 @@ describe('runLegacyLocationMigration', () => {
         { _id: new Types.ObjectId(), venue: 'Bar Ceferino, Barcelona' },
         { _id: new Types.ObjectId(), venue: 'Boveda' },
         { _id: new Types.ObjectId(), venue: 'La 2 de Apollo' },
+        { _id: new Types.ObjectId(), venue: 'Sala Razzmatazz' },
+        {
+          _id: new Types.ObjectId(),
+          venue: 'Sala Razzmatazz (Barcelona, ES)',
+        },
+        { _id: new Types.ObjectId(), venue: 'Sala Razzmatazz 3' },
         { _id: new Types.ObjectId(), venue: 'Razzmatazz 2, Barcelona' },
       ],
       gigCandidates: [],
@@ -349,6 +355,14 @@ describe('runLegacyLocationMigration', () => {
           name: 'Razzmatazz 2',
           aliases: ['Sala Razzmatazz 2'],
         }),
+        expect.objectContaining({
+          name: 'Razzmatazz',
+          aliases: ['Razzmatazz 1', 'Sala Razzmatazz'],
+        }),
+        expect.objectContaining({
+          name: 'Razzmatazz 3',
+          aliases: ['Sala Razzmatazz 3'],
+        }),
       ]),
     );
     expect(report.fallbackVenueAssignments).toEqual([]);
@@ -366,7 +380,7 @@ describe('runLegacyLocationMigration', () => {
       plannedVenueNames: [
         'Palau Olímpic de Badalona',
         'Palau Sant Jordi',
-        'Razzmatazz 1',
+        'Razzmatazz',
       ],
       fallbackVenueAssignments: [],
       canApply: true,
@@ -377,7 +391,7 @@ describe('runLegacyLocationMigration', () => {
           requiredVenueNames: [
             'Palau Olímpic de Badalona',
             'Palau Sant Jordi',
-            'Razzmatazz 1',
+            'Razzmatazz',
           ],
         },
         gigs: {
@@ -437,7 +451,7 @@ describe('runLegacyLocationMigration', () => {
     );
     expect(appliedState.venues).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ name: 'Razzmatazz 1', isActive: true }),
+        expect.objectContaining({ name: 'Razzmatazz', isActive: true }),
         expect.objectContaining({ name: 'Palau Sant Jordi', isActive: true }),
         expect.objectContaining({
           name: 'Palau Olímpic de Badalona',
@@ -519,8 +533,8 @@ describe('runLegacyLocationMigration', () => {
         {
           _id: venueId,
           localityId,
-          name: 'Razzmatazz 1',
-          aliases: ['Razzmatazz'],
+          name: 'Razzmatazz',
+          aliases: ['Razzmatazz 1', 'Sala Razzmatazz'],
           isActive: false,
         },
       ],
@@ -593,8 +607,8 @@ describe('runLegacyLocationMigration', () => {
         {
           _id: venueId,
           localityId,
-          name: 'Razzmatazz 1',
-          aliases: ['Razzmatazz'],
+          name: 'Razzmatazz',
+          aliases: ['Razzmatazz 1', 'Sala Razzmatazz'],
           isActive: true,
         },
       ],

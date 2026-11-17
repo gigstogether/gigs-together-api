@@ -274,9 +274,9 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
   {
     key: 'razzmatazzOne',
     localityKey: 'barcelona',
-    name: 'Razzmatazz 1',
-    aliases: ['Razzmatazz'],
-    legacyNames: [],
+    name: 'Razzmatazz',
+    aliases: ['Razzmatazz 1', 'Sala Razzmatazz'],
+    legacyNames: ['Sala Razzmatazz (Barcelona, ES)'],
     isActive: true,
   },
   {
@@ -291,7 +291,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     key: 'razzmatazzThree',
     localityKey: 'barcelona',
     name: 'Razzmatazz 3',
-    aliases: [],
+    aliases: ['Sala Razzmatazz 3'],
     legacyNames: [],
     isActive: true,
   },
