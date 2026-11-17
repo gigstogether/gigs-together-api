@@ -71,7 +71,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     key: 'laDosDeApolo',
     localityKey: 'barcelona',
     name: 'La (2) de Apolo',
-    aliases: ['Apolo 2', 'La 2 de Apolo'],
+    aliases: ['Apolo 2'],
     legacyNames: ['La 2 de Apollo', 'La(2)'],
     isActive: true,
   },

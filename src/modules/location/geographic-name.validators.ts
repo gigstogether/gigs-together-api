@@ -62,10 +62,12 @@ export function isValidGeographicAliasList(
 }
 
 export function toGeographicSearchKey(value: string): string {
-  // NFKD expands compatibility variants and separates diacritics so searches
-  // treat forms such as "Olímpic" and "Olimpic" as equivalent.
+  // NFKD expands compatibility variants and separates diacritics. Removing
+  // marks and separators makes searches treat forms such as "L’Hospitalet",
+  // "L Hospitalet", and "LHospitalet" as equivalent.
   return normalizeGeographicName(value)
     .normalize('NFKD')
     .replace(/\p{M}/gu, '')
+    .replace(/[\p{P}\s]+/gu, '')
     .toLowerCase();
 }

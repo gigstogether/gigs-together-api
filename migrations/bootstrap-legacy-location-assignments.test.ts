@@ -343,7 +343,7 @@ describe('runLegacyLocationMigration', () => {
         expect.objectContaining({ name: 'Bóveda', aliases: [] }),
         expect.objectContaining({
           name: 'La (2) de Apolo',
-          aliases: ['Apolo 2', 'La 2 de Apolo'],
+          aliases: ['Apolo 2'],
         }),
         expect.objectContaining({
           name: 'Razzmatazz 2',
