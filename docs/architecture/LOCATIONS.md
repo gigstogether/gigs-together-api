@@ -267,10 +267,20 @@ location to contain a non-empty `venueIds` array; moderation may replace
 the temporary Locality assignment with one or more Venues from that same
 Locality.
 
+The one-way migration
+`1794787200000-bootstrap-barcelona-locality-venue-assignments` creates or reuses
+the Barcelona Locality, creates missing Venue records from normalized legacy
+Venue names, and backfills every Gig with `venueIds`. A GigCandidate with a
+legacy Venue receives `gigDraft.venueIds`; an incomplete non-approved candidate
+without a Venue receives the temporary Barcelona `localityId`. An Approved
+candidate without a usable Venue blocks the migration.
+
 Legacy `country`, `city`, and `venue` remain in internal moderation and
-integration contracts until the remaining runtime relationships and their
-migration are complete. They are no longer part of the public Gig feed response.
-The migration must run only after the final runtime schemas have been reviewed.
+integration contracts after this backfill. They are no longer part of the
+public Gig feed response and may be removed only in a later cleanup after the
+new relationships have been verified in production. The migration must be
+dry-run first and applied before the new Venue-based read path begins serving
+traffic.
 
 ## Geographic Suggestions
 
