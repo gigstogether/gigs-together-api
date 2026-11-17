@@ -268,12 +268,20 @@ the temporary Locality assignment with one or more Venues from that same
 Locality.
 
 The one-way migration
-`1794787200000-bootstrap-barcelona-locality-venue-assignments` creates or reuses
-the Barcelona Locality, creates missing Venue records from normalized legacy
-Venue names, and backfills every Gig with `venueIds`. A GigCandidate with a
-legacy Venue receives `gigDraft.venueIds`; an incomplete non-approved candidate
-without a Venue receives the temporary Barcelona `localityId`. An Approved
-candidate without a usable Venue blocks the migration.
+`1794787200000-bootstrap-legacy-location-assignments` maps the audited legacy
+Venue strings to canonical Venue records and creates or reuses their Localities.
+The initial mapping uses Barcelona as the shared Locality for the metropolitan
+venues in Barcelona, Badalona, Santa Coloma de Gramenet, and L'Hospitalet de
+Llobregat. Benicàssim remains a separate Locality. Aliases such as `Sala Apolo`,
+`Apolo`, and the historical Razzmatazz variants converge on explicit canonical
+Venues instead of creating duplicate catalog records.
+
+Every Gig receives `venueIds`. A GigCandidate with a legacy Venue receives
+`gigDraft.venueIds`; an incomplete non-approved candidate without a Venue
+receives the temporary Barcelona `localityId`. An Approved candidate without a
+usable Venue blocks the migration. A non-empty legacy Venue value absent from
+the audited mapping is assigned to one inactive migration-only Venue, remains in
+the legacy field, and is reported with its record ID for manual correction.
 
 Legacy `country`, `city`, and `venue` remain in internal moderation and
 integration contracts after this backfill. They are no longer part of the
