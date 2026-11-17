@@ -306,7 +306,7 @@ describe('runLegacyLocationMigration', () => {
     );
   });
 
-  it('should map former Venue names to current canonical records', async () => {
+  it('should map legacy names without persisting technical variants as aliases', async () => {
     const store = new InMemoryLegacyLocationMigrationStore({
       localities: [],
       venues: [],
@@ -314,6 +314,10 @@ describe('runLegacyLocationMigration', () => {
         { _id: new Types.ObjectId(), venue: 'Estraperlo Club' },
         { _id: new Types.ObjectId(), venue: 'Club Sauvage' },
         { _id: new Types.ObjectId(), venue: 'Pacha Barcelona' },
+        { _id: new Types.ObjectId(), venue: 'Bar Ceferino, Barcelona' },
+        { _id: new Types.ObjectId(), venue: 'Boveda' },
+        { _id: new Types.ObjectId(), venue: 'La 2 de Apollo' },
+        { _id: new Types.ObjectId(), venue: 'Razzmatazz 2, Barcelona' },
       ],
       gigCandidates: [],
     });
@@ -325,11 +329,7 @@ describe('runLegacyLocationMigration', () => {
       expect.arrayContaining([
         expect.objectContaining({
           name: 'DosRombos',
-          aliases: [
-            'Estraperlo Club',
-            'Estraperlo Club, Badalona',
-            'Estraperlo Club del Ritme',
-          ],
+          aliases: ['Estraperlo Club', 'Estraperlo Club del Ritme'],
         }),
         expect.objectContaining({
           name: 'Sala Sidecar',
@@ -338,6 +338,16 @@ describe('runLegacyLocationMigration', () => {
         expect.objectContaining({
           name: 'Ku Barcelona',
           aliases: ['Ku', 'Pacha Barcelona'],
+        }),
+        expect.objectContaining({ name: 'Bar Ceferino', aliases: [] }),
+        expect.objectContaining({ name: 'Bóveda', aliases: [] }),
+        expect.objectContaining({
+          name: 'La (2) de Apolo',
+          aliases: ['Apolo 2', 'La 2 de Apolo'],
+        }),
+        expect.objectContaining({
+          name: 'Razzmatazz 2',
+          aliases: ['Sala Razzmatazz 2'],
         }),
       ]),
     );

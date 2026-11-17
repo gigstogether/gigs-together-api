@@ -133,7 +133,8 @@ the current model has no address or coordinates with which to distinguish exact
 name collisions inside one Locality. When a real collision exists, the canonical
 names must include a stable qualifier such as a district or branch. Aliases
 support variants such as `Razzmatazz` and `Sala Razzmatazz` without creating
-duplicate Venues.
+duplicate Venues. Search comparison removes Unicode diacritics, so mechanical
+variants such as `Olímpic` and `Olimpic` do not need to be stored as aliases.
 
 ## Community
 
@@ -274,7 +275,9 @@ The initial mapping uses Barcelona as the shared Locality for the metropolitan
 venues in Barcelona, Badalona, Santa Coloma de Gramenet, and L'Hospitalet de
 Llobregat. Benicàssim remains a separate Locality. Aliases such as `Sala Apolo`,
 `Apolo`, and the historical Razzmatazz variants converge on explicit canonical
-Venues instead of creating duplicate catalog records.
+Venues instead of creating duplicate catalog records. Migration-only legacy
+names remain in the migration mapping and are not persisted as searchable
+aliases unless they are genuine alternative or former Venue names.
 
 Every Gig receives `venueIds`. A GigCandidate with a legacy Venue receives
 `gigDraft.venueIds`; an incomplete non-approved candidate without a Venue

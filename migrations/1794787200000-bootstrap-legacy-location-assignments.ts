@@ -11,6 +11,7 @@ import {
   isValidVenueName,
   normalizeVenueName,
 } from '@modules/location/venue/venue.validators';
+import { toGeographicSearchKey } from '@modules/location/geographic-name.validators';
 import { isRecord } from '@shared/utils/is-record';
 
 import { finishMigrationDryRun, isMigrationDryRun } from './migration-cli';
@@ -36,6 +37,7 @@ interface VenueDefinition {
   localityKey: LocalityKey;
   name: string;
   aliases: string[];
+  legacyNames: string[];
   isActive: boolean;
 }
 
@@ -51,7 +53,7 @@ const LOCALITY_DEFINITIONS: LocalityDefinition[] = [
     key: 'benicassim',
     countryIso: COUNTRY_ISO_ES,
     name: 'Benicàssim',
-    aliases: ['Benicássim'],
+    aliases: [],
     timeZone: TIME_ZONE_EUROPE_MADRID,
   },
 ];
@@ -62,41 +64,47 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Sala Apolo',
     aliases: ['Apolo'],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'laDosDeApolo',
     localityKey: 'barcelona',
     name: 'La (2) de Apolo',
-    aliases: ['Apolo 2', 'La 2 de Apollo', 'La 2 de Apolo', 'La(2)'],
+    aliases: ['Apolo 2', 'La 2 de Apolo'],
+    legacyNames: ['La 2 de Apollo', 'La(2)'],
     isActive: true,
   },
   {
     key: 'auditoriForumCcib',
     localityKey: 'barcelona',
     name: 'Auditori Fòrum CCIB',
-    aliases: ['Auditori Forum CCIB'],
+    aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'barCeferino',
     localityKey: 'barcelona',
     name: 'Bar Ceferino',
-    aliases: ['Bar Ceferino, Barcelona'],
+    aliases: [],
+    legacyNames: ['Bar Ceferino, Barcelona'],
     isActive: true,
   },
   {
     key: 'recintoFestivalesBenicassim',
     localityKey: 'benicassim',
     name: 'Recinto de Festivales de Benicàssim',
-    aliases: ['Benicássim'],
+    aliases: [],
+    legacyNames: ['Benicássim'],
     isActive: true,
   },
   {
     key: 'boveda',
     localityKey: 'barcelona',
     name: 'Bóveda',
-    aliases: ['Boveda'],
+    aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -104,31 +112,31 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Casa Montjuïc',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'estadiOlimpicLluisCompanys',
     localityKey: 'barcelona',
     name: 'Estadi Olímpic Lluís Companys',
-    aliases: ['ESTADI OLÍMPIC LLUIS', 'Lluís Companys Olympic Stadium'],
+    aliases: ['Lluís Companys Olympic Stadium'],
+    legacyNames: ['ESTADI OLÍMPIC LLUIS'],
     isActive: true,
   },
   {
     key: 'dosRombos',
     localityKey: 'barcelona',
     name: 'DosRombos',
-    aliases: [
-      'Estraperlo Club',
-      'Estraperlo Club, Badalona',
-      'Estraperlo Club del Ritme',
-    ],
+    aliases: ['Estraperlo Club', 'Estraperlo Club del Ritme'],
+    legacyNames: ['Estraperlo Club, Badalona'],
     isActive: true,
   },
   {
     key: 'heliogabal',
     localityKey: 'barcelona',
     name: 'Heliogàbal',
-    aliases: ['Heliogábal'],
+    aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -136,6 +144,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Jamboree Sala 1',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -143,13 +152,15 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Ku Barcelona',
     aliases: ['Ku', 'Pacha Barcelona'],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'kvartirnik',
     localityKey: 'barcelona',
     name: 'Kvartirnik',
-    aliases: ['Kvartirnik, Carrer de Villarroel 79'],
+    aliases: [],
+    legacyNames: ['Kvartirnik, Carrer de Villarroel 79'],
     isActive: true,
   },
   {
@@ -157,6 +168,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'La Carpa (Poble Espanyol)',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -164,6 +176,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'La Nau',
     aliases: ['Sala La Nau'],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -171,6 +184,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'LAUT',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -178,6 +192,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Meteoro',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -185,6 +200,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Moll de Barcelona',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -196,6 +212,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
       'Olimpic Arena Badalona',
       'Palau Olímpic Badalona',
     ],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -203,27 +220,31 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Opium Barcelona',
     aliases: ['Opium'],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'palauSantJordi',
     localityKey: 'barcelona',
     name: 'Palau Sant Jordi',
-    aliases: ['Palau San Jordi', 'Sant Jordi'],
+    aliases: ['Sant Jordi'],
+    legacyNames: ['Palau San Jordi'],
     isActive: true,
   },
   {
     key: 'parallelSixtyTwo',
     localityKey: 'barcelona',
     name: 'Paral·lel 62',
-    aliases: ['Paral-lel 62', 'Parallel 62', 'Sala Paral·lel 62'],
+    aliases: ['Sala Paral·lel 62'],
+    legacyNames: ['Paral-lel 62', 'Parallel 62'],
     isActive: true,
   },
   {
     key: 'parcCanZam',
     localityKey: 'barcelona',
     name: 'Parc de Can Zam',
-    aliases: ['Parc de Can Zam (Santa Coloma de Gramenet)'],
+    aliases: [],
+    legacyNames: ['Parc de Can Zam (Santa Coloma de Gramenet)'],
     isActive: true,
   },
   {
@@ -231,13 +252,15 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Parc de la Trinitat',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'parcForum',
     localityKey: 'barcelona',
     name: 'Parc del Fòrum',
-    aliases: ['Parc del Fórum'],
+    aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -245,6 +268,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Poble Espanyol',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -252,13 +276,15 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Razzmatazz 1',
     aliases: ['Razzmatazz'],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'razzmatazzTwo',
     localityKey: 'barcelona',
     name: 'Razzmatazz 2',
-    aliases: ['Razzmatazz 2, Barcelona', 'Sala Razzmatazz 2'],
+    aliases: ['Sala Razzmatazz 2'],
+    legacyNames: ['Razzmatazz 2, Barcelona'],
     isActive: true,
   },
   {
@@ -266,6 +292,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Razzmatazz 3',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -273,13 +300,15 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Rouge Cocktail Club',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'salaBikini',
     localityKey: 'barcelona',
     name: 'Sala Bikini',
-    aliases: ['Sala Bikini Barcelona'],
+    aliases: [],
+    legacyNames: ['Sala Bikini Barcelona'],
     isActive: true,
   },
   {
@@ -287,6 +316,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Sala Sidecar',
     aliases: ['Club Sauvage'],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -294,6 +324,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Sala Upload',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -301,13 +332,15 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'WOLF',
     aliases: ['Sala Wolf'],
+    legacyNames: [],
     isActive: true,
   },
   {
     key: 'salamandra',
     localityKey: 'barcelona',
     name: 'Salamandra',
-    aliases: ['Salamandra (L’Hospitalet de Llobregat)', 'Salamandra - Sala 1'],
+    aliases: ['Salamandra - Sala 1'],
+    legacyNames: ['Salamandra (L’Hospitalet de Llobregat)'],
     isActive: true,
   },
   {
@@ -315,6 +348,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Sant Jordi Club',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
   {
@@ -322,6 +356,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     localityKey: 'barcelona',
     name: 'Jardins del Palau de Pedralbes',
     aliases: [],
+    legacyNames: [],
     isActive: true,
   },
 ];
@@ -331,6 +366,7 @@ const FALLBACK_VENUE_DEFINITION: VenueDefinition = {
   localityKey: BARCELONA_LOCALITY_KEY,
   name: 'Legacy venue — manual review required',
   aliases: [],
+  legacyNames: [],
   isActive: false,
 };
 
@@ -542,7 +578,7 @@ function toRecordId(value: unknown): string {
 }
 
 function toNameKey(value: string): string {
-  return normalizeVenueName(value).normalize('NFKC').toLowerCase();
+  return toGeographicSearchKey(value);
 }
 
 function compareNames(left: string, right: string): number {
@@ -572,9 +608,17 @@ function buildVenueDefinitionsByLegacyName(): Map<string, VenueDefinition> {
   const definitionsByName = new Map<string, VenueDefinition>();
 
   for (const definition of VENUE_DEFINITIONS) {
-    for (const name of [definition.name, ...definition.aliases]) {
+    for (const name of [
+      definition.name,
+      ...definition.aliases,
+      ...definition.legacyNames,
+    ]) {
       const key = toNameKey(name);
-      if (definitionsByName.has(key)) {
+      const existingDefinition = definitionsByName.get(key);
+      if (
+        existingDefinition !== undefined &&
+        existingDefinition.key !== definition.key
+      ) {
         throw new Error(`Duplicate legacy Venue mapping for "${name}".`);
       }
       definitionsByName.set(key, definition);
