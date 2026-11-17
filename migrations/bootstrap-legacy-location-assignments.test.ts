@@ -293,7 +293,7 @@ describe('runLegacyLocationMigration', () => {
     expect(state.venues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          name: 'Estraperlo Club',
+          name: 'DosRombos',
           localityId,
         }),
         expect.objectContaining({
@@ -304,6 +304,44 @@ describe('runLegacyLocationMigration', () => {
         expect.objectContaining({ name: 'Salamandra', localityId }),
       ]),
     );
+  });
+
+  it('should map former Venue names to current canonical records', async () => {
+    const store = new InMemoryLegacyLocationMigrationStore({
+      localities: [],
+      venues: [],
+      gigs: [
+        { _id: new Types.ObjectId(), venue: 'Estraperlo Club' },
+        { _id: new Types.ObjectId(), venue: 'Club Sauvage' },
+        { _id: new Types.ObjectId(), venue: 'Pacha Barcelona' },
+      ],
+      gigCandidates: [],
+    });
+
+    const report = await runLegacyLocationMigration(store, false);
+    const state = await store.readState();
+
+    expect(state.venues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'DosRombos',
+          aliases: [
+            'Estraperlo Club',
+            'Estraperlo Club, Badalona',
+            'Estraperlo Club del Ritme',
+          ],
+        }),
+        expect.objectContaining({
+          name: 'Sala Sidecar',
+          aliases: ['Club Sauvage'],
+        }),
+        expect.objectContaining({
+          name: 'Ku Barcelona',
+          aliases: ['Ku', 'Pacha Barcelona'],
+        }),
+      ]),
+    );
+    expect(report.fallbackVenueAssignments).toEqual([]);
   });
 
   it('should report the complete catalog and assignment plan without writing during dry run', async () => {

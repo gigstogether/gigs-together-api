@@ -114,10 +114,14 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     isActive: true,
   },
   {
-    key: 'estraperloClub',
+    key: 'dosRombos',
     localityKey: 'barcelona',
-    name: 'Estraperlo Club',
-    aliases: ['Estraperlo Club, Badalona'],
+    name: 'DosRombos',
+    aliases: [
+      'Estraperlo Club',
+      'Estraperlo Club, Badalona',
+      'Estraperlo Club del Ritme',
+    ],
     isActive: true,
   },
   {
@@ -138,7 +142,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     key: 'kuBarcelona',
     localityKey: 'barcelona',
     name: 'Ku Barcelona',
-    aliases: ['Ku'],
+    aliases: ['Ku', 'Pacha Barcelona'],
     isActive: true,
   },
   {
@@ -282,7 +286,7 @@ const VENUE_DEFINITIONS: VenueDefinition[] = [
     key: 'salaSidecar',
     localityKey: 'barcelona',
     name: 'Sala Sidecar',
-    aliases: [],
+    aliases: ['Club Sauvage'],
     isActive: true,
   },
   {
