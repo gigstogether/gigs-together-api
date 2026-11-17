@@ -2,6 +2,7 @@ import {
   isValidGeographicAliases,
   normalizeGeographicAliases,
   normalizeGeographicName,
+  toGeographicSearchKey,
 } from './geographic-name.validators';
 
 const CONSTRAINTS = {
@@ -31,5 +32,16 @@ describe('geographic name validators', () => {
     expect(
       isValidGeographicAliases('Barcelona', ['ＢＣＮ', 'BCN'], CONSTRAINTS),
     ).toBe(false);
+  });
+
+  it('should create the same search key with or without diacritics', () => {
+    expect(toGeographicSearchKey(' Olímpic ')).toBe('olimpic');
+    expect(toGeographicSearchKey('Olimpic')).toBe('olimpic');
+  });
+
+  it('should reject an alias that differs only by diacritics', () => {
+    expect(isValidGeographicAliases('Bóveda', ['Boveda'], CONSTRAINTS)).toBe(
+      false,
+    );
   });
 });
