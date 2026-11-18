@@ -13,12 +13,19 @@ import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
 import { isGigCandidateSourceMessengerUser } from '../gig-candidate-source.guards';
 
-const COMMUNITY_ID_RE = /^[a-f\d]{24}$/i;
+const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
 
 export interface GigCandidateApprovalIssue {
   field: string;
   code: 'required' | 'invalid';
   message: string;
+}
+
+interface ValidateRequiredObjectIdArrayParams {
+  values: readonly string[] | undefined;
+  field: 'communityIds' | 'venueIds';
+  entityName: 'Community' | 'Venue';
+  issues: GigCandidateApprovalIssue[];
 }
 
 export interface ValidatedGigCandidateDraft extends GigData {
@@ -39,7 +46,18 @@ export function validateGigCandidateDraftForApproval(
   gigDraft: GigCandidateDraft,
 ): ValidatedGigCandidateDraft {
   const issues: GigCandidateApprovalIssue[] = [];
-  const communityIds = validateCommunityIds(gigDraft.communityIds, issues);
+  const communityIds = validateRequiredObjectIdArray({
+    values: gigDraft.communityIds,
+    field: 'communityIds',
+    entityName: 'Community',
+    issues,
+  });
+  const venueIds = validateRequiredObjectIdArray({
+    values: gigDraft.venueIds,
+    field: 'venueIds',
+    entityName: 'Venue',
+    issues,
+  });
   const title = validateRequiredNormalizedString(
     gigDraft.title,
     'title',
@@ -107,6 +125,7 @@ export function validateGigCandidateDraftForApproval(
     issues.length > 0 ||
     title === undefined ||
     communityIds === undefined ||
+    venueIds === undefined ||
     date === undefined ||
     city === undefined ||
     country === undefined ||
@@ -119,6 +138,7 @@ export function validateGigCandidateDraftForApproval(
 
   return {
     communityIds,
+    venueIds,
     title,
     date,
     ...(endDate !== undefined ? { endDate } : {}),
@@ -130,38 +150,43 @@ export function validateGigCandidateDraftForApproval(
   };
 }
 
-function validateCommunityIds(
-  communityIds: readonly string[],
-  issues: GigCandidateApprovalIssue[],
+function validateRequiredObjectIdArray(
+  params: ValidateRequiredObjectIdArrayParams,
 ): string[] | undefined {
-  if (communityIds.length === 0) {
-    issues.push({
-      field: 'communityIds',
-      code: 'invalid',
-      message: 'communityIds must contain at least one Community id',
+  if (params.values === undefined) {
+    params.issues.push({
+      field: params.field,
+      code: 'required',
+      message: `${params.field} is required`,
     });
     return undefined;
   }
-  if (communityIds.some((communityId) => !COMMUNITY_ID_RE.test(communityId))) {
-    issues.push({
-      field: 'communityIds',
+  if (params.values.length === 0) {
+    params.issues.push({
+      field: params.field,
       code: 'invalid',
-      message: 'communityIds must contain valid Community ids',
+      message: `${params.field} must contain at least one ${params.entityName} id`,
     });
     return undefined;
   }
-  const normalizedCommunityIds = communityIds.map((communityId) =>
-    communityId.toLowerCase(),
-  );
-  if (new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length) {
-    issues.push({
-      field: 'communityIds',
+  if (params.values.some((id) => !OBJECT_ID_RE.test(id))) {
+    params.issues.push({
+      field: params.field,
       code: 'invalid',
-      message: 'communityIds must not contain duplicates',
+      message: `${params.field} must contain valid ${params.entityName} ids`,
     });
     return undefined;
   }
-  return normalizedCommunityIds;
+  const normalizedIds = params.values.map((id) => id.toLowerCase());
+  if (new Set(normalizedIds).size !== normalizedIds.length) {
+    params.issues.push({
+      field: params.field,
+      code: 'invalid',
+      message: `${params.field} must not contain duplicates`,
+    });
+    return undefined;
+  }
+  return normalizedIds;
 }
 
 export function mapGigCandidateSourceToGigSource(

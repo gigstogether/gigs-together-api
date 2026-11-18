@@ -17,13 +17,12 @@ const LOCALITY: Locality = {
 };
 
 describe('mapV1AdminLocalitiesGetRequest', () => {
-  it('should map defined Locality filters', () => {
+  it('should map a defined Country filter', () => {
     expect(
       mapV1AdminLocalitiesGetRequest({
         countryIso: 'ES',
-        search: 'bar',
       }),
-    ).toEqual({ countryIso: 'ES', search: 'bar' });
+    ).toEqual({ countryIso: 'ES' });
   });
 
   it('should omit absent Locality filters', () => {

@@ -49,36 +49,38 @@ export class GigCandidateBodyPipe implements PipeTransform<
   private toGigBody(
     value: Record<string, unknown>,
   ): V1CreateGigCandidateRequestBodyGig {
-    return {
-      communityIds: this.readRequiredStringArray(value, 'communityIds'),
+    const gig: V1CreateGigCandidateRequestBodyGig = {
+      communityId: this.readRequiredString(value, 'communityId'),
+      localityId: this.readRequiredString(value, 'localityId'),
       title: this.readOptionalString(value, 'title') ?? '',
       date: this.readOptionalString(value, 'date') ?? '',
-      city: this.readOptionalString(value, 'city') ?? '',
-      country: this.readOptionalString(value, 'country') ?? '',
-      ...(value.endDate !== undefined
-        ? { endDate: this.readOptionalString(value, 'endDate') }
-        : {}),
-      ...(value.venue !== undefined
-        ? { venue: this.readOptionalString(value, 'venue') }
-        : {}),
-      ...(value.ticketsUrl !== undefined
-        ? { ticketsUrl: this.readOptionalString(value, 'ticketsUrl') }
-        : {}),
-      ...(value.posterUrl !== undefined
-        ? { posterUrl: this.readOptionalString(value, 'posterUrl') }
-        : {}),
     };
+
+    if (value.venueIds !== undefined) {
+      gig.venueIds = this.readOptionalStringArray(value, 'venueIds');
+    }
+    if (value.endDate !== undefined) {
+      gig.endDate = this.readOptionalString(value, 'endDate');
+    }
+    if (value.ticketsUrl !== undefined) {
+      gig.ticketsUrl = this.readOptionalString(value, 'ticketsUrl');
+    }
+    if (value.posterUrl !== undefined) {
+      gig.posterUrl = this.readOptionalString(value, 'posterUrl');
+    }
+
+    return gig;
   }
 
-  private readRequiredStringArray(
+  private readRequiredString(
     value: Record<string, unknown>,
     field: string,
-  ): string[] {
-    const raw = value[field];
-    if (!Array.isArray(raw) || raw.some((item) => typeof item !== 'string')) {
-      throw new BadRequestException(`${field} must be an array of strings`);
+  ): string {
+    const result = this.readOptionalString(value, field);
+    if (result === undefined) {
+      throw new BadRequestException(`${field} must be a string`);
     }
-    return raw;
+    return result;
   }
 
   private readOptionalString(
@@ -92,6 +94,18 @@ export class GigCandidateBodyPipe implements PipeTransform<
     if (typeof raw !== 'string') {
       throw new BadRequestException(`${field} must be a string`);
     }
+    return raw;
+  }
+
+  private readOptionalStringArray(
+    value: Record<string, unknown>,
+    field: string,
+  ): string[] {
+    const raw = value[field];
+    if (!Array.isArray(raw) || raw.some((item) => typeof item !== 'string')) {
+      throw new BadRequestException(`${field} must be an array of strings`);
+    }
+
     return raw;
   }
 

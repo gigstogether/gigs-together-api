@@ -1,4 +1,4 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -13,6 +13,7 @@ import { Messenger } from '@shared/types/messenger.enum';
 import { AiService } from '../ai/ai.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { GigFeedRevalidationService } from '../gig/gig-feed/gig-feed-revalidation.service';
+import { GigCalendarService } from '../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../gig/gig.service';
 import { UserService } from '../user/user.service';
 import { UserRole } from '../user/types/user-role.enum';
@@ -35,6 +36,8 @@ import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-
 import { BucketService } from '@modules/bucket/bucket.service';
 import { AlertingService } from '@modules/alerting/alerting.service';
 import { CommunityService } from '@modules/community/community.service';
+import { LocalityService } from '@modules/location/locality/locality.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 describe('GigCandidateService', () => {
   const jpegContentType = 'image/jpeg';
@@ -122,14 +125,22 @@ describe('GigCandidateService', () => {
     findByRoute: vi.fn(),
   };
 
+  const localityServiceMock = {
+    getLocalityById: vi.fn(),
+  };
+
+  const venueServiceMock = {
+    getActiveVenueSelection: vi.fn(),
+  };
+
   const calendarServiceMock = { addEvent: vi.fn() };
   const gigFeedRevalidationServiceMock = {
     revalidateGigFeedsOrThrow: vi.fn(),
   };
   const gigServiceMock = {
     generateUniquePublicId: vi.fn(),
-    gigToCalendarPayload: vi.fn(),
   };
+  const gigCalendarServiceMock = { toCalendarEvent: vi.fn() };
 
   async function createService(
     configService: ConfigService,
@@ -168,8 +179,11 @@ describe('GigCandidateService', () => {
           useValue: gigFeedRevalidationServiceMock,
         },
         { provide: GigService, useValue: gigServiceMock },
+        { provide: GigCalendarService, useValue: gigCalendarServiceMock },
         { provide: UserService, useValue: userServiceMock },
         { provide: CommunityService, useValue: communityServiceMock },
+        { provide: LocalityService, useValue: localityServiceMock },
+        { provide: VenueService, useValue: venueServiceMock },
         { provide: ConfigService, useValue: configService },
       ],
     }).compile();
@@ -223,6 +237,23 @@ describe('GigCandidateService', () => {
       nameTranslationKey: 'barcelona.name',
       timeZone: 'Europe/Madrid',
       isActive: true,
+    });
+    localityServiceMock.getLocalityById.mockResolvedValue({
+      id: '507f1f77bcf86cd799439012',
+      countryIso: 'ES',
+      name: 'Barcelona',
+      aliases: [],
+      timeZone: 'Europe/Madrid',
+    });
+    venueServiceMock.getActiveVenueSelection.mockResolvedValue({
+      locality: {
+        id: '507f1f77bcf86cd799439012',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [],
     });
 
     service = await createService(
@@ -637,18 +668,15 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('handleSubmit', () => {
+  describe('createPublicGigCandidate', () => {
     it('should throw BadRequestException when title is missing', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: '',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: '',
+            date: '2026-08-01',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -660,17 +688,122 @@ describe('GigCandidateService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('should reject a Venue outside the selected Locality', async () => {
+      venueServiceMock.getActiveVenueSelection.mockResolvedValueOnce({
+        locality: {
+          id: '507f1f77bcf86cd799439099',
+          countryIso: 'ES',
+          name: 'Girona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [],
+      });
+
+      await expect(
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            venueIds: ['507f1f77bcf86cd799439013'],
+            title: 'Band',
+            date: '2026-08-01',
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+        }),
+      ).rejects.toThrow(/selected Locality/);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should store selected Venue ids instead of the transient Locality id', async () => {
+      const created = buildGigCandidate({
+        source: {
+          type: GigSourceType.User,
+          userId: '66a000000000000000000000001',
+          origin: { type: GigSourceUserOriginType.Form },
+        },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
+          title: 'Band',
+          date: Date.parse('2026-08-01T00:00:00.000Z'),
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.createPublicGigCandidate({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
+          title: 'Band',
+          date: '2026-08-01',
+        },
+        user: {
+          userId: '66a000000000000000000000001',
+          tgUser: { id: 1, first_name: 'A' },
+          isAdmin: false,
+        },
+      });
+
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigDraft: expect.objectContaining({
+            venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
+          }),
+        }),
+      );
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith([
+        '507f1f77bcf86cd799439013',
+        '507f1f77bcf86cd799439014',
+      ]);
+      const createParams =
+        gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
+      expect(createParams).not.toHaveProperty('localityId');
+    });
+
+    it('should translate a missing Locality into a request error', async () => {
+      localityServiceMock.getLocalityById.mockRejectedValueOnce(
+        new NotFoundException('Locality does not exist'),
+      );
+
+      await expect(
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-01',
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+        }),
+      ).rejects.toThrow(/existing Locality/);
+    });
+
     it('should throw BadRequestException when date is not YYYY-MM-DD', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '01-08-2026',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '01-08-2026',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -684,15 +817,12 @@ describe('GigCandidateService', () => {
 
     it('should throw BadRequestException when date does not exist in the calendar', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-02-31',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-02-31',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -706,16 +836,13 @@ describe('GigCandidateService', () => {
 
     it('should throw BadRequestException when endDate is before date', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-10',
-              endDate: '2026-08-09',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-10',
+            endDate: '2026-08-09',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -729,16 +856,13 @@ describe('GigCandidateService', () => {
 
     it('should reject posterUrl while external poster downloads are disabled', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-              posterUrl: 'https://cdn.example/poster.jpg',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-01',
+            posterUrl: 'https://cdn.example/poster.jpg',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -752,16 +876,13 @@ describe('GigCandidateService', () => {
 
     it('should throw BadRequestException when ticketsUrl is invalid', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-              ticketsUrl: 'not-a-url',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-01',
+            ticketsUrl: 'not-a-url',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -775,15 +896,12 @@ describe('GigCandidateService', () => {
 
     it('should reject a title longer than 300 characters', async () => {
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'A'.repeat(301),
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'A'.repeat(301),
+            date: '2026-08-01',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -823,15 +941,12 @@ describe('GigCandidateService', () => {
         undefined,
       );
 
-      const result = await service.handleSubmit({
-        body: {
-          gig: {
-            communityIds: ['507f1f77bcf86cd799439011'],
-            title: 'B',
-            country: 'es',
-            city: 'Barcelona',
-            date: '2026-08-01',
-          },
+      const result = await service.createPublicGigCandidate({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          title: 'B',
+          date: '2026-08-01',
         },
         user: {
           userId: '66a000000000000000000000099',
@@ -859,8 +974,8 @@ describe('GigCandidateService', () => {
           },
           gigDraft: expect.objectContaining({
             title: 'B',
-            country: 'ES',
           }),
+          localityId: '507f1f77bcf86cd799439012',
         }),
       );
       const createParams =
@@ -925,15 +1040,12 @@ describe('GigCandidateService', () => {
         },
       );
 
-      await service.handleSubmit({
-        body: {
-          gig: {
-            communityIds: ['507f1f77bcf86cd799439011'],
-            title: 'Band',
-            country: 'ES',
-            city: 'Barcelona',
-            date: '2026-08-01',
-          },
+      await service.createPublicGigCandidate({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          title: 'Band',
+          date: '2026-08-01',
         },
         user: {
           userId: '66a000000000000000000000001',
@@ -1014,15 +1126,12 @@ describe('GigCandidateService', () => {
       userServiceMock.findActiveUserById.mockResolvedValue(user);
 
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-01',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -1065,15 +1174,12 @@ describe('GigCandidateService', () => {
       );
 
       await expect(
-        service.handleSubmit({
-          body: {
-            gig: {
-              communityIds: ['507f1f77bcf86cd799439011'],
-              title: 'Band',
-              country: 'ES',
-              city: 'Barcelona',
-              date: '2026-08-01',
-            },
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            date: '2026-08-01',
           },
           user: {
             userId: '66a000000000000000000000001',
@@ -1958,6 +2064,7 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -1983,7 +2090,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
-      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+      gigCalendarServiceMock.toCalendarEvent.mockReturnValue({ event: true });
 
       await expect(
         approvalService.approveGigCandidate({
@@ -1992,6 +2099,10 @@ describe('GigCandidateService', () => {
           approvedByUserId: approved.approvedByUserId!,
         }),
       ).resolves.toEqual(gig);
+
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith([
+        '507f1f77bcf86cd799439012',
+      ]);
 
       expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -2006,6 +2117,7 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).toHaveBeenCalledWith({
         gigId: gig.id,
         communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439012'],
         publicId: gig.publicId,
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -2057,6 +2169,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2145,6 +2258,41 @@ describe('GigCandidateService', () => {
       expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
     });
 
+    it('should leave Reviewing unchanged when Venue assignment validation fails', async () => {
+      const reviewing = buildGigCandidate({
+        status: GigCandidateStatus.Reviewing,
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
+          title: 'Radiohead',
+          date: Date.UTC(2026, 5, 12),
+          city: 'Barcelona',
+          country: 'ES',
+          venue: 'Palau Sant Jordi',
+          ticketsUrl: 'https://tickets.example/radiohead',
+          poster: { bucketPath: 'posters/radiohead.jpg' },
+        },
+      });
+      approvalTransactionMock.findGigCandidateById.mockResolvedValue(reviewing);
+      venueServiceMock.getActiveVenueSelection.mockRejectedValueOnce(
+        new BadRequestException(
+          'All assigned Venues must belong to the same Locality',
+        ),
+      );
+
+      await expect(
+        approvalService.approveGigCandidate({
+          gigCandidateId: reviewing.id,
+          expectedVersion: 0,
+          approvedByUserId: '507f1f77bcf86cd799439077',
+        }),
+      ).rejects.toThrow('All assigned Venues must belong to the same Locality');
+      expect(
+        approvalTransactionMock.approveGigCandidate,
+      ).not.toHaveBeenCalled();
+      expect(approvalTransactionMock.createGig).not.toHaveBeenCalled();
+    });
+
     it('should return the existing Gig for an already Approved GigCandidate', async () => {
       const gig = buildGigApprovalResult();
       const approved = buildGigCandidate({
@@ -2191,6 +2339,7 @@ describe('GigCandidateService', () => {
         source,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2233,6 +2382,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2267,6 +2417,7 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
           city: 'Barcelona',
@@ -2300,7 +2451,7 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.isGigPublicIdTaken.mockResolvedValue(false);
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
-      gigServiceMock.gigToCalendarPayload.mockReturnValue({ event: true });
+      gigCalendarServiceMock.toCalendarEvent.mockReturnValue({ event: true });
       gigFeedRevalidationServiceMock.revalidateGigFeedsOrThrow.mockRejectedValue(
         new Error('Revalidation unavailable'),
       );
@@ -2819,6 +2970,7 @@ function buildGigApprovalResult(
   return {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'radiohead-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),

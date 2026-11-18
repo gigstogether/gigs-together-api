@@ -29,12 +29,6 @@ export class V1AdminLocalitiesGetQueryDto {
   )
   @IsISO31661Alpha2()
   countryIso?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
-  @IsString()
-  @MinLength(1)
-  search?: string;
 }
 
 export class V1AdminLocalityCreateBodyDto {

@@ -13,6 +13,7 @@ function buildDocument(
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
     communityIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
+    venueIds: [new Types.ObjectId('507f1f77bcf86cd799439033')],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -263,6 +264,22 @@ describe('GigRepositoryMapper', () => {
           buildDocument({ communityIds: [communityId, communityId] }),
         ),
       ).toThrow(/must not contain duplicates/);
+    });
+
+    it('should reject duplicate stored Venue identifiers', () => {
+      const venueId = new Types.ObjectId('507f1f77bcf86cd799439033');
+
+      expect(() =>
+        GigRepositoryMapper.toGig(
+          buildDocument({ venueIds: [venueId, venueId] }),
+        ),
+      ).toThrow(/must not contain duplicates/);
+    });
+
+    it('should reject a Gig without stored Venue assignments', () => {
+      expect(() =>
+        GigRepositoryMapper.toGig(buildDocument({ venueIds: undefined })),
+      ).toThrow(/venueIds must be a non-empty array/);
     });
   });
 });

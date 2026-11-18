@@ -14,10 +14,16 @@ import type {
 export interface PrepareGigCandidateDraftPosterParams {
   gigCandidateId: string;
   gigDraft: GigCandidateDraft;
+  location?: GigCandidatePosterLocation;
   posterUrl?: string;
   posterFile?: GigPosterFile;
   existingPoster?: GigPoster;
   shouldUseDefaultPoster: boolean;
+}
+
+export interface GigCandidatePosterLocation {
+  name: string;
+  countryIso: string;
 }
 
 export interface PreparedGigCandidateDraftPoster {
@@ -64,8 +70,8 @@ export class GigCandidatePosterService {
         file: params.posterFile,
         context: {
           date: gigDraft.date ?? new Date(),
-          city: gigDraft.city ?? 'unknown',
-          country: gigDraft.country ?? 'unknown',
+          city: params.location?.name ?? gigDraft.city ?? 'unknown',
+          country: params.location?.countryIso ?? gigDraft.country ?? 'unknown',
           publicId: `gc-${params.gigCandidateId}`,
         },
       });

@@ -102,6 +102,7 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
   return {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439022'],
+    venueIds: ['507f1f77bcf86cd799439033'],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),

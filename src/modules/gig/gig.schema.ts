@@ -141,6 +141,17 @@ export class Gig {
   })
   communityIds: Types.ObjectId[];
 
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Venue',
+    required: true,
+    validate: {
+      validator: isNonEmptyUniqueObjectIdArray,
+      message: 'venueIds must contain unique Venue ObjectIds',
+    },
+  })
+  venueIds: Types.ObjectId[];
+
   /**
    * Public stable identifier for URLs/anchors.
    *

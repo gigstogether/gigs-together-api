@@ -3,10 +3,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CountryService } from './country/country.service';
 import { CountriesController } from './country/countries.controller';
 import { Locality, LocalitySchema } from './locality/locality.schema';
+import { LocalityController } from './locality/locality.controller';
 import { LocalityService } from './locality/locality.service';
 import { LOCALITY_REPOSITORY } from './locality/repositories/locality.repository';
 import { MongoLocalityRepository } from './locality/repositories/mongo-locality.repository';
 import { Venue, VenueSchema } from './venue/venue.schema';
+import { VenueController } from './venue/venue.controller';
 import { VenueService } from './venue/venue.service';
 import { VENUE_REPOSITORY } from './venue/repositories/venue.repository';
 import { MongoVenueRepository } from './venue/repositories/mongo-venue.repository';
@@ -18,7 +20,7 @@ import { MongoVenueRepository } from './venue/repositories/mongo-venue.repositor
       { name: Venue.name, schema: VenueSchema },
     ]),
   ],
-  controllers: [CountriesController],
+  controllers: [CountriesController, LocalityController, VenueController],
   providers: [
     CountryService,
     LocalityService,

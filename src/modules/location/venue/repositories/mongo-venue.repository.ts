@@ -29,7 +29,6 @@ const VENUE_SORT = { localityId: 1, name: 1, _id: 1 } as const;
 interface VenueMongoFilter {
   localityId?: Types.ObjectId;
   isActive?: boolean;
-  $or?: Array<{ name: RegExp } | { aliases: RegExp }>;
 }
 
 @Injectable()
@@ -78,7 +77,24 @@ export class MongoVenueRepository implements VenueRepository {
     return VenueRepositoryMapper.toVenue(doc);
   }
 
-  async find(params: FindVenuesParams): Promise<readonly Venue[]> {
+  async findByIds(ids: string[]): Promise<Venue[]> {
+    const storedIds = ids.map((id) => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new Error('Venue id must be a valid ObjectId');
+      }
+
+      return new Types.ObjectId(id);
+    });
+
+    const docs = await this.venueModel
+      .find({ _id: { $in: storedIds } }, VENUE_PROJECTION)
+      .lean<VenueLeanDocument[]>()
+      .exec();
+
+    return VenueRepositoryMapper.toVenues(docs);
+  }
+
+  async find(params: FindVenuesParams): Promise<Venue[]> {
     const filter: VenueMongoFilter = {};
 
     if (params.localityId !== undefined) {
@@ -89,15 +105,11 @@ export class MongoVenueRepository implements VenueRepository {
     if (params.isActive !== undefined) {
       filter.isActive = params.isActive;
     }
-    if (params.search !== undefined) {
-      const pattern = new RegExp(escapeRegExp(params.search), 'iu');
-      filter.$or = [{ name: pattern }, { aliases: pattern }];
-    }
 
     const docs = await this.venueModel
       .find(filter, VENUE_PROJECTION)
       .sort(VENUE_SORT)
-      .lean<readonly VenueLeanDocument[]>()
+      .lean<VenueLeanDocument[]>()
       .exec();
 
     return VenueRepositoryMapper.toVenues(docs);
@@ -156,10 +168,6 @@ export class MongoVenueRepository implements VenueRepository {
 
     return result.deletedCount === 1;
   }
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^\x24{}()|[\]\\]/g, '\\$&');
 }
 
 function isDuplicateKeyError(e: unknown): boolean {

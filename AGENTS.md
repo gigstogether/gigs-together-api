@@ -31,6 +31,10 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## Naming
 
+- Avoid `resolve` and `resolved` in identifiers and prose when a more concrete
+  word can describe the operation or result, such as `get`, `find`, `map`, `select`, `validate`, etc.
+  Keep these terms when they are part of a third-party API or when no clearer replacement exists.
+  Do not refactor unrelated existing occurrences solely to apply this rule.
 - Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
 - The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables, constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
 - Choose a concrete domain action instead, such as `post`, `send` or another term that precisely describes the behavior.
@@ -106,13 +110,14 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code stays strongly typed.
 - Avoid `as any` entirely.
 
-- Do **not** use `readonly` by default on DTOs, params, domain types, or props. Omit it unless there is a real need to prevent mutation at the type level for callers that would otherwise mutate shared state.
-- Add `readonly` only when immutability is part of the contract and the risk is concrete (for example a shared config object, a cached snapshot, or an API surface where callers must not reassign fields). If there is no such risk, leave fields mutable in the type.
+- Do **not** add `readonly` to DTOs, params, domain types, props, array parameters, or collection return types merely because the implementation does not mutate them. Omit `readonly` by default.
+- Add `readonly` only when immutability is an intentional part of the public contract and a concrete shared-state mutation risk exists (for example a shared config object or cached snapshot). State that reason in a nearby comment when it is not obvious from the owner. Before completing a change, inspect every `readonly` added or preserved in the changed code and remove it unless this requirement is met. Do not refactor unrelated existing code solely to apply this rule.
 
 - Prefer named types for public APIs such as service methods, controller responses, and module exports.
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
 - Extract object shapes into a named `interface` or `type`, ideally colocated in `types/requests/*` for DTOs.
 - Prefer a named params object for long function signatures.
+- When a function or method needs exactly one value, prefer passing that value directly instead of wrapping it in a single-property object. This is a preference, not a strict rule: keep a params object when the contract is expected to expand or when the object form materially clarifies the API. Do not refactor unrelated existing code solely to apply this rule.
 - When an object-parameter function signature becomes long, do not destructure in the parameter list; accept `params: SomeParams` and destructure inside the function body.
 
 - Prefer `interface` over `type` for object shapes unless `type` is clearly the better fit.

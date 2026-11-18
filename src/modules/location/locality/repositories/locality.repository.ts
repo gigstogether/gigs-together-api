@@ -12,7 +12,6 @@ export interface CreateLocalityRecordParams {
 
 export interface FindLocalitiesParams {
   countryIso?: string;
-  search?: string;
 }
 
 export interface UpdateLocalityRecordParams {
@@ -27,6 +26,8 @@ export interface LocalityRepository {
   create(params: CreateLocalityRecordParams): Promise<Locality>;
 
   findById(id: string): Promise<Locality | null>;
+
+  findByIds(ids: readonly string[]): Promise<readonly Locality[]>;
 
   find(params: FindLocalitiesParams): Promise<readonly Locality[]>;
 

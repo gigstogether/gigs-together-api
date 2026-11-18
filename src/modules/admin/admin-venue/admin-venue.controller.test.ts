@@ -67,13 +67,11 @@ describe('AdminVenueController', () => {
     await expect(
       controller.getVenuesV1({
         localityId: LOCALITY_ID,
-        search: 'apolo',
         isActive: true,
       }),
     ).resolves.toEqual({ venues: [VENUE] });
     expect(findVenuesMock).toHaveBeenCalledWith({
       localityId: LOCALITY_ID,
-      search: 'apolo',
       isActive: true,
     });
   });

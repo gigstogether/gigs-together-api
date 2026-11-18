@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type {
-  GigCalendarSource,
   GigFormInput,
   GigId,
   GigPost,
@@ -16,7 +15,6 @@ import type {
   PlainGig,
 } from './types/gig.types';
 import { getConfigBoolean } from '@shared/utils/env';
-import type { CalendarEvent } from '../calendar/calendar.types';
 import { GigPosterService } from './gig-poster/gig-poster.service';
 import { TelegramGigService } from '../telegram/telegram-gig/telegram-gig.service';
 import type {
@@ -43,15 +41,6 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
-
-function formatCalendarDate(value: number, field: 'date' | 'endDate'): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    throw new Error(`Gig ${field} must be a valid timestamp`);
-  }
-
-  return date.toISOString().slice(0, 10);
-}
 
 export interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -739,34 +728,6 @@ export class GigService {
     return this.gigFeedRevalidationService.revalidateGigFeeds({
       communityIds: gig.communityIds,
     });
-  }
-
-  gigToCalendarPayload(gig: GigCalendarSource): CalendarEvent {
-    const timeZone = 'Europe/Madrid';
-
-    // Use an evening window from 20:00 to 22:00 in the event's local time
-    // zone. Google resolves the UTC offset from the IANA time zone.
-    const startDate = formatCalendarDate(gig.date, 'date');
-
-    // Multi-day events end at 22:00 on the final day. Clamp an invalid
-    // earlier end date to the start day so the end never precedes the start.
-    const requestedEndDate =
-      gig.endDate !== undefined
-        ? formatCalendarDate(gig.endDate, 'endDate')
-        : startDate;
-    const endDate =
-      requestedEndDate >= startDate ? requestedEndDate : startDate;
-
-    return {
-      title: gig.title,
-      description: `Tickets: ${gig.ticketsUrl}`,
-      location: [gig.venue, gig.city, gig.country] // TODO: add country name?
-        .filter((str) => !!str)
-        .join(', '),
-      startLocalDateTime: `${startDate}T20:00:00`,
-      endLocalDateTime: `${endDate}T22:00:00`,
-      timeZone,
-    };
   }
 
   private uploadPoster: GigPosterService['upload'] =

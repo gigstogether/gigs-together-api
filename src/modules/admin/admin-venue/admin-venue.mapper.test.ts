@@ -21,12 +21,10 @@ describe('mapV1AdminVenuesGetRequest', () => {
     expect(
       mapV1AdminVenuesGetRequest({
         localityId: LOCALITY_ID,
-        search: 'apolo',
         isActive: true,
       }),
     ).toEqual({
       localityId: LOCALITY_ID,
-      search: 'apolo',
       isActive: true,
     });
   });

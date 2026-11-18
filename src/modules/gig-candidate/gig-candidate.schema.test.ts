@@ -14,6 +14,19 @@ describe('GigCandidateSchema', () => {
     expect(validate([])).toBe(false);
   });
 
+  it('should accept only non-empty unique Venue assignments when provided', () => {
+    const venueIdsPath = GigCandidateSchema.path('gigDraft.venueIds');
+    const validate = venueIdsPath.options.validate.validator;
+
+    expect(venueIdsPath.options.required).toBe(false);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
+  it('should keep the temporary Locality assignment optional', () => {
+    expect(GigCandidateSchema.path('localityId').options.required).toBe(false);
+  });
+
   it('should require Community assignments inside gigDraft', () => {
     const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
     const validate = communityIdsPath.options.validate.validator;
