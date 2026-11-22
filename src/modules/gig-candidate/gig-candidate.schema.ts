@@ -68,6 +68,7 @@ export class GigCandidateGigDraft {
     type: [Types.ObjectId],
     ref: 'Venue',
     required: false,
+    default: undefined,
     validate: {
       validator: isNonEmptyUniqueObjectIdArray,
       message: 'venueIds must contain unique Venue ObjectIds',

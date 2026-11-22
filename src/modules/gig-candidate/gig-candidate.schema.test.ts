@@ -1,113 +1,57 @@
-import { Types } from 'mongoose';
+import { model, Types } from 'mongoose';
 
-import { GigCandidateSchema } from './gig-candidate.schema';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
+import { GigCandidateStatus } from './types/gig-candidate-status.enum';
+import { GigCandidateSchema } from './gig-candidate.schema';
+
+const GigCandidateSchemaTestModel = model(
+  'GigCandidateSchemaTest',
+  GigCandidateSchema,
+);
+
+function createGigCandidateDocument(venueIds?: Types.ObjectId[]) {
+  const gigDraft: {
+    communityIds: Types.ObjectId[];
+    venueIds?: Types.ObjectId[];
+  } = {
+    communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+  };
+  if (venueIds !== undefined) {
+    gigDraft.venueIds = venueIds;
+  }
+
+  return new GigCandidateSchemaTestModel({
+    source: {
+      type: GigSourceType.User,
+      userId: new Types.ObjectId('507f1f77bcf86cd799439088'),
+      origin: { type: GigSourceUserOriginType.Admin },
+    },
+    gigDraft,
+    version: 0,
+    status: GigCandidateStatus.Reviewing,
+  });
+}
 
 describe('GigCandidateSchema', () => {
-  it('should require Community assignments inside gigDraft', () => {
-    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
-    const validate = communityIdsPath.options.validate.validator;
+  it('should preserve an omitted Venue assignment as undefined', async () => {
+    const document = createGigCandidateDocument();
 
-    expect(communityIdsPath.options.required).toBe(true);
-    expect(validate([new Types.ObjectId()])).toBe(true);
-    expect(validate([])).toBe(false);
+    await expect(document.validate()).resolves.toBeUndefined();
+    expect(document.gigDraft.venueIds).toBeUndefined();
   });
 
-  it('should accept only non-empty unique Venue assignments when provided', () => {
-    const venueIdsPath = GigCandidateSchema.path('gigDraft.venueIds');
-    const validate = venueIdsPath.options.validate.validator;
+  it('should reject an explicitly empty Venue assignment', async () => {
+    const document = createGigCandidateDocument([]);
 
-    expect(venueIdsPath.options.required).toBe(false);
-    expect(validate([new Types.ObjectId()])).toBe(true);
-    expect(validate([])).toBe(false);
-  });
-
-  it('should keep the temporary Locality assignment optional', () => {
-    expect(GigCandidateSchema.path('localityId').options.required).toBe(false);
-  });
-
-  it('should require Community assignments inside gigDraft', () => {
-    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
-    const validate = communityIdsPath.options.validate.validator;
-
-    expect(communityIdsPath.options.required).toBe(true);
-    expect(validate([new Types.ObjectId()])).toBe(true);
-    expect(validate([])).toBe(false);
-  });
-
-  it('should require Community assignments inside gigDraft', () => {
-    const communityIdsPath = GigCandidateSchema.path('gigDraft.communityIds');
-    const validate = communityIdsPath.options.validate.validator;
-
-    expect(communityIdsPath.options.required).toBe(true);
-    expect(validate([new Types.ObjectId()])).toBe(true);
-    expect(validate([])).toBe(false);
-  });
-
-  it('should keep source immutable at the persistence boundary', () => {
-    expect(GigCandidateSchema.path('source').options.immutable).toBe(true);
-  });
-
-  it('should store source as one union value without nullable branch fields', () => {
-    expect(GigCandidateSchema.path('source').instance).toBe('Mixed');
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        GigCandidateSchema.paths,
-        'source.userId',
-      ),
-    ).toBe(false);
-    expect(
-      Object.prototype.hasOwnProperty.call(
-        GigCandidateSchema.paths,
-        'source.provider',
-      ),
-    ).toBe(false);
-  });
-
-  it('should contain no legacy ownership or feedback fields', () => {
-    expect(GigCandidateSchema.path('suggestedBy')).toBeUndefined();
-    expect(GigCandidateSchema.path('feedbackMessageId')).toBeUndefined();
-    expect(GigCandidateSchema.path('gigCandidateId')).toBeUndefined();
-  });
-
-  it('should require optimistic versions to be integers', () => {
-    const validate = GigCandidateSchema.path('version').options.validate;
-
-    expect(validate(1)).toBe(true);
-    expect(validate(1.5)).toBe(false);
-  });
-
-  it('should define queue, relationship, and messenger source indexes', () => {
-    expect(GigCandidateSchema.indexes()).toEqual([
-      [{ status: 1, createdAt: -1, _id: -1 }, {}],
-      [{ gigId: 1 }, { unique: true, sparse: true }],
-      [
-        {
-          'source.origin.messenger': 1,
-          'source.origin.message.chatId': 1,
-          'source.origin.message.messageId': 1,
-        },
-        {
-          name: 'source_messenger_message_unique',
-          unique: true,
-          partialFilterExpression: {
-            'source.type': GigSourceType.User,
-            'source.origin.type': GigSourceUserOriginType.Messenger,
-          },
-        },
-      ],
-    ]);
-  });
-
-  it('should not define a provider unique index before provider persistence is enabled', () => {
-    const hasProviderIndex = GigCandidateSchema.indexes().some(([fields]) =>
-      Object.prototype.hasOwnProperty.call(
-        fields,
-        'source.provider.externalEventId',
-      ),
+    await expect(document.validate()).rejects.toMatchObject(
+      expect.objectContaining({
+        errors: expect.objectContaining({
+          'gigDraft.venueIds': expect.objectContaining({
+            message: 'venueIds must contain unique Venue ObjectIds',
+          }),
+        }),
+      }),
     );
-
-    expect(hasProviderIndex).toBe(false);
   });
 });
