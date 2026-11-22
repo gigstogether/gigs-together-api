@@ -29,6 +29,7 @@ import type {
   V1AdminGigCandidateIdentifiedUserSourceResponseBody,
   V1AdminGigCandidateMessengerUserSourceResponseBody,
   V1AdminGigCandidateOriginalMessageResponseBody,
+  V1AdminGigCandidateLocalityResponseBody,
   V1AdminGigCandidateResponseBody,
   V1AdminGigCandidatesListResponseBody,
   V1AdminGigCandidateSourceResponseBody,
@@ -95,6 +96,20 @@ export function mapV1AdminGigCandidateResponse(
     createdAt: gigCandidate.createdAt.toISOString(),
     updatedAt: gigCandidate.updatedAt.toISOString(),
   };
+  if (gigDraft.venueIds !== undefined) {
+    response.gigDraft.venueIds = [...gigDraft.venueIds];
+  }
+  if (gigCandidate.locality !== undefined) {
+    const locality: V1AdminGigCandidateLocalityResponseBody = {
+      id: gigCandidate.locality.id,
+      countryIso: gigCandidate.locality.countryIso,
+      name: gigCandidate.locality.name,
+    };
+    if (gigCandidate.locality.qualifier !== undefined) {
+      locality.qualifier = gigCandidate.locality.qualifier;
+    }
+    response.locality = locality;
+  }
   if (gigCandidate.originalMessage !== undefined) {
     const originalMessage: V1AdminGigCandidateOriginalMessageResponseBody = {
       url: gigCandidate.originalMessage.url,
@@ -114,25 +129,33 @@ export function mapV1AdminCreateGigCandidateRequest(
   params: MapV1AdminCreateGigCandidateRequestParams,
 ): CreateAdminGigCandidateParams {
   const mapped = mapV1AdminGigCandidateGigDraftRequest(params.body.gigDraft);
-  return {
+  const result: CreateAdminGigCandidateParams = {
     userId: params.userId,
     gigDraft: mapped.gigDraft,
     posterUrl: mapped.posterUrl,
     posterFile: mapV1AdminGigCandidatePosterFile(params.posterFile),
   };
+  if (params.body.localityId !== undefined) {
+    result.localityId = params.body.localityId;
+  }
+  return result;
 }
 
 export function mapV1AdminUpdateGigCandidateDraftRequest(
   params: MapV1AdminUpdateGigCandidateDraftRequestParams,
 ): UpdateAdminGigCandidateDraftParams {
   const mapped = mapV1AdminGigCandidateGigDraftRequest(params.body.gigDraft);
-  return {
+  const result: UpdateAdminGigCandidateDraftParams = {
     gigCandidateId: params.gigCandidateId,
     expectedVersion: params.body.expectedVersion,
     gigDraft: mapped.gigDraft,
     posterUrl: mapped.posterUrl,
     posterFile: mapV1AdminGigCandidatePosterFile(params.posterFile),
   };
+  if (params.body.localityId !== undefined) {
+    result.localityId = params.body.localityId;
+  }
+  return result;
 }
 
 export function mapV1AdminGigCandidateLookupResponse(
@@ -172,19 +195,39 @@ function mapV1AdminGigCandidateGigDraftRequest(
   const ticketsUrl = optionalUrl(input.ticketsUrl, 'ticketsUrl');
   const posterUrl = optionalUrl(input.posterUrl, 'posterUrl');
 
-  return {
-    gigDraft: {
-      communityIds: [...input.communityIds],
-      ...(title !== undefined ? { title } : {}),
-      ...(date !== undefined ? { date } : {}),
-      ...(endDate !== undefined ? { endDate } : {}),
-      ...(city !== undefined ? { city } : {}),
-      ...(country !== undefined ? { country } : {}),
-      ...(venue !== undefined ? { venue } : {}),
-      ...(ticketsUrl !== undefined ? { ticketsUrl } : {}),
-    },
-    ...(posterUrl !== undefined ? { posterUrl } : {}),
+  const gigDraft: AdminGigCandidateDetails['gigDraft'] = {
+    communityIds: [...input.communityIds],
   };
+  if (input.venueIds !== undefined) {
+    gigDraft.venueIds = [...input.venueIds];
+  }
+  if (title !== undefined) {
+    gigDraft.title = title;
+  }
+  if (date !== undefined) {
+    gigDraft.date = date;
+  }
+  if (endDate !== undefined) {
+    gigDraft.endDate = endDate;
+  }
+  if (city !== undefined) {
+    gigDraft.city = city;
+  }
+  if (country !== undefined) {
+    gigDraft.country = country;
+  }
+  if (venue !== undefined) {
+    gigDraft.venue = venue;
+  }
+  if (ticketsUrl !== undefined) {
+    gigDraft.ticketsUrl = ticketsUrl;
+  }
+
+  const result: MappedV1AdminGigCandidateGigDraftRequest = { gigDraft };
+  if (posterUrl !== undefined) {
+    result.posterUrl = posterUrl;
+  }
+  return result;
 }
 
 function mapV1AdminGigCandidateSourceResponse(

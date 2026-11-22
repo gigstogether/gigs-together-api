@@ -23,6 +23,7 @@ export interface CreateGigCandidateParams {
 export interface UpdateGigCandidateDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
+  localityId?: string;
   gigDraft: GigCandidateDraft;
 }
 

@@ -1273,6 +1273,153 @@ describe('GigCandidateService', () => {
       });
     });
 
+    it('should persist a direct Locality assignment when no Venue is selected', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const localityId = '507f1f77bcf86cd799439012';
+      const created = buildGigCandidate({
+        id: gigCandidateId,
+        localityId,
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: GigSourceType.User,
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: GigSourceUserOriginType.Admin },
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: { bucketPath: 'gigs/default.jpg' },
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          mimetype: 'image/jpeg',
+          filename: 'poster.jpg',
+        },
+      });
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.createAdminGigCandidate({
+        userId: '507f1f77bcf86cd799439088',
+        localityId,
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
+      });
+
+      expect(localityServiceMock.getLocalityById).toHaveBeenCalledWith(
+        localityId,
+      );
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          localityId,
+          gigDraft: expect.not.objectContaining({
+            venueIds: expect.anything(),
+          }),
+        }),
+      );
+    });
+
+    it('should persist active Venues instead of a direct Locality assignment', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const localityId = '507f1f77bcf86cd799439012';
+      const venueId = '507f1f77bcf86cd799439013';
+      const venue = {
+        id: venueId,
+        localityId,
+        name: 'Sala Apolo',
+        aliases: [],
+        isActive: true,
+      };
+      const created = buildGigCandidate({
+        id: gigCandidateId,
+        status: GigCandidateStatus.Reviewing,
+        source: {
+          type: GigSourceType.User,
+          userId: '507f1f77bcf86cd799439088',
+          origin: { type: GigSourceUserOriginType.Admin },
+        },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: [venueId],
+        },
+      });
+      venueServiceMock.getActiveVenueSelection.mockResolvedValue({
+        locality: {
+          id: localityId,
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [venue],
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
+      gigPosterServiceMock.upload.mockResolvedValue({
+        storedPoster: { bucketPath: 'gigs/default.jpg' },
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          mimetype: 'image/jpeg',
+          filename: 'poster.jpg',
+        },
+      });
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateModerationPost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.createAdminGigCandidate({
+        userId: '507f1f77bcf86cd799439088',
+        localityId,
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: [venueId],
+        },
+      });
+
+      expect(venueServiceMock.getActiveVenueSelection).toHaveBeenCalledWith([
+        venueId,
+      ]);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigDraft: expect.objectContaining({ venueIds: [venueId] }),
+        }),
+      );
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0],
+      ).not.toHaveProperty('localityId');
+    });
+
+    it('should reject Venues from a different Locality', async () => {
+      venueServiceMock.getActiveVenueSelection.mockResolvedValue({
+        locality: {
+          id: '507f1f77bcf86cd799439099',
+          countryIso: 'ES',
+          name: 'Madrid',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [],
+      });
+
+      await expect(
+        service.createAdminGigCandidate({
+          userId: '507f1f77bcf86cd799439088',
+          localityId: '507f1f77bcf86cd799439012',
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            venueIds: ['507f1f77bcf86cd799439013'],
+          },
+        }),
+      ).rejects.toThrow(/selected Locality/);
+      expect(
+        gigCandidateRepositoryMock.createGigCandidate,
+      ).not.toHaveBeenCalled();
+    });
+
     it('should reject an inactive Community before creating an admin GigCandidate', async () => {
       communityServiceMock.findById.mockResolvedValue({
         id: '507f1f77bcf86cd799439011',

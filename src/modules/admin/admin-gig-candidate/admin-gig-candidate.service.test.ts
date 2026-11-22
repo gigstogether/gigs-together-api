@@ -17,6 +17,8 @@ import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
 import { UserService } from '@modules/user/user.service';
 import { UserRole } from '@modules/user/types/user-role.enum';
+import { LocalityService } from '@modules/location/locality/locality.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
 function buildGigCandidate(
@@ -69,12 +71,20 @@ describe('AdminGigCandidateService', () => {
   const bucketServiceMock = {
     getPublicFileUrl: vi.fn(),
   };
+  const localityServiceMock = {
+    getLocalitiesByIds: vi.fn(),
+  };
+  const venueServiceMock = {
+    getVenueSelections: vi.fn(),
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
     telegramComposerMock.buildPostUrl.mockReset();
     bucketServiceMock.getPublicFileUrl.mockReset();
     gigServiceMock.getGigsByIds.mockResolvedValue([]);
+    localityServiceMock.getLocalitiesByIds.mockResolvedValue([]);
+    venueServiceMock.getVenueSelections.mockResolvedValue([]);
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
         id: '66a000000000000000000000042',
@@ -102,6 +112,8 @@ describe('AdminGigCandidateService', () => {
         { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: UserService, useValue: userServiceMock },
         { provide: BucketService, useValue: bucketServiceMock },
+        { provide: LocalityService, useValue: localityServiceMock },
+        { provide: VenueService, useValue: venueServiceMock },
       ],
     }).compile();
 
@@ -355,6 +367,34 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getById', () => {
+    it('should expose the Locality derived from assigned Venues', async () => {
+      const record = buildGigCandidate({
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
+        },
+      });
+      const locality = {
+        id: '507f1f77bcf86cd799439013',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      };
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
+      gigServiceMock.getGigById.mockResolvedValue(undefined);
+      venueServiceMock.getVenueSelections.mockResolvedValue([
+        { locality, venues: [] },
+      ]);
+
+      const result = await service.getById(record.id);
+
+      expect(result.locality).toEqual(locality);
+      expect(venueServiceMock.getVenueSelections).toHaveBeenCalledWith([
+        record.gigDraft.venueIds,
+      ]);
+    });
+
     it('should include the GigCandidate post and linked Gig URLs', async () => {
       const record = buildGigCandidate({
         status: GigCandidateStatus.Approved,

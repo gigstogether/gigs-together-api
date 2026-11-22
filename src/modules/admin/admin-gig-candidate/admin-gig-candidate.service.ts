@@ -12,6 +12,9 @@ import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
 import { UserService } from '@modules/user/user.service';
 import type { User } from '@modules/user/types/user.types';
+import { LocalityService } from '@modules/location/locality/locality.service';
+import type { Locality } from '@modules/location/locality/types/locality.types';
+import { VenueService } from '@modules/location/venue/venue.service';
 import { getUserSourceProfile } from '../admin-shared/admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
@@ -28,21 +31,26 @@ export class AdminGigCandidateService {
     private readonly telegramComposer: TelegramComposerService,
     private readonly userService: UserService,
     private readonly bucketService: BucketService,
+    private readonly localityService: LocalityService,
+    private readonly venueService: VenueService,
   ) {}
 
   async getList(
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
     const gigCandidates = await this.gigCandidateService.findMany(params);
-    const [activeSourceUsersById, linkedGigsById] = await Promise.all([
-      this.getActiveSourceUsersById(gigCandidates),
-      this.getLinkedGigsById(gigCandidates),
-    ]);
+    const [activeSourceUsersById, linkedGigsById, localitiesByCandidateId] =
+      await Promise.all([
+        this.getActiveSourceUsersById(gigCandidates),
+        this.getLinkedGigsById(gigCandidates),
+        this.getLocalitiesByCandidateId(gigCandidates),
+      ]);
     return gigCandidates.map((gigCandidate) =>
-      this.resolveGigCandidateWithUsers(
+      this.buildGigCandidateDetails(
         gigCandidate,
         activeSourceUsersById,
         gigCandidate.gigId ? linkedGigsById.get(gigCandidate.gigId) : undefined,
+        localitiesByCandidateId.get(gigCandidate.id),
       ),
     );
   }
@@ -50,29 +58,33 @@ export class AdminGigCandidateService {
   async getById(gigCandidateId: string): Promise<AdminGigCandidateDetails> {
     const gigCandidate =
       await this.gigCandidateService.getByIdOrThrow(gigCandidateId);
-    return this.resolveGigCandidate(gigCandidate);
+    return this.getGigCandidateDetails(gigCandidate);
   }
 
-  async resolveGigCandidate(
+  async getGigCandidateDetails(
     gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const [activeSourceUsersById, linkedGig] = await Promise.all([
-      this.getActiveSourceUsersById([gigCandidate]),
-      gigCandidate.gigId
-        ? this.gigService.getGigById(gigCandidate.gigId)
-        : Promise.resolve(undefined),
-    ]);
-    return this.resolveGigCandidateWithUsers(
+    const [activeSourceUsersById, linkedGig, localitiesByCandidateId] =
+      await Promise.all([
+        this.getActiveSourceUsersById([gigCandidate]),
+        gigCandidate.gigId
+          ? this.gigService.getGigById(gigCandidate.gigId)
+          : Promise.resolve(undefined),
+        this.getLocalitiesByCandidateId([gigCandidate]),
+      ]);
+    return this.buildGigCandidateDetails(
       gigCandidate,
       activeSourceUsersById,
       linkedGig,
+      localitiesByCandidateId.get(gigCandidate.id),
     );
   }
 
-  private resolveGigCandidateWithUsers(
+  private buildGigCandidateDetails(
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
     linkedGig: PlainGig | undefined,
+    locality: Locality | undefined,
   ): AdminGigCandidateDetails {
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
@@ -100,7 +112,7 @@ export class AdminGigCandidateService {
         })
       : undefined;
     const source = this.resolveSource(gigCandidate, activeSourceUsersById);
-    const originalMessage = this.resolveOriginalMessage(gigCandidate);
+    const originalMessage = this.getOriginalMessage(gigCandidate);
 
     const details: AdminGigCandidateDetails = {
       id: gigCandidate.id,
@@ -126,10 +138,52 @@ export class AdminGigCandidateService {
     if (originalMessage !== undefined) {
       details.originalMessage = originalMessage;
     }
+    if (locality !== undefined) {
+      details.locality = locality;
+    }
     return details;
   }
 
-  private resolveOriginalMessage(
+  private async getLocalitiesByCandidateId(
+    gigCandidates: GigCandidate[],
+  ): Promise<Map<string, Locality>> {
+    const candidatesWithLocality = gigCandidates.flatMap((gigCandidate) =>
+      gigCandidate.localityId === undefined
+        ? []
+        : [{ gigCandidate, localityId: gigCandidate.localityId }],
+    );
+    const candidatesWithVenues = gigCandidates.flatMap((gigCandidate) =>
+      gigCandidate.gigDraft.venueIds === undefined
+        ? []
+        : [{ gigCandidate, venueIds: gigCandidate.gigDraft.venueIds }],
+    );
+    const [directLocalities, venueSelections] = await Promise.all([
+      this.localityService.getLocalitiesByIds(
+        candidatesWithLocality.map(({ localityId }) => localityId),
+      ),
+      this.venueService.getVenueSelections(
+        candidatesWithVenues.map(({ venueIds }) => venueIds),
+      ),
+    ]);
+    const localitiesByCandidateId = new Map<string, Locality>();
+    candidatesWithLocality.forEach(({ gigCandidate }, index) => {
+      const locality = directLocalities[index];
+      if (locality === undefined) {
+        throw new Error('Loaded Locality must exist');
+      }
+      localitiesByCandidateId.set(gigCandidate.id, locality);
+    });
+    candidatesWithVenues.forEach(({ gigCandidate }, index) => {
+      const venueSelection = venueSelections[index];
+      if (venueSelection === undefined) {
+        throw new Error('Loaded Venue selection must exist');
+      }
+      localitiesByCandidateId.set(gigCandidate.id, venueSelection.locality);
+    });
+    return localitiesByCandidateId;
+  }
+
+  private getOriginalMessage(
     gigCandidate: GigCandidate,
   ): AdminGigCandidateOriginalMessage | undefined {
     if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {

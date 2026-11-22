@@ -110,6 +110,34 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     ) {
       return null;
     }
+    if (
+      params.localityId !== undefined &&
+      params.gigDraft.venueIds !== undefined
+    ) {
+      throw new Error(
+        'GigCandidate must not store localityId and gigDraft.venueIds together.',
+      );
+    }
+    const set: Record<string, unknown> = {
+      gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(params.gigDraft),
+    };
+    const unset: Record<string, 1> = {};
+    if (params.localityId === undefined) {
+      unset.localityId = 1;
+    } else {
+      if (!Types.ObjectId.isValid(params.localityId)) {
+        return null;
+      }
+      set.localityId = new Types.ObjectId(params.localityId);
+    }
+    const update: Record<string, unknown> = {
+      $set: set,
+      $inc: { version: 1 },
+    };
+    if (Object.keys(unset).length > 0) {
+      update.$unset = unset;
+    }
+
     const updated = await this.gigCandidateModel
       .findOneAndUpdate(
         {
@@ -117,14 +145,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
           status: GigCandidateStatus.Reviewing,
           version: params.expectedVersion,
         },
-        {
-          $set: {
-            gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(
-              params.gigDraft,
-            ),
-          },
-          $inc: { version: 1 },
-        },
+        update,
         { returnDocument: 'after', runValidators: true },
       )
       .select(GIG_CANDIDATE_LEAN_PROJECTION)

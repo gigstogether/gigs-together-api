@@ -8,6 +8,7 @@ import type {
 } from '@modules/gig-candidate/types/gig-candidate.types';
 import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
 import type { GigCandidateStatus } from '@modules/gig-candidate/types/gig-candidate-status.enum';
+import type { Locality } from '@modules/location/locality/types/locality.types';
 
 export interface GetAdminGigCandidatesParams {
   status: GigCandidateStatus;
@@ -37,6 +38,7 @@ export interface AdminGigCandidateOriginalMessage {
 export interface AdminGigCandidateDetails {
   id: string;
   source: GigCandidateSourceForAdminView;
+  locality?: Locality;
   gigDraft: GigCandidateDraft;
   version: number;
   posterUrl?: string;

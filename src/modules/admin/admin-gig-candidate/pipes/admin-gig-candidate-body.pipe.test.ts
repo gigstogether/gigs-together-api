@@ -27,15 +27,19 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
 
     expect(
       pipe.transform({
+        localityId: '507f1f77bcf86cd799439012',
         gigDraft: JSON.stringify({
           communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439013'],
           title: 'Band',
           city: 'Barcelona',
         }),
       }),
     ).toEqual({
+      localityId: '507f1f77bcf86cd799439012',
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439013'],
         title: 'Band',
         city: 'Barcelona',
       },
@@ -79,12 +83,18 @@ describe('AdminGigCandidateDraftUpdateBodyPipe', () => {
     expect(
       pipe.transform({
         expectedVersion: '2',
+        localityId: '507f1f77bcf86cd799439012',
         gigDraft:
-          '{"communityIds":["507f1f77bcf86cd799439011"],"title":"Band"}',
+          '{"communityIds":["507f1f77bcf86cd799439011"],"venueIds":["507f1f77bcf86cd799439013"],"title":"Band"}',
       }),
     ).toEqual({
       expectedVersion: 2,
-      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'], title: 'Band' },
+      localityId: '507f1f77bcf86cd799439012',
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439013'],
+        title: 'Band',
+      },
     });
   });
 

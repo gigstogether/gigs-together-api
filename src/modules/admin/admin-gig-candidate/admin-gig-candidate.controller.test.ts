@@ -115,10 +115,10 @@ describe('AdminGigCandidateController', () => {
   const adminGigCandidateService = {
     getList: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(details),
-    resolveGigCandidate: vi.fn().mockResolvedValue(details),
+    getGigCandidateDetails: vi.fn().mockResolvedValue(details),
   } satisfies Pick<
     AdminGigCandidateService,
-    'getList' | 'getById' | 'resolveGigCandidate'
+    'getList' | 'getById' | 'getGigCandidateDetails'
   >;
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -217,9 +217,9 @@ describe('AdminGigCandidateController', () => {
       posterUrl: undefined,
       posterFile: undefined,
     });
-    expect(adminGigCandidateService.resolveGigCandidate).toHaveBeenCalledWith(
-      gigCandidate,
-    );
+    expect(
+      adminGigCandidateService.getGigCandidateDetails,
+    ).toHaveBeenCalledWith(gigCandidate);
   });
 
   it('should update the GigCandidate draft at the expected version', async () => {
