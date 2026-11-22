@@ -898,10 +898,10 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        telegramGigCandidateService.sendModerationPost(
+        telegramGigCandidateService.sendModerationPost({
           gigCandidate,
           posterFile,
-        ),
+        }),
       ).resolves.toEqual({
         messageId: 50,
         chatId: -200,
@@ -963,7 +963,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await telegramGigCandidateService.sendModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost({ gigCandidate });
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({ photo: 'intake-file-id' }),
@@ -1016,7 +1016,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await telegramGigCandidateService.sendModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost({ gigCandidate });
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1056,7 +1056,7 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        telegramGigCandidateService.sendModerationPost(gigCandidate),
+        telegramGigCandidateService.sendModerationPost({ gigCandidate }),
       ).rejects.toThrow('Telegram photo response has no fileId');
     });
   });

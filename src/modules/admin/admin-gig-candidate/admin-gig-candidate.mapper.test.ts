@@ -32,12 +32,23 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
       city: 'Barcelona',
       country: 'ES',
     },
-    locality: {
-      id: '507f1f77bcf86cd799439013',
-      countryIso: 'ES',
-      name: 'Barcelona',
-      aliases: [],
-      timeZone: 'Europe/Madrid',
+    location: {
+      locality: {
+        id: '507f1f77bcf86cd799439013',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [
+        {
+          id: '507f1f77bcf86cd799439012',
+          localityId: '507f1f77bcf86cd799439013',
+          name: 'Razzmatazz',
+          aliases: [],
+          isActive: true,
+        },
+      ],
     },
     version: 0,
     status: GigCandidateStatus.New,
@@ -86,6 +97,12 @@ describe('mapV1AdminGigCandidateResponse', () => {
           countryIso: 'ES',
           name: 'Barcelona',
         },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439012',
+            name: 'Razzmatazz',
+          },
+        ],
         intakePostUrl: 'https://t.me/c/123/77',
         intakePostDate: 1_700_000_000_000,
         moderationPostUrl: 'https://t.me/c/124/78',

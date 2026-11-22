@@ -127,10 +127,12 @@ describe('GigCandidateService', () => {
 
   const localityServiceMock = {
     getLocalityById: vi.fn(),
+    getLocalitiesByIds: vi.fn(),
   };
 
   const venueServiceMock = {
     getActiveVenueSelection: vi.fn(),
+    getVenueSelections: vi.fn(),
   };
 
   const calendarServiceMock = { addEvent: vi.fn() };
@@ -245,6 +247,16 @@ describe('GigCandidateService', () => {
       aliases: [],
       timeZone: 'Europe/Madrid',
     });
+    localityServiceMock.getLocalitiesByIds.mockImplementation(
+      async (localityIds: string[]) =>
+        localityIds.map((id) => ({
+          id,
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        })),
+    );
     venueServiceMock.getActiveVenueSelection.mockResolvedValue({
       locality: {
         id: '507f1f77bcf86cd799439012',
@@ -255,6 +267,25 @@ describe('GigCandidateService', () => {
       },
       venues: [],
     });
+    venueServiceMock.getVenueSelections.mockImplementation(
+      async (venueIdGroups: string[][]) =>
+        venueIdGroups.map((venueIds) => ({
+          locality: {
+            id: '507f1f77bcf86cd799439012',
+            countryIso: 'ES',
+            name: 'Barcelona',
+            aliases: [],
+            timeZone: 'Europe/Madrid',
+          },
+          venues: venueIds.map((id) => ({
+            id,
+            localityId: '507f1f77bcf86cd799439012',
+            name: 'Razzmatazz',
+            aliases: [],
+            isActive: true,
+          })),
+        })),
+    );
 
     service = await createService(
       new ConfigService({
@@ -1208,6 +1239,75 @@ describe('GigCandidateService', () => {
     });
   });
 
+  describe('getLocation', () => {
+    it('should return the Locality and Venues assigned to the GigCandidate', async () => {
+      const gigCandidate = buildGigCandidate({
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439013'],
+        },
+      });
+      const location = {
+        locality: {
+          id: '507f1f77bcf86cd799439012',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439013',
+            localityId: '507f1f77bcf86cd799439012',
+            name: 'Razzmatazz',
+            aliases: [],
+            isActive: true,
+          },
+        ],
+      };
+      venueServiceMock.getVenueSelections.mockResolvedValue([location]);
+
+      await expect(service.getLocation(gigCandidate)).resolves.toEqual(
+        location,
+      );
+      expect(venueServiceMock.getVenueSelections).toHaveBeenCalledWith([
+        gigCandidate.gigDraft.venueIds,
+      ]);
+    });
+
+    it('should return a direct Locality assignment without Venues', async () => {
+      const gigCandidate = buildGigCandidate({
+        localityId: '507f1f77bcf86cd799439012',
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
+      });
+
+      await expect(service.getLocation(gigCandidate)).resolves.toEqual({
+        locality: expect.objectContaining({
+          id: '507f1f77bcf86cd799439012',
+          name: 'Barcelona',
+        }),
+        venues: [],
+      });
+      expect(localityServiceMock.getLocalitiesByIds).toHaveBeenCalledWith([
+        gigCandidate.localityId,
+      ]);
+    });
+
+    it('should reject a GigCandidate with both location assignment forms', async () => {
+      const gigCandidate = buildGigCandidate({
+        localityId: '507f1f77bcf86cd799439012',
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439013'],
+        },
+      });
+
+      await expect(service.getLocation(gigCandidate)).rejects.toThrow(
+        `GigCandidate ${gigCandidate.id} has both Locality and Venue assignments.`,
+      );
+    });
+  });
+
   describe('createAdminGigCandidate', () => {
     it('should create Reviewing GigCandidate with admin origin', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
@@ -1266,10 +1366,14 @@ describe('GigCandidateService', () => {
       ).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(created, {
-        buffer: Buffer.from('default poster'),
-        filename: 'poster.jpg',
-        contentType: 'image/jpeg',
+      ).toHaveBeenCalledWith({
+        gigCandidate: created,
+        location: undefined,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          filename: 'poster.jpg',
+          contentType: 'image/jpeg',
+        },
       });
     });
 
@@ -1345,7 +1449,7 @@ describe('GigCandidateService', () => {
           venueIds: [venueId],
         },
       });
-      venueServiceMock.getActiveVenueSelection.mockResolvedValue({
+      const location = {
         locality: {
           id: localityId,
           countryIso: 'ES',
@@ -1354,7 +1458,9 @@ describe('GigCandidateService', () => {
           timeZone: 'Europe/Madrid',
         },
         venues: [venue],
-      });
+      };
+      venueServiceMock.getActiveVenueSelection.mockResolvedValue(location);
+      venueServiceMock.getVenueSelections.mockResolvedValue([location]);
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidateId);
       gigPosterServiceMock.upload.mockResolvedValue({
         storedPoster: { bucketPath: 'gigs/default.jpg' },
@@ -1391,6 +1497,14 @@ describe('GigCandidateService', () => {
       expect(
         gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0],
       ).not.toHaveProperty('localityId');
+      expect(
+        telegramServiceMock.sendGigCandidateModerationPost,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigCandidate: created,
+          location,
+        }),
+      );
     });
 
     it('should reject Venues from a different Locality', async () => {
@@ -1642,10 +1756,14 @@ describe('GigCandidateService', () => {
       ).resolves.toEqual(stored);
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(created, {
-        buffer: preparedPosterFile.buffer,
-        filename: preparedPosterFile.filename,
-        contentType: preparedPosterFile.mimetype,
+      ).toHaveBeenCalledWith({
+        gigCandidate: created,
+        location: undefined,
+        posterFile: {
+          buffer: preparedPosterFile.buffer,
+          filename: preparedPosterFile.filename,
+          contentType: preparedPosterFile.mimetype,
+        },
       });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
@@ -1913,7 +2031,11 @@ describe('GigCandidateService', () => {
       });
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(reviewing, undefined);
+      ).toHaveBeenCalledWith({
+        gigCandidate: reviewing,
+        location: undefined,
+        posterFile: undefined,
+      });
     });
 
     it('should commit moderation once and not retry failed feedback', async () => {
@@ -1997,10 +2119,14 @@ describe('GigCandidateService', () => {
       });
       expect(
         telegramServiceMock.sendGigCandidateModerationPost,
-      ).toHaveBeenCalledWith(reviewing, {
-        buffer: Buffer.from('default poster'),
-        filename: 'poster.jpg',
-        contentType: 'image/jpeg',
+      ).toHaveBeenCalledWith({
+        gigCandidate: reviewing,
+        location: undefined,
+        posterFile: {
+          buffer: Buffer.from('default poster'),
+          filename: 'poster.jpg',
+          contentType: 'image/jpeg',
+        },
       });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
@@ -2238,6 +2364,24 @@ describe('GigCandidateService', () => {
       approvalTransactionMock.approveGigCandidate.mockResolvedValue(approved);
       approvalTransactionMock.createGig.mockResolvedValue(gig);
       gigCalendarServiceMock.toCalendarEvent.mockReturnValue({ event: true });
+      venueServiceMock.getActiveVenueSelection.mockResolvedValue({
+        locality: {
+          id: '507f1f77bcf86cd799439013',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439012',
+            localityId: '507f1f77bcf86cd799439013',
+            name: 'Palau Sant Jordi',
+            aliases: [],
+            isActive: true,
+          },
+        ],
+      });
 
       await expect(
         approvalService.approveGigCandidate({

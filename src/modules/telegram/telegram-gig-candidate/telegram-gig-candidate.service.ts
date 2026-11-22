@@ -16,6 +16,7 @@ import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import type {
   EditGigCandidatePostParams,
+  SendGigCandidateModerationPostParams,
   SendGigCandidatePhotoParams,
   TelegramGigCandidatePhotoPostSendResult,
   TelegramGigCandidatePostEditResult,
@@ -50,11 +51,13 @@ export class TelegramGigCandidateService {
   }
 
   async sendModerationPost(
-    gigCandidate: GigCandidate,
-    posterFile?: InputFileData,
+    params: SendGigCandidateModerationPostParams,
   ): Promise<TelegramGigCandidatePostSendResult | undefined> {
-    const composed =
-      this.telegramGigCandidateComposer.composeModerationPost(gigCandidate);
+    const { gigCandidate, location, posterFile } = params;
+    const composed = this.telegramGigCandidateComposer.composeModerationPost(
+      gigCandidate,
+      location,
+    );
     if (posterFile === undefined) {
       const intakePost = gigCandidate.posts.find(
         (post) =>

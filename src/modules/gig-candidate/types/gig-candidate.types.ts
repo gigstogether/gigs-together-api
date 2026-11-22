@@ -5,6 +5,8 @@ import type { GigCandidateStatus } from './gig-candidate-status.enum';
 import type { ProviderReference } from '@shared/types/provider-reference.types';
 import type { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import type { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
+import type { Locality } from '../../location/locality/types/locality.types';
+import type { Venue } from '../../location/venue/types/venue.types';
 
 interface GigCandidatePostBase {
   to: Messenger;
@@ -92,4 +94,9 @@ export interface GigCandidate {
   rejectedByUserId?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface GigCandidateLocation {
+  locality: Locality;
+  venues: Venue[];
 }

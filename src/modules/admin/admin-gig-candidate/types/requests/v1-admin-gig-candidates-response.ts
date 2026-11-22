@@ -79,6 +79,11 @@ export interface V1AdminGigCandidateLocalityResponseBody {
   qualifier?: string;
 }
 
+export interface V1AdminGigCandidateVenueResponseBody {
+  id: string;
+  name: string;
+}
+
 export interface V1AdminGigCandidateOriginalMessageResponseBody {
   text?: string;
   imageUrl?: string;
@@ -89,6 +94,7 @@ export interface V1AdminGigCandidateResponseBody {
   id: string;
   source: V1AdminGigCandidateSourceResponseBody;
   locality?: V1AdminGigCandidateLocalityResponseBody;
+  venues?: V1AdminGigCandidateVenueResponseBody[];
   gigDraft: V1AdminGigCandidateGigDraftResponseBody;
   status: GigCandidateStatus;
   version: number;

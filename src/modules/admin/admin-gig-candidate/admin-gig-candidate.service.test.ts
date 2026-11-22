@@ -17,8 +17,6 @@ import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
 import { UserService } from '@modules/user/user.service';
 import { UserRole } from '@modules/user/types/user-role.enum';
-import { LocalityService } from '@modules/location/locality/locality.service';
-import { VenueService } from '@modules/location/venue/venue.service';
 import { AdminGigCandidateService } from './admin-gig-candidate.service';
 
 function buildGigCandidate(
@@ -56,6 +54,8 @@ describe('AdminGigCandidateService', () => {
   const gigCandidateServiceMock = {
     findMany: vi.fn(),
     getByIdOrThrow: vi.fn(),
+    getLocation: vi.fn(),
+    getLocationsByCandidateId: vi.fn(),
   };
   const gigServiceMock = {
     getGigById: vi.fn(),
@@ -71,20 +71,15 @@ describe('AdminGigCandidateService', () => {
   const bucketServiceMock = {
     getPublicFileUrl: vi.fn(),
   };
-  const localityServiceMock = {
-    getLocalitiesByIds: vi.fn(),
-  };
-  const venueServiceMock = {
-    getVenueSelections: vi.fn(),
-  };
-
   beforeEach(async () => {
     vi.clearAllMocks();
     telegramComposerMock.buildPostUrl.mockReset();
     bucketServiceMock.getPublicFileUrl.mockReset();
     gigServiceMock.getGigsByIds.mockResolvedValue([]);
-    localityServiceMock.getLocalitiesByIds.mockResolvedValue([]);
-    venueServiceMock.getVenueSelections.mockResolvedValue([]);
+    gigCandidateServiceMock.getLocation.mockResolvedValue(undefined);
+    gigCandidateServiceMock.getLocationsByCandidateId.mockResolvedValue(
+      new Map(),
+    );
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
         id: '66a000000000000000000000042',
@@ -112,8 +107,6 @@ describe('AdminGigCandidateService', () => {
         { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: UserService, useValue: userServiceMock },
         { provide: BucketService, useValue: bucketServiceMock },
-        { provide: LocalityService, useValue: localityServiceMock },
-        { provide: VenueService, useValue: venueServiceMock },
       ],
     }).compile();
 
@@ -367,7 +360,7 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getById', () => {
-    it('should expose the Locality derived from assigned Venues', async () => {
+    it('should expose the Locality and Venues from the location assignment', async () => {
       const record = buildGigCandidate({
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
@@ -381,18 +374,26 @@ describe('AdminGigCandidateService', () => {
         aliases: [],
         timeZone: 'Europe/Madrid',
       };
+      const venues = [
+        {
+          id: '507f1f77bcf86cd799439012',
+          localityId: locality.id,
+          name: 'Razzmatazz',
+          aliases: [],
+          isActive: true,
+        },
+      ];
       gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
       gigServiceMock.getGigById.mockResolvedValue(undefined);
-      venueServiceMock.getVenueSelections.mockResolvedValue([
-        { locality, venues: [] },
-      ]);
+      gigCandidateServiceMock.getLocation.mockResolvedValue({
+        locality,
+        venues,
+      });
 
       const result = await service.getById(record.id);
 
-      expect(result.locality).toEqual(locality);
-      expect(venueServiceMock.getVenueSelections).toHaveBeenCalledWith([
-        record.gigDraft.venueIds,
-      ]);
+      expect(result.location).toEqual({ locality, venues });
+      expect(gigCandidateServiceMock.getLocation).toHaveBeenCalledWith(record);
     });
 
     it('should include the GigCandidate post and linked Gig URLs', async () => {

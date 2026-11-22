@@ -35,6 +35,7 @@ import type {
 import type { V1CreateGigCandidateResponseBody } from './types/requests/v1-create-gig-candidate-response';
 import type {
   GigCandidate,
+  GigCandidateLocation,
   GigCandidateSourceMessengerUser,
 } from './types/gig-candidate.types';
 import type {
@@ -236,6 +237,70 @@ export class GigCandidateService {
       throw new NotFoundException(`GigCandidate with ID ${id} not found`);
     }
     return record;
+  }
+
+  async getLocationsByCandidateId(
+    gigCandidates: GigCandidate[],
+  ): Promise<Map<string, GigCandidateLocation>> {
+    const candidatesWithLocality = gigCandidates.flatMap((gigCandidate) =>
+      gigCandidate.localityId === undefined
+        ? []
+        : [{ gigCandidate, localityId: gigCandidate.localityId }],
+    );
+    const candidatesWithVenues = gigCandidates.flatMap((gigCandidate) =>
+      gigCandidate.gigDraft.venueIds === undefined
+        ? []
+        : [{ gigCandidate, venueIds: gigCandidate.gigDraft.venueIds }],
+    );
+
+    const candidateIdsWithLocality = new Set(
+      candidatesWithLocality.map(({ gigCandidate }) => gigCandidate.id),
+    );
+    const candidateWithBothAssignments = candidatesWithVenues.find(
+      ({ gigCandidate }) => candidateIdsWithLocality.has(gigCandidate.id),
+    );
+    if (candidateWithBothAssignments !== undefined) {
+      throw new Error(
+        `GigCandidate ${candidateWithBothAssignments.gigCandidate.id} has both Locality and Venue assignments.`,
+      );
+    }
+
+    const [directLocalities, venueSelections] = await Promise.all([
+      this.localityService.getLocalitiesByIds(
+        candidatesWithLocality.map(({ localityId }) => localityId),
+      ),
+      this.venueService.getVenueSelections(
+        candidatesWithVenues.map(({ venueIds }) => venueIds),
+      ),
+    ]);
+    const locationsByCandidateId = new Map<string, GigCandidateLocation>();
+    candidatesWithLocality.forEach(({ gigCandidate }, index) => {
+      const locality = directLocalities[index];
+      if (locality === undefined) {
+        throw new Error('Loaded Locality must exist');
+      }
+      locationsByCandidateId.set(gigCandidate.id, {
+        locality,
+        venues: [],
+      });
+    });
+    candidatesWithVenues.forEach(({ gigCandidate }, index) => {
+      const venueSelection = venueSelections[index];
+      if (venueSelection === undefined) {
+        throw new Error('Loaded Venue selection must exist');
+      }
+      locationsByCandidateId.set(gigCandidate.id, venueSelection);
+    });
+    return locationsByCandidateId;
+  }
+
+  async getLocation(
+    gigCandidate: GigCandidate,
+  ): Promise<GigCandidateLocation | undefined> {
+    const locationsByCandidateId = await this.getLocationsByCandidateId([
+      gigCandidate,
+    ]);
+    return locationsByCandidateId.get(gigCandidate.id);
   }
 
   findById(id: string): Promise<GigCandidate | null> {
@@ -990,11 +1055,13 @@ export class GigCandidateService {
     try {
       const telegramPosterFile =
         mapPreparedGigPosterToTelegramInputFile(posterFile);
+      const location = await this.getLocation(gigCandidate);
       telegramModerationPost =
-        await this.telegramGigCandidateService.sendModerationPost(
+        await this.telegramGigCandidateService.sendModerationPost({
           gigCandidate,
-          telegramPosterFile,
-        );
+          location,
+          posterFile: telegramPosterFile,
+        });
     } catch (e) {
       this.logTelegramFailure(
         'sendGigCandidateModerationPost',
@@ -1091,8 +1158,10 @@ export class GigCandidateService {
     }
 
     try {
+      const location = await this.getLocation(gigCandidate);
       await this.telegramGigCandidateService.updateIntakePostAfterModeration({
         gigCandidate,
+        location,
         intakePost,
         moderationPost,
       });
@@ -1126,8 +1195,10 @@ export class GigCandidateService {
     }
 
     try {
+      const location = await this.getLocation(gigCandidate);
       await this.telegramGigCandidateService.updateRejectedPost({
         gigCandidate,
+        location,
         post,
       });
     } catch (e) {
@@ -1155,8 +1226,10 @@ export class GigCandidateService {
       const isMediaUpdateRequired = posterFile !== undefined;
       const telegramPosterFile =
         mapPreparedGigPosterToTelegramInputFile(posterFile);
+      const location = await this.getLocation(gigCandidate);
       const edited = await this.telegramGigCandidateService.editPost({
         gigCandidate,
+        location,
         post: moderationPost,
         isMediaUpdateRequired,
         posterFile: telegramPosterFile,

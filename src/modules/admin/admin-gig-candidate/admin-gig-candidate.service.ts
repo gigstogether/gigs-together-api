@@ -12,9 +12,7 @@ import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
 import { UserService } from '@modules/user/user.service';
 import type { User } from '@modules/user/types/user.types';
-import { LocalityService } from '@modules/location/locality/locality.service';
-import type { Locality } from '@modules/location/locality/types/locality.types';
-import { VenueService } from '@modules/location/venue/venue.service';
+import type { GigCandidateLocation } from '@modules/gig-candidate/types/gig-candidate.types';
 import { getUserSourceProfile } from '../admin-shared/admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
@@ -31,26 +29,24 @@ export class AdminGigCandidateService {
     private readonly telegramComposer: TelegramComposerService,
     private readonly userService: UserService,
     private readonly bucketService: BucketService,
-    private readonly localityService: LocalityService,
-    private readonly venueService: VenueService,
   ) {}
 
   async getList(
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
     const gigCandidates = await this.gigCandidateService.findMany(params);
-    const [activeSourceUsersById, linkedGigsById, localitiesByCandidateId] =
+    const [activeSourceUsersById, linkedGigsById, locationsByCandidateId] =
       await Promise.all([
         this.getActiveSourceUsersById(gigCandidates),
         this.getLinkedGigsById(gigCandidates),
-        this.getLocalitiesByCandidateId(gigCandidates),
+        this.gigCandidateService.getLocationsByCandidateId(gigCandidates),
       ]);
     return gigCandidates.map((gigCandidate) =>
       this.buildGigCandidateDetails(
         gigCandidate,
         activeSourceUsersById,
         gigCandidate.gigId ? linkedGigsById.get(gigCandidate.gigId) : undefined,
-        localitiesByCandidateId.get(gigCandidate.id),
+        locationsByCandidateId.get(gigCandidate.id),
       ),
     );
   }
@@ -64,19 +60,18 @@ export class AdminGigCandidateService {
   async getGigCandidateDetails(
     gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const [activeSourceUsersById, linkedGig, localitiesByCandidateId] =
-      await Promise.all([
-        this.getActiveSourceUsersById([gigCandidate]),
-        gigCandidate.gigId
-          ? this.gigService.getGigById(gigCandidate.gigId)
-          : Promise.resolve(undefined),
-        this.getLocalitiesByCandidateId([gigCandidate]),
-      ]);
+    const [activeSourceUsersById, linkedGig, location] = await Promise.all([
+      this.getActiveSourceUsersById([gigCandidate]),
+      gigCandidate.gigId
+        ? this.gigService.getGigById(gigCandidate.gigId)
+        : Promise.resolve(undefined),
+      this.gigCandidateService.getLocation(gigCandidate),
+    ]);
     return this.buildGigCandidateDetails(
       gigCandidate,
       activeSourceUsersById,
       linkedGig,
-      localitiesByCandidateId.get(gigCandidate.id),
+      location,
     );
   }
 
@@ -84,7 +79,7 @@ export class AdminGigCandidateService {
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
     linkedGig: PlainGig | undefined,
-    locality: Locality | undefined,
+    location: GigCandidateLocation | undefined,
   ): AdminGigCandidateDetails {
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
@@ -138,49 +133,10 @@ export class AdminGigCandidateService {
     if (originalMessage !== undefined) {
       details.originalMessage = originalMessage;
     }
-    if (locality !== undefined) {
-      details.locality = locality;
+    if (location !== undefined) {
+      details.location = location;
     }
     return details;
-  }
-
-  private async getLocalitiesByCandidateId(
-    gigCandidates: GigCandidate[],
-  ): Promise<Map<string, Locality>> {
-    const candidatesWithLocality = gigCandidates.flatMap((gigCandidate) =>
-      gigCandidate.localityId === undefined
-        ? []
-        : [{ gigCandidate, localityId: gigCandidate.localityId }],
-    );
-    const candidatesWithVenues = gigCandidates.flatMap((gigCandidate) =>
-      gigCandidate.gigDraft.venueIds === undefined
-        ? []
-        : [{ gigCandidate, venueIds: gigCandidate.gigDraft.venueIds }],
-    );
-    const [directLocalities, venueSelections] = await Promise.all([
-      this.localityService.getLocalitiesByIds(
-        candidatesWithLocality.map(({ localityId }) => localityId),
-      ),
-      this.venueService.getVenueSelections(
-        candidatesWithVenues.map(({ venueIds }) => venueIds),
-      ),
-    ]);
-    const localitiesByCandidateId = new Map<string, Locality>();
-    candidatesWithLocality.forEach(({ gigCandidate }, index) => {
-      const locality = directLocalities[index];
-      if (locality === undefined) {
-        throw new Error('Loaded Locality must exist');
-      }
-      localitiesByCandidateId.set(gigCandidate.id, locality);
-    });
-    candidatesWithVenues.forEach(({ gigCandidate }, index) => {
-      const venueSelection = venueSelections[index];
-      if (venueSelection === undefined) {
-        throw new Error('Loaded Venue selection must exist');
-      }
-      localitiesByCandidateId.set(gigCandidate.id, venueSelection.locality);
-    });
-    return localitiesByCandidateId;
   }
 
   private getOriginalMessage(

@@ -232,7 +232,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    const result = await service.sendModerationPost(gigCandidate);
+    const result = await service.sendModerationPost({ gigCandidate });
 
     expect(result).toEqual({
       messageId: 50,
@@ -280,7 +280,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({ photo: 'intake-file-id' }),
@@ -325,7 +325,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({

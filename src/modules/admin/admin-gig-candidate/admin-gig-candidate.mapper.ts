@@ -99,16 +99,20 @@ export function mapV1AdminGigCandidateResponse(
   if (gigDraft.venueIds !== undefined) {
     response.gigDraft.venueIds = [...gigDraft.venueIds];
   }
-  if (gigCandidate.locality !== undefined) {
+  if (gigCandidate.location !== undefined) {
     const locality: V1AdminGigCandidateLocalityResponseBody = {
-      id: gigCandidate.locality.id,
-      countryIso: gigCandidate.locality.countryIso,
-      name: gigCandidate.locality.name,
+      id: gigCandidate.location.locality.id,
+      countryIso: gigCandidate.location.locality.countryIso,
+      name: gigCandidate.location.locality.name,
     };
-    if (gigCandidate.locality.qualifier !== undefined) {
-      locality.qualifier = gigCandidate.locality.qualifier;
+    if (gigCandidate.location.locality.qualifier !== undefined) {
+      locality.qualifier = gigCandidate.location.locality.qualifier;
     }
     response.locality = locality;
+    response.venues = gigCandidate.location.venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+    }));
   }
   if (gigCandidate.originalMessage !== undefined) {
     const originalMessage: V1AdminGigCandidateOriginalMessageResponseBody = {
