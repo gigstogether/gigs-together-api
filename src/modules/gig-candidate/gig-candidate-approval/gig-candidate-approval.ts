@@ -28,9 +28,12 @@ interface ValidateRequiredObjectIdArrayParams {
   issues: GigCandidateApprovalIssue[];
 }
 
-export interface ValidatedGigCandidateDraft extends GigData {
+export type ValidatedGigCandidateDraft = Omit<
+  GigData,
+  'city' | 'country' | 'venue' | 'poster'
+> & {
   poster: NonNullable<GigData['poster']>;
-}
+};
 
 export class GigCandidateApprovalValidationError extends Error {
   issues: GigCandidateApprovalIssue[];
@@ -70,32 +73,14 @@ export function validateGigCandidateDraftForApproval(
       message: `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
     });
   }
-  const city = validateRequiredNormalizedString(gigDraft.city, 'city', issues);
-  const country = validateRequiredNormalizedString(
-    gigDraft.country,
-    'country',
-    issues,
-  );
   const date = validateRequiredDate(gigDraft.date, 'date', issues);
   const endDate = validateOptionalDate(gigDraft.endDate, 'endDate', issues);
-  const venue = validateRequiredNormalizedString(
-    gigDraft.venue,
-    'venue',
-    issues,
-  );
   const ticketsUrl = validateRequiredUrl(
     gigDraft.ticketsUrl,
     'ticketsUrl',
     issues,
   );
 
-  if (country !== undefined && !/^[A-Z]{2}$/.test(country)) {
-    issues.push({
-      field: 'country',
-      code: 'invalid',
-      message: 'country must be an uppercase ISO 3166-1 alpha-2 code',
-    });
-  }
   if (date !== undefined && endDate !== undefined && endDate < date) {
     issues.push({
       field: 'endDate',
@@ -127,27 +112,24 @@ export function validateGigCandidateDraftForApproval(
     communityIds === undefined ||
     venueIds === undefined ||
     date === undefined ||
-    city === undefined ||
-    country === undefined ||
-    venue === undefined ||
     ticketsUrl === undefined ||
     poster === undefined
   ) {
     throw new GigCandidateApprovalValidationError(issues);
   }
 
-  return {
+  const validatedDraft: ValidatedGigCandidateDraft = {
     communityIds,
     venueIds,
     title,
     date,
-    ...(endDate !== undefined ? { endDate } : {}),
-    city,
-    country,
-    venue,
     ticketsUrl,
     poster: { ...poster },
   };
+  if (endDate !== undefined) {
+    validatedDraft.endDate = endDate;
+  }
+  return validatedDraft;
 }
 
 function validateRequiredObjectIdArray(

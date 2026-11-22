@@ -14,9 +14,6 @@ describe('validateGigCandidateDraftForApproval', () => {
       venueIds: ['507f1f77bcf86cd799439012'],
       title: 'B',
       date: Date.UTC(2026, 5, 12),
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Palau Sant Jordi',
       ticketsUrl: 'https://tickets.example/b',
       poster: { bucketPath: 'posters/b.jpg' },
     });
@@ -32,9 +29,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'A'.repeat(301),
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/gig',
       }),
     ).toThrowError(
@@ -53,9 +47,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
       }),
@@ -64,9 +55,6 @@ describe('validateGigCandidateDraftForApproval', () => {
       venueIds: ['507f1f77bcf86cd799439012'],
       title: 'Radiohead',
       date: Date.UTC(2026, 5, 12),
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Palau Sant Jordi',
       ticketsUrl: 'https://tickets.example/radiohead',
       poster: { bucketPath: 'posters/radiohead.jpg' },
     });
@@ -85,9 +73,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
       }),
@@ -116,9 +101,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         venueIds,
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
       }),
@@ -137,8 +119,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         communityIds: ['507f1f77bcf86cd799439011'],
         title: '',
         date: Number.NaN,
-        city: ' Barcelona ',
-        country: 'es',
         ticketsUrl: 'ftp://tickets.example/gig',
         poster: { externalUrl: 'https://images.example/poster.jpg' },
       }),
@@ -148,10 +128,7 @@ describe('validateGigCandidateDraftForApproval', () => {
         issues: expect.arrayContaining([
           expect.objectContaining({ field: 'title', code: 'required' }),
           expect.objectContaining({ field: 'date', code: 'invalid' }),
-          expect.objectContaining({ field: 'city', code: 'invalid' }),
-          expect.objectContaining({ field: 'country', code: 'invalid' }),
           expect.objectContaining({ field: 'venueIds', code: 'required' }),
-          expect.objectContaining({ field: 'venue', code: 'required' }),
           expect.objectContaining({ field: 'ticketsUrl', code: 'invalid' }),
           expect.objectContaining({ field: 'poster', code: 'invalid' }),
         ]),
@@ -159,20 +136,17 @@ describe('validateGigCandidateDraftForApproval', () => {
     );
   });
 
-  it('should reject approval when required venue or ticketsUrl is missing', () => {
+  it('should reject approval when Venue assignments or ticketsUrl are missing', () => {
     expect(() =>
       validateGigCandidateDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
       }),
     ).toThrowError(
       expect.objectContaining({
         issues: expect.arrayContaining([
           expect.objectContaining({ field: 'venueIds', code: 'required' }),
-          expect.objectContaining({ field: 'venue', code: 'required' }),
           expect.objectContaining({ field: 'ticketsUrl', code: 'required' }),
         ]),
       }),
@@ -186,9 +160,6 @@ describe('validateGigCandidateDraftForApproval', () => {
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
       }),
     ).toThrowError(
