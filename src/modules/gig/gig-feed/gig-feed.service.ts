@@ -4,7 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { PlainGig } from '../types/gig.types';
+import type { GigCalendarSource, PlainGig } from '../types/gig.types';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../gig-calendar/gig-calendar.service';
 import { startOfTodayMs } from '../types/requests/v1-gig-date-range.shared';
 import { decodeGigCursorOrThrow, encodeGigCursor } from '../utils/gig-cursor';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
@@ -19,6 +23,7 @@ import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.ser
 import { CalendarService } from '../../calendar/calendar.service';
 import { PostType } from '@shared/types/post-type.enum';
 import { CommunityService } from '@modules/community/community.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 export interface GigVisibleInclusiveMsRangeParams {
   fromMs: number;
@@ -64,13 +69,24 @@ export interface GigFeedItem {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
+  locality: GigFeedLocality;
+  venues: GigFeedVenue[];
   ticketsUrl: string;
   calendarUrl: string;
   posterUrl?: string;
   postUrl?: string;
+}
+
+export interface GigFeedLocality {
+  id: string;
+  countryIso: string;
+  name: string;
+  qualifier?: string;
+}
+
+export interface GigFeedVenue {
+  id: string;
+  name: string;
 }
 
 export interface GetVisibleGigsResult {
@@ -104,27 +120,64 @@ export class GigFeedService {
     private readonly gigService: GigService,
     private readonly telegramGigService: TelegramGigService,
     private readonly calendarService: CalendarService,
+    private readonly gigCalendarService: GigCalendarService,
     private readonly communityService: CommunityService,
+    private readonly venueService: VenueService,
   ) {}
 
   /** Maps domain Gigs to enriched public feed items. */
   private async mapGigs(gigs: PlainGig[]): Promise<GigFeedItem[]> {
+    const venueSelections = await this.venueService.getVenueSelections(
+      gigs.map((gig) => gig.venueIds),
+    );
     const mapped: GigFeedItem[] = [];
-    for (const gig of gigs) {
+    for (const [index, gig] of gigs.entries()) {
+      const venueSelection = venueSelections[index];
+      if (venueSelection === undefined) {
+        throw new Error('Every Gig must have a Venue selection');
+      }
+
       const post = this.telegramGigService.pickPost(gig.posts, PostType.Main);
       const postUrl = await this.telegramGigService.resolveMainPostUrl(post);
-      const calendarPayload = this.gigService.gigToCalendarPayload(gig);
+      const calendarSource: GigCalendarSource = {
+        title: gig.title,
+        date: gig.date,
+        locality: {
+          countryIso: venueSelection.locality.countryIso,
+          name: venueSelection.locality.name,
+          timeZone: venueSelection.locality.timeZone,
+        },
+        venues: venueSelection.venues.map((venue) => ({ name: venue.name })),
+        ticketsUrl: gig.ticketsUrl,
+      };
+      if (gig.endDate !== undefined) {
+        calendarSource.endDate = gig.endDate;
+      }
+      const calendarPayload = this.gigCalendarService.toCalendarEvent({
+        gig: calendarSource,
+        locale: GIG_CALENDAR_TEXT_LOCALE,
+      });
       const calendarUrl =
         this.calendarService.getCreateCalendarEventUrl(calendarPayload);
+      const locality: GigFeedLocality = {
+        id: venueSelection.locality.id,
+        countryIso: venueSelection.locality.countryIso,
+        name: venueSelection.locality.name,
+      };
+      if (venueSelection.locality.qualifier !== undefined) {
+        locality.qualifier = venueSelection.locality.qualifier;
+      }
 
       mapped.push({
         id: gig.publicId,
         title: gig.title,
         date: gig.date,
         endDate: gig.endDate,
-        city: gig.city,
-        country: gig.country,
-        venue: gig.venue,
+        locality,
+        venues: venueSelection.venues.map((venue) => ({
+          id: venue.id,
+          name: venue.name,
+        })),
         ticketsUrl: gig.ticketsUrl,
         calendarUrl,
         postUrl,
@@ -287,8 +340,9 @@ export class GigFeedService {
     const result = await this.gigRepository.findVisibleAround(
       findVisibleGigsAroundParams,
     );
-    const before = await this.mapGigs(result.before);
-    const after = await this.mapGigs(result.after);
+    const mapped = await this.mapGigs([...result.before, ...result.after]);
+    const before = mapped.slice(0, result.before.length);
+    const after = mapped.slice(result.before.length);
 
     const prevCursor =
       result.hasPrevious && result.before.length > 0

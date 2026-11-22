@@ -29,9 +29,11 @@ export function isValidGeographicAliases(
     return false;
   }
 
-  const normalizedNameKey = toComparisonKey(name);
+  const normalizedNameKey = toGeographicSearchKey(name);
 
-  return aliases.every((alias) => toComparisonKey(alias) !== normalizedNameKey);
+  return aliases.every(
+    (alias) => toGeographicSearchKey(alias) !== normalizedNameKey,
+  );
 }
 
 export function isValidGeographicAliasList(
@@ -49,7 +51,7 @@ export function isValidGeographicAliasList(
       return false;
     }
 
-    const aliasKey = toComparisonKey(alias);
+    const aliasKey = toGeographicSearchKey(alias);
     if (aliasKeys.has(aliasKey)) {
       return false;
     }
@@ -59,8 +61,13 @@ export function isValidGeographicAliasList(
   return true;
 }
 
-function toComparisonKey(value: string): string {
-  // NFKC collapses compatibility variants such as full-width letters and
-  // ligatures before comparison.
-  return value.normalize('NFKC').toLowerCase();
+export function toGeographicSearchKey(value: string): string {
+  // NFKD expands compatibility variants and separates diacritics. Removing
+  // marks and separators makes searches treat forms such as "L’Hospitalet",
+  // "L Hospitalet", and "LHospitalet" as equivalent.
+  return normalizeGeographicName(value)
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[\p{P}\s]+/gu, '')
+    .toLowerCase();
 }

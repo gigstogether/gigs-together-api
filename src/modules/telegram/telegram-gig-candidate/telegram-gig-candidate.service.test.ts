@@ -139,7 +139,9 @@ describe('TelegramGigCandidateService', () => {
       chat: { id: -100, type: 'channel' },
     });
 
-    const result = await service.sendIntakePost(createGigCandidate());
+    const result = await service.sendIntakePost({
+      gigCandidate: createGigCandidate(),
+    });
 
     expect(result).toEqual({
       messageId: 40,
@@ -157,9 +159,9 @@ describe('TelegramGigCandidateService', () => {
       chat: { id: -100, type: 'channel' },
     });
 
-    await expect(service.sendIntakePost(createGigCandidate())).rejects.toThrow(
-      'Telegram sent post reference is incomplete',
-    );
+    await expect(
+      service.sendIntakePost({ gigCandidate: createGigCandidate() }),
+    ).rejects.toThrow('Telegram sent post reference is incomplete');
   });
 
   it('should send a Telegram source image as an intake photo and return its file ID', async () => {
@@ -193,7 +195,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    const result = await service.sendIntakePost(gigCandidate);
+    const result = await service.sendIntakePost({ gigCandidate });
 
     expect(result).toEqual({
       messageId: 41,
@@ -232,7 +234,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    const result = await service.sendModerationPost(gigCandidate);
+    const result = await service.sendModerationPost({ gigCandidate });
 
     expect(result).toEqual({
       messageId: 50,
@@ -280,7 +282,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({ photo: 'intake-file-id' }),
@@ -325,7 +327,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({

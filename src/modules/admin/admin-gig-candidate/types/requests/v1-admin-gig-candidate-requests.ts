@@ -1,5 +1,6 @@
 export interface V1AdminGigCandidateGigDraftRequestBody {
   communityIds: string[];
+  venueIds?: string[];
   title?: string;
   date?: string;
   endDate?: string;
@@ -11,11 +12,13 @@ export interface V1AdminGigCandidateGigDraftRequestBody {
 }
 
 export interface V1AdminCreateGigCandidateRequestBody {
+  localityId?: string;
   gigDraft: V1AdminGigCandidateGigDraftRequestBody;
 }
 
 export interface V1AdminUpdateGigCandidateDraftRequestBody {
   expectedVersion: number;
+  localityId?: string;
   gigDraft: V1AdminGigCandidateGigDraftRequestBody;
 }
 

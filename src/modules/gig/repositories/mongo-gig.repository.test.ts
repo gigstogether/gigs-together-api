@@ -22,6 +22,7 @@ function buildDocument(
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
     communityIds: [new Types.ObjectId(COMMUNITY_ID)],
+    venueIds: [new Types.ObjectId('507f1f77bcf86cd799439033')],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),

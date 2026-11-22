@@ -1,5 +1,6 @@
 import type {
   GigCandidate,
+  GigCandidateLocation,
   GigCandidatePost,
 } from '../../gig-candidate/types/gig-candidate.types';
 import type {
@@ -32,13 +33,27 @@ export interface SendGigCandidatePhotoParams {
   posterFile?: InputFileData;
 }
 
+export interface SendGigCandidateIntakePostParams {
+  gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
+  posterFile?: InputFileData;
+}
+
+export interface SendGigCandidateModerationPostParams {
+  gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
+  posterFile?: InputFileData;
+}
+
 export interface UpdateRejectedGigCandidatePostPayload {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   post: GigCandidatePost;
 }
 
 export interface EditGigCandidatePostParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   post: GigCandidatePost;
   isMediaUpdateRequired: boolean;
   posterFile?: InputFileData;

@@ -59,6 +59,7 @@ describe('MongoGigCandidateRepository', () => {
   describe('createGigCandidate', () => {
     it('should persist the target shape with immutable source and version zero', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
+      const localityId = '507f1f77bcf86cd799439012';
       const source = {
         type: GigSourceType.User,
         userId: '507f1f77bcf86cd799439088',
@@ -70,6 +71,7 @@ describe('MongoGigCandidateRepository', () => {
         toObject: vi.fn().mockReturnValue({
           _id: gigCandidateId,
           source,
+          localityId: new Types.ObjectId(localityId),
           gigDraft: {
             communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
           },
@@ -84,6 +86,7 @@ describe('MongoGigCandidateRepository', () => {
       const result = await repository.createGigCandidate({
         gigCandidateId,
         source,
+        localityId,
         gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         status: GigCandidateStatus.New,
       });
@@ -92,6 +95,7 @@ describe('MongoGigCandidateRepository', () => {
         expect.objectContaining({
           id: gigCandidateId,
           source,
+          localityId,
           gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
           version: 0,
         }),
@@ -102,6 +106,7 @@ describe('MongoGigCandidateRepository', () => {
           ...source,
           userId: expect.any(Types.ObjectId),
         },
+        localityId: new Types.ObjectId(localityId),
         gigDraft: {
           communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
         },
@@ -110,6 +115,26 @@ describe('MongoGigCandidateRepository', () => {
         posts: [],
       });
       expect(findByIdMock).not.toHaveBeenCalled();
+    });
+
+    it('should reject simultaneous Locality and Venue assignments before writing', async () => {
+      await expect(
+        repository.createGigCandidate({
+          gigCandidateId: '507f1f77bcf86cd799439099',
+          source: {
+            type: GigSourceType.User,
+            userId: '507f1f77bcf86cd799439088',
+            origin: { type: GigSourceUserOriginType.Form },
+          },
+          localityId: '507f1f77bcf86cd799439012',
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            venueIds: ['507f1f77bcf86cd799439013'],
+          },
+          status: GigCandidateStatus.New,
+        }),
+      ).rejects.toThrow(/must not store localityId and gigDraft\.venueIds/);
+      expect(createMock).not.toHaveBeenCalled();
     });
   });
 
@@ -160,10 +185,72 @@ describe('MongoGigCandidateRepository', () => {
               title: 'Updated title',
             },
           },
+          $unset: { localityId: 1 },
           $inc: { version: 1 },
         },
         { returnDocument: 'after', runValidators: true },
       );
+    });
+
+    it('should replace a Venue assignment with a direct Locality assignment', async () => {
+      const gigCandidateId = '507f1f77bcf86cd799439099';
+      const localityId = '507f1f77bcf86cd799439012';
+      findOneAndUpdateMock.mockReturnValue(
+        updateQueryResult({
+          _id: gigCandidateId,
+          source: {
+            type: GigSourceType.User,
+            userId: '507f1f77bcf86cd799439088',
+            origin: { type: GigSourceUserOriginType.Admin },
+          },
+          localityId: new Types.ObjectId(localityId),
+          gigDraft: {
+            communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+          },
+          version: 2,
+          status: GigCandidateStatus.Reviewing,
+          posts: [],
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+        }),
+      );
+
+      const result = await repository.updateGigCandidateDraft({
+        gigCandidateId,
+        expectedVersion: 1,
+        localityId,
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
+      });
+
+      expect(result?.localityId).toBe(localityId);
+      expect(findOneAndUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 1 }),
+        {
+          $set: {
+            gigDraft: {
+              communityIds: [new Types.ObjectId('507f1f77bcf86cd799439011')],
+            },
+            localityId: new Types.ObjectId(localityId),
+          },
+          $inc: { version: 1 },
+        },
+        { returnDocument: 'after', runValidators: true },
+      );
+    });
+
+    it('should reject simultaneous Locality and Venue assignments before updating', async () => {
+      await expect(
+        repository.updateGigCandidateDraft({
+          gigCandidateId: '507f1f77bcf86cd799439099',
+          expectedVersion: 1,
+          localityId: '507f1f77bcf86cd799439012',
+          gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
+            venueIds: ['507f1f77bcf86cd799439013'],
+          },
+        }),
+      ).rejects.toThrow(/must not store localityId and gigDraft\.venueIds/);
+      expect(findOneAndUpdateMock).not.toHaveBeenCalled();
     });
 
     it('should return null without writing when expected version is invalid', async () => {

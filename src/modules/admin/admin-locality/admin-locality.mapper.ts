@@ -19,9 +19,6 @@ export function mapV1AdminLocalitiesGetRequest(
   if (query.countryIso !== undefined) {
     params.countryIso = query.countryIso;
   }
-  if (query.search !== undefined) {
-    params.search = query.search;
-  }
 
   return params;
 }

@@ -101,7 +101,7 @@ export class AdminGigCandidateController {
       }),
     );
     const details =
-      await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
+      await this.adminGigCandidateService.getGigCandidateDetails(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);
   }
 
@@ -145,7 +145,7 @@ export class AdminGigCandidateController {
         }),
       );
     const details =
-      await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
+      await this.adminGigCandidateService.getGigCandidateDetails(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);
   }
 
@@ -187,7 +187,7 @@ export class AdminGigCandidateController {
       rejectedByUserId: user.userId,
     });
     const details =
-      await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
+      await this.adminGigCandidateService.getGigCandidateDetails(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);
   }
 
@@ -206,7 +206,7 @@ export class AdminGigCandidateController {
         expectedVersion: body.expectedVersion,
       });
     const details =
-      await this.adminGigCandidateService.resolveGigCandidate(gigCandidate);
+      await this.adminGigCandidateService.getGigCandidateDetails(gigCandidate);
     return mapV1AdminGigCandidateResponse(details);
   }
 }

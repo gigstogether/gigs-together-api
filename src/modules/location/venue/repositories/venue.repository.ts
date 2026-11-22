@@ -11,7 +11,6 @@ export interface CreateVenueRecordParams {
 
 export interface FindVenuesParams {
   localityId?: string;
-  search?: string;
   isActive?: boolean;
 }
 
@@ -27,7 +26,9 @@ export interface VenueRepository {
 
   findById(id: string): Promise<Venue | null>;
 
-  find(params: FindVenuesParams): Promise<readonly Venue[]>;
+  findByIds(ids: string[]): Promise<Venue[]>;
+
+  find(params: FindVenuesParams): Promise<Venue[]>;
 
   existsByLocalityId(localityId: string): Promise<boolean>;
 

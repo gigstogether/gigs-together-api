@@ -64,6 +64,18 @@ export class GigCandidateGigDraft {
   })
   communityIds: Types.ObjectId[];
 
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Venue',
+    required: false,
+    default: undefined,
+    validate: {
+      validator: isNonEmptyUniqueObjectIdArray,
+      message: 'venueIds must contain unique Venue ObjectIds',
+    },
+  })
+  venueIds?: Types.ObjectId[];
+
   @Prop({ type: String, required: false, maxlength: GIG_TITLE_MAX_LENGTH })
   title?: string;
 
@@ -103,6 +115,9 @@ export class GigCandidate {
     immutable: true,
   })
   source: GigCandidateStoredSource;
+
+  @Prop({ type: Types.ObjectId, required: false, ref: 'Locality' })
+  localityId?: Types.ObjectId;
 
   @Prop({ type: GigCandidateGigDraftSchema, required: true })
   gigDraft: GigCandidateGigDraft;

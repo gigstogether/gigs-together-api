@@ -34,7 +34,6 @@ const LOCALITY_SORT = {
 
 interface LocalityMongoFilter {
   countryIso?: string;
-  $or?: Array<{ name: RegExp } | { qualifier: RegExp } | { aliases: RegExp }>;
 }
 
 interface LocalityMongoUpdate {
@@ -102,19 +101,28 @@ export class MongoLocalityRepository implements LocalityRepository {
     return LocalityRepositoryMapper.toLocality(doc);
   }
 
+  async findByIds(ids: readonly string[]): Promise<readonly Locality[]> {
+    const storedIds = ids.map((id) => {
+      if (!Types.ObjectId.isValid(id)) {
+        throw new Error('Locality id must be a valid ObjectId');
+      }
+
+      return new Types.ObjectId(id);
+    });
+
+    const docs = await this.localityModel
+      .find({ _id: { $in: storedIds } }, LOCALITY_PROJECTION)
+      .lean<readonly LocalityLeanDocument[]>()
+      .exec();
+
+    return LocalityRepositoryMapper.toLocalities(docs);
+  }
+
   async find(params: FindLocalitiesParams): Promise<readonly Locality[]> {
     const filter: LocalityMongoFilter = {};
 
     if (params.countryIso !== undefined) {
       filter.countryIso = params.countryIso;
-    }
-    if (params.search !== undefined) {
-      const pattern = new RegExp(escapeRegExp(params.search), 'iu');
-      filter.$or = [
-        { name: pattern },
-        { qualifier: pattern },
-        { aliases: pattern },
-      ];
     }
 
     const docs = await this.localityModel
@@ -178,10 +186,6 @@ export class MongoLocalityRepository implements LocalityRepository {
 
     return result.deletedCount === 1;
   }
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^\x24{}()|[\]\\]/g, '\\$&');
 }
 
 function isDuplicateKeyError(e: unknown): boolean {

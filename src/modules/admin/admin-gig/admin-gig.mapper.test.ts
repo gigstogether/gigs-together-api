@@ -10,6 +10,7 @@ describe('mapGigToFormData', () => {
     const gig: PlainGig = {
       id: '507f1f77bcf86cd799439011',
       communityIds: ['507f1f77bcf86cd799439011'],
+      venueIds: ['507f1f77bcf86cd799439013'],
       publicId: 'test-gig-2026-09-17',
       title: 'Test',
       date: Date.UTC(2026, 8, 17),
@@ -57,6 +58,7 @@ describe('mapGigToFormData', () => {
     const gig: PlainGig = {
       id: '507f1f77bcf86cd799439011',
       communityIds: ['507f1f77bcf86cd799439011'],
+      venueIds: ['507f1f77bcf86cd799439013'],
       publicId: 'test-gig-2026-09-17',
       title: 'Test',
       date: Date.UTC(2026, 8, 17),

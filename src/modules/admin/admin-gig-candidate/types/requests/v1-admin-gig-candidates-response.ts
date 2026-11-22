@@ -61,6 +61,7 @@ export type V1AdminGigCandidateSourceResponseBody =
 
 interface V1AdminGigCandidateGigDraftResponseBody {
   communityIds: string[];
+  venueIds?: string[];
   title?: string;
   date?: string;
   endDate?: string;
@@ -69,6 +70,18 @@ interface V1AdminGigCandidateGigDraftResponseBody {
   venue?: string;
   ticketsUrl?: string;
   posterUrl?: string;
+}
+
+export interface V1AdminGigCandidateLocalityResponseBody {
+  id: string;
+  countryIso: string;
+  name: string;
+  qualifier?: string;
+}
+
+export interface V1AdminGigCandidateVenueResponseBody {
+  id: string;
+  name: string;
 }
 
 export interface V1AdminGigCandidateOriginalMessageResponseBody {
@@ -80,6 +93,8 @@ export interface V1AdminGigCandidateOriginalMessageResponseBody {
 export interface V1AdminGigCandidateResponseBody {
   id: string;
   source: V1AdminGigCandidateSourceResponseBody;
+  locality?: V1AdminGigCandidateLocalityResponseBody;
+  venues?: V1AdminGigCandidateVenueResponseBody[];
   gigDraft: V1AdminGigCandidateGigDraftResponseBody;
   status: GigCandidateStatus;
   version: number;

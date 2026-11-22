@@ -25,6 +25,7 @@ const OPTIONAL_GIG_DRAFT_STRING_FIELDS = [
 
 const GIG_DRAFT_FIELDS = [
   'communityIds',
+  'venueIds',
   ...OPTIONAL_GIG_DRAFT_STRING_FIELDS,
 ] as const;
 
@@ -102,10 +103,14 @@ function parseGigDraft(value: unknown): V1AdminGigCandidateGigDraftRequestBody {
       return fieldValue === undefined ? [] : [[field, fieldValue]];
     }),
   );
-  return {
+  const gigDraft: V1AdminGigCandidateGigDraftRequestBody = {
     ...stringFields,
     communityIds: readRequiredStringArray(record, 'communityIds'),
   };
+  if (record.venueIds !== undefined) {
+    gigDraft.venueIds = readRequiredStringArray(record, 'venueIds');
+  }
+  return gigDraft;
 }
 
 function parseBody(value: unknown): Record<string, unknown> {
@@ -133,8 +138,15 @@ export class AdminGigCandidateCreateBodyPipe implements PipeTransform<
 > {
   transform(bodyRaw: unknown): V1AdminCreateGigCandidateRequestBody {
     const body = parseBody(bodyRaw);
-    assertOnlyFields(body, ['gigDraft'], 'body');
-    return { gigDraft: parseGigDraft(body.gigDraft) };
+    assertOnlyFields(body, ['localityId', 'gigDraft'], 'body');
+    const parsed: V1AdminCreateGigCandidateRequestBody = {
+      gigDraft: parseGigDraft(body.gigDraft),
+    };
+    const localityId = readOptionalString(body, 'localityId');
+    if (localityId !== undefined) {
+      parsed.localityId = localityId;
+    }
+    return parsed;
   }
 }
 
@@ -145,11 +157,20 @@ export class AdminGigCandidateDraftUpdateBodyPipe implements PipeTransform<
 > {
   transform(bodyRaw: unknown): V1AdminUpdateGigCandidateDraftRequestBody {
     const body = parseBody(bodyRaw);
-    assertOnlyFields(body, ['expectedVersion', 'gigDraft'], 'body');
-    return {
+    assertOnlyFields(
+      body,
+      ['expectedVersion', 'localityId', 'gigDraft'],
+      'body',
+    );
+    const parsed: V1AdminUpdateGigCandidateDraftRequestBody = {
       expectedVersion: parseExpectedVersion(body.expectedVersion),
       gigDraft: parseGigDraft(body.gigDraft),
     };
+    const localityId = readOptionalString(body, 'localityId');
+    if (localityId !== undefined) {
+      parsed.localityId = localityId;
+    }
+    return parsed;
   }
 }
 

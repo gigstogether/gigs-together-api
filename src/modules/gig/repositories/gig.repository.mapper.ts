@@ -24,6 +24,7 @@ interface StringableId {
 export interface GigLeanDocument {
   _id: string | StringableId;
   communityIds: unknown;
+  venueIds: unknown;
   publicId: string;
   title: string;
   date: number;
@@ -63,6 +64,14 @@ export class GigRepositoryMapper {
 
   static fromStoredCommunityIds(value: unknown, owner = 'Gig'): string[] {
     return fromObjectIdArray(value, `${owner} communityIds`);
+  }
+
+  static toStoredVenueIds(venueIds: readonly string[]): Types.ObjectId[] {
+    return toObjectIdArray(venueIds, 'Gig venueIds');
+  }
+
+  static fromStoredVenueIds(value: unknown, owner = 'Gig'): string[] {
+    return fromObjectIdArray(value, `${owner} venueIds`);
   }
 
   static toStoredSource(source: GigSource): GigStoredSource {
@@ -180,6 +189,7 @@ export class GigRepositoryMapper {
     return {
       id: stringifyId(doc._id, '_id'),
       communityIds: this.fromStoredCommunityIds(doc.communityIds),
+      venueIds: this.fromStoredVenueIds(doc.venueIds),
       publicId: doc.publicId,
       title: doc.title,
       date: doc.date,

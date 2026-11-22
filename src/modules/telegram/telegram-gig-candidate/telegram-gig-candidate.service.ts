@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
-import type { GigCandidate } from '../../gig-candidate/types/gig-candidate.types';
 import { TelegramGigCandidateComposerService } from './telegram-gig-candidate-composer.service';
 import type {
   ComposeGigCandidateFeedbackMessageParams,
@@ -16,6 +15,8 @@ import { PostEditKind } from '../telegram-composer.service.types';
 import type { TelegramPostEditComposition } from '../telegram-composer.service.types';
 import type {
   EditGigCandidatePostParams,
+  SendGigCandidateIntakePostParams,
+  SendGigCandidateModerationPostParams,
   SendGigCandidatePhotoParams,
   TelegramGigCandidatePhotoPostSendResult,
   TelegramGigCandidatePostEditResult,
@@ -33,11 +34,13 @@ export class TelegramGigCandidateService {
   ) {}
 
   async sendIntakePost(
-    gigCandidate: GigCandidate,
-    posterFile?: InputFileData,
+    params: SendGigCandidateIntakePostParams,
   ): Promise<TelegramGigCandidatePostSendResult | undefined> {
-    const composed =
-      this.telegramGigCandidateComposer.composeIntakePost(gigCandidate);
+    const { gigCandidate, location, posterFile } = params;
+    const composed = this.telegramGigCandidateComposer.composeIntakePost(
+      gigCandidate,
+      location,
+    );
     if (!('photo' in composed)) {
       const message = await this.telegramBotClient.sendMessage(composed);
       return this.mapPostSendResult(message);
@@ -50,11 +53,13 @@ export class TelegramGigCandidateService {
   }
 
   async sendModerationPost(
-    gigCandidate: GigCandidate,
-    posterFile?: InputFileData,
+    params: SendGigCandidateModerationPostParams,
   ): Promise<TelegramGigCandidatePostSendResult | undefined> {
-    const composed =
-      this.telegramGigCandidateComposer.composeModerationPost(gigCandidate);
+    const { gigCandidate, location, posterFile } = params;
+    const composed = this.telegramGigCandidateComposer.composeModerationPost(
+      gigCandidate,
+      location,
+    );
     if (posterFile === undefined) {
       const intakePost = gigCandidate.posts.find(
         (post) =>

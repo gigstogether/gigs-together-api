@@ -57,9 +57,11 @@ persistence and application behavior. `AdminModule` owns the authenticated
 administrative HTTP controllers and their versioned Locality and Venue request
 and response contracts.
 
-Gig relationships are introduced separately. Gig responses and physical-location
-integrations continue to use the legacy `country`, `city`, and `venue` fields
-until the runtime relationships and migration are ready.
+Public GigCandidate creation, approval, Gig persistence, public Gig feed
+responses, and calendar creation use Locality and Venue IDs. Admin moderation
+forms, Telegram text, and the remaining physical-location integrations continue
+to use the legacy `country`, `city`, and `venue` fields until their runtime
+contracts and the historical-data migration are ready.
 
 ## Country
 
@@ -117,7 +119,7 @@ The current Venue model contains:
 - required searchable `aliases`, which may be empty
 - `isActive`, which controls whether the Venue may be assigned to new events
 
-Country and time zone are resolved through Locality. They are not
+Country and time zone come from Locality. They are not
 duplicated on Venue. A temporary or closed Venue remains available to historical
 Gigs but is excluded from new assignments after deactivation.
 
@@ -131,7 +133,8 @@ the current model has no address or coordinates with which to distinguish exact
 name collisions inside one Locality. When a real collision exists, the canonical
 names must include a stable qualifier such as a district or branch. Aliases
 support variants such as `Razzmatazz` and `Sala Razzmatazz` without creating
-duplicate Venues.
+duplicate Venues. Search comparison removes Unicode diacritics, so mechanical
+variants such as `Olímpic` and `Olimpic` do not need to be stored as aliases.
 
 ## Community
 
@@ -222,19 +225,73 @@ GigCandidate.gigDraft.venueIds[]
 ```
 
 Approved Gig assignments are non-empty, contain no duplicate IDs, and reference
-active Venues at creation time. All Venues assigned to one Gig must resolve to the
-same Country and IANA time zone, while different Localities are allowed. A
+active Venues at creation time. All Venues assigned to one Gig must belong to the
+same Locality. A
 multi-venue festival stores every independently addressable venue in `venueIds`;
 the array order does not imply a primary venue.
 
-GigCandidate may additionally preserve unresolved source proposals until an admin
-selects an existing Venue or creates a catalog entry. Approval requires all final
-physical locations to be resolved to `venueIds`. The exact candidate proposal
-wire contract must be reviewed before implementation.
+Approval validates the complete draft and loads `venueIds` through
+`VenueService`, and rejects missing, unknown, inactive, duplicate, or
+cross-Locality assignments before the Gig and approved candidate state are
+written in one transaction. Gig persistence stores Venue references as MongoDB
+ObjectIds and maps them back to opaque string IDs at the repository boundary.
 
-Legacy `country`, `city`, and `venue` remain in runtime contracts until the Gig
-relationships and their migration are complete. The migration must run only
-after the final runtime schemas have been reviewed.
+Public Gig feed reads load every page of Venue assignments in batches and
+return canonical location data instead of legacy strings:
+
+```text
+Gig response → Locality { id, countryIso, name, qualifier? }
+             → Venue[] { id, name }
+```
+
+Historical Gigs may continue to display inactive Venues. New assignments still
+require active Venues. Calendar links and approval-side Calendar creation use
+the assigned Locality time zone, all assigned Venue names, and an English
+country name obtained from `countryIso` through `Intl.DisplayNames`. If the
+runtime has no English display name for a supported code, Calendar text falls
+back to the ISO code and the backend logs a warning. The
+Calendar locale is explicitly set to English at the call site and may later be
+replaced with a dynamically selected locale without changing country-name
+resolution.
+
+`GigCandidate.gigDraft.communityIds` remains required for every source. Other
+draft fields remain optional so messenger suggestions may be incomplete. A web
+form submission selects one existing Locality and may optionally select one
+active Venue from that Locality. The Country field is only a Locality catalog
+filter and is not persisted on the candidate.
+
+When the web form does not select a Venue, the candidate stores the selected
+Locality temporarily at `GigCandidate.localityId`. When it selects a Venue, the
+candidate stores `gigDraft.venueIds` and omits the root `localityId`. The two
+forms of assignment must never coexist. Approval requires the final physical
+location to contain a non-empty `venueIds` array; moderation may replace
+the temporary Locality assignment with one or more Venues from that same
+Locality.
+
+The one-way migration
+`1794787200000-bootstrap-legacy-location-assignments` maps the audited legacy
+Venue strings to canonical Venue records and creates or reuses their Localities.
+The initial mapping uses Barcelona as the shared Locality for the metropolitan
+venues in Barcelona, Badalona, Santa Coloma de Gramenet, and L'Hospitalet de
+Llobregat. Benicàssim remains a separate Locality. Aliases such as `Sala Apolo`,
+`Apolo`, and the historical Razzmatazz variants converge on explicit canonical
+Venues instead of creating duplicate catalog records. Migration-only legacy
+names remain in the migration mapping and are not persisted as searchable
+aliases unless they are genuine alternative or former Venue names.
+
+Every Gig receives `venueIds`. A GigCandidate with a legacy Venue receives
+`gigDraft.venueIds`; an incomplete non-approved candidate without a Venue
+receives the temporary Barcelona `localityId`. An Approved candidate without a
+usable Venue blocks the migration. A non-empty legacy Venue value absent from
+the audited mapping is assigned to one inactive migration-only Venue, remains in
+the legacy field, and is reported with its record ID for manual correction.
+
+Legacy `country`, `city`, and `venue` remain in internal moderation and
+integration contracts after this backfill. They are no longer part of the
+public Gig feed response and may be removed only in a later cleanup after the
+new relationships have been verified in production. The migration must be
+dry-run first and applied before the new Venue-based read path begins serving
+traffic.
 
 ## Geographic Suggestions
 
@@ -270,7 +327,7 @@ Downstream feature modules own their application behavior:
 - `TelegramUpdatesModule` resolves the source Community for incoming suggestions
 - `TelegramModule` resolves Community-specific delivery destinations
 - `DigestModule` creates Community-specific digests
-- `CalendarModule` uses the Locality time zone resolved through Venue
+- `CalendarModule` uses the Locality time zone obtained through Venue
 
 Downstream modules depend on the owning application boundary and must not query
 Location- or Community-owned Mongo models directly.

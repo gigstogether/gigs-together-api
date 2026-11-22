@@ -72,6 +72,7 @@ describe('AdminGigCandidateController', () => {
   const gigApprovalResult: GigApprovalResult = {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'band-2026-09-20',
     title: 'Band',
     date: Date.UTC(2026, 8, 20),
@@ -114,10 +115,10 @@ describe('AdminGigCandidateController', () => {
   const adminGigCandidateService = {
     getList: vi.fn().mockResolvedValue([]),
     getById: vi.fn().mockResolvedValue(details),
-    resolveGigCandidate: vi.fn().mockResolvedValue(details),
+    getGigCandidateDetails: vi.fn().mockResolvedValue(details),
   } satisfies Pick<
     AdminGigCandidateService,
-    'getList' | 'getById' | 'resolveGigCandidate'
+    'getList' | 'getById' | 'getGigCandidateDetails'
   >;
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -216,9 +217,9 @@ describe('AdminGigCandidateController', () => {
       posterUrl: undefined,
       posterFile: undefined,
     });
-    expect(adminGigCandidateService.resolveGigCandidate).toHaveBeenCalledWith(
-      gigCandidate,
-    );
+    expect(
+      adminGigCandidateService.getGigCandidateDetails,
+    ).toHaveBeenCalledWith(gigCandidate);
   });
 
   it('should update the GigCandidate draft at the expected version', async () => {

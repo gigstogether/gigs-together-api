@@ -3,6 +3,7 @@ import type {
   AdminGigCandidateListSortOrder,
 } from '@modules/gig-candidate/gig-candidate-list-sort';
 import type {
+  GigCandidateLocation,
   GigCandidateSourceProvider,
   GigCandidateSourceUser,
 } from '@modules/gig-candidate/types/gig-candidate.types';
@@ -37,6 +38,7 @@ export interface AdminGigCandidateOriginalMessage {
 export interface AdminGigCandidateDetails {
   id: string;
   source: GigCandidateSourceForAdminView;
+  location?: GigCandidateLocation;
   gigDraft: GigCandidateDraft;
   version: number;
   posterUrl?: string;
