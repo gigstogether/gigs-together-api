@@ -4,6 +4,10 @@ import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../../calendar/calendar.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../gig-calendar/gig-calendar.service';
 import { GigService } from '../gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
@@ -12,11 +16,13 @@ import type { PlainGig } from '../types/gig.types';
 import { GigSourceType } from '../types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../types/gig-source-user-origin-type.enum';
 import { CommunityService } from '@modules/community/community.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439022'],
+    venueIds: ['507f1f77bcf86cd799439033'],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -62,15 +68,16 @@ describe('GigFeedService', () => {
   };
   const gigService = {
     normalizeAndValidatePublicId: vi.fn(),
-    gigToCalendarPayload: vi.fn(),
     resolveGigPosterPublicUrl: vi.fn(),
   };
+  const gigCalendarService = { toCalendarEvent: vi.fn() };
   const telegramGigService = {
     pickPost: vi.fn(),
     resolveMainPostUrl: vi.fn(),
   };
   const calendarService = { getCreateCalendarEventUrl: vi.fn() };
   const communityService = { findByRoute: vi.fn() };
+  const venueService = { getVenueSelections: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -89,12 +96,34 @@ describe('GigFeedService', () => {
     gigService.normalizeAndValidatePublicId.mockImplementation(
       (publicId: string) => publicId,
     );
-    gigService.gigToCalendarPayload.mockReturnValue({});
+    gigCalendarService.toCalendarEvent.mockReturnValue({});
     gigService.resolveGigPosterPublicUrl.mockReturnValue(undefined);
     telegramGigService.pickPost.mockReturnValue(undefined);
     telegramGigService.resolveMainPostUrl.mockResolvedValue(undefined);
     calendarService.getCreateCalendarEventUrl.mockReturnValue(
       'https://calendar.example/event',
+    );
+    venueService.getVenueSelections.mockImplementation(
+      (venueIdGroups: string[][]) =>
+        Promise.resolve(
+          venueIdGroups.map((venueIds) => ({
+            locality: {
+              id: '507f1f77bcf86cd799439044',
+              countryIso: 'ES',
+              name: 'Barcelona',
+              qualifier: 'Catalonia',
+              aliases: [],
+              timeZone: 'Europe/Madrid',
+            },
+            venues: venueIds.map((id) => ({
+              id,
+              localityId: '507f1f77bcf86cd799439044',
+              name: 'Palau Sant Jordi',
+              aliases: [],
+              isActive: true,
+            })),
+          })),
+        ),
     );
     communityService.findByRoute.mockResolvedValue({
       id: '507f1f77bcf86cd799439022',
@@ -110,9 +139,11 @@ describe('GigFeedService', () => {
         GigFeedService,
         { provide: GIG_REPOSITORY, useValue: gigRepository },
         { provide: GigService, useValue: gigService },
+        { provide: GigCalendarService, useValue: gigCalendarService },
         { provide: TelegramGigService, useValue: telegramGigService },
         { provide: CalendarService, useValue: calendarService },
         { provide: CommunityService, useValue: communityService },
+        { provide: VenueService, useValue: venueService },
       ],
     }).compile();
     service = module.get(GigFeedService);
@@ -145,6 +176,18 @@ describe('GigFeedService', () => {
       expect.objectContaining({
         id: gig.publicId,
         title: gig.title,
+        locality: {
+          id: '507f1f77bcf86cd799439044',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          qualifier: 'Catalonia',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439033',
+            name: 'Palau Sant Jordi',
+          },
+        ],
         calendarUrl: 'https://calendar.example/event',
       }),
     );
@@ -158,6 +201,23 @@ describe('GigFeedService', () => {
     expect(communityService.findByRoute).toHaveBeenCalledWith({
       countryIso: 'ES',
       communitySlug: 'barcelona',
+    });
+    expect(venueService.getVenueSelections).toHaveBeenCalledWith([
+      gig.venueIds,
+    ]);
+    expect(gigCalendarService.toCalendarEvent).toHaveBeenCalledWith({
+      gig: {
+        title: gig.title,
+        date: gig.date,
+        locality: {
+          countryIso: 'ES',
+          name: 'Barcelona',
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [{ name: 'Palau Sant Jordi' }],
+        ticketsUrl: gig.ticketsUrl,
+      },
+      locale: GIG_CALENDAR_TEXT_LOCALE,
     });
   });
 

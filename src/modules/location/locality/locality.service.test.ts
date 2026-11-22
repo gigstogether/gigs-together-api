@@ -27,6 +27,7 @@ describe('LocalityService', () => {
 
   const createMock = vi.fn();
   const findByIdMock = vi.fn();
+  const findByIdsMock = vi.fn();
   const findMock = vi.fn();
   const updateMock = vi.fn();
   const deleteByIdMock = vi.fn();
@@ -46,6 +47,7 @@ describe('LocalityService', () => {
           useValue: {
             create: createMock,
             findById: findByIdMock,
+            findByIds: findByIdsMock,
             find: findMock,
             update: updateMock,
             deleteById: deleteByIdMock,
@@ -86,6 +88,39 @@ describe('LocalityService', () => {
       aliases: ['Barna', 'BCN'],
       timeZone: 'Europe/Madrid',
     });
+  });
+
+  it('should return requested Localities in id order', async () => {
+    const secondLocality = {
+      ...LOCALITY,
+      id: '690a1fdb17f0a7771e9c1c33',
+      name: 'Girona',
+    };
+    findByIdsMock.mockResolvedValue([LOCALITY, secondLocality]);
+
+    await expect(
+      service.getLocalitiesByIds([secondLocality.id, LOCALITY_ID]),
+    ).resolves.toEqual([secondLocality, LOCALITY]);
+    expect(findByIdsMock).toHaveBeenCalledWith([
+      secondLocality.id,
+      LOCALITY_ID,
+    ]);
+  });
+
+  it('should preserve repeated Locality ids in the result', async () => {
+    findByIdsMock.mockResolvedValue([LOCALITY]);
+
+    await expect(
+      service.getLocalitiesByIds([LOCALITY_ID, LOCALITY_ID]),
+    ).resolves.toEqual([LOCALITY, LOCALITY]);
+  });
+
+  it('should reject a missing Locality from an id batch', async () => {
+    findByIdsMock.mockResolvedValue([LOCALITY]);
+
+    await expect(
+      service.getLocalitiesByIds([LOCALITY_ID, '690a1fdb17f0a7771e9c1c33']),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('should reject a Locality for an unknown Country', async () => {
@@ -161,15 +196,14 @@ describe('LocalityService', () => {
     );
   });
 
-  it('should normalize search and forward filters', async () => {
+  it('should forward a supported Country filter', async () => {
     findMock.mockResolvedValue([LOCALITY]);
 
     await expect(
-      service.findLocalities({ countryIso: COUNTRY_ISO, search: ' bar ' }),
+      service.findLocalities({ countryIso: COUNTRY_ISO }),
     ).resolves.toEqual([LOCALITY]);
     expect(findMock).toHaveBeenCalledWith({
       countryIso: COUNTRY_ISO,
-      search: 'bar',
     });
   });
 

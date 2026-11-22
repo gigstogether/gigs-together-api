@@ -107,24 +107,33 @@ describe('MongoLocalityRepository', () => {
     );
   });
 
-  it('should search Localities by Country, name, qualifier, and aliases', async () => {
+  it('should find Localities by ids', async () => {
+    const execMock = vi.fn().mockResolvedValue([LOCALITY_DOCUMENT]);
+    const leanMock = vi.fn().mockReturnValue({ exec: execMock });
+    findMock.mockReturnValue({ lean: leanMock });
+
+    await expect(repository.findByIds([LOCALITY_ID])).resolves.toEqual([
+      expect.objectContaining({ id: LOCALITY_ID }),
+    ]);
+    expect(findMock).toHaveBeenCalledWith(
+      { _id: { $in: [new Types.ObjectId(LOCALITY_ID)] } },
+      LOCALITY_PROJECTION,
+    );
+  });
+
+  it('should find Localities by Country', async () => {
     const execMock = vi.fn().mockResolvedValue([LOCALITY_DOCUMENT]);
     const leanMock = vi.fn().mockReturnValue({ exec: execMock });
     const sortMock = vi.fn().mockReturnValue({ lean: leanMock });
     findMock.mockReturnValue({ sort: sortMock });
 
-    await expect(
-      repository.find({ countryIso: 'ES', search: 'bar' }),
-    ).resolves.toEqual([expect.objectContaining({ id: LOCALITY_ID })]);
+    await expect(repository.find({ countryIso: 'ES' })).resolves.toEqual([
+      expect.objectContaining({ id: LOCALITY_ID }),
+    ]);
 
     expect(findMock).toHaveBeenCalledWith(
       {
         countryIso: 'ES',
-        $or: [
-          { name: expect.any(RegExp) },
-          { qualifier: expect.any(RegExp) },
-          { aliases: expect.any(RegExp) },
-        ],
       },
       LOCALITY_PROJECTION,
     );

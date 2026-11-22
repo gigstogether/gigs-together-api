@@ -65,11 +65,10 @@ describe('AdminLocalityController', () => {
     findLocalitiesMock.mockResolvedValue([LOCALITY]);
 
     await expect(
-      controller.getLocalitiesV1({ countryIso: 'ES', search: 'bar' }),
+      controller.getLocalitiesV1({ countryIso: 'ES' }),
     ).resolves.toEqual({ localities: [LOCALITY] });
     expect(findLocalitiesMock).toHaveBeenCalledWith({
       countryIso: 'ES',
-      search: 'bar',
     });
   });
 

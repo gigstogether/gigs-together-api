@@ -26,10 +26,29 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
     },
     gigDraft: {
       communityIds: ['507f1f77bcf86cd799439011'],
+      venueIds: ['507f1f77bcf86cd799439012'],
       title: 'Band',
       date: Date.parse('2026-08-20T00:00:00.000Z'),
       city: 'Barcelona',
       country: 'ES',
+    },
+    location: {
+      locality: {
+        id: '507f1f77bcf86cd799439013',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [
+        {
+          id: '507f1f77bcf86cd799439012',
+          localityId: '507f1f77bcf86cd799439013',
+          name: 'Razzmatazz',
+          aliases: [],
+          isActive: true,
+        },
+      ],
     },
     version: 0,
     status: GigCandidateStatus.New,
@@ -69,7 +88,21 @@ describe('mapV1AdminGigCandidateResponse', () => {
           telegramUsername: 'test_user',
           origin: { type: GigSourceUserOriginType.Form },
         },
-        gigDraft: expect.objectContaining({ date: '2026-08-20' }),
+        gigDraft: expect.objectContaining({
+          date: '2026-08-20',
+          venueIds: ['507f1f77bcf86cd799439012'],
+        }),
+        locality: {
+          id: '507f1f77bcf86cd799439013',
+          countryIso: 'ES',
+          name: 'Barcelona',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439012',
+            name: 'Razzmatazz',
+          },
+        ],
         intakePostUrl: 'https://t.me/c/123/77',
         intakePostDate: 1_700_000_000_000,
         moderationPostUrl: 'https://t.me/c/124/78',
@@ -170,8 +203,10 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
       mapV1AdminCreateGigCandidateRequest({
         userId: '507f1f77bcf86cd799439088',
         body: {
+          localityId: '507f1f77bcf86cd799439013',
           gigDraft: {
             communityIds: ['507f1f77bcf86cd799439011'],
+            venueIds: ['507f1f77bcf86cd799439012'],
             title: '  Band  ',
             date: '2026-09-20',
             country: 'es',
@@ -181,8 +216,10 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
       }),
     ).toEqual({
       userId: '507f1f77bcf86cd799439088',
+      localityId: '507f1f77bcf86cd799439013',
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Band',
         date: Date.parse('2026-09-20T00:00:00.000Z'),
         country: 'ES',

@@ -20,6 +20,7 @@ import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidateApprovalService } from './gig-candidate-approval/gig-candidate-approval.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
 import { CommunityModule } from '@modules/community/community.module';
+import { LocationModule } from '@modules/location/location.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { CommunityModule } from '@modules/community/community.module';
     AiModule,
     BucketModule,
     CommunityModule,
+    LocationModule,
   ],
   controllers: [GigCandidateController],
   providers: [

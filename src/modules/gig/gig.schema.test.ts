@@ -14,6 +14,15 @@ describe('GigSchema', () => {
     expect(validate([])).toBe(false);
   });
 
+  it('should require Venue assignments on every Gig', () => {
+    const venueIdsPath = GigSchema.path('venueIds');
+    const validate = venueIdsPath.options.validate.validator;
+
+    expect(venueIdsPath.options.required).toBe(true);
+    expect(validate([new Types.ObjectId()])).toBe(true);
+    expect(validate([])).toBe(false);
+  });
+
   it('should require Community assignments on every Gig', () => {
     const communityIdsPath = GigSchema.path('communityIds');
     const validate = communityIdsPath.options.validate.validator;

@@ -54,6 +54,8 @@ describe('AdminGigCandidateService', () => {
   const gigCandidateServiceMock = {
     findMany: vi.fn(),
     getByIdOrThrow: vi.fn(),
+    getLocation: vi.fn(),
+    getLocationsByCandidateId: vi.fn(),
   };
   const gigServiceMock = {
     getGigById: vi.fn(),
@@ -69,12 +71,15 @@ describe('AdminGigCandidateService', () => {
   const bucketServiceMock = {
     getPublicFileUrl: vi.fn(),
   };
-
   beforeEach(async () => {
     vi.clearAllMocks();
     telegramComposerMock.buildPostUrl.mockReset();
     bucketServiceMock.getPublicFileUrl.mockReset();
     gigServiceMock.getGigsByIds.mockResolvedValue([]);
+    gigCandidateServiceMock.getLocation.mockResolvedValue(undefined);
+    gigCandidateServiceMock.getLocationsByCandidateId.mockResolvedValue(
+      new Map(),
+    );
     userServiceMock.findActiveUsersByIds.mockResolvedValue([
       {
         id: '66a000000000000000000000042',
@@ -355,6 +360,42 @@ describe('AdminGigCandidateService', () => {
   });
 
   describe('getById', () => {
+    it('should expose the Locality and Venues from the location assignment', async () => {
+      const record = buildGigCandidate({
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012'],
+        },
+      });
+      const locality = {
+        id: '507f1f77bcf86cd799439013',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      };
+      const venues = [
+        {
+          id: '507f1f77bcf86cd799439012',
+          localityId: locality.id,
+          name: 'Razzmatazz',
+          aliases: [],
+          isActive: true,
+        },
+      ];
+      gigCandidateServiceMock.getByIdOrThrow.mockResolvedValue(record);
+      gigServiceMock.getGigById.mockResolvedValue(undefined);
+      gigCandidateServiceMock.getLocation.mockResolvedValue({
+        locality,
+        venues,
+      });
+
+      const result = await service.getById(record.id);
+
+      expect(result.location).toEqual({ locality, venues });
+      expect(gigCandidateServiceMock.getLocation).toHaveBeenCalledWith(record);
+    });
+
     it('should include the GigCandidate post and linked Gig URLs', async () => {
       const record = buildGigCandidate({
         status: GigCandidateStatus.Approved,

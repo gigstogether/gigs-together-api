@@ -1,6 +1,7 @@
 import type { PostType } from '@shared/types/post-type.enum';
 import type {
   GigCandidate,
+  GigCandidateLocation,
   GigCandidatePost,
 } from '../../gig-candidate/types/gig-candidate.types';
 import type {
@@ -59,23 +60,27 @@ export type ComposeGigCandidateFeedbackMessageParams =
 
 export interface ComposeGigCandidateIntakePostAfterModerationEditParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   intakePost: GigCandidatePost;
   moderationPost: GigCandidatePost;
 }
 
 export interface ComposeGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   post: GigCandidatePost;
   isMediaUpdateRequired: boolean;
 }
 
 export interface ComposeRejectedGigCandidatePostEditParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   post: GigCandidatePost;
 }
 
 interface ComposeGigCandidateChannelPostBaseParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
   chatId: string;
   photo: string;
   replyMarkup: TGInlineKeyboardMarkup;
@@ -95,6 +100,7 @@ export type ComposeGigCandidateChannelPostParams =
 
 interface BuildGigCandidateCaptionBaseParams {
   gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
 }
 
 interface BuildGigCandidateIntakeCaptionParams extends BuildGigCandidateCaptionBaseParams {

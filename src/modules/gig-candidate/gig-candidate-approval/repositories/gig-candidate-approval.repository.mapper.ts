@@ -20,6 +20,7 @@ export interface ApprovedGigCandidateStateFields {
 export interface GigApprovalResultLeanDocument {
   _id: Types.ObjectId;
   communityIds: unknown;
+  venueIds: unknown;
   publicId: string;
   title: string;
   date: number;
@@ -37,6 +38,7 @@ export interface GigApprovalResultLeanDocument {
 export interface GigCreationPersistenceData {
   _id: Types.ObjectId;
   communityIds: Types.ObjectId[];
+  venueIds: Types.ObjectId[];
   publicId: string;
   title: string;
   date: number;
@@ -69,6 +71,7 @@ export class GigCandidateApprovalRepositoryMapper {
 
     const requiredFields: Array<keyof GigData> = [
       'communityIds',
+      'venueIds',
       'title',
       'date',
       'city',
@@ -94,6 +97,7 @@ export class GigCandidateApprovalRepositoryMapper {
       communityIds: GigRepositoryMapper.toStoredCommunityIds(
         params.communityIds,
       ),
+      venueIds: GigRepositoryMapper.toStoredVenueIds(params.venueIds),
       publicId: params.publicId,
       title: params.title,
       date: params.date,
@@ -127,6 +131,10 @@ export class GigCandidateApprovalRepositoryMapper {
       id: gig._id.toString(),
       communityIds: GigRepositoryMapper.fromStoredCommunityIds(
         gig.communityIds,
+        `Gig ${gig._id.toString()}`,
+      ),
+      venueIds: GigRepositoryMapper.fromStoredVenueIds(
+        gig.venueIds,
         `Gig ${gig._id.toString()}`,
       ),
       publicId: gig.publicId,

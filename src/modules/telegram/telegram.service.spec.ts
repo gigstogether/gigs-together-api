@@ -102,6 +102,7 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
   return {
     id: '507f1f77bcf86cd799439011',
     communityIds: ['507f1f77bcf86cd799439022'],
+    venueIds: ['507f1f77bcf86cd799439033'],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
@@ -828,7 +829,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        telegramGigCandidateService.sendIntakePost(gigCandidate),
+        telegramGigCandidateService.sendIntakePost({ gigCandidate }),
       ).resolves.toEqual({
         messageId: 40,
         chatId: -100,
@@ -897,10 +898,10 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        telegramGigCandidateService.sendModerationPost(
+        telegramGigCandidateService.sendModerationPost({
           gigCandidate,
           posterFile,
-        ),
+        }),
       ).resolves.toEqual({
         messageId: 50,
         chatId: -200,
@@ -962,7 +963,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await telegramGigCandidateService.sendModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost({ gigCandidate });
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({ photo: 'intake-file-id' }),
@@ -1015,7 +1016,7 @@ describe('TelegramService', () => {
         ],
       });
 
-      await telegramGigCandidateService.sendModerationPost(gigCandidate);
+      await telegramGigCandidateService.sendModerationPost({ gigCandidate });
 
       expect(sendPhotoSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1055,7 +1056,7 @@ describe('TelegramService', () => {
       });
 
       await expect(
-        telegramGigCandidateService.sendModerationPost(gigCandidate),
+        telegramGigCandidateService.sendModerationPost({ gigCandidate }),
       ).rejects.toThrow('Telegram photo response has no fileId');
     });
   });

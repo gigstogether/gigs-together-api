@@ -34,6 +34,7 @@ interface ConditionalGigCandidateUpdateParams {
 const GIG_CANDIDATE_LEAN_PROJECTION = {
   _id: 1,
   source: 1,
+  localityId: 1,
   gigDraft: 1,
   version: 1,
   status: 1,
@@ -66,15 +67,33 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     if (!Types.ObjectId.isValid(params.gigCandidateId)) {
       throw new Error(`Invalid GigCandidate id: ${params.gigCandidateId}`);
     }
+    if (
+      params.localityId !== undefined &&
+      params.gigDraft.venueIds !== undefined
+    ) {
+      throw new Error(
+        'GigCandidate must not store localityId and gigDraft.venueIds together.',
+      );
+    }
 
-    const created = await this.gigCandidateModel.create({
+    const record: Record<string, unknown> = {
       _id: new Types.ObjectId(params.gigCandidateId),
       source: GigCandidateRepositoryMapper.toStoredSource(params.source),
       gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(params.gigDraft),
       version: 0,
       status: params.status,
       posts: [],
-    });
+    };
+    if (params.localityId !== undefined) {
+      if (!Types.ObjectId.isValid(params.localityId)) {
+        throw new Error(
+          `Invalid GigCandidate locality id: ${params.localityId}`,
+        );
+      }
+      record.localityId = new Types.ObjectId(params.localityId);
+    }
+
+    const created = await this.gigCandidateModel.create(record);
 
     return GigCandidateRepositoryMapper.toGigCandidate(
       created.toObject<GigCandidateLeanDocument>(),
@@ -91,6 +110,34 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     ) {
       return null;
     }
+    if (
+      params.localityId !== undefined &&
+      params.gigDraft.venueIds !== undefined
+    ) {
+      throw new Error(
+        'GigCandidate must not store localityId and gigDraft.venueIds together.',
+      );
+    }
+    const set: Record<string, unknown> = {
+      gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(params.gigDraft),
+    };
+    const unset: Record<string, 1> = {};
+    if (params.localityId === undefined) {
+      unset.localityId = 1;
+    } else {
+      if (!Types.ObjectId.isValid(params.localityId)) {
+        return null;
+      }
+      set.localityId = new Types.ObjectId(params.localityId);
+    }
+    const update: Record<string, unknown> = {
+      $set: set,
+      $inc: { version: 1 },
+    };
+    if (Object.keys(unset).length > 0) {
+      update.$unset = unset;
+    }
+
     const updated = await this.gigCandidateModel
       .findOneAndUpdate(
         {
@@ -98,14 +145,7 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
           status: GigCandidateStatus.Reviewing,
           version: params.expectedVersion,
         },
-        {
-          $set: {
-            gigDraft: GigCandidateRepositoryMapper.toStoredGigDraft(
-              params.gigDraft,
-            ),
-          },
-          $inc: { version: 1 },
-        },
+        update,
         { returnDocument: 'after', runValidators: true },
       )
       .select(GIG_CANDIDATE_LEAN_PROJECTION)

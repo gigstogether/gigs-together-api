@@ -12,6 +12,7 @@ import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
 import { UserService } from '@modules/user/user.service';
 import type { User } from '@modules/user/types/user.types';
+import type { GigCandidateLocation } from '@modules/gig-candidate/types/gig-candidate.types';
 import { getUserSourceProfile } from '../admin-shared/admin-user-source-profile';
 import type {
   AdminGigCandidateDetails,
@@ -34,15 +35,18 @@ export class AdminGigCandidateService {
     params: GetAdminGigCandidatesParams,
   ): Promise<AdminGigCandidateDetails[]> {
     const gigCandidates = await this.gigCandidateService.findMany(params);
-    const [activeSourceUsersById, linkedGigsById] = await Promise.all([
-      this.getActiveSourceUsersById(gigCandidates),
-      this.getLinkedGigsById(gigCandidates),
-    ]);
+    const [activeSourceUsersById, linkedGigsById, locationsByCandidateId] =
+      await Promise.all([
+        this.getActiveSourceUsersById(gigCandidates),
+        this.getLinkedGigsById(gigCandidates),
+        this.gigCandidateService.getLocationsByCandidateId(gigCandidates),
+      ]);
     return gigCandidates.map((gigCandidate) =>
-      this.resolveGigCandidateWithUsers(
+      this.buildGigCandidateDetails(
         gigCandidate,
         activeSourceUsersById,
         gigCandidate.gigId ? linkedGigsById.get(gigCandidate.gigId) : undefined,
+        locationsByCandidateId.get(gigCandidate.id),
       ),
     );
   }
@@ -50,29 +54,32 @@ export class AdminGigCandidateService {
   async getById(gigCandidateId: string): Promise<AdminGigCandidateDetails> {
     const gigCandidate =
       await this.gigCandidateService.getByIdOrThrow(gigCandidateId);
-    return this.resolveGigCandidate(gigCandidate);
+    return this.getGigCandidateDetails(gigCandidate);
   }
 
-  async resolveGigCandidate(
+  async getGigCandidateDetails(
     gigCandidate: GigCandidate,
   ): Promise<AdminGigCandidateDetails> {
-    const [activeSourceUsersById, linkedGig] = await Promise.all([
+    const [activeSourceUsersById, linkedGig, location] = await Promise.all([
       this.getActiveSourceUsersById([gigCandidate]),
       gigCandidate.gigId
         ? this.gigService.getGigById(gigCandidate.gigId)
         : Promise.resolve(undefined),
+      this.gigCandidateService.getLocation(gigCandidate),
     ]);
-    return this.resolveGigCandidateWithUsers(
+    return this.buildGigCandidateDetails(
       gigCandidate,
       activeSourceUsersById,
       linkedGig,
+      location,
     );
   }
 
-  private resolveGigCandidateWithUsers(
+  private buildGigCandidateDetails(
     gigCandidate: GigCandidate,
     activeSourceUsersById: ReadonlyMap<string, User>,
     linkedGig: PlainGig | undefined,
+    location: GigCandidateLocation | undefined,
   ): AdminGigCandidateDetails {
     const intakePost = gigCandidate.posts.find(
       (post) => post.to === Messenger.Telegram && post.type === PostType.Intake,
@@ -100,7 +107,7 @@ export class AdminGigCandidateService {
         })
       : undefined;
     const source = this.resolveSource(gigCandidate, activeSourceUsersById);
-    const originalMessage = this.resolveOriginalMessage(gigCandidate);
+    const originalMessage = this.getOriginalMessage(gigCandidate);
 
     const details: AdminGigCandidateDetails = {
       id: gigCandidate.id,
@@ -126,10 +133,13 @@ export class AdminGigCandidateService {
     if (originalMessage !== undefined) {
       details.originalMessage = originalMessage;
     }
+    if (location !== undefined) {
+      details.location = location;
+    }
     return details;
   }
 
-  private resolveOriginalMessage(
+  private getOriginalMessage(
     gigCandidate: GigCandidate,
   ): AdminGigCandidateOriginalMessage | undefined {
     if (!isGigCandidateSourceMessengerUser(gigCandidate.source)) {
