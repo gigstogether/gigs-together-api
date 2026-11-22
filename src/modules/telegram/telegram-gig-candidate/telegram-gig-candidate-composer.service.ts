@@ -60,7 +60,10 @@ export class TelegramGigCandidateComposerService {
     private readonly telegramService: TelegramService,
   ) {}
 
-  composeIntakePost(gigCandidate: GigCandidate): TGSendMessage | TGSendPhoto {
+  composeIntakePost(
+    gigCandidate: GigCandidate,
+    location?: GigCandidateLocation,
+  ): TGSendMessage | TGSendPhoto {
     const chatId = this.requireChannelId(
       this.telegramService.getIntakeChannelId(),
       'INTAKE_CHANNEL_ID',
@@ -74,6 +77,7 @@ export class TelegramGigCandidateComposerService {
         chat_id: chatId,
         text: this.buildCaption({
           gigCandidate,
+          location,
           postType: PostType.Intake,
         }),
         parse_mode: TGParseMode.HTML,
@@ -84,6 +88,7 @@ export class TelegramGigCandidateComposerService {
 
     return this.composeChannelPost({
       gigCandidate,
+      location,
       chatId,
       photo,
       postType: PostType.Intake,

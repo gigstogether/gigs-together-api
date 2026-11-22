@@ -829,7 +829,7 @@ describe('TelegramService', () => {
       };
 
       await expect(
-        telegramGigCandidateService.sendIntakePost(gigCandidate),
+        telegramGigCandidateService.sendIntakePost({ gigCandidate }),
       ).resolves.toEqual({
         messageId: 40,
         chatId: -100,

@@ -33,6 +33,12 @@ export interface SendGigCandidatePhotoParams {
   posterFile?: InputFileData;
 }
 
+export interface SendGigCandidateIntakePostParams {
+  gigCandidate: GigCandidate;
+  location?: GigCandidateLocation;
+  posterFile?: InputFileData;
+}
+
 export interface SendGigCandidateModerationPostParams {
   gigCandidate: GigCandidate;
   location?: GigCandidateLocation;

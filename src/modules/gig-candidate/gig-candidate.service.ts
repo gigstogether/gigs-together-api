@@ -209,11 +209,13 @@ export class GigCandidateService {
 
     let telegramIntakePost: TelegramGigCandidatePostSendResult | undefined;
     try {
+      const location = await this.getLocation(saved);
       telegramIntakePost =
-        await this.telegramGigCandidateService.sendIntakePost(
-          saved,
-          telegramPosterFile,
-        );
+        await this.telegramGigCandidateService.sendIntakePost({
+          gigCandidate: saved,
+          location,
+          posterFile: telegramPosterFile,
+        });
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
     }
@@ -410,7 +412,9 @@ export class GigCandidateService {
     let telegramIntakePost: TelegramGigCandidatePostSendResult | undefined;
     try {
       telegramIntakePost =
-        await this.telegramGigCandidateService.sendIntakePost(saved);
+        await this.telegramGigCandidateService.sendIntakePost({
+          gigCandidate: saved,
+        });
     } catch (e) {
       this.logTelegramFailure('sendGigCandidateIntakePost', saved.id, e);
     }

@@ -617,6 +617,42 @@ describe('TelegramComposerService', () => {
       });
     });
 
+    it('should render a Locality without Venues in the initial Intake post', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        localityId: '507f1f77bcf86cd799439012',
+        source: {
+          type: GigSourceType.User,
+          userId: '66a000000000000000000000042',
+          origin: { type: GigSourceUserOriginType.Form },
+        },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          title: 'Suggested Band',
+          date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+        },
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const payload = gigCandidateComposer.composeIntakePost(gigCandidate, {
+        locality: {
+          id: '507f1f77bcf86cd799439012',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [],
+      });
+
+      const text = 'text' in payload ? payload.text : payload.caption;
+      expect(text).toContain('📍 Barcelona');
+    });
+
     it('should compose a text Intake post when GigCandidate has no poster', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',

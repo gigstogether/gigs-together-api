@@ -641,7 +641,7 @@ describe('GigCandidateService', () => {
       expect(result).toEqual(withIntakePost);
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
-      ).toHaveBeenCalledWith(gigCandidate);
+      ).toHaveBeenCalledWith({ gigCandidate });
       expect(
         gigCandidateRepositoryMock.appendGigCandidatePostIfAbsent,
       ).toHaveBeenCalledWith({
@@ -947,6 +947,7 @@ describe('GigCandidateService', () => {
     it('should accept a one-character title and include it in submitted feedback', async () => {
       const created: GigCandidate = {
         id: '507f1f77bcf86cd799439099',
+        localityId: '507f1f77bcf86cd799439012',
         source: {
           type: GigSourceType.User,
           userId: '66a000000000000000000000099',
@@ -1016,7 +1017,17 @@ describe('GigCandidateService', () => {
       expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
       expect(
         telegramServiceMock.sendGigCandidateIntakePost,
-      ).toHaveBeenCalledWith(created, undefined);
+      ).toHaveBeenCalledWith({
+        gigCandidate: created,
+        location: {
+          locality: expect.objectContaining({
+            id: '507f1f77bcf86cd799439012',
+            name: 'Barcelona',
+          }),
+          venues: [],
+        },
+        posterFile: undefined,
+      });
       expect(telegramServiceMock.sendGigCandidateFeedback).toHaveBeenCalledWith(
         {
           kind: 'submitted',
