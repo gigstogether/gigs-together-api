@@ -6,19 +6,28 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from '../../gig/types/gig-poster.types';
-import type { GigData, GigPoster } from '../../gig/types/gig.types';
+import type {
+  GigCandidateDraft,
+  GigPoster,
+} from '@modules/gig/types/gig.types';
 
 export interface PrepareGigCandidateDraftPosterParams {
   gigCandidateId: string;
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
+  location?: GigCandidatePosterLocation;
   posterUrl?: string;
   posterFile?: GigPosterFile;
   existingPoster?: GigPoster;
   shouldUseDefaultPoster: boolean;
 }
 
+export interface GigCandidatePosterLocation {
+  name: string;
+  countryIso: string;
+}
+
 export interface PreparedGigCandidateDraftPoster {
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateDraft;
   posterFile?: PreparedGigPosterFile;
 }
 
@@ -61,8 +70,8 @@ export class GigCandidatePosterService {
         file: params.posterFile,
         context: {
           date: gigDraft.date ?? new Date(),
-          city: gigDraft.city ?? 'unknown',
-          country: gigDraft.country ?? 'unknown',
+          city: params.location?.name ?? gigDraft.city ?? 'unknown',
+          country: params.location?.countryIso ?? gigDraft.country ?? 'unknown',
           publicId: `gc-${params.gigCandidateId}`,
         },
       });

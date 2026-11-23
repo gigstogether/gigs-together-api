@@ -12,6 +12,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { TelegramUpdatesModule } from './modules/telegram-updates/telegram-updates.module';
 import { BucketModule } from './modules/bucket/bucket.module';
 import { AiModule } from './modules/ai/ai.module';
+import { CommunityModule } from './modules/community/community.module';
 import { LocationModule } from './modules/location/location.module';
 import { LocaleModule } from './modules/locale/locale.module';
 import { TranslationModule } from './modules/translation/translation.module';
@@ -49,6 +50,7 @@ const envFilePath = [`.env.${nodeEnv}`, '.env'];
     TelegramUpdatesModule,
     BucketModule,
     AiModule,
+    CommunityModule,
     LocationModule,
     LocaleModule,
     TranslationModule,

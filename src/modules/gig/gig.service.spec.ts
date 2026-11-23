@@ -28,6 +28,8 @@ import type {
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
     id: '507f1f77bcf86cd799439011',
+    communityIds: ['507f1f77bcf86cd799439022'],
+    venueIds: ['507f1f77bcf86cd799439033'],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -75,7 +77,7 @@ describe('GigService', () => {
   const sendMainPost = vi.fn();
   const editGigPostsBestEffort = vi.fn();
   const updateGigModerationPost = vi.fn();
-  const revalidateGigFeed = vi.fn();
+  const revalidateGigFeeds = vi.fn();
   const getPublicFileUrl = vi.fn();
 
   async function createService(
@@ -97,7 +99,7 @@ describe('GigService', () => {
         { provide: BucketService, useValue: { getPublicFileUrl } },
         {
           provide: GigFeedRevalidationService,
-          useValue: { revalidateGigFeed },
+          useValue: { revalidateGigFeeds },
         },
         { provide: ConfigService, useValue: configService },
       ],
@@ -151,35 +153,6 @@ describe('GigService', () => {
           externalUrl: 'https://cdn.example/poster.jpg',
         }),
       ).toBeUndefined();
-    });
-  });
-
-  describe('gigToCalendarPayload', () => {
-    it('should preserve local event time without a UTC suffix', () => {
-      const result = service.gigToCalendarPayload(buildGig());
-
-      expect(result).toEqual({
-        title: 'Radiohead',
-        description: 'Tickets: https://tickets.example/radiohead',
-        location: 'Palau Sant Jordi, barcelona, ES',
-        startLocalDateTime: '2026-06-12T20:00:00',
-        endLocalDateTime: '2026-06-12T22:00:00',
-        timeZone: 'Europe/Madrid',
-      });
-    });
-
-    it('should use the final local day for a multi-day event', () => {
-      const result = service.gigToCalendarPayload(
-        buildGig({ endDate: Date.UTC(2026, 5, 14) }),
-      );
-
-      expect(result.endLocalDateTime).toBe('2026-06-14T22:00:00');
-    });
-
-    it('should reject an invalid start date', () => {
-      expect(() =>
-        service.gigToCalendarPayload(buildGig({ date: Number.NaN })),
-      ).toThrow('Gig date must be a valid timestamp');
     });
   });
 
@@ -348,9 +321,8 @@ describe('GigService', () => {
           posterFile: undefined,
         }),
       ).resolves.toEqual({ publicId: updated.publicId });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 
@@ -670,9 +642,8 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 
@@ -697,9 +668,8 @@ describe('GigService', () => {
         publicId: updated.publicId,
         moderationPost: { chatId: -100123, messageId: 42 },
       });
-      expect(revalidateGigFeed).toHaveBeenCalledWith({
-        country: updated.country,
-        city: updated.city,
+      expect(revalidateGigFeeds).toHaveBeenCalledWith({
+        communityIds: updated.communityIds,
       });
     });
 

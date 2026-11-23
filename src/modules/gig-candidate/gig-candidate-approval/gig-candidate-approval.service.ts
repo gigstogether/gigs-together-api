@@ -15,7 +15,14 @@ import {
 import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
+import { VenueService } from '@modules/location/venue/venue.service';
+import type { VenueSelection } from '@modules/location/venue/venue.service';
+import type { GigCalendarSource, GigData } from '../../gig/types/gig.types';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
 import { GigCandidateFeedbackService } from '../gig-candidate-feedback.service';
@@ -24,18 +31,19 @@ import {
   GigCandidateConflictError,
   getGigCandidateTransitionPolicy,
 } from '../gig-candidate-state-machine';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
 import type {
   GigApprovalResult,
   GigCandidateApprovalRepository,
   GigCandidateApprovalTransaction,
-} from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+} from './repositories/gig-candidate-approval.repository';
 import type { GigCandidate } from '../types/gig-candidate.types';
 import {
   mapGigCandidateSourceToGigSource,
   requireApprovedGigId,
   validateGigCandidateDraftForApproval,
 } from './gig-candidate-approval';
+import type { ValidatedGigCandidateDraft } from './gig-candidate-approval';
 
 const GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT = {
   code: 'gigCalendarEventCreationFailed',
@@ -49,12 +57,23 @@ export interface ApproveGigCandidateParams {
   approvedByUserId: string;
 }
 
-interface GigCandidateApprovalTransactionResult {
+interface ExistingGigCandidateApprovalTransactionResult {
+  gig: GigApprovalResult;
+  gigCandidate: GigCandidate;
+  isNewApproval: false;
+}
+
+interface NewGigCandidateApprovalTransactionResult {
   gig: GigApprovalResult;
   gigCandidate: GigCandidate;
   moderationPost?: GigCandidate['posts'][number];
-  isNewApproval: boolean;
+  venueSelection: VenueSelection;
+  isNewApproval: true;
 }
+
+type GigCandidateApprovalTransactionResult =
+  | ExistingGigCandidateApprovalTransactionResult
+  | NewGigCandidateApprovalTransactionResult;
 
 @Injectable()
 export class GigCandidateApprovalService {
@@ -64,8 +83,10 @@ export class GigCandidateApprovalService {
     @Inject(GIG_CANDIDATE_APPROVAL_REPOSITORY)
     private readonly gigCandidateApprovalRepository: GigCandidateApprovalRepository,
     private readonly gigService: GigService,
+    private readonly venueService: VenueService,
     private readonly gigFeedRevalidationService: GigFeedRevalidationService,
     private readonly calendarService: CalendarService,
+    private readonly gigCalendarService: GigCalendarService,
     private readonly alertingService: AlertingService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigCandidateFeedbackService: GigCandidateFeedbackService,
@@ -120,7 +141,13 @@ export class GigCandidateApprovalService {
     }
 
     this.assertExpectedVersionMatches(gigCandidate, params.expectedVersion);
-    const gigData = validateGigCandidateDraftForApproval(gigCandidate.gigDraft);
+    const validatedDraft = validateGigCandidateDraftForApproval(
+      gigCandidate.gigDraft,
+    );
+    const venueSelection = await this.venueService.getActiveVenueSelection(
+      validatedDraft.venueIds,
+    );
+    const gigData = this.buildGigData(validatedDraft, venueSelection);
     const gigId = transaction.createGigId();
     const publicId = await this.generateUniqueGigPublicId(
       gigData.title,
@@ -157,6 +184,7 @@ export class GigCandidateApprovalService {
       gig,
       gigCandidate: approvedGigCandidate,
       moderationPost,
+      venueSelection,
       isNewApproval: true,
     };
   }
@@ -173,18 +201,34 @@ export class GigCandidateApprovalService {
     });
   }
 
+  /**
+   * Legacy compatibility: Gig persistence still stores denormalized location
+   * strings. Venue and Locality catalogs are their authoritative source until
+   * those legacy fields are removed from the Gig storage contract.
+   */
+  private buildGigData(
+    draft: ValidatedGigCandidateDraft,
+    venueSelection: VenueSelection,
+  ): GigData {
+    return {
+      ...draft,
+      city: venueSelection.locality.name,
+      country: venueSelection.locality.countryIso,
+      venue: venueSelection.venues.map((venue) => venue.name).join(', '),
+    };
+  }
+
   private async runPostCommitActions(
-    result: GigCandidateApprovalTransactionResult,
+    result: NewGigCandidateApprovalTransactionResult,
   ): Promise<void> {
-    const { gig, gigCandidate, moderationPost } = result;
+    const { gig, gigCandidate, moderationPost, venueSelection } = result;
     try {
-      await this.gigFeedRevalidationService.revalidateGigFeedOrThrow({
-        country: gig.country,
-        city: gig.city,
+      await this.gigFeedRevalidationService.revalidateGigFeedsOrThrow({
+        communityIds: gig.communityIds,
       });
     } catch (e) {
       this.logIntegrationFailure(
-        'revalidateGigFeed',
+        'revalidateGigFeeds',
         gigCandidate.id,
         gig.id,
         e,
@@ -192,8 +236,25 @@ export class GigCandidateApprovalService {
     }
 
     try {
+      const calendarSource: GigCalendarSource = {
+        title: gig.title,
+        date: gig.date,
+        locality: {
+          countryIso: venueSelection.locality.countryIso,
+          name: venueSelection.locality.name,
+          timeZone: venueSelection.locality.timeZone,
+        },
+        venues: venueSelection.venues.map((venue) => ({ name: venue.name })),
+        ticketsUrl: gig.ticketsUrl,
+      };
+      if (gig.endDate !== undefined) {
+        calendarSource.endDate = gig.endDate;
+      }
       await this.calendarService.addEvent(
-        this.gigService.gigToCalendarPayload(gig),
+        this.gigCalendarService.toCalendarEvent({
+          gig: calendarSource,
+          locale: GIG_CALENDAR_TEXT_LOCALE,
+        }),
       );
     } catch (e) {
       const attributes: Record<string, AlertAttributeValue> = {

@@ -52,6 +52,7 @@ describe('GigCandidatePosterService', () => {
     const result = await service.prepareDraftPoster({
       gigCandidateId: 'candidate-id',
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
         country: 'ES',
@@ -72,6 +73,7 @@ describe('GigCandidatePosterService', () => {
     });
     expect(result).toEqual({
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         date: Date.UTC(2026, 5, 12),
         city: 'Barcelona',
         country: 'ES',
@@ -89,7 +91,10 @@ describe('GigCandidatePosterService', () => {
 
     const result = await service.prepareDraftPoster({
       gigCandidateId: 'candidate-id',
-      gigDraft: { title: 'Updated title' },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        title: 'Updated title',
+      },
       existingPoster,
       shouldUseDefaultPoster: true,
     });
@@ -97,6 +102,7 @@ describe('GigCandidatePosterService', () => {
     expect(gigPosterService.upload).not.toHaveBeenCalled();
     expect(result).toEqual({
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Updated title',
         poster: existingPoster,
       },
@@ -118,7 +124,7 @@ describe('GigCandidatePosterService', () => {
 
     const result = await service.prepareDraftPoster({
       gigCandidateId: 'candidate-id',
-      gigDraft: {},
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
       shouldUseDefaultPoster: true,
     });
 
@@ -143,7 +149,7 @@ describe('GigCandidatePosterService', () => {
     await expect(
       service.prepareDraftPoster({
         gigCandidateId: 'candidate-id',
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         shouldUseDefaultPoster: true,
       }),
     ).rejects.toMatchObject({

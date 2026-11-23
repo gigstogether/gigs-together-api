@@ -30,6 +30,7 @@ function createGigCandidate(): GigCandidate {
       origin: { type: GigSourceUserOriginType.Form },
     },
     gigDraft: {
+      communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: 1_700_000_000_000,
       city: 'Barcelona',
@@ -138,7 +139,9 @@ describe('TelegramGigCandidateService', () => {
       chat: { id: -100, type: 'channel' },
     });
 
-    const result = await service.sendIntakePost(createGigCandidate());
+    const result = await service.sendIntakePost({
+      gigCandidate: createGigCandidate(),
+    });
 
     expect(result).toEqual({
       messageId: 40,
@@ -156,9 +159,9 @@ describe('TelegramGigCandidateService', () => {
       chat: { id: -100, type: 'channel' },
     });
 
-    await expect(service.sendIntakePost(createGigCandidate())).rejects.toThrow(
-      'Telegram sent post reference is incomplete',
-    );
+    await expect(
+      service.sendIntakePost({ gigCandidate: createGigCandidate() }),
+    ).rejects.toThrow('Telegram sent post reference is incomplete');
   });
 
   it('should send a Telegram source image as an intake photo and return its file ID', async () => {
@@ -176,7 +179,7 @@ describe('TelegramGigCandidateService', () => {
           telegramFileId: 'source-image-file-id',
         },
       },
-      gigDraft: {},
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     };
     telegramBotClientMock.sendPhoto.mockResolvedValue({
       message_id: 41,
@@ -192,7 +195,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    const result = await service.sendIntakePost(gigCandidate);
+    const result = await service.sendIntakePost({ gigCandidate });
 
     expect(result).toEqual({
       messageId: 41,
@@ -231,7 +234,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    const result = await service.sendModerationPost(gigCandidate);
+    const result = await service.sendModerationPost({ gigCandidate });
 
     expect(result).toEqual({
       messageId: 50,
@@ -263,7 +266,7 @@ describe('TelegramGigCandidateService', () => {
       },
       status: GigCandidateStatus.Reviewing,
       posts: [intakePost],
-      gigDraft: {},
+      gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     };
     telegramBotClientMock.sendPhoto.mockResolvedValue({
       message_id: 50,
@@ -279,7 +282,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({ photo: 'intake-file-id' }),
@@ -306,6 +309,7 @@ describe('TelegramGigCandidateService', () => {
       status: GigCandidateStatus.Reviewing,
       posts: [intakePost],
       gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
         poster: { externalUrl: 'https://cdn.example/draft-poster.jpg' },
       },
     };
@@ -323,7 +327,7 @@ describe('TelegramGigCandidateService', () => {
       ],
     });
 
-    await service.sendModerationPost(gigCandidate);
+    await service.sendModerationPost({ gigCandidate });
 
     expect(telegramBotClientMock.sendPhoto).toHaveBeenCalledWith(
       expect.objectContaining({

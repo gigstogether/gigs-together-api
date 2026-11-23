@@ -9,7 +9,12 @@ import {
 import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import type { CalendarEvent } from '@modules/calendar/calendar.types';
+import { VenueService } from '@modules/location/venue/venue.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
+import {
+  GIG_CALENDAR_TEXT_LOCALE,
+  GigCalendarService,
+} from '../../gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
@@ -20,8 +25,8 @@ import {
   GigCandidateCommand,
 } from '../gig-candidate-state-machine';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
-import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
-import type { GigApprovalResult } from '../repositories/gig-candidate-approval/gig-candidate-approval.repository';
+import { GIG_CANDIDATE_APPROVAL_REPOSITORY } from './repositories/gig-candidate-approval.repository';
+import type { GigApprovalResult } from './repositories/gig-candidate-approval.repository';
 import type { GigCandidate } from '../types/gig-candidate.types';
 import { GigCandidateApprovalService } from './gig-candidate-approval.service';
 
@@ -37,10 +42,14 @@ describe('GigCandidateApprovalService', () => {
   const gigCandidateApprovalRepositoryMock = {
     withTransaction: vi.fn(),
   };
-  const revalidateGigFeedOrThrowMock =
-    vi.fn<GigFeedRevalidationService['revalidateGigFeedOrThrow']>();
+  const revalidateGigFeedsOrThrowMock =
+    vi.fn<GigFeedRevalidationService['revalidateGigFeedsOrThrow']>();
   const calendarAddEventMock = vi.fn<CalendarService['addEvent']>();
-  const gigToCalendarPayloadMock = vi.fn<GigService['gigToCalendarPayload']>();
+  const toCalendarEventMock = vi.fn<GigCalendarService['toCalendarEvent']>();
+  const getActiveVenueSelectionMock =
+    vi.fn<VenueService['getActiveVenueSelection']>();
+  const generateUniquePublicIdMock =
+    vi.fn<GigService['generateUniquePublicId']>();
   const reportFailureBestEffortMock =
     vi.fn<AlertingService['reportFailureBestEffort']>();
   const sendFeedbackBestEffortMock =
@@ -71,7 +80,7 @@ describe('GigCandidateApprovalService', () => {
       userId: 'user-id',
       origin: { type: GigSourceUserOriginType.Form },
     },
-    gigDraft: {},
+    gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
     posts: [],
     gigId: 'gig-id',
     approvedAt: new Date('2026-10-30T12:00:00.000Z'),
@@ -81,6 +90,8 @@ describe('GigCandidateApprovalService', () => {
   };
   const approvedGig: GigApprovalResult = {
     id: 'gig-id',
+    communityIds: ['507f1f77bcf86cd799439011'],
+    venueIds: ['507f1f77bcf86cd799439012'],
     publicId: 'radiohead-madrid-2026-10-30',
     title: 'Radiohead',
     date: Date.parse('2026-10-30T20:00:00.000Z'),
@@ -96,6 +107,24 @@ describe('GigCandidateApprovalService', () => {
       origin: { type: GigSourceUserOriginType.Form },
     },
   };
+  const venueSelection = {
+    locality: {
+      id: '507f1f77bcf86cd799439013',
+      countryIso: 'ES',
+      name: 'Madrid',
+      aliases: [],
+      timeZone: 'Europe/Madrid',
+    },
+    venues: [
+      {
+        id: '507f1f77bcf86cd799439012',
+        localityId: '507f1f77bcf86cd799439013',
+        name: 'La Riviera',
+        aliases: [],
+        isActive: true,
+      },
+    ],
+  };
 
   let service: GigCandidateApprovalService;
 
@@ -105,11 +134,13 @@ describe('GigCandidateApprovalService', () => {
         work: (transaction: typeof approvalTransactionMock) => Promise<unknown>,
       ) => work(approvalTransactionMock),
     );
-    revalidateGigFeedOrThrowMock.mockResolvedValue(undefined);
+    revalidateGigFeedsOrThrowMock.mockResolvedValue(undefined);
     calendarAddEventMock.mockResolvedValue(undefined);
-    gigToCalendarPayloadMock.mockReturnValue(calendarEvent);
+    toCalendarEventMock.mockReturnValue(calendarEvent);
     reportFailureBestEffortMock.mockResolvedValue(undefined);
     sendFeedbackBestEffortMock.mockResolvedValue(undefined);
+    getActiveVenueSelectionMock.mockResolvedValue(venueSelection);
+    generateUniquePublicIdMock.mockResolvedValue(approvedGig.publicId);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -120,12 +151,20 @@ describe('GigCandidateApprovalService', () => {
         },
         {
           provide: GigService,
-          useValue: { gigToCalendarPayload: gigToCalendarPayloadMock },
+          useValue: { generateUniquePublicId: generateUniquePublicIdMock },
+        },
+        {
+          provide: GigCalendarService,
+          useValue: { toCalendarEvent: toCalendarEventMock },
+        },
+        {
+          provide: VenueService,
+          useValue: { getActiveVenueSelection: getActiveVenueSelectionMock },
         },
         {
           provide: GigFeedRevalidationService,
           useValue: {
-            revalidateGigFeedOrThrow: revalidateGigFeedOrThrowMock,
+            revalidateGigFeedsOrThrow: revalidateGigFeedsOrThrowMock,
           },
         },
         {
@@ -158,11 +197,42 @@ describe('GigCandidateApprovalService', () => {
     gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
       gig: approvedGig,
       gigCandidate: approvedGigCandidate,
+      venueSelection,
       isNewApproval: true,
     });
     calendarAddEventMock.mockRejectedValueOnce(calendarFailure);
     vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
   }
+
+  it('should build the Calendar event from the validated Venue selection', async () => {
+    gigCandidateApprovalRepositoryMock.withTransaction.mockResolvedValueOnce({
+      gig: approvedGig,
+      gigCandidate: approvedGigCandidate,
+      venueSelection,
+      isNewApproval: true,
+    });
+
+    await service.approveGigCandidate({
+      gigCandidateId: approvedGigCandidate.id,
+      expectedVersion: 1,
+      approvedByUserId: 'admin-user-id',
+    });
+
+    expect(toCalendarEventMock).toHaveBeenCalledWith({
+      gig: {
+        title: approvedGig.title,
+        date: approvedGig.date,
+        locality: {
+          countryIso: 'ES',
+          name: 'Madrid',
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [{ name: 'La Riviera' }],
+        ticketsUrl: approvedGig.ticketsUrl,
+      },
+      locale: GIG_CALENDAR_TEXT_LOCALE,
+    });
+  });
 
   it('should reject an invalid expected version before opening a transaction', async () => {
     await expect(
@@ -192,6 +262,60 @@ describe('GigCandidateApprovalService', () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(approvalTransactionMock.createGigId).not.toHaveBeenCalled();
+  });
+
+  it('should build legacy Gig location fields from the Venue catalog', async () => {
+    const reviewingGigCandidate: GigCandidate = {
+      id: 'gig-candidate-id',
+      status: GigCandidateStatus.Reviewing,
+      version: 1,
+      source: {
+        type: GigSourceType.User,
+        userId: 'user-id',
+        origin: { type: GigSourceUserOriginType.Admin },
+      },
+      gigDraft: {
+        communityIds: ['507f1f77bcf86cd799439011'],
+        venueIds: ['507f1f77bcf86cd799439012'],
+        title: 'Radiohead',
+        date: Date.parse('2026-10-30T20:00:00.000Z'),
+        ticketsUrl: 'https://example.com/tickets',
+        poster: { bucketPath: 'posters/radiohead.jpg' },
+      },
+      posts: [],
+      createdAt: new Date('2026-10-29T12:00:00.000Z'),
+      updatedAt: new Date('2026-10-30T12:00:00.000Z'),
+    };
+    approvalTransactionMock.findGigCandidateById.mockResolvedValue(
+      reviewingGigCandidate,
+    );
+    approvalTransactionMock.createGigId.mockReturnValue(approvedGig.id);
+    approvalTransactionMock.approveGigCandidate.mockResolvedValue(
+      approvedGigCandidate,
+    );
+    approvalTransactionMock.createGig.mockResolvedValue(approvedGig);
+    vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    await service.approveGigCandidate({
+      gigCandidateId: reviewingGigCandidate.id,
+      expectedVersion: 1,
+      approvedByUserId: 'admin-user-id',
+    });
+
+    const expectedLegacyLocation = {
+      venueIds: ['507f1f77bcf86cd799439012'],
+      city: 'Madrid',
+      country: 'ES',
+      venue: 'La Riviera',
+    };
+    expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gigDraft: expect.objectContaining(expectedLegacyLocation),
+      }),
+    );
+    expect(approvalTransactionMock.createGig).toHaveBeenCalledWith(
+      expect.objectContaining(expectedLegacyLocation),
+    );
   });
 
   it('should report an alert when Calendar event creation fails', async () => {

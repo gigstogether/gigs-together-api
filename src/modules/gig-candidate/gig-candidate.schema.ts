@@ -2,11 +2,11 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { GigPoster, GigPosterSchema } from '../gig/gig.schema';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
-import type { GigData } from '../gig/types/gig.types';
 import { GigSourceType } from '../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../gig/types/gig-source-user-origin-type.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { Messenger } from '@shared/types/messenger.enum';
+import { isNonEmptyUniqueObjectIdArray } from '@shared/utils/mongoose-object-id-array';
 import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 import type {
   GigCandidateSourceIdentifiedUser,
@@ -53,6 +53,29 @@ export const GigCandidatePostSchema =
 
 @Schema({ _id: false })
 export class GigCandidateGigDraft {
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Community',
+    required: true,
+    validate: {
+      validator: isNonEmptyUniqueObjectIdArray,
+      message: 'communityIds must contain unique Community ObjectIds',
+    },
+  })
+  communityIds: Types.ObjectId[];
+
+  @Prop({
+    type: [Types.ObjectId],
+    ref: 'Venue',
+    required: false,
+    default: undefined,
+    validate: {
+      validator: isNonEmptyUniqueObjectIdArray,
+      message: 'venueIds must contain unique Venue ObjectIds',
+    },
+  })
+  venueIds?: Types.ObjectId[];
+
   @Prop({ type: String, required: false, maxlength: GIG_TITLE_MAX_LENGTH })
   title?: string;
 
@@ -93,8 +116,11 @@ export class GigCandidate {
   })
   source: GigCandidateStoredSource;
 
+  @Prop({ type: Types.ObjectId, required: false, ref: 'Locality' })
+  localityId?: Types.ObjectId;
+
   @Prop({ type: GigCandidateGigDraftSchema, required: true })
-  gigDraft: Partial<GigData>;
+  gigDraft: GigCandidateGigDraft;
 
   @Prop({ type: Number, required: true, min: 0, validate: Number.isInteger })
   version: number;

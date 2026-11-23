@@ -39,18 +39,17 @@ export class V1GigAroundGetRequestQuery {
   @Min(1)
   afterLimit: number = 100;
 
-  /**
-   * Required location filter (exact match): country + city.
-   *
-   * IMPORTANT:
-   * - `country` is ISO 3166-1 alpha-2 (uppercase), e.g. "ES".
-   */
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  /** Required Community feed route segment. */
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  city!: string;
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  communitySlug!: string;
 
+  /** ISO 3166-1 alpha-2 Community country code, e.g. "ES". */
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )

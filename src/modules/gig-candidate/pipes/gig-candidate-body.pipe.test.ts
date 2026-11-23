@@ -9,10 +9,10 @@ describe('GigCandidateBodyPipe', () => {
   it('should parse gig JSON string from multipart body', () => {
     const result = pipe.transform({
       gig: JSON.stringify({
+        communityId: '507f1f77bcf86cd799439011',
+        localityId: '507f1f77bcf86cd799439012',
         title: 'Band',
         date: '2026-08-01',
-        city: 'Barcelona',
-        country: 'ES',
       }),
     });
 
@@ -22,20 +22,20 @@ describe('GigCandidateBodyPipe', () => {
   it('should accept gig already provided as an object', () => {
     const result = pipe.transform({
       gig: {
+        communityId: '507f1f77bcf86cd799439011',
+        localityId: '507f1f77bcf86cd799439012',
         title: 'Band',
         date: '2026-08-01',
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Venue',
+        venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
       },
     });
 
     expect(result.gig).toEqual({
+      communityId: '507f1f77bcf86cd799439011',
+      localityId: '507f1f77bcf86cd799439012',
       title: 'Band',
       date: '2026-08-01',
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Venue',
+      venueIds: ['507f1f77bcf86cd799439013', '507f1f77bcf86cd799439014'],
     });
   });
 
@@ -61,10 +61,36 @@ describe('GigCandidateBodyPipe', () => {
     expect(() =>
       pipe.transform({
         gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
           title: 1,
           date: '2026-08-01',
-          city: 'Barcelona',
-          country: 'ES',
+        },
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it('should throw when Venue assignments are not an array of strings', () => {
+    expect(() =>
+      pipe.transform({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          title: 'Band',
+          date: '2026-08-01',
+          venueIds: ['507f1f77bcf86cd799439013', 1],
+        },
+      }),
+    ).toThrow(BadRequestException);
+  });
+
+  it('should throw when Community assignment is missing', () => {
+    expect(() =>
+      pipe.transform({
+        gig: {
+          title: 'Band',
+          localityId: '507f1f77bcf86cd799439012',
+          date: '2026-08-01',
         },
       }),
     ).toThrow(BadRequestException);

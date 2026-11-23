@@ -4,6 +4,7 @@ import { Messenger } from '@shared/types/messenger.enum';
 import { GigCandidateStatus } from '../../gig-candidate/types/gig-candidate-status.enum';
 import type {
   GigCandidate,
+  GigCandidateLocation,
   GigCandidatePost,
 } from '../../gig-candidate/types/gig-candidate.types';
 import { isGigCandidateSourceMessengerUser } from '../../gig-candidate/gig-candidate-source.guards';
@@ -59,7 +60,10 @@ export class TelegramGigCandidateComposerService {
     private readonly telegramService: TelegramService,
   ) {}
 
-  composeIntakePost(gigCandidate: GigCandidate): TGSendMessage | TGSendPhoto {
+  composeIntakePost(
+    gigCandidate: GigCandidate,
+    location?: GigCandidateLocation,
+  ): TGSendMessage | TGSendPhoto {
     const chatId = this.requireChannelId(
       this.telegramService.getIntakeChannelId(),
       'INTAKE_CHANNEL_ID',
@@ -73,6 +77,7 @@ export class TelegramGigCandidateComposerService {
         chat_id: chatId,
         text: this.buildCaption({
           gigCandidate,
+          location,
           postType: PostType.Intake,
         }),
         parse_mode: TGParseMode.HTML,
@@ -83,6 +88,7 @@ export class TelegramGigCandidateComposerService {
 
     return this.composeChannelPost({
       gigCandidate,
+      location,
       chatId,
       photo,
       postType: PostType.Intake,
@@ -90,7 +96,10 @@ export class TelegramGigCandidateComposerService {
     });
   }
 
-  composeModerationPost(gigCandidate: GigCandidate): TGSendPhoto {
+  composeModerationPost(
+    gigCandidate: GigCandidate,
+    location?: GigCandidateLocation,
+  ): TGSendPhoto {
     const chatId = this.requireChannelId(
       this.telegramService.getModerationChannelId(),
       'MODERATION_CHANNEL_ID',
@@ -106,6 +115,7 @@ export class TelegramGigCandidateComposerService {
 
     return this.composeChannelPost({
       gigCandidate,
+      location,
       chatId,
       photo,
       postType: PostType.Moderation,
@@ -207,10 +217,12 @@ export class TelegramGigCandidateComposerService {
       params.post.type === PostType.Intake
         ? {
             gigCandidate: params.gigCandidate,
+            location: params.location,
             postType: PostType.Intake,
           }
         : {
             gigCandidate: params.gigCandidate,
+            location: params.location,
             postType: PostType.Moderation,
           };
 
@@ -228,6 +240,7 @@ export class TelegramGigCandidateComposerService {
       post: params.intakePost,
       text: this.buildCaption({
         gigCandidate: params.gigCandidate,
+        location: params.location,
         postType: PostType.Intake,
         moderationPost: params.moderationPost,
       }),
@@ -256,6 +269,7 @@ export class TelegramGigCandidateComposerService {
   ): TelegramPostEditComposition {
     const caption = this.buildCaption({
       gigCandidate: params.gigCandidate,
+      location: params.location,
       postType: PostType.Moderation,
     });
     const replyMarkup = this.buildModerationReplyMarkup({
@@ -410,6 +424,7 @@ export class TelegramGigCandidateComposerService {
       [gigDraft.title, gigDraft.venue, gigDraft.ticketsUrl].some(
         (value) => value !== undefined && value.trim() !== '',
       ) ||
+      params.location !== undefined ||
       gigDraft.date !== undefined ||
       gigDraft.endDate !== undefined;
     const shouldOmitGigDraft =
@@ -421,7 +436,7 @@ export class TelegramGigCandidateComposerService {
           ? sourceText
           : `${originalMessage}${sourceLabel}`;
     } else {
-      content = `${this.renderGigDraftCaption(gigCandidate, postType)}${originalMessageSection}${sourceLabel}`;
+      content = `${this.renderGigDraftCaption(params)}${originalMessageSection}${sourceLabel}`;
     }
     const actionLinks = this.buildActionLinks(params);
 
@@ -467,9 +482,9 @@ export class TelegramGigCandidateComposerService {
   }
 
   private renderGigDraftCaption(
-    gigCandidate: GigCandidate,
-    postType: GigCandidatePost['type'],
+    params: BuildGigCandidateCaptionParams,
   ): string {
+    const { gigCandidate, location, postType } = params;
     const { gigDraft, status } = gigCandidate;
 
     const title = gigDraft.title?.trim();
@@ -480,16 +495,41 @@ export class TelegramGigCandidateComposerService {
       gigDraft.date === undefined
         ? MISSING_CAPTION_FIELD_PLACEHOLDER
         : formatTelegramGigDates(gigDraft.date, gigDraft.endDate);
+    const locationText = this.getLocationText(gigDraft.venue, location);
 
     return this.telegramTemplates.render(
       TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
       {
         title: getCaptionFieldValue(titleLine),
         dates,
-        venue: getCaptionFieldValue(gigDraft.venue),
+        venue: getCaptionFieldValue(locationText),
         ticketsUrl: getCaptionFieldValue(gigDraft.ticketsUrl),
       },
     );
+  }
+
+  /**
+   * Legacy compatibility: candidates stored before catalog assignments may
+   * only have gigDraft.venue. Remove this fallback after those records are gone.
+   */
+  private getLocationText(
+    legacyVenue: string | undefined,
+    location: GigCandidateLocation | undefined,
+  ): string | undefined {
+    if (location === undefined) {
+      return legacyVenue;
+    }
+
+    const localityName = location.locality.qualifier
+      ? `${location.locality.name} (${location.locality.qualifier})`
+      : location.locality.name;
+    const venueNames = location.venues.map((venue) => venue.name).join(', ');
+    const parts: string[] = [];
+    if (venueNames !== '') {
+      parts.push(venueNames);
+    }
+    parts.push(localityName);
+    return parts.join(' · ');
   }
 
   private buildTitleLine(

@@ -28,9 +28,8 @@ function mapGigFeedItemToV1(item: GigFeedItem): V1GetGigsResponseBodyGig {
     id: item.id,
     title: item.title,
     date: item.date.toString(),
-    city: item.city,
-    country: item.country,
-    venue: item.venue,
+    locality: item.locality,
+    venues: item.venues,
     ticketsUrl: item.ticketsUrl,
     calendarUrl: item.calendarUrl,
   };
@@ -51,8 +50,8 @@ export function mapV1GigGetQuery(
 ): GetVisibleGigsParams {
   const params: GetVisibleGigsParams = {
     from: query.from,
-    city: query.city,
-    country: query.country,
+    communitySlug: query.communitySlug,
+    countryIso: query.country,
   };
   if (query.direction !== undefined) {
     params.direction = query.direction;
@@ -89,8 +88,8 @@ export function mapV1GigAroundQuery(
 ): GetVisibleGigsAroundParams {
   const params: GetVisibleGigsAroundParams = {
     anchor: query.anchor,
-    city: query.city,
-    country: query.country,
+    communitySlug: query.communitySlug,
+    countryIso: query.country,
   };
   if (query.beforeLimit !== undefined) {
     params.beforeLimit = query.beforeLimit;
@@ -122,8 +121,8 @@ export function mapV1GigDatesQuery(
 ): GetVisibleGigDatesParams {
   const params: GetVisibleGigDatesParams = {
     from: query.from,
-    city: query.city,
-    country: query.country,
+    communitySlug: query.communitySlug,
+    countryIso: query.country,
   };
   if (query.to !== undefined) {
     params.to = query.to;

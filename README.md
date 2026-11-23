@@ -68,7 +68,7 @@ docker-compose.yml         local MongoDB
 
 ## Architecture
 
-Detailed architecture notes live in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md). The active internal alert catalog and alerting conventions live in [docs/ALERTING.md](./docs/ALERTING.md).
+Detailed architecture notes live in [docs/architecture](./docs/architecture/README.md). The active internal alert catalog and alerting conventions live in [docs/ALERTING.md](./docs/ALERTING.md).
 
 ## Prerequisites
 
@@ -615,7 +615,7 @@ Admin locale management lives in `AdminModule`, which imports `LocaleModule` and
 
 `TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
 
-More module-level detail is in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md).
+More module-level detail is in [docs/architecture](./docs/architecture/README.md).
 
 ## Common development workflow
 

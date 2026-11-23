@@ -23,6 +23,8 @@ export interface GigPoster {
 /** Domain Gig representation used outside the persistence layer. */
 export interface PlainGig {
   id: GigId;
+  communityIds: string[];
+  venueIds: string[];
   publicId: string;
   title: string;
   date: number;
@@ -45,13 +47,24 @@ export interface V1GetGigsResponseBodyGig {
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue: string;
+  locality: V1GigLocalityResponseBody;
+  venues: V1GigVenueResponseBody[];
   ticketsUrl: string;
   calendarUrl: string;
   posterUrl?: string;
   postUrl?: string;
+}
+
+export interface V1GigLocalityResponseBody {
+  id: string;
+  countryIso: string;
+  name: string;
+  qualifier?: string;
+}
+
+export interface V1GigVenueResponseBody {
+  id: string;
+  name: string;
 }
 
 interface GigPosterInput {
@@ -60,6 +73,8 @@ interface GigPosterInput {
 }
 
 export interface GigData {
+  communityIds: string[];
+  venueIds: string[];
   title: string;
   date: number;
   endDate?: number;
@@ -69,6 +84,9 @@ export interface GigData {
   ticketsUrl: string;
   poster?: GigPosterInput;
 }
+
+export type GigCandidateDraft = Partial<GigData> &
+  Pick<GigData, 'communityIds'>;
 
 interface GigSourceUserIdentifiedOrigin {
   type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;
@@ -111,13 +129,22 @@ type GigSourceUserWithProfile = GigSourceUser & GigSourceUserProfile;
 export type GigSourceForAdminView =
   GigSourceUserWithProfile | GigSourceProvider;
 
+export interface GigCalendarLocality {
+  countryIso: string;
+  name: string;
+  timeZone: string;
+}
+
+export interface GigCalendarVenue {
+  name: string;
+}
+
 export interface GigCalendarSource {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
+  locality: GigCalendarLocality;
+  venues: GigCalendarVenue[];
   ticketsUrl: string;
 }
 

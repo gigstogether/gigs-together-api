@@ -14,9 +14,18 @@ const gig: GigFeedItem = {
   title: 'Radiohead',
   date: 1_781_264_000_000,
   endDate: 1_781_350_400_000,
-  city: 'barcelona',
-  country: 'ES',
-  venue: 'Palau Sant Jordi',
+  locality: {
+    id: '507f1f77bcf86cd799439044',
+    countryIso: 'ES',
+    name: 'Barcelona',
+    qualifier: 'Catalonia',
+  },
+  venues: [
+    {
+      id: '507f1f77bcf86cd799439033',
+      name: 'Palau Sant Jordi',
+    },
+  ],
   ticketsUrl: 'https://tickets.example',
   calendarUrl: 'https://calendar.example',
   posterUrl: 'https://posters.example/radiohead',
@@ -32,7 +41,7 @@ describe('gigFeedMapper', () => {
         limit: 20,
         from: 10,
         to: 20,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
@@ -41,8 +50,8 @@ describe('gigFeedMapper', () => {
       limit: 20,
       from: 10,
       to: 20,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
   });
 
@@ -72,15 +81,15 @@ describe('gigFeedMapper', () => {
         anchor: 10,
         beforeLimit: 5,
         afterLimit: 6,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
       anchor: 10,
       beforeLimit: 5,
       afterLimit: 6,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
     expect(
       mapVisibleGigsAroundResultToV1({
@@ -106,14 +115,14 @@ describe('gigFeedMapper', () => {
       mapV1GigDatesQuery({
         from: 10,
         to: 20,
-        city: 'barcelona',
+        communitySlug: 'barcelona',
         country: 'ES',
       }),
     ).toEqual({
       from: 10,
       to: 20,
-      city: 'barcelona',
-      country: 'ES',
+      communitySlug: 'barcelona',
+      countryIso: 'ES',
     });
     expect(mapVisibleGigDatesResultToV1({ dates: [10, 20] })).toEqual({
       dates: ['10', '20'],

@@ -1,0 +1,51 @@
+import type {
+  GigCandidate,
+  GigCandidatePost,
+} from '../../types/gig-candidate.types';
+import type { GigData, GigSource } from '@modules/gig/types/gig.types';
+
+export const GIG_CANDIDATE_APPROVAL_REPOSITORY = Symbol(
+  'GIG_CANDIDATE_APPROVAL_REPOSITORY',
+);
+
+export interface GigApprovalResult extends GigData {
+  id: string;
+  publicId: string;
+  source: GigSource;
+  version: number;
+  isVisible: boolean;
+}
+
+export interface CreateGigAfterApprovalParams extends GigData {
+  gigId: string;
+  publicId: string;
+  source: GigSource;
+  moderationPost?: GigCandidatePost;
+}
+
+export interface ApproveGigCandidateRecordParams {
+  gigCandidateId: string;
+  expectedVersion: number;
+  approvedByUserId: string;
+  gigId: string;
+  approvedAt: Date;
+  gigDraft: GigData;
+  moderationPost?: GigCandidatePost;
+}
+
+export interface GigCandidateApprovalTransaction {
+  createGigId(): string;
+  findGigCandidateById(gigCandidateId: string): Promise<GigCandidate | null>;
+  findGigById(gigId: string): Promise<GigApprovalResult | null>;
+  isGigPublicIdTaken(publicId: string): Promise<boolean>;
+  approveGigCandidate(
+    params: ApproveGigCandidateRecordParams,
+  ): Promise<GigCandidate | null>;
+  createGig(params: CreateGigAfterApprovalParams): Promise<GigApprovalResult>;
+}
+
+export interface GigCandidateApprovalRepository {
+  withTransaction<TResult>(
+    work: (transaction: GigCandidateApprovalTransaction) => Promise<TResult>,
+  ): Promise<TResult>;
+}

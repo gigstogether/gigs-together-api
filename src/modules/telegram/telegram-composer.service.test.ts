@@ -560,6 +560,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: new Date('2026-08-01T00:00:00.000Z').getTime(),
           city: 'Barcelona',
@@ -616,6 +617,42 @@ describe('TelegramComposerService', () => {
       });
     });
 
+    it('should render a Locality without Venues in the initial Intake post', () => {
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        localityId: '507f1f77bcf86cd799439012',
+        source: {
+          type: GigSourceType.User,
+          userId: '66a000000000000000000000042',
+          origin: { type: GigSourceUserOriginType.Form },
+        },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          title: 'Suggested Band',
+          date: new Date('2026-08-01T00:00:00.000Z').getTime(),
+        },
+        version: 0,
+        status: GigCandidateStatus.New,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const payload = gigCandidateComposer.composeIntakePost(gigCandidate, {
+        locality: {
+          id: '507f1f77bcf86cd799439012',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [],
+      });
+
+      const text = 'text' in payload ? payload.text : payload.caption;
+      expect(text).toContain('📍 Barcelona');
+    });
+
     it('should compose a text Intake post when GigCandidate has no poster', () => {
       const payload = gigCandidateComposer.composeIntakePost({
         id: '507f1f77bcf86cd799439099',
@@ -625,6 +662,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
           city: 'Barcelona',
@@ -661,7 +699,7 @@ describe('TelegramComposerService', () => {
           },
           originalText: '<b>Band & friends</b>',
         },
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         version: 0,
         status: GigCandidateStatus.New,
         posts: [],
@@ -695,7 +733,7 @@ describe('TelegramComposerService', () => {
             telegramFileId: 'source-image-file-id',
           },
         },
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         version: 0,
         status: GigCandidateStatus.New,
         posts: [],
@@ -735,7 +773,7 @@ describe('TelegramComposerService', () => {
             telegramFileId: 'source-image-file-id',
           },
         },
-        gigDraft: {},
+        gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },
         version: 0,
         status: GigCandidateStatus.New,
         posts: [],
@@ -767,6 +805,7 @@ describe('TelegramComposerService', () => {
           originalText: '<b>Band & friends</b>',
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           city: 'Barcelona',
           country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
@@ -803,6 +842,7 @@ describe('TelegramComposerService', () => {
           },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           city: 'Barcelona',
           country: 'ES',
         },
@@ -823,6 +863,62 @@ describe('TelegramComposerService', () => {
       expect(payload.caption).not.toMatch(/^-$/m);
     });
 
+    it('should render assigned Venues and Locality in the Moderation post', () => {
+      mockBucket.getPublicFileUrl.mockReturnValue(
+        'https://cdn.example/default.jpg',
+      );
+      const gigCandidate: GigCandidate = {
+        id: '507f1f77bcf86cd799439099',
+        source: {
+          type: GigSourceType.User,
+          userId: '66a000000000000000000000042',
+          origin: { type: GigSourceUserOriginType.Admin },
+        },
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          venueIds: ['507f1f77bcf86cd799439012', '507f1f77bcf86cd799439013'],
+          title: 'Band',
+          poster: { bucketPath: 'gigs/default.jpg' },
+        },
+        version: 0,
+        status: GigCandidateStatus.Reviewing,
+        posts: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const payload = gigCandidateComposer.composeModerationPost(gigCandidate, {
+        locality: {
+          id: '507f1f77bcf86cd799439014',
+          countryIso: 'ES',
+          name: 'Barcelona',
+          qualifier: 'Catalonia',
+          aliases: [],
+          timeZone: 'Europe/Madrid',
+        },
+        venues: [
+          {
+            id: '507f1f77bcf86cd799439012',
+            localityId: '507f1f77bcf86cd799439014',
+            name: 'Sala Apolo',
+            aliases: [],
+            isActive: true,
+          },
+          {
+            id: '507f1f77bcf86cd799439013',
+            localityId: '507f1f77bcf86cd799439014',
+            name: 'Razzmatazz',
+            aliases: [],
+            isActive: true,
+          },
+        ],
+      });
+
+      expect(payload.caption).toContain(
+        '📍 Sala Apolo, Razzmatazz · Barcelona (Catalonia)',
+      );
+    });
+
     it('should add a partial date to the edited Moderation post while preserving the original message', () => {
       const composition = gigCandidateComposer.composePostEdit({
         gigCandidate: {
@@ -837,6 +933,7 @@ describe('TelegramComposerService', () => {
             originalText: 'Unstructured suggestion',
           },
           gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
             date: new Date('2026-08-01T00:00:00.000Z').getTime(),
             poster: { bucketPath: 'gigs/default.jpg' },
           },
@@ -885,6 +982,7 @@ describe('TelegramComposerService', () => {
           originalText: 'Unstructured suggestion',
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: new Date('2026-08-01T00:00:00.000Z').getTime(),
           city: 'Barcelona',
@@ -916,6 +1014,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Admin },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
           city: 'Barcelona',
@@ -982,6 +1081,7 @@ describe('TelegramComposerService', () => {
           originalText: 'Original updated-band suggestion',
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Updated Band',
           date: 1,
           city: 'Barcelona',
@@ -1038,6 +1138,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Updated Band',
           date: 1,
           city: 'Barcelona',
@@ -1098,6 +1199,7 @@ describe('TelegramComposerService', () => {
             origin: { type: GigSourceUserOriginType.Form },
           },
           gigDraft: {
+            communityIds: ['507f1f77bcf86cd799439011'],
             title: 'Suggested Band',
             date: 1,
             city: 'Barcelona',
@@ -1221,6 +1323,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
           city: 'Barcelona',
@@ -1274,6 +1377,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
           city: 'Barcelona',
@@ -1335,6 +1439,7 @@ describe('TelegramComposerService', () => {
           origin: { type: GigSourceUserOriginType.Form },
         },
         gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
           city: 'Barcelona',
