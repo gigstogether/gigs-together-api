@@ -302,7 +302,7 @@ describe('GigCandidateService', () => {
   });
 
   describe('createMessengerGigCandidate', () => {
-    it('should create an anonymous messenger candidate with Barcelona location defaults', async () => {
+    it('should create an anonymous messenger candidate without a physical location assignment', async () => {
       const gigCandidate = buildGigCandidate({
         source: {
           type: GigSourceType.User,
@@ -315,8 +315,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -349,8 +347,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       expect(communityServiceMock.findByRoute).toHaveBeenCalledWith({
@@ -376,8 +372,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -423,8 +417,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
     });
@@ -509,8 +501,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -957,8 +947,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'B',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 0,
         status: GigCandidateStatus.New,
@@ -1049,8 +1037,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/ug' },
         },
         version: 0,
@@ -1156,8 +1142,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -1202,8 +1186,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -1931,10 +1913,12 @@ describe('GigCandidateService', () => {
       const lookupResult = {
         title: 'Band',
         date: '2026-09-20',
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Venue',
         ticketsUrl: 'https://tickets.example/gig',
+        locationHint: {
+          locality: 'Barcelona',
+          country: 'ES',
+          venue: 'Venue',
+        },
       };
       aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
@@ -1943,7 +1927,18 @@ describe('GigCandidateService', () => {
           title: 'Band',
           location: 'Barcelona, ES',
         }),
-      ).resolves.toEqual(lookupResult);
+      ).resolves.toEqual({
+        gigDraft: {
+          title: 'Band',
+          date: '2026-09-20',
+          ticketsUrl: 'https://tickets.example/gig',
+        },
+        locationHint: {
+          locality: 'Barcelona',
+          country: 'ES',
+          venue: 'Venue',
+        },
+      });
       expect(aiServiceMock.lookupGig).toHaveBeenCalledWith({
         name: 'Band',
         location: 'Barcelona, ES',
@@ -2351,9 +2346,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2474,9 +2466,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2568,9 +2557,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2644,9 +2630,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2687,9 +2670,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2722,9 +2702,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },

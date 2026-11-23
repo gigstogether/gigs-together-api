@@ -12,9 +12,6 @@ const completeGigDraft = {
   venueIds: ['507f1f77bcf86cd799439012'],
   title: 'Radiohead',
   date: Date.UTC(2026, 5, 12),
-  city: 'Barcelona',
-  country: 'ES',
-  venue: 'Palau Sant Jordi',
   ticketsUrl: 'https://tickets.example/radiohead',
 };
 

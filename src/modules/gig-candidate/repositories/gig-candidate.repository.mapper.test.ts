@@ -38,9 +38,6 @@ const completeGigDraft = {
   venueIds: [new Types.ObjectId('507f1f77bcf86cd799439022')],
   title: 'Band',
   date: 1_800_000_000_000,
-  city: 'Barcelona',
-  country: 'ES',
-  venue: 'Venue',
   ticketsUrl: 'https://example.com/tickets',
 };
 
@@ -169,6 +166,21 @@ describe('GigCandidateRepositoryMapper', () => {
   });
 
   describe('toGigCandidate', () => {
+    it('should omit legacy location strings from a stored draft', () => {
+      const document = buildTargetDocument();
+      Object.assign(document.gigDraft, {
+        city: 'Barcelona',
+        country: 'ES',
+        venue: 'Razzmatazz',
+      });
+
+      const result = GigCandidateRepositoryMapper.toGigCandidate(document);
+
+      expect(result.gigDraft).toEqual({
+        communityIds: ['507f1f77bcf86cd799439011'],
+      });
+    });
+
     it('should reject duplicate stored Community identifiers', () => {
       const communityId = new Types.ObjectId('507f1f77bcf86cd799439011');
 

@@ -8,8 +8,10 @@ import OpenAI from 'openai';
 
 import { getConfigBoolean, getConfigString } from '@shared/utils/env';
 import { isRecord } from '@shared/utils/is-record';
-import type { GigFormInput } from '../../../gig/types/gig.types';
-import type { AiGigLookupParams } from '../../ai-lookup.types';
+import type {
+  AiGigLookupParams,
+  AiGigLookupResult,
+} from '../../ai-lookup.types';
 import { buildV1FutureGigLookupPrompt } from '../../prompts/v1-gig-lookup-prompt';
 import type { AiGigLookupProvider } from '../ai-gig-lookup.provider';
 import { GIG_LOOKUP_OPENAI_JSON_SCHEMA } from './openai-gig-lookup.request';
@@ -31,7 +33,9 @@ export class OpenAiGigLookupProvider implements AiGigLookupProvider {
     this.baseUrl = getConfigString(configService, 'AI_URL');
   }
 
-  async lookupGig(params: AiGigLookupParams): Promise<GigFormInput | null> {
+  async lookupGig(
+    params: AiGigLookupParams,
+  ): Promise<AiGigLookupResult | null> {
     if (this.apiKey === undefined) {
       throw new InternalServerErrorException(
         'AI_API_KEY is not set on the server',
@@ -162,7 +166,7 @@ export class OpenAiGigLookupProvider implements AiGigLookupProvider {
     }
   }
 
-  private normalizeLookedUpGig(raw: unknown): GigFormInput {
+  private normalizeLookedUpGig(raw: unknown): AiGigLookupResult {
     if (!isRecord(raw)) {
       throw new InternalServerErrorException(
         'Invalid AI response: expected a JSON object',
@@ -170,7 +174,7 @@ export class OpenAiGigLookupProvider implements AiGigLookupProvider {
     }
 
     const title = typeof raw.title === 'string' ? raw.title : '';
-    const city = typeof raw.city === 'string' ? raw.city : '';
+    const locality = typeof raw.locality === 'string' ? raw.locality : '';
     const rawCountry = typeof raw.country === 'string' ? raw.country : '';
     const normalizedCountry = rawCountry.trim().toUpperCase();
     const country = /^[A-Z]{2}$/.test(normalizedCountry)
@@ -188,13 +192,15 @@ export class OpenAiGigLookupProvider implements AiGigLookupProvider {
       date = new Date(raw.date).toISOString();
     }
 
-    const gig: GigFormInput = {
+    const gig: AiGigLookupResult = {
       title,
       date,
-      city,
-      country,
-      venue,
       ticketsUrl,
+      locationHint: {
+        locality,
+        country,
+        venue,
+      },
     };
     if (endDateRaw.trim() !== '') {
       gig.endDate = endDateRaw;

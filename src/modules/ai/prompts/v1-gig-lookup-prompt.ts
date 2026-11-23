@@ -18,9 +18,9 @@ export function buildV1FutureGigLookupPrompt(
     '  - If none of those apply, use another HTTPS URL that is clearly official or reputable: artist site, venue site, promoter, or a major local ticketing site for that region.',
     '  - Use "" only if you have no reasonable link.',
     '- `posterUrl` must be a URL string or "".',
-    '- `city` must be a city name or "".',
+    '- `locality` must be the named geographic context of the Venue, such as a city, town, or broader area, or "".',
     '- `country` must be an ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US", or "".',
-    '- `venue` should be the venue name (not the city and not the full street address). If unknown, set "".',
+    '- `venue` should be the Venue name (not the Locality and not the full street address). If unknown, set "".',
     '- Do not make up specific dates, venue names, or URLs. Use "" when unsure rather than inventing.',
   ];
 

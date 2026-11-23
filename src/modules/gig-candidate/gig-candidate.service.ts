@@ -102,15 +102,23 @@ export interface LookupGigCandidateDraftParams {
   location: string;
 }
 
-export interface GigCandidateDraftLookupResult {
+export interface GigCandidateDraftLookupFields {
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   posterUrl?: string;
+}
+
+export interface GigCandidateLocationHint {
+  locality: string;
+  country: string;
+  venue: string;
+}
+
+export interface GigCandidateDraftLookupResult {
+  gigDraft: GigCandidateDraftLookupFields;
+  locationHint: GigCandidateLocationHint;
 }
 
 export interface SendGigCandidateToModerationParams {
@@ -379,9 +387,10 @@ export class GigCandidateService {
       source.userId = params.userId;
     }
 
-    // TODO: This is temporary while suggestions come from a single city chat.
-    //  Derive both the location and Community assignments from the source chat
-    //  when multi-city chats are supported.
+    // TODO: This is temporary while suggestions come from a single Community
+    //  chat. Derive the Community assignment from the source chat when more
+    //  chats are supported. The source Community does not determine the
+    //  physical Locality of the suggested Gig.
     const community = await this.communityService.findByRoute({
       countryIso: 'ES',
       communitySlug: 'barcelona',
@@ -398,8 +407,6 @@ export class GigCandidateService {
       source,
       gigDraft: {
         communityIds: [community.id],
-        city: 'Barcelona',
-        country: 'ES',
       },
     });
   }
@@ -557,11 +564,30 @@ export class GigCandidateService {
   async lookupGigCandidateDraft(
     params: LookupGigCandidateDraftParams,
   ): Promise<GigCandidateDraftLookupResult | null> {
-    const gigDraft = await this.aiService.lookupGig({
+    const lookup = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
     });
-    return gigDraft ? { ...gigDraft } : null;
+    if (lookup === null) {
+      return null;
+    }
+
+    const gigDraft: GigCandidateDraftLookupFields = {
+      title: lookup.title,
+      date: lookup.date,
+      ticketsUrl: lookup.ticketsUrl,
+    };
+    if (lookup.endDate !== undefined) {
+      gigDraft.endDate = lookup.endDate;
+    }
+    if (lookup.posterUrl !== undefined) {
+      gigDraft.posterUrl = lookup.posterUrl;
+    }
+
+    return {
+      gigDraft,
+      locationHint: { ...lookup.locationHint },
+    };
   }
 
   async sendGigCandidateToModeration(

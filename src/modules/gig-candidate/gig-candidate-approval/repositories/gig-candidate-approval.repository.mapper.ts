@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import type { GigStoredSource } from '@modules/gig/gig.schema';
 import { GigRepositoryMapper } from '@modules/gig/repositories/gig.repository.mapper';
-import type { GigCandidateDraft, GigData } from '@modules/gig/types/gig.types';
+import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
 import type { GigCandidatePost } from '../../types/gig-candidate.types';
 import type {
   CreateGigAfterApprovalParams,
@@ -69,14 +69,11 @@ export class GigCandidateApprovalRepositoryMapper {
       );
     }
 
-    const requiredFields: Array<keyof GigData> = [
+    const requiredFields: Array<keyof GigCandidateDraft> = [
       'communityIds',
       'venueIds',
       'title',
       'date',
-      'city',
-      'country',
-      'venue',
       'ticketsUrl',
     ];
     const missingFields = requiredFields.filter(

@@ -16,9 +16,6 @@ const OPTIONAL_GIG_DRAFT_STRING_FIELDS = [
   'title',
   'date',
   'endDate',
-  'city',
-  'country',
-  'venue',
   'ticketsUrl',
   'posterUrl',
 ] as const;

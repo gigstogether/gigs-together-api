@@ -94,12 +94,16 @@ describe('AdminGigCandidateController', () => {
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     sendGigCandidateToModeration: vi.fn().mockResolvedValue(gigCandidate),
     lookupGigCandidateDraft: vi.fn().mockResolvedValue({
-      title: 'Band',
-      date: '2026-09-20',
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Venue',
-      ticketsUrl: 'https://tickets.example/gig',
+      gigDraft: {
+        title: 'Band',
+        date: '2026-09-20',
+        ticketsUrl: 'https://tickets.example/gig',
+      },
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     }),
   } satisfies Pick<
     GigCandidateService,
@@ -293,6 +297,11 @@ describe('AdminGigCandidateController', () => {
       }),
     ).resolves.toEqual({
       gigDraft: expect.objectContaining({ title: 'Band' }),
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     });
     expect(gigCandidateService.lookupGigCandidateDraft).toHaveBeenCalledWith({
       title: 'Band',

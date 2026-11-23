@@ -32,7 +32,6 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           venueIds: ['507f1f77bcf86cd799439013'],
           title: 'Band',
-          city: 'Barcelona',
         }),
       }),
     ).toEqual({
@@ -41,7 +40,6 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
         communityIds: ['507f1f77bcf86cd799439011'],
         venueIds: ['507f1f77bcf86cd799439013'],
         title: 'Band',
-        city: 'Barcelona',
       },
     });
   });
@@ -73,6 +71,19 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
         source: { type: 'user' },
       }),
     ).toThrowError(BadRequestException);
+  });
+
+  it('should reject legacy location fields inside gigDraft', () => {
+    const pipe = new AdminGigCandidateCreateBodyPipe();
+
+    expect(() =>
+      pipe.transform({
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          city: 'Barcelona',
+        },
+      }),
+    ).toThrowError(/unsupported field/);
   });
 });
 

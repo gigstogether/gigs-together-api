@@ -85,8 +85,15 @@ export interface GigData {
   poster?: GigPosterInput;
 }
 
-export type GigCandidateDraft = Partial<GigData> &
-  Pick<GigData, 'communityIds'>;
+export interface GigCandidateDraft {
+  communityIds: string[];
+  venueIds?: string[];
+  title?: string;
+  date?: number;
+  endDate?: number;
+  ticketsUrl?: string;
+  poster?: GigPosterInput;
+}
 
 interface GigSourceUserIdentifiedOrigin {
   type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;

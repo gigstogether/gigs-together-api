@@ -59,7 +59,7 @@ describe('OpenAiGigLookupProvider', () => {
         title: 'Band',
         date: '2099-12-01T19:00:00.000Z',
         endDate: '',
-        city: 'Barcelona',
+        locality: 'Barcelona',
         country: ' es ',
         venue: 'Venue',
         ticketsUrl: 'https://tickets.example',
@@ -76,10 +76,12 @@ describe('OpenAiGigLookupProvider', () => {
     ).resolves.toEqual({
       title: 'Band',
       date: '2099-12-01T19:00:00.000Z',
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Venue',
       ticketsUrl: 'https://tickets.example',
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     });
   });
 

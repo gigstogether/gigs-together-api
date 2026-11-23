@@ -104,7 +104,7 @@ export class GigCandidateRepositoryMapper {
       communityIds: Types.ObjectId[];
       venueIds?: Types.ObjectId[];
     } = {
-      ...draft,
+      ...this.mapGigCandidateDraftFields(draft),
       communityIds: toObjectIdArray(
         communityIds,
         'GigCandidate gigDraft communityIds',
@@ -170,7 +170,7 @@ export class GigCandidateRepositoryMapper {
     const id = this.toId(doc._id, 'id');
     const { communityIds, venueIds, ...draft } = doc.gigDraft;
     const gigDraft: GigCandidateDraft = {
-      ...draft,
+      ...this.mapGigCandidateDraftFields(draft),
       communityIds: fromObjectIdArray(
         communityIds,
         `GigCandidate ${id} gigDraft communityIds`,
@@ -235,6 +235,28 @@ export class GigCandidateRepositoryMapper {
     }
 
     return gigCandidate;
+  }
+
+  private static mapGigCandidateDraftFields(
+    draft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'>,
+  ): Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> {
+    const fields: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> = {};
+    if (draft.title !== undefined) {
+      fields.title = draft.title;
+    }
+    if (draft.date !== undefined) {
+      fields.date = draft.date;
+    }
+    if (draft.endDate !== undefined) {
+      fields.endDate = draft.endDate;
+    }
+    if (draft.ticketsUrl !== undefined) {
+      fields.ticketsUrl = draft.ticketsUrl;
+    }
+    if (draft.poster !== undefined) {
+      fields.poster = { ...draft.poster };
+    }
+    return fields;
   }
 
   private static toSource(

@@ -4,9 +4,6 @@ export interface V1AdminGigCandidateGigDraftRequestBody {
   title?: string;
   date?: string;
   endDate?: string;
-  city?: string;
-  country?: string;
-  venue?: string;
   ticketsUrl?: string;
   posterUrl?: string;
 }
@@ -39,11 +36,29 @@ export interface V1AdminGigCandidateLookupRequestBody {
   location: string;
 }
 
-export type V1AdminGigCandidateLookupGigDraftResponseBody = Omit<
-  V1AdminGigCandidateGigDraftRequestBody,
-  'communityIds'
->;
-
-export interface V1AdminGigCandidateLookupResponseBody {
-  gigDraft: V1AdminGigCandidateLookupGigDraftResponseBody | null;
+export interface V1AdminGigCandidateLookupGigDraftResponseBody {
+  title: string;
+  date: string;
+  endDate?: string;
+  ticketsUrl: string;
+  posterUrl?: string;
 }
+
+export interface V1AdminGigCandidateLookupLocationHintResponseBody {
+  locality: string;
+  country: string;
+  venue: string;
+}
+
+interface V1AdminGigCandidateLookupMatchResponseBody {
+  gigDraft: V1AdminGigCandidateLookupGigDraftResponseBody;
+  locationHint: V1AdminGigCandidateLookupLocationHintResponseBody;
+}
+
+interface V1AdminGigCandidateLookupNoMatchResponseBody {
+  gigDraft: null;
+}
+
+export type V1AdminGigCandidateLookupResponseBody =
+  | V1AdminGigCandidateLookupMatchResponseBody
+  | V1AdminGigCandidateLookupNoMatchResponseBody;

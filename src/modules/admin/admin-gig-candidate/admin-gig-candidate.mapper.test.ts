@@ -7,6 +7,7 @@ import { GigSourceUserOriginType } from '@modules/gig/types/gig-source-user-orig
 import type { AdminGigCandidateDetails } from './admin-gig-candidate.types';
 import {
   mapV1AdminCreateGigCandidateRequest,
+  mapV1AdminGigCandidateLookupResponse,
   mapV1AdminGigCandidateResponse,
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
@@ -29,8 +30,6 @@ function buildGigCandidateDetails(): AdminGigCandidateDetails {
       venueIds: ['507f1f77bcf86cd799439012'],
       title: 'Band',
       date: Date.parse('2026-08-20T00:00:00.000Z'),
-      city: 'Barcelona',
-      country: 'ES',
     },
     location: {
       locality: {
@@ -209,7 +208,6 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
             venueIds: ['507f1f77bcf86cd799439012'],
             title: '  Band  ',
             date: '2026-09-20',
-            country: 'es',
             ticketsUrl: ' https://tickets.example/gig ',
           },
         },
@@ -222,7 +220,6 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Band',
         date: Date.parse('2026-09-20T00:00:00.000Z'),
-        country: 'ES',
         ticketsUrl: 'https://tickets.example/gig',
       },
       posterUrl: undefined,
@@ -280,7 +277,7 @@ describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {
           expectedVersion: 4,
           gigDraft: {
             communityIds: ['507f1f77bcf86cd799439011'],
-            city: ' Barcelona ',
+            title: ' Updated title ',
             posterUrl: 'https://img.example/a',
           },
         },
@@ -290,10 +287,40 @@ describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {
       expectedVersion: 4,
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
-        city: 'Barcelona',
+        title: 'Updated title',
       },
       posterUrl: 'https://img.example/a',
       posterFile: undefined,
+    });
+  });
+});
+
+describe('mapV1AdminGigCandidateLookupResponse', () => {
+  it('should keep the AI location hint separate from persisted draft fields', () => {
+    expect(
+      mapV1AdminGigCandidateLookupResponse({
+        gigDraft: {
+          title: 'Band',
+          date: '2026-09-20',
+          ticketsUrl: 'https://tickets.example/gig',
+        },
+        locationHint: {
+          locality: 'Barcelona',
+          country: 'ES',
+          venue: 'Razzmatazz',
+        },
+      }),
+    ).toEqual({
+      gigDraft: {
+        title: 'Band',
+        date: '2026-09-20',
+        ticketsUrl: 'https://tickets.example/gig',
+      },
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Razzmatazz',
+      },
     });
   });
 });

@@ -76,9 +76,6 @@ export function mapV1AdminGigCandidateResponse(
       title: gigDraft.title,
       date: msToYmd(gigDraft.date),
       endDate: msToYmd(gigDraft.endDate),
-      city: gigDraft.city,
-      country: gigDraft.country,
-      venue: gigDraft.venue,
       ticketsUrl: gigDraft.ticketsUrl,
       posterUrl: gigCandidate.posterUrl,
     },
@@ -163,9 +160,16 @@ export function mapV1AdminUpdateGigCandidateDraftRequest(
 }
 
 export function mapV1AdminGigCandidateLookupResponse(
-  gigDraft: GigCandidateDraftLookupResult | null,
+  lookup: GigCandidateDraftLookupResult | null,
 ): V1AdminGigCandidateLookupResponseBody {
-  return { gigDraft };
+  if (lookup === null) {
+    return { gigDraft: null };
+  }
+
+  return {
+    gigDraft: { ...lookup.gigDraft },
+    locationHint: { ...lookup.locationHint },
+  };
 }
 
 export function mapV1AdminGigCandidatesListResponse(
@@ -190,12 +194,6 @@ function mapV1AdminGigCandidateGigDraftRequest(
   if (date !== undefined && endDate !== undefined && endDate < date) {
     throw new BadRequestException('endDate must be on or after date');
   }
-  const city = optionalTrimmedString(input.city);
-  const country = optionalTrimmedString(input.country)?.toUpperCase();
-  if (country !== undefined && !/^[A-Z]{2}$/.test(country)) {
-    throw new BadRequestException('country must be an ISO 3166-1 alpha-2 code');
-  }
-  const venue = optionalTrimmedString(input.venue);
   const ticketsUrl = optionalUrl(input.ticketsUrl, 'ticketsUrl');
   const posterUrl = optionalUrl(input.posterUrl, 'posterUrl');
 
@@ -213,15 +211,6 @@ function mapV1AdminGigCandidateGigDraftRequest(
   }
   if (endDate !== undefined) {
     gigDraft.endDate = endDate;
-  }
-  if (city !== undefined) {
-    gigDraft.city = city;
-  }
-  if (country !== undefined) {
-    gigDraft.country = country;
-  }
-  if (venue !== undefined) {
-    gigDraft.venue = venue;
   }
   if (ticketsUrl !== undefined) {
     gigDraft.ticketsUrl = ticketsUrl;
