@@ -376,13 +376,13 @@ curl http://localhost:3000/health
 
 This tunnel provides public HTTPS access to the locally running API and frontend, including Telegram bot webhook handling and Mini App development.
 
-To start an already configured tunnel:
+To start an already configured tunnel, use the name chosen during creation:
 
 ```text
-cloudflared tunnel run gigs
+cloudflared tunnel run <tunnel-name>
 ```
 
-See the [Cloudflare Tunnel development guide](./docs/development/CLOUDFLARE_TUNNEL.md) for installation, manual configuration, application settings, and troubleshooting.
+See the [Cloudflare Tunnel development guide](./docs/development/CLOUDFLARE_TUNNEL.md) for installation, tunnel creation, local configuration, and usage.
 
 ## Build, lint, format, and test
 
