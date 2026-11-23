@@ -93,7 +93,7 @@ describe('AdminGigCandidateController', () => {
     updateAdminGigCandidateGigDraft: vi.fn().mockResolvedValue(gigCandidate),
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     sendGigCandidateToModeration: vi.fn().mockResolvedValue(gigCandidate),
-    lookupGigCandidateGigDraft: vi.fn().mockResolvedValue({
+    lookupGigDetails: vi.fn().mockResolvedValue({
       gigDraft: {
         title: 'Band',
         date: '2026-09-20',
@@ -111,7 +111,7 @@ describe('AdminGigCandidateController', () => {
     | 'updateAdminGigCandidateGigDraft'
     | 'rejectGigCandidate'
     | 'sendGigCandidateToModeration'
-    | 'lookupGigCandidateGigDraft'
+    | 'lookupGigDetails'
   >;
   const gigCandidateApprovalService = {
     approveGigCandidate: vi.fn().mockResolvedValue(gigApprovalResult),
@@ -291,7 +291,7 @@ describe('AdminGigCandidateController', () => {
 
   it('should return a side-effect-free lookup response', async () => {
     await expect(
-      controller.lookupGigCandidateGigDraft({
+      controller.lookupGigDetails({
         title: 'Band',
         location: 'Barcelona, ES',
       }),
@@ -303,11 +303,9 @@ describe('AdminGigCandidateController', () => {
         venue: 'Venue',
       },
     });
-    expect(gigCandidateService.lookupGigCandidateGigDraft).toHaveBeenCalledWith(
-      {
-        title: 'Band',
-        location: 'Barcelona, ES',
-      },
-    );
+    expect(gigCandidateService.lookupGigDetails).toHaveBeenCalledWith({
+      title: 'Band',
+      location: 'Barcelona, ES',
+    });
   });
 });

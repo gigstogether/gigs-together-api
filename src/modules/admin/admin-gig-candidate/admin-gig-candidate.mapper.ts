@@ -4,7 +4,7 @@ import { msToYmd } from '@shared/utils/date-formatter';
 import { ADMIN_GIG_CANDIDATE_LIST_DEFAULT_LIMIT } from '@modules/gig-candidate/gig-candidate-list-sort';
 import type {
   CreateAdminGigCandidateParams,
-  GigCandidateGigDraftLookupResult,
+  GigCandidateLookupResult,
   UpdateAdminGigCandidateGigDraftParams,
 } from '@modules/gig-candidate/gig-candidate.service';
 import type { GigPosterFile } from '@modules/gig/types/gig-poster.types';
@@ -160,7 +160,7 @@ export function mapV1AdminUpdateGigCandidateGigDraftRequest(
 }
 
 export function mapV1AdminGigCandidateLookupResponse(
-  lookup: GigCandidateGigDraftLookupResult | null,
+  lookup: GigCandidateLookupResult | null,
 ): V1AdminGigCandidateLookupResponseBody {
   if (lookup === null) {
     return { gigDraft: null };

@@ -108,13 +108,12 @@ export class AdminGigCandidateController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  async lookupGigCandidateGigDraft(
+  async lookupGigDetails(
     @Body(AdminGigCandidateLookupBodyPipe)
     body: V1AdminGigCandidateLookupRequestBody,
   ): Promise<V1AdminGigCandidateLookupResponseBody> {
-    const gigDraft =
-      await this.gigCandidateService.lookupGigCandidateGigDraft(body);
-    return mapV1AdminGigCandidateLookupResponse(gigDraft);
+    const lookup = await this.gigCandidateService.lookupGigDetails(body);
+    return mapV1AdminGigCandidateLookupResponse(lookup);
   }
 
   @Version('1')

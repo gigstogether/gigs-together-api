@@ -97,12 +97,12 @@ export interface UpdateAdminGigCandidateGigDraftParams {
   posterFile?: GigPosterFile;
 }
 
-export interface LookupGigCandidateGigDraftParams {
+export interface LookupGigDetailsParams {
   title: string;
   location: string;
 }
 
-export interface GigCandidateGigDraftLookupFields {
+export interface GigCandidateLookupGigDraft {
   title: string;
   date: string;
   endDate?: string;
@@ -116,8 +116,8 @@ export interface GigCandidateLocationHint {
   venue: string;
 }
 
-export interface GigCandidateGigDraftLookupResult {
-  gigDraft: GigCandidateGigDraftLookupFields;
+export interface GigCandidateLookupResult {
+  gigDraft: GigCandidateLookupGigDraft;
   locationHint: GigCandidateLocationHint;
 }
 
@@ -561,9 +561,9 @@ export class GigCandidateService {
     });
   }
 
-  async lookupGigCandidateGigDraft(
-    params: LookupGigCandidateGigDraftParams,
-  ): Promise<GigCandidateGigDraftLookupResult | null> {
+  async lookupGigDetails(
+    params: LookupGigDetailsParams,
+  ): Promise<GigCandidateLookupResult | null> {
     const lookup = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
@@ -572,7 +572,7 @@ export class GigCandidateService {
       return null;
     }
 
-    const gigDraft: GigCandidateGigDraftLookupFields = {
+    const gigDraft: GigCandidateLookupGigDraft = {
       title: lookup.title,
       date: lookup.date,
       ticketsUrl: lookup.ticketsUrl,

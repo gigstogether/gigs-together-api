@@ -1908,7 +1908,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('lookupGigCandidateGigDraft', () => {
+  describe('lookupGigDetails', () => {
     it('should return AI lookup data without writing GigCandidate state', async () => {
       const lookupResult = {
         title: 'Band',
@@ -1923,7 +1923,7 @@ describe('GigCandidateService', () => {
       aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
       await expect(
-        service.lookupGigCandidateGigDraft({
+        service.lookupGigDetails({
           title: 'Band',
           location: 'Barcelona, ES',
         }),
