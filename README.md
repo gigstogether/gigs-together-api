@@ -178,59 +178,59 @@ Current variables defined in `.env.example`:
 
 Blank optional values use the documented default or remain unset. Numeric duration and port variables that use the shared integer parser must be positive JavaScript safe integers; zero, negative values, fractions, and non-numeric values prevent application initialization. Boolean variables accept `true`, `1`, `yes`, or `on` and `false`, `0`, `no`, or `off` (case-insensitive); any other explicitly configured value prevents application initialization. Cookie `SameSite` values accept only `lax`, `strict`, or `none` (case-insensitive), default to `lax`, and reject any other explicitly configured value. `SameSite=none` requires a secure cookie in supported browsers.
 
-| Variable                                        | Required                                     | Purpose                                                                  |
-| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                         |
-| `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups. Defaults to 1 hour.                        |
-| `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.    |
-| `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.      |
-| `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                      |
-| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME`          | For shared-chat bot responses                | BotFather short name for the suggestion Direct Mini App.                 |
-| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`            | For admin Telegram actions                   | BotFather short name for the admin Direct Mini App.                      |
-| `TELEGRAM_OIDC_CLIENT_ID`                       | For browser auth                             | Telegram Login Client ID from BotFather > Bot Settings > Web Login.      |
-| `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`. Defaults to 24 hours.           |
-| `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                               |
-| `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production. |
-| `JWT_ACCESS_EXPIRES_IN_SEC`                     | Optional                                     | Access JWT and access-cookie TTL in seconds. Defaults to 1 hour.         |
-| `JWT_REFRESH_EXPIRES_IN_SEC`                    | Optional                                     | Refresh JWT and refresh-cookie TTL in seconds. Defaults to 30 days.      |
-| `ACCESS_TOKEN_COOKIE_NAME`                      | Optional                                     | Access-token cookie name.                                                |
-| `ACCESS_TOKEN_COOKIE_SECURE`                    | Optional                                     | Access-cookie `Secure` flag. Defaults to true only when `NODE_ENV=prod`. |
-| `ACCESS_TOKEN_COOKIE_SAMESITE`                  | Optional                                     | Access-cookie SameSite mode: `lax`, `strict`, or `none`.                 |
-| `ACCESS_TOKEN_COOKIE_DOMAIN`                    | Optional                                     | Domain attribute for the access cookie.                                  |
-| `REFRESH_TOKEN_COOKIE_NAME`                     | Optional                                     | Refresh-token cookie name.                                               |
-| `REFRESH_TOKEN_COOKIE_SECURE`                   | Optional                                     | Refresh-cookie `Secure` flag. Defaults to true only in `prod`.           |
-| `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | Refresh-cookie SameSite mode: `lax`, `strict`, or `none`.                |
-| `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                 |
-| `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                    |
-| `MAIN_CHAT_ID`                                  | For Telegram webhook flows                   | Group or supergroup that accepts `/gig` commands.                        |
-| `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                |
-| `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                              |
-| `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                          |
-| `ALERTS_TELEGRAM_CHANNEL_ID`                    | For alerting flows                           | Internal Telegram channel for actionable application alerts.             |
-| `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Boolean. Also sends submission feedback DM to admins. Defaults to false. |
-| `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                               |
-| `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                   |
-| `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                              |
-| `CALENDAR_ID`                                   | Yes                                          | Target Google Calendar id.                                               |
-| `GOOGLE_APPLICATION_CREDENTIALS`                | One Google credential source                 | Local path to a service account JSON file.                               |
-| `GOOGLE_AUTH_JSON`                              | One Google credential source                 | Base64-encoded or raw service account JSON.                              |
-| `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                          |
-| `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                       |
-| `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                      |
-| `S3_SECRET_ACCESS_KEY`                          | Optional                                     | Storage secret key.                                                      |
-| `S3_POSTERS_PREFIX`                             | Optional                                     | Poster object prefix. Defaults to `gigs`.                                |
-| `S3_PUBLIC_BASE_URL`                            | Optional but required for public bucket mode | Public URL base for uploaded posters.                                    |
-| `CORS_ORIGINS`                                  | Optional                                     | CORS mode or comma-separated allowlist.                                  |
-| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED`          | Optional                                     | Boolean. Enables fallback poster URL behavior. Defaults to true.         |
-| `DEFAULT_GIG_POSTER_URL`                        | Optional                                     | Default public poster URL for gigs without posters.                      |
-| `AI_URL`                                        | Optional                                     | AI service base URL.                                                     |
-| `AI_API_KEY`                                    | Optional                                     | AI service key.                                                          |
-| `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                     |
-| `AI_LOOKUP_DEBUG`                               | Optional                                     | Boolean. Enables extra lookup diagnostics. Defaults to false.            |
-| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Boolean. Dev-only lookup stub mode. Defaults to false.                   |
-| `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                           |
-| `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                       |
-| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend Gig feed cache revalidation.                         |
+| Variable                                        | Required                                     | Purpose                                                                              |
+| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                                     |
+| `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups. Defaults to 1 hour.                                    |
+| `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.                |
+| `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.                  |
+| `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                                  |
+| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME`          | For shared-chat bot responses                | BotFather short name for the suggestion Direct Mini App.                             |
+| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`            | For admin Telegram actions                   | BotFather short name for the admin Direct Mini App.                                  |
+| `TELEGRAM_OIDC_CLIENT_ID`                       | For browser auth                             | Telegram Login Client ID from BotFather > Bot Settings > Web Login.                  |
+| `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`. Defaults to 24 hours.                       |
+| `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                                           |
+| `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production.             |
+| `JWT_ACCESS_EXPIRES_IN_SEC`                     | Optional                                     | Access JWT and access-cookie TTL in seconds. Defaults to 1 hour.                     |
+| `JWT_REFRESH_EXPIRES_IN_SEC`                    | Optional                                     | Refresh JWT and refresh-cookie TTL in seconds. Defaults to 30 days.                  |
+| `ACCESS_TOKEN_COOKIE_NAME`                      | Optional                                     | Access-token cookie name.                                                            |
+| `ACCESS_TOKEN_COOKIE_SECURE`                    | Optional                                     | Access-cookie `Secure` flag. Defaults to true when `NODE_ENV=production` or `prod`.  |
+| `ACCESS_TOKEN_COOKIE_SAMESITE`                  | Optional                                     | Access-cookie SameSite mode: `lax`, `strict`, or `none`.                             |
+| `ACCESS_TOKEN_COOKIE_DOMAIN`                    | Optional                                     | Domain attribute for the access cookie.                                              |
+| `REFRESH_TOKEN_COOKIE_NAME`                     | Optional                                     | Refresh-token cookie name.                                                           |
+| `REFRESH_TOKEN_COOKIE_SECURE`                   | Optional                                     | Refresh-cookie `Secure` flag. Defaults to true when `NODE_ENV=production` or `prod`. |
+| `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | Refresh-cookie SameSite mode: `lax`, `strict`, or `none`.                            |
+| `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                             |
+| `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                                |
+| `MAIN_CHAT_ID`                                  | For Telegram webhook flows                   | Group or supergroup that accepts `/gig` commands.                                    |
+| `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                            |
+| `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                                          |
+| `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                                      |
+| `ALERTS_TELEGRAM_CHANNEL_ID`                    | For alerting flows                           | Internal Telegram channel for actionable application alerts.                         |
+| `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Boolean. Also sends submission feedback DM to admins. Defaults to false.             |
+| `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                                           |
+| `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                               |
+| `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                                          |
+| `CALENDAR_ID`                                   | Yes                                          | Target Google Calendar id.                                                           |
+| `GOOGLE_APPLICATION_CREDENTIALS`                | One Google credential source                 | Local path to a service account JSON file.                                           |
+| `GOOGLE_AUTH_JSON`                              | One Google credential source                 | Base64-encoded or raw service account JSON.                                          |
+| `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                                      |
+| `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                                   |
+| `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                                  |
+| `S3_SECRET_ACCESS_KEY`                          | Optional                                     | Storage secret key.                                                                  |
+| `S3_POSTERS_PREFIX`                             | Optional                                     | Poster object prefix. Defaults to `gigs`.                                            |
+| `S3_PUBLIC_BASE_URL`                            | Optional but required for public bucket mode | Public URL base for uploaded posters.                                                |
+| `CORS_ORIGINS`                                  | Optional                                     | CORS mode or comma-separated allowlist.                                              |
+| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED`          | Optional                                     | Boolean. Enables fallback poster URL behavior. Defaults to true.                     |
+| `DEFAULT_GIG_POSTER_URL`                        | Optional                                     | Default public poster URL for gigs without posters.                                  |
+| `AI_URL`                                        | Optional                                     | AI service base URL.                                                                 |
+| `AI_API_KEY`                                    | Optional                                     | AI service key.                                                                      |
+| `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                                 |
+| `AI_LOOKUP_DEBUG`                               | Optional                                     | Boolean. Enables extra lookup diagnostics. Defaults to false.                        |
+| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Boolean. Dev-only lookup stub mode. Defaults to false.                               |
+| `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                                       |
+| `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                                   |
+| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend Gig feed cache revalidation.                                     |
 
 ### CORS behavior
 
