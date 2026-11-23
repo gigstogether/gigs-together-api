@@ -141,6 +141,39 @@ export class VenueService {
     }
   }
 
+  async getVenueSelectionForUpdate(
+    venueIds: string[],
+    existingVenueIds: string[],
+  ): Promise<VenueSelection> {
+    try {
+      const [venueSelection] = await this.getVenueSelections([venueIds]);
+      if (venueSelection === undefined) {
+        throw new Error('Loaded Venue selection must exist');
+      }
+
+      const existingVenueIdSet = new Set(
+        existingVenueIds.map((venueId) => venueId.toLowerCase()),
+      );
+      if (
+        venueSelection.venues.some(
+          (venue) =>
+            !venue.isActive && !existingVenueIdSet.has(venue.id.toLowerCase()),
+        )
+      ) {
+        throw new VenueSelectionValidationError(
+          'New venueIds must reference active Venues',
+        );
+      }
+
+      return venueSelection;
+    } catch (e) {
+      if (e instanceof VenueSelectionValidationError) {
+        throw new BadRequestException(e.message, { cause: e });
+      }
+      throw e;
+    }
+  }
+
   async getVenueSelections(
     venueIdGroups: string[][],
   ): Promise<VenueSelection[]> {

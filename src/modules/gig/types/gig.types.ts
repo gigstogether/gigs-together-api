@@ -156,31 +156,11 @@ export interface GigCalendarSource {
 }
 
 export interface GigFormInput {
+  communityIds: string[];
+  venueIds: string[];
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   posterUrl?: string;
-}
-
-export interface GigFormData {
-  publicId: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  endDate?: string; // YYYY-MM-DD
-  city: string;
-  country: string;
-  venue: string;
-  ticketsUrl: string;
-  posterUrl?: string;
-  isVisible: boolean;
-  version: number;
-  source: GigSourceForAdminView;
-  mainPostUrl?: string;
-  mainPostDate?: number;
-  moderationPostUrl?: string;
-  moderationPostDate?: number;
 }

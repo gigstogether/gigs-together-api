@@ -123,6 +123,7 @@ describe('GigCandidateService', () => {
   const communityServiceMock = {
     findById: vi.fn(),
     findByRoute: vi.fn(),
+    requireActiveCommunityIds: vi.fn(),
   };
 
   const localityServiceMock = {
@@ -232,6 +233,12 @@ describe('GigCandidateService', () => {
       timeZone: 'Europe/Madrid',
       isActive: true,
     });
+    communityServiceMock.requireActiveCommunityIds.mockImplementation(
+      (communityIds: string[]) =>
+        Promise.resolve(
+          communityIds.map((communityId) => communityId.toLowerCase()),
+        ),
+    );
     communityServiceMock.findByRoute.mockResolvedValue({
       id: '507f1f77bcf86cd799439011',
       countryIso: 'ES',
@@ -1528,14 +1535,11 @@ describe('GigCandidateService', () => {
     });
 
     it('should reject an inactive Community before creating an admin GigCandidate', async () => {
-      communityServiceMock.findById.mockResolvedValue({
-        id: '507f1f77bcf86cd799439011',
-        countryIso: 'ES',
-        slug: 'barcelona',
-        nameTranslationKey: 'barcelona.name',
-        timeZone: 'Europe/Madrid',
-        isActive: false,
-      });
+      communityServiceMock.requireActiveCommunityIds.mockRejectedValueOnce(
+        new BadRequestException(
+          'communityIds must reference active Communities',
+        ),
+      );
 
       await expect(
         service.createAdminGigCandidate({
@@ -1561,13 +1565,18 @@ describe('GigCandidateService', () => {
     ])(
       'should reject invalid Community assignments %# before creating an admin GigCandidate',
       async ({ communityIds }) => {
+        communityServiceMock.requireActiveCommunityIds.mockRejectedValueOnce(
+          new BadRequestException('Invalid Community assignments'),
+        );
         await expect(
           service.createAdminGigCandidate({
             userId: '507f1f77bcf86cd799439088',
             gigDraft: { communityIds, title: 'Band' },
           }),
         ).rejects.toThrow(BadRequestException);
-        expect(communityServiceMock.findById).not.toHaveBeenCalled();
+        expect(
+          communityServiceMock.requireActiveCommunityIds,
+        ).toHaveBeenCalledWith(communityIds);
         expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
         expect(
           gigCandidateRepositoryMock.createGigCandidate,

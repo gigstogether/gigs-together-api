@@ -172,6 +172,11 @@ interface AdminGigCandidateLocationAssignment {
   venueIds?: string[];
 }
 
+interface PreparedAdminGigCandidateGigDraft {
+  gigDraft: GigCandidateGigDraft;
+  location: AdminGigCandidateLocationAssignment;
+}
+
 interface ParsedCreateGigCandidateFields {
   communityId: string;
   localityId: string;
@@ -438,21 +443,10 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const communityIds = await this.requireActiveCommunityIds(
-      params.gigDraft.communityIds,
-    );
-    const location = await this.getAdminLocationAssignment(
+    const { gigDraft, location } = await this.prepareAdminGigCandidateGigDraft(
+      params.gigDraft,
       params.localityId,
-      params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateGigDraft = {
-      ...params.gigDraft,
-      communityIds,
-    };
-    delete gigDraft.venueIds;
-    if (location.venueIds !== undefined) {
-      gigDraft.venueIds = location.venueIds;
-    }
     const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId,
       gigDraft,
@@ -520,21 +514,10 @@ export class GigCandidateService {
       command,
     );
 
-    const communityIds = await this.requireActiveCommunityIds(
-      params.gigDraft.communityIds,
-    );
-    const location = await this.getAdminLocationAssignment(
+    const { gigDraft, location } = await this.prepareAdminGigCandidateGigDraft(
+      params.gigDraft,
       params.localityId,
-      params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateGigDraft = {
-      ...params.gigDraft,
-      communityIds,
-    };
-    delete gigDraft.venueIds;
-    if (location.venueIds !== undefined) {
-      gigDraft.venueIds = location.venueIds;
-    }
     const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId: currentGigCandidate.id,
       gigDraft,
@@ -796,7 +779,7 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const communityIds = await this.requireActiveCommunityIds([
+    const communityIds = await this.communityService.requireActiveCommunityIds([
       gig.communityId,
     ]);
     const gigDraft: GigCandidateGigDraft = {
@@ -876,43 +859,6 @@ export class GigCandidateService {
     return result;
   }
 
-  private async requireActiveCommunityIds(
-    communityIds: readonly string[],
-  ): Promise<string[]> {
-    if (communityIds.length === 0) {
-      throw new BadRequestException(
-        'communityIds must contain at least one Community id',
-      );
-    }
-    const normalizedCommunityIds = communityIds.map((communityId) => {
-      if (!MONGO_ID_RE.test(communityId)) {
-        throw new BadRequestException(
-          'communityIds must contain valid Community ids',
-        );
-      }
-      return communityId.toLowerCase();
-    });
-    if (
-      new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length
-    ) {
-      throw new BadRequestException('communityIds must not contain duplicates');
-    }
-
-    const communities = await Promise.all(
-      normalizedCommunityIds.map((communityId) =>
-        this.communityService.findById(communityId),
-      ),
-    );
-    if (
-      communities.some((community) => community === null || !community.isActive)
-    ) {
-      throw new BadRequestException(
-        'communityIds must reference active Communities',
-      );
-    }
-    return normalizedCommunityIds;
-  }
-
   private async getAdminLocationAssignment(
     rawLocalityId: string | undefined,
     rawVenueIds: string[] | undefined,
@@ -956,6 +902,29 @@ export class GigCandidateService {
       locality: venueSelection.locality,
       venueIds: venueSelection.venues.map((venue) => venue.id),
     };
+  }
+
+  private async prepareAdminGigCandidateGigDraft(
+    sourceGigDraft: GigCandidateGigDraft,
+    localityId: string | undefined,
+  ): Promise<PreparedAdminGigCandidateGigDraft> {
+    const communityIds = await this.communityService.requireActiveCommunityIds(
+      sourceGigDraft.communityIds,
+    );
+    const location = await this.getAdminLocationAssignment(
+      localityId,
+      sourceGigDraft.venueIds,
+    );
+    const gigDraft: GigCandidateGigDraft = {
+      ...sourceGigDraft,
+      communityIds,
+    };
+    delete gigDraft.venueIds;
+    if (location.venueIds !== undefined) {
+      gigDraft.venueIds = location.venueIds;
+    }
+
+    return { gigDraft, location };
   }
 
   private parseAndValidateCreateBody(

@@ -5,6 +5,25 @@ import { Messenger } from '@shared/types/messenger.enum';
 import { mapGigToFormData } from './admin-gig.mapper';
 
 describe('mapGigToFormData', () => {
+  const venueSelection = {
+    locality: {
+      id: '507f1f77bcf86cd799439014',
+      countryIso: 'ES',
+      name: 'Barcelona',
+      aliases: [],
+      timeZone: 'Europe/Madrid',
+    },
+    venues: [
+      {
+        id: '507f1f77bcf86cd799439013',
+        localityId: '507f1f77bcf86cd799439014',
+        name: 'Venue',
+        aliases: [],
+        isActive: true,
+      },
+    ],
+  };
+
   it('should map required source for the admin response', () => {
     const userId = '507f1f77bcf86cd799439012';
     const gig: PlainGig = {
@@ -33,6 +52,7 @@ describe('mapGigToFormData', () => {
     expect(
       mapGigToFormData({
         gig,
+        venueSelection,
         userSourceProfile: {
           displayName: 'Test Admin',
           isCurrentlyAdmin: true,
@@ -82,6 +102,7 @@ describe('mapGigToFormData', () => {
 
     const result = mapGigToFormData({
       gig,
+      venueSelection,
       userSourceProfile: { isCurrentlyAdmin: false },
     });
 

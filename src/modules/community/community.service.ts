@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { isValidCommunitySlug } from './community.validators';
 import { CountryService } from '@modules/location/country/country.service';
 import { COMMUNITY_REPOSITORY } from './repositories/community.repository';
@@ -55,6 +55,46 @@ export class CommunityService {
     this.assertCountriesExist(communities);
 
     return communities;
+  }
+
+  async requireActiveCommunityIds(communityIds: string[]): Promise<string[]> {
+    if (communityIds.length === 0) {
+      throw new BadRequestException(
+        'communityIds must contain at least one Community id',
+      );
+    }
+
+    const normalizedCommunityIds = communityIds.map((communityId) => {
+      if (!/^[a-f\d]{24}$/i.test(communityId)) {
+        throw new BadRequestException(
+          'communityIds must contain valid Community ids',
+        );
+      }
+      return communityId.toLowerCase();
+    });
+    if (
+      new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length
+    ) {
+      throw new BadRequestException('communityIds must not contain duplicates');
+    }
+
+    const communities = await this.findByIds(normalizedCommunityIds);
+    const activeCommunityIds = new Set(
+      communities
+        .filter((community) => community.isActive)
+        .map((community) => community.id),
+    );
+    if (
+      normalizedCommunityIds.some(
+        (communityId) => !activeCommunityIds.has(communityId),
+      )
+    ) {
+      throw new BadRequestException(
+        'communityIds must reference active Communities',
+      );
+    }
+
+    return normalizedCommunityIds;
   }
 
   private assertCountriesExist(communities: readonly Community[]): void {

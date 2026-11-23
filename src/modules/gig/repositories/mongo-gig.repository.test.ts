@@ -15,6 +15,7 @@ import type { GigLeanDocument } from './gig.repository.mapper';
 import { MongoGigRepository } from './mongo-gig.repository';
 
 const COMMUNITY_ID = '507f1f77bcf86cd799439022';
+const VENUE_ID = '507f1f77bcf86cd799439033';
 
 function buildDocument(
   overrides: Partial<GigLeanDocument> = {},
@@ -22,7 +23,7 @@ function buildDocument(
   return {
     _id: new Types.ObjectId('507f1f77bcf86cd799439011'),
     communityIds: [new Types.ObjectId(COMMUNITY_ID)],
-    venueIds: [new Types.ObjectId('507f1f77bcf86cd799439033')],
+    venueIds: [new Types.ObjectId(VENUE_ID)],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
@@ -177,6 +178,8 @@ describe('MongoGigRepository', () => {
         repository.updateByPublicId({
           publicId: document.publicId,
           expectedVersion: 3,
+          communityIds: [COMMUNITY_ID],
+          venueIds: [VENUE_ID],
           title: document.title,
           date: document.date,
           city: document.city,
@@ -190,6 +193,8 @@ describe('MongoGigRepository', () => {
         { publicId: document.publicId, version: 3 },
         {
           $set: {
+            communityIds: [new Types.ObjectId(COMMUNITY_ID)],
+            venueIds: [new Types.ObjectId(VENUE_ID)],
             title: document.title,
             date: document.date,
             city: document.city,

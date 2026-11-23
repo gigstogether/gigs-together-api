@@ -41,6 +41,8 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
+import { CommunityService } from '@modules/community/community.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 export interface UpdateGigByPublicIdParams {
   publicId: string;
@@ -125,6 +127,7 @@ interface UpdateGigTelegramPostFileIdParams {
 
 interface UpdateGigStateByPublicIdResult {
   gig: PlainGig;
+  previousCommunityIds: string[];
   posterFile?: PreparedGigPosterFile;
 }
 
@@ -154,6 +157,8 @@ export class GigService {
     private readonly bucketService: BucketService,
     private readonly telegramGigService: TelegramGigService,
     private readonly gigFeedRevalidationService: GigFeedRevalidationService,
+    private readonly communityService: CommunityService,
+    private readonly venueService: VenueService,
     configService: ConfigService,
   ) {
     this.isExternalPosterUrlFallbackEnabled =
@@ -361,7 +366,14 @@ export class GigService {
         });
       }
     }
-    await this.revalidateGigFeeds(updatedGig);
+    await this.gigFeedRevalidationService.revalidateGigFeeds({
+      communityIds: Array.from(
+        new Set([
+          ...stateUpdateResult.previousCommunityIds,
+          ...updatedGig.communityIds,
+        ]),
+      ),
+    });
 
     return { publicId: updatedGig.publicId };
   }
@@ -373,6 +385,20 @@ export class GigService {
 
     const id = this.normalizeAndValidatePublicId(publicId);
     this.validateExpectedVersion(expectedVersion);
+
+    const existingGig = await this.getGigByPublicId(id);
+    const [communityIds, venueSelection] = await Promise.all([
+      this.communityService.requireActiveCommunityIds(gig.communityIds),
+      this.venueService.getVenueSelectionForUpdate(
+        gig.venueIds,
+        existingGig.venueIds,
+      ),
+    ]);
+    const city = venueSelection.locality.name;
+    const country = venueSelection.locality.countryIso;
+    const venue = venueSelection.venues
+      .map((selectedVenue) => selectedVenue.name)
+      .join(', ');
 
     const dateMs = new Date(gig.date).getTime();
 
@@ -386,8 +412,8 @@ export class GigService {
       file: posterFile,
       context: {
         date: gig.date,
-        city: gig.city,
-        country: gig.country,
+        city,
+        country,
         publicId,
       },
     });
@@ -395,11 +421,13 @@ export class GigService {
     const repositoryParams: UpdateGigByPublicIdRecordParams = {
       publicId: id,
       expectedVersion,
+      communityIds,
+      venueIds: gig.venueIds,
       title: gig.title,
       date: dateMs,
-      city: gig.city,
-      country: gig.country,
-      venue: gig.venue,
+      city,
+      country,
+      venue,
       ticketsUrl: gig.ticketsUrl,
     };
     if (endDateMs !== undefined) {
@@ -413,7 +441,10 @@ export class GigService {
     if (!updated) {
       return this.throwGigVersionConflictOrNotFound(id);
     }
-    const result: UpdateGigStateByPublicIdResult = { gig: updated };
+    const result: UpdateGigStateByPublicIdResult = {
+      gig: updated,
+      previousCommunityIds: existingGig.communityIds,
+    };
     if (posterUploadResult !== undefined) {
       result.posterFile = posterUploadResult.posterFile;
     }

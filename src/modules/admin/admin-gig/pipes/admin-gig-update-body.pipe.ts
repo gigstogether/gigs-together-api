@@ -4,12 +4,11 @@ import { GIG_TITLE_MAX_LENGTH } from '@modules/gig/gig.constants';
 import type { GigFormInput } from '@modules/gig/types/gig.types';
 
 const GIG_FIELDS = [
+  'communityIds',
+  'venueIds',
   'title',
   'date',
   'endDate',
-  'city',
-  'country',
-  'venue',
   'ticketsUrl',
   'posterUrl',
 ] as const;
@@ -92,6 +91,20 @@ function readOptionalString(
   return fieldValue;
 }
 
+function readRequiredStringArray(
+  value: Record<string, unknown>,
+  field: string,
+): string[] {
+  const fieldValue = value[field];
+  if (
+    !Array.isArray(fieldValue) ||
+    fieldValue.some((item) => typeof item !== 'string')
+  ) {
+    throw new BadRequestException(`${field} must be an array of strings`);
+  }
+  return fieldValue;
+}
+
 function readRequiredTitle(value: Record<string, unknown>): string {
   const title = readRequiredString(value, 'title').trim();
   if (title === '') {
@@ -111,16 +124,20 @@ function parseGig(value: unknown): GigFormInput {
   const endDate = readOptionalString(gig, 'endDate');
   const posterUrl = readOptionalString(gig, 'posterUrl');
 
-  return {
+  const result: GigFormInput = {
+    communityIds: readRequiredStringArray(gig, 'communityIds'),
+    venueIds: readRequiredStringArray(gig, 'venueIds'),
     title: readRequiredTitle(gig),
     date: readRequiredString(gig, 'date'),
-    city: readRequiredString(gig, 'city'),
-    country: readRequiredString(gig, 'country'),
-    venue: readRequiredString(gig, 'venue'),
     ticketsUrl: readRequiredString(gig, 'ticketsUrl'),
-    ...(endDate !== undefined ? { endDate } : {}),
-    ...(posterUrl !== undefined ? { posterUrl } : {}),
   };
+  if (endDate !== undefined) {
+    result.endDate = endDate;
+  }
+  if (posterUrl !== undefined) {
+    result.posterUrl = posterUrl;
+  }
+  return result;
 }
 
 function parseExpectedVersion(value: unknown): number {

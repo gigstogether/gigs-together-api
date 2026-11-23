@@ -20,7 +20,6 @@ import { AccessJwtAuthGuard } from '@modules/auth/guards/access-jwt-auth.guard';
 import { AdminGuard } from '@modules/auth/guards/admin.guard';
 import { AuthenticatedUserGuard } from '@modules/auth/guards/authenticated-user.guard';
 import { GigService } from '@modules/gig/gig.service';
-import type { GigFormData } from '@modules/gig/types/gig.types';
 import { V1GigByPublicIdGetRequestParams } from '@modules/gig/types/requests/v1-gig-by-public-id-get-request';
 import { AdminGigService } from './admin-gig.service';
 import { AdminGigUpdateBodyPipe } from './pipes/admin-gig-update-body.pipe';
@@ -34,7 +33,10 @@ import type {
   V1AdminGigVisibilityPatchResponseBody,
 } from './types/requests/v1-admin-gig-actions-response';
 import { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
-import type { V1AdminGigsListResponseBody } from './types/requests/v1-admin-gigs-list-response';
+import type {
+  V1AdminGigResponseBody,
+  V1AdminGigsListResponseBody,
+} from './types/requests/v1-admin-gigs-list-response';
 
 const PosterFileInterceptor = FileInterceptor('posterFile', {
   storage: memoryStorage(),
@@ -61,7 +63,7 @@ export class AdminGigController {
   @Get(':publicId')
   getGigByPublicId(
     @Param() params: V1GigByPublicIdGetRequestParams,
-  ): Promise<GigFormData> {
+  ): Promise<V1AdminGigResponseBody> {
     return this.adminGigService.getGigByPublicId(params.publicId);
   }
 

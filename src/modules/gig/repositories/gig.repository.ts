@@ -21,6 +21,8 @@ export interface FindGigsParams {
 export interface UpdateGigByPublicIdRecordParams {
   publicId: string;
   expectedVersion: number;
+  communityIds: string[];
+  venueIds: string[];
   title: string;
   date: number;
   endDate?: number;
