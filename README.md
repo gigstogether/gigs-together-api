@@ -68,7 +68,7 @@ docker-compose.yml         local MongoDB
 
 ## Architecture
 
-Detailed architecture notes live in [docs/architecture](./docs/architecture/README.md). The active internal alert catalog and alerting conventions live in [docs/ALERTING.md](./docs/ALERTING.md).
+Detailed architecture notes live in [docs/architecture](./docs/architecture/README.md). The active internal alert catalog and alerting conventions live in [docs/monitoring/ALERTING.md](./docs/monitoring/ALERTING.md).
 
 ## Prerequisites
 
@@ -371,6 +371,18 @@ Quick checks:
 curl http://localhost:3000/
 curl http://localhost:3000/health
 ```
+
+## Local HTTPS access with Cloudflare Tunnel
+
+This tunnel provides public HTTPS access to the locally running API and frontend, including Telegram bot webhook handling and Mini App development.
+
+To start an already configured tunnel:
+
+```text
+cloudflared tunnel run gigs
+```
+
+See the [Cloudflare Tunnel development guide](./docs/development/CLOUDFLARE_TUNNEL.md) for installation, manual configuration, application settings, and troubleshooting.
 
 ## Build, lint, format, and test
 
