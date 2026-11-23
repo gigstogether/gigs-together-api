@@ -374,7 +374,7 @@ curl http://localhost:3000/health
 
 ## Local HTTPS access with Cloudflare Tunnel
 
-This tunnel provides public HTTPS access to the locally running API and frontend, including Telegram bot webhook handling and Mini App development.
+This tunnel provides public HTTPS access to the local API, including Telegram bot webhook handling.
 
 To start an already configured tunnel, use the name chosen during creation:
 
