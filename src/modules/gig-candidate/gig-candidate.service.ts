@@ -17,7 +17,7 @@ import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gi
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
-import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
+import type { GigCandidateGigDraft } from '@modules/gig/types/gig.types';
 import { CommunityService } from '@modules/community/community.service';
 import { LocalityService } from '@modules/location/locality/locality.service';
 import { VenueService } from '@modules/location/venue/venue.service';
@@ -55,7 +55,7 @@ import {
 } from './gig-candidate-state-machine';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
-import type { PrepareGigCandidateDraftPosterParams } from './gig-candidate-poster/gig-candidate-poster.service';
+import type { PrepareGigCandidateGigDraftPosterParams } from './gig-candidate-poster/gig-candidate-poster.service';
 import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
@@ -68,7 +68,7 @@ export interface FindGigCandidatesParams {
 export interface CreateAdminGigCandidateParams {
   userId: string;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
@@ -88,21 +88,21 @@ export interface MessengerGigCandidateImage {
   contentType: SupportedImageContentType;
 }
 
-export interface UpdateAdminGigCandidateDraftParams {
+export interface UpdateAdminGigCandidateGigDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
 
-export interface LookupGigCandidateDraftParams {
+export interface LookupGigCandidateGigDraftParams {
   title: string;
   location: string;
 }
 
-export interface GigCandidateDraftLookupFields {
+export interface GigCandidateGigDraftLookupFields {
   title: string;
   date: string;
   endDate?: string;
@@ -116,8 +116,8 @@ export interface GigCandidateLocationHint {
   venue: string;
 }
 
-export interface GigCandidateDraftLookupResult {
-  gigDraft: GigCandidateDraftLookupFields;
+export interface GigCandidateGigDraftLookupResult {
+  gigDraft: GigCandidateGigDraftLookupFields;
   locationHint: GigCandidateLocationHint;
 }
 
@@ -132,11 +132,11 @@ export interface RejectGigCandidateParams {
   rejectedByUserId: string;
 }
 
-export interface UpdateGigCandidateDraftApplicationParams {
+export interface UpdateGigCandidateGigDraftApplicationParams {
   gigCandidateId: string;
   expectedVersion: number;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterFile?: PreparedGigPosterFile;
 }
 
@@ -445,7 +445,7 @@ export class GigCandidateService {
       params.localityId,
       params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateDraft = {
+    const gigDraft: GigCandidateGigDraft = {
       ...params.gigDraft,
       communityIds,
     };
@@ -453,7 +453,7 @@ export class GigCandidateService {
     if (location.venueIds !== undefined) {
       gigDraft.venueIds = location.venueIds;
     }
-    const posterParams: PrepareGigCandidateDraftPosterParams = {
+    const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId,
       gigDraft,
       posterUrl: params.posterUrl,
@@ -497,8 +497,8 @@ export class GigCandidateService {
     return withModerationPost;
   }
 
-  async updateAdminGigCandidateDraft(
-    params: UpdateAdminGigCandidateDraftParams,
+  async updateAdminGigCandidateGigDraft(
+    params: UpdateAdminGigCandidateGigDraftParams,
   ): Promise<GigCandidate> {
     const command = GigCandidateCommand.UpdateDraft;
     this.assertExpectedVersionIsValid(
@@ -527,7 +527,7 @@ export class GigCandidateService {
       params.localityId,
       params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateDraft = {
+    const gigDraft: GigCandidateGigDraft = {
       ...params.gigDraft,
       communityIds,
     };
@@ -535,7 +535,7 @@ export class GigCandidateService {
     if (location.venueIds !== undefined) {
       gigDraft.venueIds = location.venueIds;
     }
-    const posterParams: PrepareGigCandidateDraftPosterParams = {
+    const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId: currentGigCandidate.id,
       gigDraft,
       posterUrl: params.posterUrl,
@@ -552,7 +552,7 @@ export class GigCandidateService {
     const preparedPoster =
       await this.gigCandidatePosterService.prepareDraftPoster(posterParams);
 
-    return this.updateGigCandidateDraft({
+    return this.updateGigCandidateGigDraft({
       gigCandidateId: params.gigCandidateId,
       expectedVersion: params.expectedVersion,
       localityId: location.localityId,
@@ -561,9 +561,9 @@ export class GigCandidateService {
     });
   }
 
-  async lookupGigCandidateDraft(
-    params: LookupGigCandidateDraftParams,
-  ): Promise<GigCandidateDraftLookupResult | null> {
+  async lookupGigCandidateGigDraft(
+    params: LookupGigCandidateGigDraftParams,
+  ): Promise<GigCandidateGigDraftLookupResult | null> {
     const lookup = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
@@ -572,7 +572,7 @@ export class GigCandidateService {
       return null;
     }
 
-    const gigDraft: GigCandidateDraftLookupFields = {
+    const gigDraft: GigCandidateGigDraftLookupFields = {
       title: lookup.title,
       date: lookup.date,
       ticketsUrl: lookup.ticketsUrl,
@@ -736,8 +736,8 @@ export class GigCandidateService {
     );
   }
 
-  async updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftApplicationParams,
+  async updateGigCandidateGigDraft(
+    params: UpdateGigCandidateGigDraftApplicationParams,
   ): Promise<GigCandidate> {
     const { posterFile, ...repositoryParams } = params;
     const command = GigCandidateCommand.UpdateDraft;
@@ -760,7 +760,7 @@ export class GigCandidateService {
     );
 
     const updated =
-      await this.gigCandidateRepository.updateGigCandidateDraft(
+      await this.gigCandidateRepository.updateGigCandidateGigDraft(
         repositoryParams,
       );
     if (updated) {
@@ -799,7 +799,7 @@ export class GigCandidateService {
     const communityIds = await this.requireActiveCommunityIds([
       gig.communityId,
     ]);
-    const gigDraft: GigCandidateDraft = {
+    const gigDraft: GigCandidateGigDraft = {
       communityIds,
       title: gig.title,
       date: dateMs,

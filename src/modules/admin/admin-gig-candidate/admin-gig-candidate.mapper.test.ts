@@ -11,7 +11,7 @@ import {
   mapV1AdminGigCandidateResponse,
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
-  mapV1AdminUpdateGigCandidateDraftRequest,
+  mapV1AdminUpdateGigCandidateGigDraftRequest,
 } from './admin-gig-candidate.mapper';
 
 function buildGigCandidateDetails(): AdminGigCandidateDetails {
@@ -268,10 +268,10 @@ describe('mapV1AdminCreateGigCandidateRequest', () => {
   });
 });
 
-describe('mapV1AdminUpdateGigCandidateDraftRequest', () => {
+describe('mapV1AdminUpdateGigCandidateGigDraftRequest', () => {
   it('should preserve expectedVersion and map only gigDraft fields', () => {
     expect(
-      mapV1AdminUpdateGigCandidateDraftRequest({
+      mapV1AdminUpdateGigCandidateGigDraftRequest({
         gigCandidateId: '507f1f77bcf86cd799439099',
         body: {
           expectedVersion: 4,

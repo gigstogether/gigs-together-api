@@ -5,7 +5,7 @@ import {
   fromObjectIdArray,
   toObjectIdArray,
 } from '@shared/utils/mongoose-object-id-array';
-import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
+import type { GigCandidateGigDraft } from '@modules/gig/types/gig.types';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import type { GigCandidateStoredSource } from '../gig-candidate.schema';
 import { GigCandidateStatus } from '../types/gig-candidate-status.enum';
@@ -63,7 +63,7 @@ export interface GigCandidateLeanDocument {
   _id: MongoId;
   source: GigCandidateLeanSource;
   localityId?: MongoId;
-  gigDraft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> & {
+  gigDraft: Omit<GigCandidateGigDraft, 'communityIds' | 'venueIds'> & {
     communityIds: unknown;
     venueIds?: unknown;
   };
@@ -83,7 +83,7 @@ interface GigCandidateStateFields {
   id: string;
   status: GigCandidateStatus;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   gigId?: string;
   approvedAt?: Date;
   approvedByUserId?: string;
@@ -92,19 +92,22 @@ interface GigCandidateStateFields {
 }
 
 export class GigCandidateRepositoryMapper {
-  static toStoredGigDraft(gigDraft: GigCandidateDraft): Omit<
-    GigCandidateDraft,
+  static toStoredGigDraft(gigDraft: GigCandidateGigDraft): Omit<
+    GigCandidateGigDraft,
     'communityIds' | 'venueIds'
   > & {
     communityIds: Types.ObjectId[];
     venueIds?: Types.ObjectId[];
   } {
     const { communityIds, venueIds, ...draft } = gigDraft;
-    const storedDraft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> & {
+    const storedDraft: Omit<
+      GigCandidateGigDraft,
+      'communityIds' | 'venueIds'
+    > & {
       communityIds: Types.ObjectId[];
       venueIds?: Types.ObjectId[];
     } = {
-      ...this.mapGigCandidateDraftFields(draft),
+      ...this.mapGigCandidateGigDraftFields(draft),
       communityIds: toObjectIdArray(
         communityIds,
         'GigCandidate gigDraft communityIds',
@@ -169,8 +172,8 @@ export class GigCandidateRepositoryMapper {
   static toGigCandidate(doc: GigCandidateLeanDocument): GigCandidate {
     const id = this.toId(doc._id, 'id');
     const { communityIds, venueIds, ...draft } = doc.gigDraft;
-    const gigDraft: GigCandidateDraft = {
-      ...this.mapGigCandidateDraftFields(draft),
+    const gigDraft: GigCandidateGigDraft = {
+      ...this.mapGigCandidateGigDraftFields(draft),
       communityIds: fromObjectIdArray(
         communityIds,
         `GigCandidate ${id} gigDraft communityIds`,
@@ -237,10 +240,10 @@ export class GigCandidateRepositoryMapper {
     return gigCandidate;
   }
 
-  private static mapGigCandidateDraftFields(
-    draft: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'>,
-  ): Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> {
-    const fields: Omit<GigCandidateDraft, 'communityIds' | 'venueIds'> = {};
+  private static mapGigCandidateGigDraftFields(
+    draft: Omit<GigCandidateGigDraft, 'communityIds' | 'venueIds'>,
+  ): Omit<GigCandidateGigDraft, 'communityIds' | 'venueIds'> {
+    const fields: Omit<GigCandidateGigDraft, 'communityIds' | 'venueIds'> = {};
     if (draft.title !== undefined) {
       fields.title = draft.title;
     }

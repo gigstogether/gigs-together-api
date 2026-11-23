@@ -4,8 +4,8 @@ import { msToYmd } from '@shared/utils/date-formatter';
 import { ADMIN_GIG_CANDIDATE_LIST_DEFAULT_LIMIT } from '@modules/gig-candidate/gig-candidate-list-sort';
 import type {
   CreateAdminGigCandidateParams,
-  GigCandidateDraftLookupResult,
-  UpdateAdminGigCandidateDraftParams,
+  GigCandidateGigDraftLookupResult,
+  UpdateAdminGigCandidateGigDraftParams,
 } from '@modules/gig-candidate/gig-candidate.service';
 import type { GigPosterFile } from '@modules/gig/types/gig-poster.types';
 import { GIG_TITLE_MAX_LENGTH } from '@modules/gig/gig.constants';
@@ -22,7 +22,7 @@ import type {
   V1AdminCreateGigCandidateRequestBody,
   V1AdminGigCandidateGigDraftRequestBody,
   V1AdminGigCandidateLookupResponseBody,
-  V1AdminUpdateGigCandidateDraftRequestBody,
+  V1AdminUpdateGigCandidateGigDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
   V1AdminGigCandidateProviderReferenceResponseBody,
@@ -41,8 +41,8 @@ interface MapV1AdminCreateGigCandidateRequestParams {
   posterFile?: Express.Multer.File;
 }
 
-interface MapV1AdminUpdateGigCandidateDraftRequestParams {
-  body: V1AdminUpdateGigCandidateDraftRequestBody;
+interface MapV1AdminUpdateGigCandidateGigDraftRequestParams {
+  body: V1AdminUpdateGigCandidateGigDraftRequestBody;
   gigCandidateId: string;
   posterFile?: Express.Multer.File;
 }
@@ -142,11 +142,11 @@ export function mapV1AdminCreateGigCandidateRequest(
   return result;
 }
 
-export function mapV1AdminUpdateGigCandidateDraftRequest(
-  params: MapV1AdminUpdateGigCandidateDraftRequestParams,
-): UpdateAdminGigCandidateDraftParams {
+export function mapV1AdminUpdateGigCandidateGigDraftRequest(
+  params: MapV1AdminUpdateGigCandidateGigDraftRequestParams,
+): UpdateAdminGigCandidateGigDraftParams {
   const mapped = mapV1AdminGigCandidateGigDraftRequest(params.body.gigDraft);
-  const result: UpdateAdminGigCandidateDraftParams = {
+  const result: UpdateAdminGigCandidateGigDraftParams = {
     gigCandidateId: params.gigCandidateId,
     expectedVersion: params.body.expectedVersion,
     gigDraft: mapped.gigDraft,
@@ -160,7 +160,7 @@ export function mapV1AdminUpdateGigCandidateDraftRequest(
 }
 
 export function mapV1AdminGigCandidateLookupResponse(
-  lookup: GigCandidateDraftLookupResult | null,
+  lookup: GigCandidateGigDraftLookupResult | null,
 ): V1AdminGigCandidateLookupResponseBody {
   if (lookup === null) {
     return { gigDraft: null };

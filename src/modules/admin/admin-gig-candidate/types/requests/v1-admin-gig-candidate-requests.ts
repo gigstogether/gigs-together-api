@@ -13,7 +13,7 @@ export interface V1AdminCreateGigCandidateRequestBody {
   gigDraft: V1AdminGigCandidateGigDraftRequestBody;
 }
 
-export interface V1AdminUpdateGigCandidateDraftRequestBody {
+export interface V1AdminUpdateGigCandidateGigDraftRequestBody {
   expectedVersion: number;
   localityId?: string;
   gigDraft: V1AdminGigCandidateGigDraftRequestBody;

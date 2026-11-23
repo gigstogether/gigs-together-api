@@ -85,7 +85,7 @@ export interface GigData {
   poster?: GigPosterInput;
 }
 
-export interface GigCandidateDraft {
+export interface GigCandidateGigDraft {
   communityIds: string[];
   venueIds?: string[];
   title?: string;

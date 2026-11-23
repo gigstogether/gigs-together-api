@@ -41,9 +41,9 @@ import type { GigCandidate } from '../types/gig-candidate.types';
 import {
   mapGigCandidateSourceToGigSource,
   requireApprovedGigId,
-  validateGigCandidateDraftForApproval,
+  validateGigCandidateGigDraftForApproval,
 } from './gig-candidate-approval';
-import type { ValidatedGigCandidateDraft } from './gig-candidate-approval';
+import type { ValidatedGigCandidateGigDraft } from './gig-candidate-approval';
 
 const GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT = {
   code: 'gigCalendarEventCreationFailed',
@@ -141,7 +141,7 @@ export class GigCandidateApprovalService {
     }
 
     this.assertExpectedVersionMatches(gigCandidate, params.expectedVersion);
-    const validatedDraft = validateGigCandidateDraftForApproval(
+    const validatedDraft = validateGigCandidateGigDraftForApproval(
       gigCandidate.gigDraft,
     );
     const venueSelection = await this.venueService.getActiveVenueSelection(
@@ -207,7 +207,7 @@ export class GigCandidateApprovalService {
    * those legacy fields are removed from the Gig storage contract.
    */
   private buildGigData(
-    draft: ValidatedGigCandidateDraft,
+    draft: ValidatedGigCandidateGigDraft,
     venueSelection: VenueSelection,
   ): GigData {
     return {

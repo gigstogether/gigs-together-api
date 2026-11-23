@@ -53,7 +53,7 @@ describe('GigCandidateService', () => {
     appendGigCandidatePostIfAbsent: ReturnType<typeof vi.fn>;
     sendGigCandidateToModeration: ReturnType<typeof vi.fn>;
     rejectGigCandidate: ReturnType<typeof vi.fn>;
-    updateGigCandidateDraft: ReturnType<typeof vi.fn>;
+    updateGigCandidateGigDraft: ReturnType<typeof vi.fn>;
     updateGigCandidateModerationPostFileId: ReturnType<typeof vi.fn>;
   } = {
     createId: vi.fn(),
@@ -63,7 +63,7 @@ describe('GigCandidateService', () => {
     appendGigCandidatePostIfAbsent: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
-    updateGigCandidateDraft: vi.fn(),
+    updateGigCandidateGigDraft: vi.fn(),
     updateGigCandidateModerationPostFileId: vi.fn(),
   };
 
@@ -1770,7 +1770,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('updateAdminGigCandidateDraft', () => {
+  describe('updateAdminGigCandidateGigDraft', () => {
     it('should preserve stored poster when update has no new poster input', async () => {
       const poster = { bucketPath: 'gigCandidate/poster.jpg' };
       const reviewing = buildGigCandidate({
@@ -1791,12 +1791,12 @@ describe('GigCandidateService', () => {
         },
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
 
       await expect(
-        service.updateAdminGigCandidateDraft({
+        service.updateAdminGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -1806,7 +1806,7 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(updated);
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).toHaveBeenCalledWith({
         gigCandidateId: reviewing.id,
         expectedVersion: 0,
@@ -1860,7 +1860,7 @@ describe('GigCandidateService', () => {
         posterFile: { ...posterFile, filename: 'poster.jpg' },
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
       telegramServiceMock.editGigCandidatePost.mockResolvedValue({
@@ -1877,7 +1877,7 @@ describe('GigCandidateService', () => {
       );
 
       await expect(
-        service.updateAdminGigCandidateDraft({
+        service.updateAdminGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -1908,7 +1908,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('lookupGigCandidateDraft', () => {
+  describe('lookupGigCandidateGigDraft', () => {
     it('should return AI lookup data without writing GigCandidate state', async () => {
       const lookupResult = {
         title: 'Band',
@@ -1923,7 +1923,7 @@ describe('GigCandidateService', () => {
       aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
       await expect(
-        service.lookupGigCandidateDraft({
+        service.lookupGigCandidateGigDraft({
           title: 'Band',
           location: 'Barcelona, ES',
         }),
@@ -1947,7 +1947,7 @@ describe('GigCandidateService', () => {
         gigCandidateRepositoryMock.createGigCandidate,
       ).not.toHaveBeenCalled();
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).not.toHaveBeenCalled();
     });
   });
@@ -3052,7 +3052,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('updateGigCandidateDraft', () => {
+  describe('updateGigCandidateGigDraft', () => {
     it('should conditionally update Reviewing gigDraft', async () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
@@ -3076,12 +3076,12 @@ describe('GigCandidateService', () => {
         posts: [moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -3091,7 +3091,7 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(updated);
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).toHaveBeenCalledWith({
         gigCandidateId: reviewing.id,
         expectedVersion: 0,
@@ -3127,7 +3127,7 @@ describe('GigCandidateService', () => {
         posts: [moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
       telegramServiceMock.editGigCandidatePost.mockResolvedValue({
@@ -3141,7 +3141,7 @@ describe('GigCandidateService', () => {
       vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -3167,7 +3167,7 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 1,
           gigDraft: {
@@ -3181,7 +3181,7 @@ describe('GigCandidateService', () => {
         reason: 'versionConflict',
       });
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).not.toHaveBeenCalled();
     });
 
@@ -3190,12 +3190,12 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         null,
       );
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {

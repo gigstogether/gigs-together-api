@@ -2,7 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   AdminGigCandidateApproveBodyPipe,
   AdminGigCandidateCreateBodyPipe,
-  AdminGigCandidateDraftUpdateBodyPipe,
+  AdminGigCandidateGigDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
   AdminGigCandidateSendToModerationBodyPipe,
@@ -87,9 +87,9 @@ describe('AdminGigCandidateCreateBodyPipe', () => {
   });
 });
 
-describe('AdminGigCandidateDraftUpdateBodyPipe', () => {
+describe('AdminGigCandidateGigDraftUpdateBodyPipe', () => {
   it('should parse multipart expectedVersion and gigDraft', () => {
-    const pipe = new AdminGigCandidateDraftUpdateBodyPipe();
+    const pipe = new AdminGigCandidateGigDraftUpdateBodyPipe();
 
     expect(
       pipe.transform({
@@ -110,7 +110,7 @@ describe('AdminGigCandidateDraftUpdateBodyPipe', () => {
   });
 
   it('should reject an invalid expectedVersion', () => {
-    const pipe = new AdminGigCandidateDraftUpdateBodyPipe();
+    const pipe = new AdminGigCandidateGigDraftUpdateBodyPipe();
 
     expect(() =>
       pipe.transform({ expectedVersion: -1, gigDraft: {} }),

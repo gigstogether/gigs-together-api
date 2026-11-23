@@ -7,13 +7,13 @@ import type {
   PreparedGigPosterFile,
 } from '../../gig/types/gig-poster.types';
 import type {
-  GigCandidateDraft,
+  GigCandidateGigDraft,
   GigPoster,
 } from '@modules/gig/types/gig.types';
 
-export interface PrepareGigCandidateDraftPosterParams {
+export interface PrepareGigCandidateGigDraftPosterParams {
   gigCandidateId: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   location?: GigCandidatePosterLocation;
   posterUrl?: string;
   posterFile?: GigPosterFile;
@@ -26,8 +26,8 @@ export interface GigCandidatePosterLocation {
   countryIso: string;
 }
 
-export interface PreparedGigCandidateDraftPoster {
-  gigDraft: GigCandidateDraft;
+export interface PreparedGigCandidateGigDraftPoster {
+  gigDraft: GigCandidateGigDraft;
   posterFile?: PreparedGigPosterFile;
 }
 
@@ -46,8 +46,8 @@ export class GigCandidatePosterService {
   }
 
   async prepareDraftPoster(
-    params: PrepareGigCandidateDraftPosterParams,
-  ): Promise<PreparedGigCandidateDraftPoster> {
+    params: PrepareGigCandidateGigDraftPosterParams,
+  ): Promise<PreparedGigCandidateGigDraftPoster> {
     const gigDraft = { ...params.gigDraft };
     delete gigDraft.poster;
 
@@ -89,7 +89,7 @@ export class GigCandidatePosterService {
       );
     }
 
-    const result: PreparedGigCandidateDraftPoster = { gigDraft };
+    const result: PreparedGigCandidateGigDraftPoster = { gigDraft };
     if (preparedPosterFile !== undefined) {
       result.posterFile = preparedPosterFile;
     }
