@@ -72,174 +72,19 @@ Detailed architecture notes live in [docs/architecture](./docs/architecture/READ
 
 ## Prerequisites
 
-Install the following before you start:
+Install and configure the following before you start:
 
 1. Node.js `22.22.3`
 2. npm `11.17.0`
-3. Docker Desktop or Docker Engine
-4. Access to required external credentials if you need full integration testing:
-   - Telegram bot token, Web Login Client ID, and webhook secret
-   - MongoDB connection details
-   - Google Calendar credentials
-   - S3-compatible storage credentials
-   - AI provider URL, key, and model
+3. Docker Desktop or Docker Engine if using the bundled local MongoDB
+4. MongoDB access, a Telegram bot token, Web Login Client ID, webhook secret, and JWT signing secrets for application startup
+5. Google Calendar, S3-compatible storage, and AI provider credentials for the integrations you intend to use
 
 ## Environment configuration
 
-### How configuration is loaded
+Copy [`.env.example`](./.env.example) to `.env` in the repository root and configure the startup requirements before running the API.
 
-The Nest application loads env files in this order:
-
-1. `.env.<NODE_ENV>`
-2. `.env`
-
-Examples:
-
-- `npm run start:dev` sets `NODE_ENV=dev`, so the app reads `.env.dev` first and then `.env`
-- `npm run start:prod` sets `NODE_ENV=prod`, so the app reads `.env.prod` first and then `.env`
-
-Important: the migration config in `migrate.ts` uses `dotenv.config()` directly and therefore reads `.env` by default, not `.env.dev` or `.env.prod`. If you want migrations to work locally, either:
-
-- put the required Mongo variables into `.env`, or
-- export them in your shell before running `npm run migrate:up`
-
-### Create your local env file
-
-At minimum, local development usually needs:
-
-- `MONGO_URI`
-- `MONGO_DB`
-- `MONGO_PORT`
-
-Depending on which flows you want to exercise, you may also need:
-
-- Telegram: `BOT_*`, channel IDs, URLs
-- Auth/admin: `JWT_*`, cookie settings, `ADMIN_*`
-- Google Calendar: `CALENDAR_ID` and exactly one of `GOOGLE_APPLICATION_CREDENTIALS` or `GOOGLE_AUTH_JSON`
-- S3 storage: `S3_*`
-- AI: `AI_URL`, `AI_API_KEY`, `AI_MODEL`
-- Frontend integration: `APP_BASE_URL`, `FEED_REVALIDATE_SECRET`, `TRANSLATIONS_REVALIDATE_SECRET`
-- CORS: `CORS_ORIGINS`
-
-`APP_BASE_URL` is also used to build Telegram links to public gig permalinks (`/gigs/:publicId`) and admin gig pages (`/admin/gigs/:publicId`).
-
-### Google Calendar credentials
-
-The Calendar integration accepts service account credentials only. Configure `CALENDAR_ID` and exactly one credential source. The application rejects missing credentials, multiple credential sources, and credentials whose `type` is not `service_account`.
-
-For local development, keep the service account file outside version control and configure its path:
-
-```env
-CALENDAR_ID=<google-calendar-id>
-GOOGLE_APPLICATION_CREDENTIALS=./google-auth.json
-GOOGLE_AUTH_JSON=
-```
-
-`google-auth.json` is ignored by Git. The application reads this file but never creates or modifies it.
-
-For production environments that provide secrets as environment variables, configure raw or base64-encoded service account JSON:
-
-```env
-CALENDAR_ID=<google-calendar-id>
-GOOGLE_APPLICATION_CREDENTIALS=
-GOOGLE_AUTH_JSON={"type":"service_account",...}
-```
-
-The provider validates the configured JSON and constructs a JWT service account auth client in memory without writing credentials to disk. Share the target Google Calendar with the service account's `client_email`; the service account must have permission to create events in that calendar.
-
-### Required Telegram setup
-
-The GigCandidate workflow requires one Telegram bot per environment with the following BotFather and channel configuration:
-
-1. Create two named Mini App direct links for the same bot:
-   - the short name configured in `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` uses frontend URL `https://<frontend-host>/suggest/launch` and opens the universal suggestion entry point;
-   - the short name configured in `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME` uses frontend URL `https://<frontend-host>/admin/telegram` and dispatches Gig and GigCandidate edit actions from moderation posts.
-2. Keep Same-Origin Restriction enabled for the Mini Apps. Main App and Menu Button are optional entry points; backend-generated edit links do not depend on them.
-3. Configure Web Login in BotFather for the frontend origin. Use the same Client ID in backend `TELEGRAM_OIDC_CLIENT_ID` and frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`.
-4. Add the bot as an administrator to the Intake, Moderation, and Main channels, with permission to publish and edit posts. Set their numeric IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
-5. Register `https://<api-host>/v1/telegram/updates` through Telegram `setWebhook`, passing the backend `BOT_SECRET` as `secret_token`. `getWebhookInfo` must report that exact URL and no configuration error.
-6. Set `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` to the BotFather short name for the suggestion Direct Mini App. Shared-chat suggestion buttons use the resulting direct link; private-chat buttons use `APP_BASE_URL/suggest/launch` as a `web_app` button.
-7. Set `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME` to the BotFather short name for the admin Direct Mini App. The backend obtains the bot username through `getMe` and appends the typed `startapp` action and identifier.
-
-The backend validates that both short-name variables are non-empty, but it cannot verify through the HTTP Bot API that the corresponding Direct Mini Apps exist or belong to the bot. Telegram exposes [`messages.getBotApp`](https://core.telegram.org/method/messages.getBotApp) for this purpose only through the user-only MTProto API. After configuring an environment, verify both generated `https://t.me/<bot_username>/<short_name>` links in a Telegram client. A misspelled or missing BotFather short name is otherwise detected only when a user opens the link.
-
-The `startapp` contract is shared by the backend URL composer and the frontend launch parser:
-
-| Action enum member                         | Wire value         | Identifier      | Resulting admin route                        |
-| ------------------------------------------ | ------------------ | --------------- | -------------------------------------------- |
-| `AdminMiniAppStartAction.EditGig`          | `editGig`          | Gig `publicId`  | `/admin/gigs/:publicId/edit`                 |
-| `AdminMiniAppStartAction.EditGigCandidate` | `editGigCandidate` | GigCandidate ID | `/admin/gig-candidates/:gigCandidateId/edit` |
-
-The complete parameters are `startapp=editGig-<publicId>` and `startapp=editGigCandidate-<gigCandidateId>`. The separator is a hyphen. The `/admin/telegram` parser removes only a known action prefix, so hyphens inside a Gig `publicId` remain part of the identifier. Missing, malformed, untyped, and unknown actions show an explicit error notification before returning the administrator to `/admin`.
-
-### Environment variables reference
-
-Current variables defined in `.env.example`:
-
-Blank optional values use the documented default or remain unset. Numeric duration and port variables that use the shared integer parser must be positive JavaScript safe integers; zero, negative values, fractions, and non-numeric values prevent application initialization. Boolean variables accept `true`, `1`, `yes`, or `on` and `false`, `0`, `no`, or `off` (case-insensitive); any other explicitly configured value prevents application initialization. Cookie `SameSite` values accept only `lax`, `strict`, or `none` (case-insensitive), default to `lax`, and reject any other explicitly configured value. `SameSite=none` requires a secure cookie in supported browsers.
-
-| Variable                                        | Required                                     | Purpose                                                                              |
-| ----------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `PORT`                                          | Optional                                     | NestJS port. Defaults to `3000`.                                                     |
-| `ADMIN_CACHE_TTL_MS`                            | Optional                                     | TTL for cached admin lookups. Defaults to 1 hour.                                    |
-| `TRANSLATION_CACHE_TTL_MS`                      | Optional                                     | TTL for in-memory translation cache bulk refresh. Defaults to 1 hour.                |
-| `LOCALE_ACTIVE_CACHE_TTL_MS`                    | Optional                                     | TTL for in-memory active locales cache refresh. Defaults to 1 hour.                  |
-| `BOT_TOKEN`                                     | For Telegram flows                           | Telegram bot token.                                                                  |
-| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME`          | For shared-chat bot responses                | BotFather short name for the suggestion Direct Mini App.                             |
-| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`            | For admin Telegram actions                   | BotFather short name for the admin Direct Mini App.                                  |
-| `TELEGRAM_OIDC_CLIENT_ID`                       | For browser auth                             | Telegram Login Client ID from BotFather > Bot Settings > Web Login.                  |
-| `TELEGRAM_INIT_DATA_MAX_AGE_SEC`                | Optional                                     | Max age for Telegram WebApp `auth_date`. Defaults to 24 hours.                       |
-| `JWT_SECRET`                                    | Yes for auth flows                           | Access JWT signing secret.                                                           |
-| `JWT_REFRESH_SECRET`                            | Yes for auth flows                           | Refresh JWT signing secret. Must differ from `JWT_SECRET` in production.             |
-| `JWT_ACCESS_EXPIRES_IN_SEC`                     | Optional                                     | Access JWT and access-cookie TTL in seconds. Defaults to 1 hour.                     |
-| `JWT_REFRESH_EXPIRES_IN_SEC`                    | Optional                                     | Refresh JWT and refresh-cookie TTL in seconds. Defaults to 30 days.                  |
-| `ACCESS_TOKEN_COOKIE_NAME`                      | Optional                                     | Access-token cookie name.                                                            |
-| `ACCESS_TOKEN_COOKIE_SECURE`                    | Optional                                     | Access-cookie `Secure` flag. Defaults to true when `NODE_ENV=production` or `prod`.  |
-| `ACCESS_TOKEN_COOKIE_SAMESITE`                  | Optional                                     | Access-cookie SameSite mode: `lax`, `strict`, or `none`.                             |
-| `ACCESS_TOKEN_COOKIE_DOMAIN`                    | Optional                                     | Domain attribute for the access cookie.                                              |
-| `REFRESH_TOKEN_COOKIE_NAME`                     | Optional                                     | Refresh-token cookie name.                                                           |
-| `REFRESH_TOKEN_COOKIE_SECURE`                   | Optional                                     | Refresh-cookie `Secure` flag. Defaults to true when `NODE_ENV=production` or `prod`. |
-| `REFRESH_TOKEN_COOKIE_SAMESITE`                 | Optional                                     | Refresh-cookie SameSite mode: `lax`, `strict`, or `none`.                            |
-| `REFRESH_TOKEN_COOKIE_DOMAIN`                   | Optional                                     | Domain attribute for the refresh cookie.                                             |
-| `BOT_SECRET`                                    | For Telegram webhook flows                   | Shared secret for webhook protection.                                                |
-| `MAIN_CHAT_ID`                                  | For Telegram webhook flows                   | Group or supergroup that accepts `/gig` commands.                                    |
-| `MAIN_CHANNEL_ID`                               | For Telegram flows                           | Main Telegram channel id.                                                            |
-| `INTAKE_CHANNEL_ID`                             | For GigCandidate intake flows                | Intake Telegram channel id.                                                          |
-| `MODERATION_CHANNEL_ID`                         | For moderation flows                         | Moderation Telegram channel id.                                                      |
-| `ALERTS_TELEGRAM_CHANNEL_ID`                    | For alerting flows                           | Internal Telegram channel for actionable application alerts.                         |
-| `SHOULD_SEND_GIG_SUBMISSION_FEEDBACK_TO_ADMINS` | Optional                                     | Boolean. Also sends submission feedback DM to admins. Defaults to false.             |
-| `MONGO_URI`                                     | Yes                                          | MongoDB connection string.                                                           |
-| `MONGO_DB`                                      | Yes for Docker/local setup                   | MongoDB database name.                                                               |
-| `MONGO_PORT`                                    | Yes for Docker/local setup                   | Local MongoDB port mapping.                                                          |
-| `CALENDAR_ID`                                   | Yes                                          | Target Google Calendar id.                                                           |
-| `GOOGLE_APPLICATION_CREDENTIALS`                | One Google credential source                 | Local path to a service account JSON file.                                           |
-| `GOOGLE_AUTH_JSON`                              | One Google credential source                 | Base64-encoded or raw service account JSON.                                          |
-| `S3_BUCKET`                                     | Optional                                     | Bucket name for poster storage.                                                      |
-| `S3_ENDPOINT`                                   | Optional                                     | S3-compatible endpoint, for example Cloudflare R2.                                   |
-| `S3_ACCESS_KEY_ID`                              | Optional                                     | Storage access key.                                                                  |
-| `S3_SECRET_ACCESS_KEY`                          | Optional                                     | Storage secret key.                                                                  |
-| `S3_POSTERS_PREFIX`                             | Optional                                     | Poster object prefix. Defaults to `gigs`.                                            |
-| `S3_PUBLIC_BASE_URL`                            | Optional but required for public bucket mode | Public URL base for uploaded posters.                                                |
-| `CORS_ORIGINS`                                  | Optional                                     | CORS mode or comma-separated allowlist.                                              |
-| `EXTERNAL_POSTER_URL_FALLBACK_ENABLED`          | Optional                                     | Boolean. Enables fallback poster URL behavior. Defaults to true.                     |
-| `DEFAULT_GIG_POSTER_URL`                        | Optional                                     | Default public poster URL for gigs without posters.                                  |
-| `AI_URL`                                        | Optional                                     | AI service base URL.                                                                 |
-| `AI_API_KEY`                                    | Optional                                     | AI service key.                                                                      |
-| `AI_MODEL`                                      | Optional                                     | AI model identifier.                                                                 |
-| `AI_LOOKUP_DEBUG`                               | Optional                                     | Boolean. Enables extra lookup diagnostics. Defaults to false.                        |
-| `AI_LOOKUP_DEV_STUB`                            | Optional                                     | Boolean. Dev-only lookup stub mode. Defaults to false.                               |
-| `AI_LOOKUP_DEV_STUB_KEYWORD`                    | Optional                                     | Dev-only keyword trigger for lookup stub mode.                                       |
-| `APP_BASE_URL`                                  | Optional                                     | Frontend base URL.                                                                   |
-| `FEED_REVALIDATE_SECRET`                        | Optional                                     | Secret for frontend Gig feed cache revalidation.                                     |
-
-### CORS behavior
-
-`src/main.ts` supports the following `CORS_ORIGINS` modes:
-
-- unset: reflects request origin and allows credentials
-- `reflect` or `all`: reflects request origin and allows credentials
-- `*`: allows all origins without credentials
-- comma-separated origins: allows only those origins and enables credentials
+See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, file-loading rules, and integration setup.
 
 ## Installation
 
@@ -252,22 +97,19 @@ npm install
 If you are onboarding from scratch, use this order:
 
 1. Install Node.js and npm
-2. Copy `.env.example` to `.env` and/or `.env.dev`
+2. Copy `.env.example` to `.env` and complete the [environment setup](./docs/configuration/ENVIRONMENT.md#required-at-application-startup)
 3. Start MongoDB with Docker
 4. Install npm dependencies
 5. Run the app in dev mode
 
 ## Running MongoDB locally
 
-The repo includes a Docker Compose file that runs MongoDB as a single-member
+For local development only, the repo includes a Docker Compose file that runs MongoDB as a single-member
 replica set named `rs0`. This supports local multi-document transactions while
 keeping one MongoDB container. The container healthcheck initializes the
 replica set once and waits until its member becomes writable.
 
-Before starting it, make sure your env file contains:
-
-- `MONGO_DB`
-- `MONGO_PORT`
+Configure the [Docker-only variables](./docs/configuration/ENVIRONMENT.md#docker-only-local-development-settings) in `.env` and match `MONGO_URI` to the local connection example below.
 
 Start MongoDB:
 
@@ -294,21 +136,15 @@ Check running containers:
 docker ps
 ```
 
-Default connection shape expected by the app:
+Local connection example:
 
-```text
-mongodb://<HOST>:<PORT>/<DBNAME>?replicaSet=rs0&directConnection=true
-```
-
-Example local value:
-
-```text
+```env
 MONGO_URI=mongodb://localhost:27017/gigs-together?replicaSet=rs0&directConnection=true
 ```
 
-`directConnection=true` is required for this local Docker setup because only
-one replica-set endpoint is exposed to the host. It is a development setting;
-do not add it to Atlas replica-set or sharded-cluster connection strings.
+Change it when using a different host port or database.
+`directConnection=true` is for the bundled single-member local replica set, where only one endpoint is exposed to the
+host. Do not add it to Atlas replica-set or sharded-cluster connection strings.
 
 Verify the local topology after startup:
 

@@ -1,3 +1,7 @@
+# Local development only. This Compose file is not a production deployment configuration.
+# MONGO_DB and MONGO_PORT are Docker-only settings; the API and migrations use MONGO_URI.
+# See docs/configuration/ENVIRONMENT.md for the full environment reference.
+
 # 0. Check if you have docker 'docker --version'. Install if you don't
 # 1. Run Docker:
 #   - WSL/Linux: 'sudo service docker start'
