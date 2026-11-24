@@ -84,7 +84,7 @@ Install and configure the following before you start:
 
 Copy [`.env.example`](./.env.example) to `.env` in the repository root and configure the startup requirements before running the API.
 
-See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, file-loading rules, and integration setup.
+See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, and file-loading rules.
 
 ## Installation
 

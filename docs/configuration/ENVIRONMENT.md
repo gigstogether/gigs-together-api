@@ -31,14 +31,14 @@ These have no runtime defaults and are required even when only public API endpoi
 | `MONGO_URI`                            | Yes      | MongoDB connection string, including the database; also used by migrations.               |
 | `JWT_SECRET`                           | Yes      | Access JWT signing secret.                                                                |
 | `JWT_REFRESH_SECRET`                   | Yes      | Refresh JWT signing secret; use a different secret in production.                         |
-| `BOT_TOKEN`                            | Yes      | Telegram bot token and Mini App initData validation.                                      |
-| `BOT_SECRET`                           | Yes      | Must match the webhook's `secret_token`.                                                  |
+| `BOT_TOKEN`                            | Yes      | Telegram bot token issued by BotFather.                                                   |
+| `BOT_SECRET`                           | Yes      | Webhook shared secret; must match the webhook's `secret_token`.                           |
 | `MAIN_CHAT_ID`                         | Yes      | Group/supergroup accepting `/gig` commands.                                               |
 | `MAIN_CHANNEL_ID`                      | Yes      | Main channel for gig posts.                                                               |
 | `ALERTS_TELEGRAM_CHANNEL_ID`           | Yes      | Internal alerts channel.                                                                  |
 | `TELEGRAM_OIDC_CLIENT_ID`              | Yes      | BotFather Web Login Client ID; must match frontend `NEXT_PUBLIC_TELEGRAM_OIDC_CLIENT_ID`. |
-| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` | Yes      | Suggestion Direct Mini App short name; template value `suggest`.                          |
-| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`   | Yes      | Admin Direct Mini App short name; template value `admin`.                                 |
+| `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` | Yes      | BotFather suggestion Mini App short name (e.g. `suggest`), not a URL.                     |
+| `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME`   | Yes      | BotFather admin Mini App short name (e.g. `admin`), not a URL.                            |
 
 ## Optional application settings
 
@@ -130,18 +130,3 @@ CALENDAR_ID=<google-calendar-id>
 GOOGLE_APPLICATION_CREDENTIALS=
 GOOGLE_AUTH_JSON=<raw-or-base64-encoded-service-account-json>
 ```
-
-## Required Telegram setup
-
-Use a separate bot for each environment.
-
-1. In BotFather, create two Direct Mini Apps for the bot:
-   - `TELEGRAM_SUGGEST_MINI_APP_SHORT_NAME` → `https://<frontend-host>/suggest/launch`;
-   - `TELEGRAM_ADMIN_MINI_APP_SHORT_NAME` → `https://<frontend-host>/admin/telegram`.
-     Keep Same-Origin Restriction enabled.
-2. Configure BotFather Web Login for the frontend origin.
-3. Add the bot as an administrator to the Intake, Moderation, and Main channels with permission to send and edit posts.
-   Set their IDs in `INTAKE_CHANNEL_ID`, `MODERATION_CHANNEL_ID`, and `MAIN_CHANNEL_ID`.
-4. Register `https://<api-host>/v1/telegram/updates` through `setWebhook`, using `BOT_SECRET` as `secret_token`.
-   Check the URL and errors with `getWebhookInfo`.
-5. Open both generated `https://t.me/<bot_username>/<short_name>` links in Telegram to verify the Mini App setup.

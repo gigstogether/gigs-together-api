@@ -52,7 +52,7 @@ cloudflared tunnel run <tunnel-name>
 
 Check `https://<api-hostname>/health`. Keep the terminal open; stop with `Ctrl+C`. If the tunnel is already running for another application, restart it after editing `config.yml` instead of starting a second instance.
 
-For Telegram webhooks, use `https://<api-hostname>/v1/telegram/updates` and follow [Required Telegram setup](../configuration/ENVIRONMENT.md#required-telegram-setup). One bot has one webhook URL, so use a separate development bot for independent parallel testing.
+For Telegram webhooks, use `https://<api-hostname>/v1/telegram/updates`. Bot credentials are described in the [environment reference](../configuration/ENVIRONMENT.md#required-at-application-startup). One bot has one webhook URL, so use a separate development bot for independent parallel testing.
 
 ## Update
 
