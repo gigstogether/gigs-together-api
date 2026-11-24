@@ -1,6 +1,7 @@
 # Gigs Together API
 
-NestJS API for the Gigs Together project. It serves public gig data, authenticated admin and receiver flows, Telegram-driven moderation, Google Calendar integration, poster storage, and AI-assisted gig lookup.
+NestJS API for the Gigs Together project. It serves public gig data, authenticated admin and receiver flows,
+Telegram-driven moderation, Google Calendar integration, poster storage, and AI-assisted gig lookup.
 
 ## What this project does
 
@@ -68,7 +69,8 @@ docker-compose.yml         local MongoDB
 
 ## Architecture
 
-Detailed architecture notes live in [docs/architecture](./docs/architecture/README.md). The active internal alert catalog and alerting conventions live in [docs/monitoring/ALERTING.md](./docs/monitoring/ALERTING.md).
+Detailed architecture notes live in [docs/architecture](./docs/architecture/README.md). The active internal alert
+catalog and alerting conventions live in [docs/monitoring/ALERTING.md](./docs/monitoring/ALERTING.md).
 
 ## Prerequisites
 
@@ -77,15 +79,18 @@ Install and configure the following before you start:
 1. Node.js `22.22.3`
 2. npm `11.17.0`
 3. Docker Desktop or Docker Engine if using the bundled local MongoDB
-4. MongoDB access, a Telegram bot token, Web Login Client ID, webhook secret, and JWT signing secrets for application startup
+4. MongoDB access, a Telegram bot token, Web Login Client ID, webhook secret, and JWT signing secrets for application
+   startup
 5. Google Calendar, S3-compatible storage, and AI provider credentials for the integrations you intend to use
 
 ## Environment configuration
 
-Copy [`.env.example`](./.env.example) to `.env` in the repository root and configure the startup requirements before running the API.
+Copy [`.env.example`](./.env.example) to `.env` in the repository root and configure the startup requirements before
+running the API.
 
-See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, and file-loading rules.
-For backend bot, channel, and webhook configuration, see [Telegram integration — backend setup](./docs/integrations/TELEGRAM.md#backend-setup).
+See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, and file-loading
+rules. For backend bot, channel, and webhook configuration, see
+[Telegram integration — backend setup](./docs/integrations/TELEGRAM.md#backend-setup).
 
 ## Installation
 
@@ -98,19 +103,20 @@ npm install
 If you are onboarding from scratch, use this order:
 
 1. Install Node.js and npm
-2. Copy `.env.example` to `.env` and complete the [environment setup](./docs/configuration/ENVIRONMENT.md#required-at-application-startup)
+2. Copy `.env.example` to `.env` and complete the
+   [environment setup](./docs/configuration/ENVIRONMENT.md#required-at-application-startup)
 3. Start MongoDB with Docker
 4. Install npm dependencies
 5. Run the app in dev mode
 
 ## Running MongoDB locally
 
-For local development only, the repo includes a Docker Compose file that runs MongoDB as a single-member
-replica set named `rs0`. This supports local multi-document transactions while
-keeping one MongoDB container. The container healthcheck initializes the
-replica set once and waits until its member becomes writable.
+For local development only, the repo includes a Docker Compose file that runs MongoDB as a single-member replica set
+named `rs0`. This supports local multi-document transactions while keeping one MongoDB container. The container
+healthcheck initializes the replica set once and waits until its member becomes writable.
 
-Configure the [Docker-only variables](./docs/configuration/ENVIRONMENT.md#docker-only-local-development-settings) in `.env` and match `MONGO_URI` to the local connection example below.
+Configure the [Docker-only variables](./docs/configuration/ENVIRONMENT.md#docker-only-local-development-settings) in
+`.env` and match `MONGO_URI` to the local connection example below.
 
 Start MongoDB:
 
@@ -118,12 +124,10 @@ Start MongoDB:
 docker-compose up -d
 ```
 
-Before recreating an existing standalone container, create a local backup.
-MongoDB data and configuration are stored in the named
-`gigs-together-mongodb-data` and `gigs-together-mongodb-config` volumes, so a
-regular `docker-compose down` followed by `docker-compose up -d` preserves the
-database. Do not use `docker-compose down -v`, because `-v` removes those named
-volumes and their data.
+Before recreating an existing standalone container, create a local backup. MongoDB data and configuration are stored in
+the named `gigs-together-mongodb-data` and `gigs-together-mongodb-config` volumes, so a regular `docker-compose down`
+followed by `docker-compose up -d` preserves the database. Do not use `docker-compose down -v`, because `-v` removes
+those named volumes and their data.
 
 Stop MongoDB:
 
@@ -143,9 +147,9 @@ Local connection example:
 MONGO_URI=mongodb://localhost:27017/gigs-together?replicaSet=rs0&directConnection=true
 ```
 
-Change it when using a different host port or database.
-`directConnection=true` is for the bundled single-member local replica set, where only one endpoint is exposed to the
-host. Do not add it to Atlas replica-set or sharded-cluster connection strings.
+Change it when using a different host port or database. `directConnection=true` is for the bundled single-member local
+replica set, where only one endpoint is exposed to the host. Do not add it to Atlas replica-set or sharded-cluster
+connection strings.
 
 Verify the local topology after startup:
 
@@ -153,8 +157,7 @@ Verify the local topology after startup:
 docker exec mongodb-gigs mongosh --quiet --eval "const hello = db.adminCommand({ hello: 1 }); printjson({ setName: hello.setName, isWritablePrimary: hello.isWritablePrimary })"
 ```
 
-The expected result contains `setName: 'rs0'` and
-`isWritablePrimary: true`.
+The expected result contains `setName: 'rs0'` and `isWritablePrimary: true`.
 
 ## Running the application
 
@@ -219,7 +222,8 @@ To start an already configured tunnel, use the name chosen during creation:
 cloudflared tunnel run <tunnel-name>
 ```
 
-See the [Cloudflare Tunnel development guide](./docs/development/CLOUDFLARE_TUNNEL.md) for installation, tunnel creation, local configuration, and usage.
+See the [Cloudflare Tunnel development guide](./docs/development/CLOUDFLARE_TUNNEL.md) for installation, tunnel
+creation, local configuration, and usage.
 
 ## Build, lint, format, and test
 
@@ -275,18 +279,26 @@ npm run test:debug
 
 #### Why Vitest uses SWC (`unplugin-swc`)
 
-Vitest runs tests through Vite. Vite’s default TypeScript transform is **esbuild**, which does **not** emit `emitDecoratorMetadata` / `design:paramtypes`. Nest relies on that metadata for ordinary **constructor injection** in `Test.createTestingModule({ providers: [...] })`, so without a different transform, DI in tests breaks in non-obvious ways.
+Vitest runs tests through Vite. Vite’s default TypeScript transform is **esbuild**, which does **not** emit
+`emitDecoratorMetadata` / `design:paramtypes`. Nest relies on that metadata for ordinary **constructor injection** in
+`Test.createTestingModule({ providers: [...] })`, so without a different transform, DI in tests breaks in non-obvious
+ways.
 
 This repo uses **`unplugin-swc`** so SWC compiles test code with explicit options:
 
 - `jsc.parser.decorators` and `jsc.transform.legacyDecorator`
 - `jsc.transform.decoratorMetadata` (emits the metadata Nest reads)
 
-The same `jsc` shape is written in **`vitest.config.ts`** (passed into `swc.vite()`) and duplicated in **`.swcrc`** as the documented source of truth. With **`tsconfigFile: false`**, unplugin-swc does **not** infer decorator settings from `tsconfig.json`, so the explicit `jsc` block is required—do not assume `emitDecoratorMetadata` in `tsconfig.json` applies to the Vitest pipeline.
+The same `jsc` shape is written in **`vitest.config.ts`** (passed into `swc.vite()`) and duplicated in **`.swcrc`** as
+the documented source of truth. With **`tsconfigFile: false`**, unplugin-swc does **not** infer decorator settings from
+`tsconfig.json`, so the explicit `jsc` block is required—do not assume `emitDecoratorMetadata` in `tsconfig.json`
+applies to the Vitest pipeline.
 
-**`vitest.setup.ts`** imports **`reflect-metadata`**: that only provides the runtime API to _read_ metadata SWC already emitted; it does not _generate_ metadata.
+**`vitest.setup.ts`** imports **`reflect-metadata`**: that only provides the runtime API to _read_ metadata SWC already
+emitted; it does not _generate_ metadata.
 
-A small guard test lives in **`src/nest-di-metadata.spec.ts`** (constructor-only dependency, no `@Inject()`). If you turn off `decoratorMetadata` in the SWC config, that test should fail.
+A small guard test lives in **`src/nest-di-metadata.spec.ts`** (constructor-only dependency, no `@Inject()`). If you
+turn off `decoratorMetadata` in the SWC config, that test should fail.
 
 ### End-to-end tests
 
@@ -408,43 +420,47 @@ Apply one migration by name only after reviewing its dry-run report with:
 npm run migrate:up:single:apply -- example-migration
 ```
 
-The single-migration scripts embed `--single` before the forwarded migration
-name. Do not append `--single` after `npm run ... --`; current npm versions may
-interpret it as npm configuration instead of forwarding it to the migrator.
+The single-migration scripts embed `--single` before the forwarded migration name. Do not append `--single` after
+`npm run ... --`; current npm versions may interpret it as npm configuration instead of forwarding it to the migrator.
 
-Use the migration name without the numeric filename timestamp. For example,
-`1234567890000-example-migration.ts` is run as `example-migration`.
+Use the migration name without the numeric filename timestamp. For example, `1234567890000-example-migration.ts` is run
+as `example-migration`.
 
-Migration files and their unit tests live in `migrations/`. Only actual
-migrations start with a numeric timestamp; colocated `*.test.ts` files must not.
+Migration files and their unit tests live in `migrations/`. Only actual migrations start with a numeric timestamp;
+colocated `*.test.ts` files must not.
 
-Dry run is the default. `npm run migrate:up:apply` explicitly sets
-`DRY_RUN=false`; every migration must check `isMigrationDryRun()` and call
-`finishMigrationDryRun()` so a dry run is not marked as applied.
+Dry run is the default. `npm run migrate:up:apply` explicitly sets `DRY_RUN=false`; every migration must check
+`isMigrationDryRun()` and call `finishMigrationDryRun()` so a dry run is not marked as applied.
 
-A successful dry run currently ends with `MigrationDryRunCompleteError`. This is
-the expected completion signal that keeps the migration in the pending state;
-review the JSON report printed immediately before it.
+A successful dry run currently ends with `MigrationDryRunCompleteError`. This is the expected completion signal that
+keeps the migration in the pending state; review the JSON report printed immediately before it.
 
 Because `migrate.ts` reads `.env` by default, verify that `MONGO_URI` is available there before running migrations.
 
 ## API notes for contributors
 
-- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/countries`, `/v1/locales`, and `/v1/translations`
+- API versioning is URI-based, so versioned routes look like `/v1/gigs`, `/v1/countries`, `/v1/locales`, and
+  `/v1/translations`
 - request validation is enabled globally with Nest `ValidationPipe`
 - MongoDB is connected through `MongooseModule.forRootAsync`
 - auth is cookie-based and uses access + refresh JWTs in HttpOnly cookies
 - uploads for receiver gig posters use in-memory multer storage with a 10 MB limit
-- GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation actions are under `/v1/admin/gig-candidates`
+- GigCandidate submission is available at `POST /v1/gig-candidates`; admin creation, lookup, editing, and moderation
+  actions are under `/v1/admin/gig-candidates`
 - admin Gig editing, visibility, and main-post actions are under `/v1/admin/gigs/:publicId`
-- manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls `DigestService.publish()` directly)
-- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the Gig feed, creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel remains a separate Gig action
-- translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL` and `TRANSLATIONS_REVALIDATE_SECRET` are configured
+- manual weekly digest publish is available at `POST /v1/admin/digest/publish` (admin JWT + `AdminGuard`; calls
+  `DigestService.publish()` directly)
+- approving a Reviewing GigCandidate atomically creates a visible Gig, then best-effort revalidates the Gig feed,
+  creates the calendar event, updates the moderation post, and sends lifecycle feedback; posting to the main channel
+  remains a separate Gig action
+- translation writes revalidate API cache and front Next.js cache via `TranslationRevalidateService` when `APP_BASE_URL`
+  and `TRANSLATIONS_REVALIDATE_SECRET` are configured
 - `GET /health` is the simplest endpoint to use for smoke testing
 
 ### Locale and translations modules
 
-Locale metadata and translation strings are split into two Nest modules with independent resource routes and collections.
+Locale metadata and translation strings are split into two Nest modules with independent resource routes and
+collections.
 
 | Module              | Path                       | MongoDB model | Responsibility                                                     |
 | ------------------- | -------------------------- | ------------- | ------------------------------------------------------------------ |
@@ -454,7 +470,8 @@ Locale metadata and translation strings are split into two Nest modules with ind
 Public endpoints:
 
 - `GET /v1/locales` — active locales sorted for clients (from `LocaleModule`)
-- `GET /v1/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional `?namespaces=` filter (from `TranslationModule`)
+- `GET /v1/translations` — grouped translation payloads; resolves locale from `Accept-Language` and optional
+  `?namespaces=` filter (from `TranslationModule`)
 
 Admin locale management lives in `AdminModule`, which imports `LocaleModule` and reuses `LocaleService`:
 
@@ -462,7 +479,8 @@ Admin locale management lives in `AdminModule`, which imports `LocaleModule` and
 - `PATCH /v1/admin/locales/:iso`
 - `PATCH /v1/admin/locales/order`
 
-`TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations; locale CRUD stays in `LocaleModule`.
+`TranslationModule` registers the `Locale` schema only to validate supported locale codes when serving translations;
+locale CRUD stays in `LocaleModule`.
 
 More module-level detail is in [docs/architecture](./docs/architecture/README.md).
 

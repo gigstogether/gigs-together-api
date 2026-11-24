@@ -8,84 +8,132 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 ## Documentation and Instructions
 
-- Write documentation and agent instructions for human readers as well as agents. Lead with the purpose, essential requirements, and required actions; use the shortest form that preserves necessary context.
-- Include details only when they help the reader understand, configure, operate, or change the feature. Omit repetition, generic advice, and peripheral implementation details while preserving important rationale and safety constraints.
-- Keep one authoritative description per topic and link to it. Keep documentation edits focused; expand their scope only when requested or needed for correctness. Keep detailed procedures in their owning sections.
+- Write documentation and agent instructions for human readers as well as agents. Lead with the purpose, essential
+  requirements, and required actions; use the shortest form that preserves necessary context.
+- Include details only when they help the reader understand, configure, operate, or change the feature. Omit repetition,
+  generic advice, and peripheral implementation details while preserving important rationale and safety constraints.
+- Keep one authoritative description per topic and link to it. Keep documentation edits focused; expand their scope only
+  when requested or needed for correctness. Keep detailed procedures in their owning sections.
 
 ## Code Style
 
 - Prefer correctness and maintainability over implementation speed.
-- Prefer explicit, strict typing. Keep types narrow and avoid widening to `string | number | ...` when the domain is known.
+- Prefer explicit, strict typing. Keep types narrow and avoid widening to `string | number | ...` when the domain is
+  known.
 - Comments must be in English using the Latin alphabet only. Do not write comments in Cyrillic.
-- Do not remove existing comments during any code change unless they are factually outdated or the documented behavior, rationale, constraint, or context no longer exists. This applies to feature work, bug fixes, cleanup, refactoring, and all other code changes.
-- When changing, moving, inlining, or deleting code, treat its comments as part of that code. Preserve their underlying rationale, constraints, third-party behavior, safety notes, and compatibility context near the new owner. Changing or removing a helper, symbol, or implementation is not by itself a reason to remove its comments. If a comment becomes inaccurate but its underlying information remains relevant, rewrite it instead of silently deleting it.
-- Before completing any code change, inspect the diff specifically for removed comments and TODOs. Account for every removal: move or rewrite the comment near the replacement code, or verify that the documented behavior or rationale no longer exists. When uncertain, preserve and update the comment.
-- Do not remove `TODO` comments (for example `// TODO: ...`) unless you are explicitly completing that TODO as part of the current task. Leave unrelated TODOs untouched.
-- Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and specifically matches the task at hand; a generic TODO may refer to different work.
-- For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with human-readable equivalents (at least days or hours, and minutes when useful).
-- Boolean variables and flags should preferably start with `is`/`has`/`can`, for example `isActive`, `isAdmin`, `isValid`.
-- When building an object with optional properties, prefer initializing a typed object and assigning optional properties in explicit `if` statements. Avoid conditional object spreads such as `...(condition ? { field: value } : {})` unless they are materially clearer than assignments. This rule applies only to conditional object spreads: do not use it to rewrite ordinary ternary expressions.
-- Narrow discriminated unions by their explicit discriminator field. Do not infer a variant from incidental payload fields with checks such as `'originalText' in source`; when TypeScript cannot narrow an outer union by a nested discriminator, add a named type guard.
-- In `catch` clauses, bind the caught value as `e`, not `error`, when a binding is needed (for example `catch (e) { ... }`).
-- Every `catch` block must have an observable, meaningful effect: rethrow or translate the error,
-  return an explicit typed failure result, update user-visible state, or log actionable context at
-  the appropriate level. Empty catches, comment-only catches, and catches that silently return a
-  generic fallback are forbidden. Best-effort cleanup may continue after failure, but it must still
-  record enough context to diagnose the failure without logging secrets or sensitive payloads.
-- Always create new files with `LF` line endings (not `CRLF`). Prefer editor or Git settings that default new files to `LF`.
-- Keep line endings as `LF` in tracked files. If you hit formatter errors caused by `CRLF`, convert the file to `LF` and reformat.
+- Do not remove existing comments during any code change unless they are factually outdated or the documented behavior,
+  rationale, constraint, or context no longer exists. This applies to feature work, bug fixes, cleanup, refactoring, and
+  all other code changes.
+- When changing, moving, inlining, or deleting code, treat its comments as part of that code. Preserve their underlying
+  rationale, constraints, third-party behavior, safety notes, and compatibility context near the new owner. Changing or
+  removing a helper, symbol, or implementation is not by itself a reason to remove its comments. If a comment becomes
+  inaccurate but its underlying information remains relevant, rewrite it instead of silently deleting it.
+- Before completing any code change, inspect the diff specifically for removed comments and TODOs. Account for every
+  removal: move or rewrite the comment near the replacement code, or verify that the documented behavior or rationale no
+  longer exists. When uncertain, preserve and update the comment.
+- Do not remove `TODO` comments (for example `// TODO: ...`) unless you are explicitly completing that TODO as part of
+  the current task. Leave unrelated TODOs untouched.
+- Remove a TODO only when it explicitly describes the work you are doing now — not when it uses vague wording such as
+  "refactor", "fix", "cleanup", or similar. Do not assume your change satisfies a TODO unless the comment clearly and
+  specifically matches the task at hand; a generic TODO may refer to different work.
+- For numeric constants in seconds or milliseconds (for example `604_800`, `86_400`), add a short comment with
+  human-readable equivalents (at least days or hours, and minutes when useful).
+- Boolean variables and flags should preferably start with `is`/`has`/`can`, for example `isActive`, `isAdmin`,
+  `isValid`.
+- When building an object with optional properties, prefer initializing a typed object and assigning optional properties
+  in explicit `if` statements. Avoid conditional object spreads such as `...(condition ? { field: value } : {})` unless
+  they are materially clearer than assignments. This rule applies only to conditional object spreads: do not use it to
+  rewrite ordinary ternary expressions.
+- Narrow discriminated unions by their explicit discriminator field. Do not infer a variant from incidental payload
+  fields with checks such as `'originalText' in source`; when TypeScript cannot narrow an outer union by a nested
+  discriminator, add a named type guard.
+- In `catch` clauses, bind the caught value as `e`, not `error`, when a binding is needed (for example
+  `catch (e) { ... }`).
+- Every `catch` block must have an observable, meaningful effect: rethrow or translate the error, return an explicit
+  typed failure result, update user-visible state, or log actionable context at the appropriate level. Empty catches,
+  comment-only catches, and catches that silently return a generic fallback are forbidden. Best-effort cleanup may
+  continue after failure, but it must still record enough context to diagnose the failure without logging secrets or
+  sensitive payloads.
+- Always create new files with `LF` line endings (not `CRLF`). Prefer editor or Git settings that default new files to
+  `LF`.
+- Keep line endings as `LF` in tracked files. If you hit formatter errors caused by `CRLF`, convert the file to `LF` and
+  reformat.
 
 ## Naming
 
-- Avoid `resolve` and `resolved` in identifiers and prose when a more concrete
-  word can describe the operation or result, such as `get`, `find`, `map`, `select`, `validate`, etc.
-  Keep these terms when they are part of a third-party API or when no clearer replacement exists.
-  Do not refactor unrelated existing occurrences solely to apply this rule.
-- Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
-- The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables, constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
+- Avoid `resolve` and `resolved` in identifiers and prose when a more concrete word can describe the operation or
+  result, such as `get`, `find`, `map`, `select`, `validate`, etc. Keep these terms when they are part of a third-party
+  API or when no clearer replacement exists. Do not refactor unrelated existing occurrences solely to apply this rule.
+- Do not use `publish`, `publication`, or any words from the same word family (for example `published`, `publisher`, or
+  `publishing`) in repository names or identifiers. These terms are ambiguous in this project and cause confusion.
+- The prohibition applies to file and directory names, classes, interfaces, types, methods, functions, variables,
+  constants, DTOs, events, route segments, database field names, and translation namespaces or keys.
 - Choose a concrete domain action instead, such as `post`, `send` or another term that precisely describes the behavior.
-- Do not use existing legacy occurrences as naming precedent. When code containing such an identifier is changed meaningfully, rename it within the same task when that rename is safe and in scope; otherwise call out the remaining legacy name explicitly.
+- Do not use existing legacy occurrences as naming precedent. When code containing such an identifier is changed
+  meaningfully, rename it within the same task when that rename is safe and in scope; otherwise call out the remaining
+  legacy name explicitly.
 
 ## Execution Rules
 
-- Do not create Git commits unless the user explicitly asks for a commit. A request to implement, finish, or validate changes does not authorize committing them.
+- Do not create Git commits unless the user explicitly asks for a commit. A request to implement, finish, or validate
+  changes does not authorize committing them.
 - Do not run `build`, `dev`, or start watchers or servers unless the user explicitly asks.
 - If command execution is needed to validate a change, ask first instead of running it proactively.
-- After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.
+- After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing
+  the task without asking the user.
 - If necessary for the task, it's allowed to run relevant tests without asking the user.
 - Do not run lint or `tsc` after documentation-only or comment-only changes (for example `*.md`).
-- After editing Markdown files (`*.md`), run `npx prettier --write <edited-md-files>` with the repository configuration on only the Markdown files edited in the task, without asking for confirmation.
+- After editing Markdown files (`*.md`), run `npx prettier --write <edited-md-files>` with the repository configuration
+  on only the Markdown files edited in the task, without asking for confirmation.
 
 ## Secrets Access Policy
 
-- Never read or print repository secret files such as `.env`, `.env.*` (except `.env.example`), private keys, or credential dumps.
-- Treat `.env` and `.env.*` (except `.env.example`) as denied by default for AI agents. Do not run commands like `cat`, `type`, `Get-Content`, `rg`, or editors against them.
+- Never read or print repository secret files such as `.env`, `.env.*` (except `.env.example`), private keys, or
+  credential dumps.
+- Treat `.env` and `.env.*` (except `.env.example`) as denied by default for AI agents. Do not run commands like `cat`,
+  `type`, `Get-Content`, `rg`, or editors against them.
 - Use `.env.example` (or documented variable names) for configuration guidance instead of reading real secret files.
-- If a task cannot be completed without secret values, stop and ask the user to provide only the required variable names or masked values.
+- If a task cannot be completed without secret values, stop and ask the user to provide only the required variable names
+  or masked values.
 
 ## Environment Configuration
 
-- Outside the pre-Nest bootstrap phase, do not read `process.env` directly. Inject `ConfigService` and access configuration through it.
-- A direct `process.env` read before `ConfigModule` initialization is allowed only when the value is required to initialize that module. Add an English comment explaining why the early read is necessary.
-- Reuse the parsers and validators in `src/shared/utils/env.ts`. Do not duplicate trimming, boolean or numeric parsing, required-value checks, or fallback logic at call sites.
-- Parse and validate a value once at its owning boundary. Store the normalized typed value when configuration is immutable for the process lifetime; do not retain `ConfigService` as a class field when it is used only during construction.
-- Use `getRequiredConfigString` for required strings and fail during initialization when they are missing. Use the optional helpers only when absence is part of the contract.
-- Apply defaults only when an optional value is absent or blank. Keep defaults as named constants near the owning feature. If a value is explicitly configured but malformed, throw a variable-specific error instead of silently using the default.
-- Do not log secret configuration values. Error messages may identify the missing or malformed variable, but must not include its value.
-- Keep feature configuration with its owner. When multiple independent consumers need the same normalized configuration, introduce a focused configuration provider instead of adding getters to an unrelated service or creating a global catch-all configuration service.
-- In tests, configure values before constructing the provider or module. Do not rely on mutating `process.env` after a service has cached its normalized configuration.
+- Outside the pre-Nest bootstrap phase, do not read `process.env` directly. Inject `ConfigService` and access
+  configuration through it.
+- A direct `process.env` read before `ConfigModule` initialization is allowed only when the value is required to
+  initialize that module. Add an English comment explaining why the early read is necessary.
+- Reuse the parsers and validators in `src/shared/utils/env.ts`. Do not duplicate trimming, boolean or numeric parsing,
+  required-value checks, or fallback logic at call sites.
+- Parse and validate a value once at its owning boundary. Store the normalized typed value when configuration is
+  immutable for the process lifetime; do not retain `ConfigService` as a class field when it is used only during
+  construction.
+- Use `getRequiredConfigString` for required strings and fail during initialization when they are missing. Use the
+  optional helpers only when absence is part of the contract.
+- Apply defaults only when an optional value is absent or blank. Keep defaults as named constants near the owning
+  feature. If a value is explicitly configured but malformed, throw a variable-specific error instead of silently using
+  the default.
+- Do not log secret configuration values. Error messages may identify the missing or malformed variable, but must not
+  include its value.
+- Keep feature configuration with its owner. When multiple independent consumers need the same normalized configuration,
+  introduce a focused configuration provider instead of adding getters to an unrelated service or creating a global
+  catch-all configuration service.
+- In tests, configure values before constructing the provider or module. Do not rely on mutating `process.env` after a
+  service has cached its normalized configuration.
 
 ## Testing Rules
 
 - Use Vitest for unit and integration tests in this repository.
 - Write tests for all new code.
 - Name test files as `*.test.*`. Colocate them near the module under test when practical.
-- Name `describe` blocks after the unit under test (module/function/behavior group), for example `describe('fetchApiJson')`.
+- Name `describe` blocks after the unit under test (module/function/behavior group), for example
+  `describe('fetchApiJson')`.
 - Keep `describe` names short and stable; do not duplicate scenario phrasing that belongs in `it`.
-- `describe` naming format: prefer exact symbol/module names (`fetchApiJson`, `useCalendarAvailableDates`, `parseCountries`), not full sentence descriptions.
+- `describe` naming format: prefer exact symbol/module names (`fetchApiJson`, `useCalendarAvailableDates`,
+  `parseCountries`), not full sentence descriptions.
 - Write test titles in clear behavior form: `should <expected behavior> when <condition>`.
 - Use Arrange-Act-Assert structure in each test; keep one primary behavior assertion per test.
-- Do not add explicit AAA comments like `// Arrange`, `// Act`, `// Assert`; keep AAA structure through code layout only.
+- Do not add explicit AAA comments like `// Arrange`, `// Act`, `// Assert`; keep AAA structure through code layout
+  only.
 - Prefer deterministic tests: no real network, no timers without control, no hidden global state dependencies.
 - Mock only at I/O boundaries (HTTP, storage, time, env). Do not mock pure business logic modules.
 - For bug fixes, add at least one regression test that fails before the fix and passes after it.
@@ -108,81 +156,135 @@ Apply these rules to the whole repository unless a more specific instruction exi
 
 - Mark a function as `async` only when it contains `await`.
 - Do not use `.then(...)` when the same logic can be written with `await`.
-- If a function returns a `Promise` without using `await`, declare the `Promise` return type explicitly in the signature instead of marking the function as `async`.
+- If a function returns a `Promise` without using `await`, declare the `Promise` return type explicitly in the signature
+  instead of marking the function as `async`.
 
-- Do not use type assertions (`as ...`) when the same result can be achieved with proper types, `satisfies`, narrower return types, or refactoring.
+- Do not use type assertions (`as ...`) when the same result can be achieved with proper types, `satisfies`, narrower
+  return types, or refactoring.
 - Treat `as` as a last resort and justify it locally with a short comment when unavoidable.
 - Prefer type guards, narrowing, and better source types instead of `as`.
 - Prefer `satisfies` for validating object shapes without changing inferred types.
-- Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code stays strongly typed.
+- Prefer parsing and validation at boundaries such as HTTP, env, storage, and third-party SDKs so the rest of the code
+  stays strongly typed.
 - Avoid `as any` entirely.
 
-- Do **not** add `readonly` to DTOs, params, domain types, props, array parameters, or collection return types merely because the implementation does not mutate them. Omit `readonly` by default.
-- Add `readonly` only when immutability is an intentional part of the public contract and a concrete shared-state mutation risk exists (for example a shared config object or cached snapshot). State that reason in a nearby comment when it is not obvious from the owner. Before completing a change, inspect every `readonly` added or preserved in the changed code and remove it unless this requirement is met. Do not refactor unrelated existing code solely to apply this rule.
+- Do **not** add `readonly` to DTOs, params, domain types, props, array parameters, or collection return types merely
+  because the implementation does not mutate them. Omit `readonly` by default.
+- Add `readonly` only when immutability is an intentional part of the public contract and a concrete shared-state
+  mutation risk exists (for example a shared config object or cached snapshot). State that reason in a nearby comment
+  when it is not obvious from the owner. Before completing a change, inspect every `readonly` added or preserved in the
+  changed code and remove it unless this requirement is met. Do not refactor unrelated existing code solely to apply
+  this rule.
 
 - Prefer named types for public APIs such as service methods, controller responses, and module exports.
 - Do not use inline object types in public signatures such as `Promise<{ ... }>` or `foo(arg: { ... })`.
 - Extract object shapes into a named `interface` or `type`, ideally colocated in `types/requests/*` for DTOs.
 - Prefer a named params object for long function signatures.
-- When a function or method needs exactly one value, prefer passing that value directly instead of wrapping it in a single-property object. This is a preference, not a strict rule: keep a params object when the contract is expected to expand or when the object form materially clarifies the API. Do not refactor unrelated existing code solely to apply this rule.
-- When an object-parameter function signature becomes long, do not destructure in the parameter list; accept `params: SomeParams` and destructure inside the function body.
+- When a function or method needs exactly one value, prefer passing that value directly instead of wrapping it in a
+  single-property object. This is a preference, not a strict rule: keep a params object when the contract is expected to
+  expand or when the object form materially clarifies the API. Do not refactor unrelated existing code solely to apply
+  this rule.
+- When an object-parameter function signature becomes long, do not destructure in the parameter list; accept
+  `params: SomeParams` and destructure inside the function body.
 
 - Prefer `interface` over `type` for object shapes unless `type` is clearly the better fit.
-- Use `type` for unions, intersections, mapped types, conditional types, tuples, and other patterns that interfaces cannot express cleanly.
+- Use `type` for unions, intersections, mapped types, conditional types, tuples, and other patterns that interfaces
+  cannot express cleanly.
 - Keep type imports separate from value imports. Do not mix them in one import statement.
 - Default: keep param/DTO types in the owning module (service, controller, parser, etc.).
-- Create a colocated `*.types.ts` only when a consumer cannot import the owning module, or when the same shapes are shared across modules that must stay decoupled from that owner's runtime.
+- Create a colocated `*.types.ts` only when a consumer cannot import the owning module, or when the same shapes are
+  shared across modules that must stay decoupled from that owner's runtime.
 - Do not extract types into `*.types.ts` only because they are exported or used in tests.
-- Files under `types/` and files named `*.types.ts` must export **types only** (`interface`, `type`, `enum`, type-only helpers). Put runtime constants and functions in a colocated `*.constants.ts` file or the owning module artifact (service, parser, controller).
+- Files under `types/` and files named `*.types.ts` must export **types only** (`interface`, `type`, `enum`, type-only
+  helpers). Put runtime constants and functions in a colocated `*.constants.ts` file or the owning module artifact
+  (service, parser, controller).
 
 ## Strictness
 
 - Prefer explicit correctness over best-effort fallbacks.
 - Do not add "just in case" logic that guesses shapes or silently recovers from invalid states.
 - If something is not as expected, throw an error or return an explicit error result instead of defaulting silently.
-- Avoid patterns that hide invalid states, for example `res?.data ?? res ?? {}`, `value || {}`, or `arr ?? []` when the default is not explicitly part of the contract.
+- Avoid patterns that hide invalid states, for example `res?.data ?? res ?? {}`, `value || {}`, or `arr ?? []` when the
+  default is not explicitly part of the contract.
 - At boundaries, parse unknown input, validate the expected shape, and throw if it does not match.
 
 ## Architecture and Design Decisions
 
 - This is a **production** project with real users, not an MVP playground. Treat new and changed code accordingly.
-- When introducing or changing behavior, **design for the best fit for this codebase first**: established patterns, clear ownership, maintainability, and correctness over speed of delivery or size of diff.
-- Do **not** default to quick-and-dirty, "good enough for now", or compromise solutions when a clearly better alternative exists for this project.
-- Do **not** recommend the smallest refactor, the fastest patch, or the simplest workaround **instead of** the more correct design unless the user explicitly asks for that tradeoff.
-- **Do** research and propose best practices, proven patterns, and the most appropriate architecture for the task before implementation.
-- Base decisions on the latest available official guidance and best practices for the versions actually used by this project. When newer guidance supersedes an older recommendation, follow the newer guidance and do not rely on the outdated approach; verify current version-specific documentation when behavior may have changed.
-- **Do** propose refactoring when the current structure blocks the correct solution or would accumulate avoidable technical debt.
-- Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt, limits).
-- Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts must be conscious and explicit, not silent defaults.
+- When introducing or changing behavior, **design for the best fit for this codebase first**: established patterns,
+  clear ownership, maintainability, and correctness over speed of delivery or size of diff.
+- Do **not** default to quick-and-dirty, "good enough for now", or compromise solutions when a clearly better
+  alternative exists for this project.
+- Do **not** recommend the smallest refactor, the fastest patch, or the simplest workaround **instead of** the more
+  correct design unless the user explicitly asks for that tradeoff.
+- **Do** research and propose best practices, proven patterns, and the most appropriate architecture for the task before
+  implementation.
+- Base decisions on the latest available official guidance and best practices for the versions actually used by this
+  project. When newer guidance supersedes an older recommendation, follow the newer guidance and do not rely on the
+  outdated approach; verify current version-specific documentation when behavior may have changed.
+- **Do** propose refactoring when the current structure blocks the correct solution or would accumulate avoidable
+  technical debt.
+- Inferior or shortcut options may be listed **only after** presenting the preferred approach, **or** when the user
+  explicitly requests alternatives. Always label them as not the best/default choice and explain why (tradeoffs, debt,
+  limits).
+- Perfection everywhere is not required, but **initial decisions should aim at the right long-term shape**; shortcuts
+  must be conscious and explicit, not silent defaults.
 
 ## Error and alert reporting
 
-- A propagated failure must have one structured-log owner. When an outer feature or exception boundary will log or alert the failure, lower-level clients, providers, repositories, and adapters must not log the same failure before rethrowing it.
-- A lower-level boundary that cannot handle a failure should throw a typed error that preserves the original failure as a native or otherwise non-enumerable `cause` and exposes only safe, explicitly selected diagnostic fields needed by its consumer.
-- Do not log an upstream error and then replace it with a generic wrapper such as `throw new Error('Operation failed')`. Translation must retain an actionable message, the cause, and safe metadata such as the provider operation, status, code, or sanitized hint.
-- The feature that owns the failed application operation owns the alert definition and the single `AlertingService.reportFailureBestEffort` call. Build alert attributes from the typed error; do not make `AlertingModule` understand provider-specific errors.
-- Log at the lower boundary only when the failure is fully contained there and will not be propagated or reported by an outer owner.
-- Expected external-service failures with actionable structured diagnostics should normally omit stack traces. Unexpected programming or orchestration failures should normally include them.
-- Never place credentials, tokens, authorization headers, raw configuration values, unsanitized upstream payloads, or signed URL query parameters in errors, logs, alert attributes, or serializable error fields.
+- A propagated failure must have one structured-log owner. When an outer feature or exception boundary will log or alert
+  the failure, lower-level clients, providers, repositories, and adapters must not log the same failure before
+  rethrowing it.
+- A lower-level boundary that cannot handle a failure should throw a typed error that preserves the original failure as
+  a native or otherwise non-enumerable `cause` and exposes only safe, explicitly selected diagnostic fields needed by
+  its consumer.
+- Do not log an upstream error and then replace it with a generic wrapper such as `throw new Error('Operation failed')`.
+  Translation must retain an actionable message, the cause, and safe metadata such as the provider operation, status,
+  code, or sanitized hint.
+- The feature that owns the failed application operation owns the alert definition and the single
+  `AlertingService.reportFailureBestEffort` call. Build alert attributes from the typed error; do not make
+  `AlertingModule` understand provider-specific errors.
+- Log at the lower boundary only when the failure is fully contained there and will not be propagated or reported by an
+  outer owner.
+- Expected external-service failures with actionable structured diagnostics should normally omit stack traces.
+  Unexpected programming or orchestration failures should normally include them.
+- Never place credentials, tokens, authorization headers, raw configuration values, unsanitized upstream payloads, or
+  signed URL query parameters in errors, logs, alert attributes, or serializable error fields.
 
 ## Legacy and backward compatibility
 
 - Do not keep legacy code, aliases, fallbacks, or compatibility shims without a clear reason.
-- If code remains **only** for backward compatibility, document that explicitly on the symbol: JSDoc on the function, method, class, type, or exported constant (what it supports, what callers should use instead, and when it can be removed if known).
-- Prefer removing unused legacy paths over leaving them “just in case”. If retention is intentional, the doc must say **legacy** or **backward compatibility** and the reason — not an unexplained special case in implementation.
-- Read-time normalization for old stored data (for example mapping missing fields to a default) belongs at the **I/O boundary** and must be documented as legacy compatibility, with a path toward explicit data or stricter validation.
+- If code remains **only** for backward compatibility, document that explicitly on the symbol: JSDoc on the function,
+  method, class, type, or exported constant (what it supports, what callers should use instead, and when it can be
+  removed if known).
+- Prefer removing unused legacy paths over leaving them “just in case”. If retention is intentional, the doc must say
+  **legacy** or **backward compatibility** and the reason — not an unexplained special case in implementation.
+- Read-time normalization for old stored data (for example mapping missing fields to a default) belongs at the **I/O
+  boundary** and must be documented as legacy compatibility, with a path toward explicit data or stricter validation.
 
 ## NestJS Patterns
 
-- **Treat the HTTP API as a REST API.** Design new endpoints and contract changes according to current REST API standards and established best practices, including resource-oriented URIs, correct HTTP method semantics, status codes, idempotency, error responses, pagination, filtering, and versioning. Verify current authoritative guidance when a design decision is ambiguous or practices may have evolved; do not copy an existing project endpoint when it conflicts with the better REST design.
-- **Version HTTP endpoints by default** using Nest `@Version(...)` (for example `@Version('1')` → `/v1/...`). Exceptions are rare and must be justified (health checks, webhooks with a fixed external URL, static assets, or similar). When adding an unversioned route, note why in the controller or module doc.
-- **Use plural resource names for new REST endpoints**, consistently for both collections and individual resources (for example `GET /v1/admin/gig-candidates` and `GET /v1/admin/gig-candidates/:id`). Do not switch to a singular segment for detail, update, delete, or resource-action routes. Existing singular routes are legacy inconsistencies and must not be used as precedent for new endpoints.
+- **Treat the HTTP API as a REST API.** Design new endpoints and contract changes according to current REST API
+  standards and established best practices, including resource-oriented URIs, correct HTTP method semantics, status
+  codes, idempotency, error responses, pagination, filtering, and versioning. Verify current authoritative guidance when
+  a design decision is ambiguous or practices may have evolved; do not copy an existing project endpoint when it
+  conflicts with the better REST design.
+- **Version HTTP endpoints by default** using Nest `@Version(...)` (for example `@Version('1')` → `/v1/...`). Exceptions
+  are rare and must be justified (health checks, webhooks with a fixed external URL, static assets, or similar). When
+  adding an unversioned route, note why in the controller or module doc.
+- **Use plural resource names for new REST endpoints**, consistently for both collections and individual resources (for
+  example `GET /v1/admin/gig-candidates` and `GET /v1/admin/gig-candidates/:id`). Do not switch to a singular segment
+  for detail, update, delete, or resource-action routes. Existing singular routes are legacy inconsistencies and must
+  not be used as precedent for new endpoints.
 - Prefer DTOs for request and response shapes.
 - Keep controllers thin and move business logic into services.
 - Use dependency injection consistently.
 - Avoid creating clients directly inside methods unless the scope requires it and the reason is clear.
-- For successful requests with **no response body**, return only the appropriate HTTP status code (for example `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as `{ ok: true }` or `{ success: true }`.
-- When the endpoint has a meaningful response payload (for example health checks with service metadata), return that payload explicitly; the empty-body rule applies only when there is nothing useful to return.
+- For successful requests with **no response body**, return only the appropriate HTTP status code (for example
+  `204 No Content` via `@HttpCode(HttpStatus.NO_CONTENT)` and `Promise<void>`). Do not return placeholder JSON such as
+  `{ ok: true }` or `{ success: true }`.
+- When the endpoint has a meaningful response payload (for example health checks with service metadata), return that
+  payload explicitly; the empty-body rule applies only when there is nothing useful to return.
 
 ## HTTP boundary mapping
 
@@ -192,19 +294,28 @@ Keep endpoint contracts at the HTTP boundary. The default call chain for control
 request DTO -> pure request mapper -> application service -> pure response mapper -> response DTO
 ```
 
-- Controllers own NestJS routing, guards, status codes, request DTOs, and response DTOs. Keep them concise, but allow them to call pure request and response mapper functions directly; this small amount of explicit boundary orchestration is preferred over a pass-through facade.
-- Application and domain services must not accept versioned endpoint DTOs or return versioned response DTOs. Define named application params and result types that use domain/application representations such as `Date` and numeric timestamps rather than serialized HTTP strings.
-- Request mappers translate validated HTTP DTOs into application params. Response mappers translate application results into the exact versioned wire contract, including date/string serialization and response wrappers.
-- Keep HTTP mappers pure: no database access, external API calls, dependency injection, logging, or business decisions. Data enrichment and cross-module orchestration belong in an application/query service before response mapping.
-- Prefer colocated mapper functions in an established feature mapper file. Do not introduce an injectable mapper service for pure transformations.
-- Do not add an HTTP facade merely to hide mapper calls. Add a facade or dedicated endpoint handler only when it owns meaningful reusable orchestration beyond request mapping, one application-service call, and response mapping.
-- Apply this structure to new controllers and when refactoring existing endpoints; do not perform unrelated wholesale migrations solely to conform existing code.
+- Controllers own NestJS routing, guards, status codes, request DTOs, and response DTOs. Keep them concise, but allow
+  them to call pure request and response mapper functions directly; this small amount of explicit boundary orchestration
+  is preferred over a pass-through facade.
+- Application and domain services must not accept versioned endpoint DTOs or return versioned response DTOs. Define
+  named application params and result types that use domain/application representations such as `Date` and numeric
+  timestamps rather than serialized HTTP strings.
+- Request mappers translate validated HTTP DTOs into application params. Response mappers translate application results
+  into the exact versioned wire contract, including date/string serialization and response wrappers.
+- Keep HTTP mappers pure: no database access, external API calls, dependency injection, logging, or business decisions.
+  Data enrichment and cross-module orchestration belong in an application/query service before response mapping.
+- Prefer colocated mapper functions in an established feature mapper file. Do not introduce an injectable mapper service
+  for pure transformations.
+- Do not add an HTTP facade merely to hide mapper calls. Add a facade or dedicated endpoint handler only when it owns
+  meaningful reusable orchestration beyond request mapping, one application-service call, and response mapping.
+- Apply this structure to new controllers and when refactoring existing endpoints; do not perform unrelated wholesale
+  migrations solely to conform existing code.
 
 ## Module data layer
 
-Persistence must have an explicit feature owner and must not leak Mongoose types or
-query details into controllers, application/query services, or domain logic. Every
-MongoDB collection accessed by application code must have a repository boundary.
+Persistence must have an explicit feature owner and must not leak Mongoose types or query details into controllers,
+application/query services, or domain logic. Every MongoDB collection accessed by application code must have a
+repository boundary.
 
 Required call chain:
 
@@ -231,12 +342,21 @@ src/modules/<feature>/
 
 ### Responsibilities
 
-- **`types/<feature>.types.ts`** — how the application understands the entity. No Mongoose types, no `ObjectId`, no query operators.
-- **`repositories/<feature>.repository.ts`** — persistence contract only: `export const <FEATURE>_REPOSITORY = Symbol('...')` and `interface <Feature>Repository { ... }`. Method params and return types use domain types. Do **not** put Mongo details here (`$in`, `$or`, `$exists`, `lean`, `Model`, `ObjectId`, filters shaped like Mongo queries).
-- **`repositories/mongo-<feature>.repository.ts`** — the only place that talks to Mongoose for that collection (`@InjectModel`, `find`, `lean`, query operators, etc.). Implements the repository interface and maps results through the mapper.
-- **`repositories/<feature>.repository.mapper.ts`** — maps lean Mongo documents to domain types. Keep mapping pure and free of DB I/O.
-- **`<feature>.schema.ts`** — storage shape and indexes. Domain code outside the mongo repository and mapper should not depend on schema document types for business logic.
-- **Service** — business logic only. Inject the repository via `@Inject(<FEATURE>_REPOSITORY)`. Do **not** inject `@InjectModel(...)` for collections owned by the module.
+- **`types/<feature>.types.ts`** — how the application understands the entity. No Mongoose types, no `ObjectId`, no
+  query operators.
+- **`repositories/<feature>.repository.ts`** — persistence contract only:
+  `export const <FEATURE>_REPOSITORY = Symbol('...')` and `interface <Feature>Repository { ... }`. Method params and
+  return types use domain types. Do **not** put Mongo details here (`$in`, `$or`, `$exists`, `lean`, `Model`,
+  `ObjectId`, filters shaped like Mongo queries).
+- **`repositories/mongo-<feature>.repository.ts`** — the only place that talks to Mongoose for that collection
+  (`@InjectModel`, `find`, `lean`, query operators, etc.). Implements the repository interface and maps results through
+  the mapper.
+- **`repositories/<feature>.repository.mapper.ts`** — maps lean Mongo documents to domain types. Keep mapping pure and
+  free of DB I/O.
+- **`<feature>.schema.ts`** — storage shape and indexes. Domain code outside the mongo repository and mapper should not
+  depend on schema document types for business logic.
+- **Service** — business logic only. Inject the repository via `@Inject(<FEATURE>_REPOSITORY)`. Do **not** inject
+  `@InjectModel(...)` for collections owned by the module.
 - **Module wiring** — register the Mongo implementation against the Symbol token:
 
 ```ts
@@ -249,13 +369,18 @@ src/modules/<feature>/
 ### Scope and migration
 
 - Apply this pattern to **new** persistence code and when touching an existing module's data access in a meaningful way.
-- When an existing service injects a Mongoose model directly, introduce the appropriate repository boundary rather than extending mixed application and persistence responsibilities.
-- Infrastructure modules that wrap external APIs (Telegram, Calendar, Bucket, AI) are not Mongo repositories; keep their client/adapter boundaries as they are unless they also own a Mongo collection.
+- When an existing service injects a Mongoose model directly, introduce the appropriate repository boundary rather than
+  extending mixed application and persistence responsibilities.
+- Infrastructure modules that wrap external APIs (Telegram, Calendar, Bucket, AI) are not Mongo repositories; keep their
+  client/adapter boundaries as they are unless they also own a Mongo collection.
 
 ## File placement
 
-- Do not add a new file when the code has a **single call site** — colocate it in the existing module artifact (service, controller, guard, pipe, mapper, or parser) instead.
-- Extract to a shared file only when there are **multiple consumers**, or when the boundary is already established (request/response DTOs under `types/requests/*`, guards and validators reused across controllers, module public exports, shared parsers at HTTP or I/O boundaries).
+- Do not add a new file when the code has a **single call site** — colocate it in the existing module artifact (service,
+  controller, guard, pipe, mapper, or parser) instead.
+- Extract to a shared file only when there are **multiple consumers**, or when the boundary is already established
+  (request/response DTOs under `types/requests/*`, guards and validators reused across controllers, module public
+  exports, shared parsers at HTTP or I/O boundaries).
 - Prefer extending an existing file in the same feature module over creating parallel one-off helpers.
 
 ## Import paths
@@ -263,20 +388,27 @@ src/modules/<feature>/
 - Use relative imports for files within the same feature module.
 - Use the `@modules/*` path alias for imports between different feature modules.
 - Use the `@shared/*` path alias for shared types and utilities.
-- Apply these rules to new code and to imports touched during refactoring. Do not perform unrelated bulk migrations of existing imports solely to adopt an alias.
+- Apply these rules to new code and to imports touched during refactoring. Do not perform unrelated bulk migrations of
+  existing imports solely to adopt an alias.
 
 ## Translations
 
-- Do not use the word **copy** for UI text, labels, strings, templates, or other translatable content. Prefer **text**, **strings**, **labels**, or **content**. Reserve **copy** for clipboard actions (for example `Copy link`) and file operations (for example `Copy .env.example`).
+- Do not use the word **copy** for UI text, labels, strings, templates, or other translatable content. Prefer **text**,
+  **strings**, **labels**, or **content**. Reserve **copy** for clipboard actions (for example `Copy link`) and file
+  operations (for example `Copy .env.example`).
 - Translation **namespaces** and **keys** use **camelCase** identifiers.
 - Namespace pattern: start with a lowercase letter, then alphanumeric; examples: `common`, `telegram`, `default`.
-- Key pattern: dot-separated camelCase segments; examples: `mainGig.withLink`, `weeklyDigest.gigLine.html`, `button.approve`.
+- Key pattern: dot-separated camelCase segments; examples: `mainGig.withLink`, `weeklyDigest.gigLine.html`,
+  `button.approve`.
 - Do not use snake_case or kebab-case in namespaces or keys (for example `main_gig_post`, `weekly-digest`).
-- Post template keys name the post type without a redundant `Post` suffix (for example `mainGig`, `weeklyDigest`, not `mainGigPost`); namespace `telegram` already scopes channel post text.
+- Post template keys name the post type without a redundant `Post` suffix (for example `mainGig`, `weeklyDigest`, not
+  `mainGigPost`); namespace `telegram` already scopes channel post text.
 - **Locale** values stay lowercase ISO 639-1 codes (for example `en`, `es`); locale is not camelCase.
 - Preserve namespace casing in storage and API responses; do not normalize namespaces to lowercase.
-- Reuse validation helpers in `src/modules/translation/translation-identifiers.ts` when parsing or validating translation records, seeds, and admin input.
-- Translation record shape: `namespace`, `key`, `value`, `format` (`plain`), `kind` (`text` for labels and static strings, `template` for strings with `{placeholders}`), `isActive`.
+- Reuse validation helpers in `src/modules/translation/translation-identifiers.ts` when parsing or validating
+  translation records, seeds, and admin input.
+- Translation record shape: `namespace`, `key`, `value`, `format` (`plain`), `kind` (`text` for labels and static
+  strings, `template` for strings with `{placeholders}`), `isActive`.
 
 ## Notes
 

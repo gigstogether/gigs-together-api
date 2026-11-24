@@ -23,9 +23,8 @@ Use the actual BotFather short names; `suggest` and `admin` are the template exa
 enabled. Main App and Menu Button are optional; backend-generated action links use the named apps.
 
 The resulting links have the form `https://t.me/<bot_username>/<short_name>`; see Telegram's
-[Direct Link Mini Apps documentation](https://core.telegram.org/bots/webapps#direct-link-mini-apps).
-Open both links in a Telegram client to verify the BotFather setup; the backend only checks that short names are
-non-empty.
+[Direct Link Mini Apps documentation](https://core.telegram.org/bots/webapps#direct-link-mini-apps). Open both links in
+a Telegram client to verify the BotFather setup; the backend only checks that short names are non-empty.
 
 Shared-chat suggestion buttons use the suggestion Direct Mini App link. Private-chat suggestion buttons instead open
 `APP_BASE_URL/suggest/launch` as a `web_app` button. The suggestion entry point sends an application admin to the new
@@ -34,8 +33,8 @@ GigCandidate form and other users to `/suggest`.
 ### Web Login
 
 Register the frontend origin among the bot's allowed Login URLs in BotFather, as described in
-[Telegram Login setup](https://core.telegram.org/bots/telegram-login#registering-your-allowed-urls).
-Use the same issued Client ID in both applications.
+[Telegram Login setup](https://core.telegram.org/bots/telegram-login#registering-your-allowed-urls). Use the same issued
+Client ID in both applications.
 
 ### Admin launch actions
 
@@ -78,12 +77,12 @@ administrator rights are not required. Set the suggestion group's numeric ID as 
 ### Webhook
 
 Register `https://<api-host>/v1/telegram/updates` using Telegram
-[`setWebhook`](https://core.telegram.org/bots/api#setwebhook), passing backend `BOT_SECRET` as `secret_token`.
-Telegram sends it in `X-Telegram-Bot-Api-Secret-Token`; the backend checks this header.
+[`setWebhook`](https://core.telegram.org/bots/api#setwebhook), passing backend `BOT_SECRET` as `secret_token`. Telegram
+sends it in `X-Telegram-Bot-Api-Secret-Token`; the backend checks this header.
 
 Use [`getWebhookInfo`](https://core.telegram.org/bots/api#getwebhookinfo) to confirm the exact URL and inspect delivery
-errors. For a local API, use the public HTTPS hostname from
-the [Cloudflare Tunnel guide](../development/CLOUDFLARE_TUNNEL.md).
+errors. For a local API, use the public HTTPS hostname from the
+[Cloudflare Tunnel guide](../development/CLOUDFLARE_TUNNEL.md).
 
 ### Backend checks
 
