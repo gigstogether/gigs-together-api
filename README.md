@@ -85,6 +85,7 @@ Install and configure the following before you start:
 Copy [`.env.example`](./.env.example) to `.env` in the repository root and configure the startup requirements before running the API.
 
 See the [environment reference](./docs/configuration/ENVIRONMENT.md) for required settings, defaults, and file-loading rules.
+For backend bot, channel, and webhook configuration, see [Telegram integration — backend setup](./docs/integrations/TELEGRAM.md#backend-setup).
 
 ## Installation
 
