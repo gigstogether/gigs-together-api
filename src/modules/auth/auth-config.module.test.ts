@@ -93,14 +93,48 @@ describe('createAuthConfig', () => {
     });
   });
 
-  it('should enable secure cookies by default in production', () => {
-    const config = createAuthConfig(createConfigService({ NODE_ENV: 'prod' }));
+  it.each(['production', 'prod', ' PRODUCTION ', ' PROD '])(
+    'should enable secure cookies by default when NODE_ENV is %s',
+    (nodeEnv) => {
+      const config = createAuthConfig(
+        createConfigService({ NODE_ENV: nodeEnv }),
+      );
 
-    expect([config.accessCookie.secure, config.refreshCookie.secure]).toEqual([
-      true,
-      true,
-    ]);
-  });
+      expect([config.accessCookie.secure, config.refreshCookie.secure]).toEqual(
+        [true, true],
+      );
+    },
+  );
+
+  it.each([undefined, '', '   ', 'dev', 'development', 'test'])(
+    'should disable secure cookies by default when NODE_ENV is %j',
+    (nodeEnv) => {
+      const config = createAuthConfig(
+        createConfigService({ NODE_ENV: nodeEnv }),
+      );
+
+      expect([config.accessCookie.secure, config.refreshCookie.secure]).toEqual(
+        [false, false],
+      );
+    },
+  );
+
+  it.each(['prod', 'production'])(
+    'should keep explicit cookie security flags when NODE_ENV is %s',
+    (nodeEnv) => {
+      const config = createAuthConfig(
+        createConfigService({
+          NODE_ENV: nodeEnv,
+          ACCESS_TOKEN_COOKIE_SECURE: 'false',
+          REFRESH_TOKEN_COOKIE_SECURE: 'true',
+        }),
+      );
+
+      expect([config.accessCookie.secure, config.refreshCookie.secure]).toEqual(
+        [false, true],
+      );
+    },
+  );
 
   it.each([
     ['JWT_SECRET', 'JWT_SECRET is not configured.'],

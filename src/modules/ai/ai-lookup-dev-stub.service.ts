@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { GigFormInput } from '../gig/types/gig.types';
-import { getConfigBoolean, getConfigString } from '@shared/utils/env';
+import {
+  getConfigBoolean,
+  getConfigString,
+  isProductionEnvironment,
+} from '@shared/utils/env';
 import type { AiGigLookupParams } from './ai-lookup.types';
 
 @Injectable()
@@ -11,15 +15,14 @@ export class AiLookupDevStubService {
   private static readonly DEV_STUB_CITY = 'barcelona';
   private static readonly DEV_STUB_VENUE = 'Sala Razzmatazz';
   private static readonly DEV_STUB_TICKETS_URL = 'https://example.com/dev-stub';
-  private readonly nodeEnv: string;
+  // Cache the environment classification as part of this singleton's immutable configuration.
+  private readonly isProduction: boolean;
   private readonly isStubEnabled: boolean;
   private readonly stubKeyword: string | undefined;
   private readonly defaultGigPosterUrl: string | undefined;
 
   constructor(configService: ConfigService) {
-    this.nodeEnv = (
-      getConfigString(configService, 'NODE_ENV') ?? 'dev'
-    ).toLowerCase();
+    this.isProduction = isProductionEnvironment(configService);
     this.isStubEnabled =
       getConfigBoolean(configService, 'AI_LOOKUP_DEV_STUB') ?? false;
     this.stubKeyword = getConfigString(
@@ -44,12 +47,8 @@ export class AiLookupDevStubService {
     return this.buildStubGig(params);
   }
 
-  private isNonProductionEnvironment(): boolean {
-    return this.nodeEnv !== 'prod' && this.nodeEnv !== 'production';
-  }
-
   private shouldUseStub(params: AiGigLookupParams): boolean {
-    if (!this.isNonProductionEnvironment()) {
+    if (this.isProduction) {
       return false;
     }
 
