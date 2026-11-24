@@ -1,8 +1,12 @@
+# Local development only. This Compose file is not a production deployment configuration.
+# MONGO_DOCKER_HOST_PORT controls only the local host port; the API and migrations use MONGO_URI.
+# See docs/configuration/ENVIRONMENT.md for the full environment reference.
+
 # 0. Check if you have docker 'docker --version'. Install if you don't
 # 1. Run Docker:
 #   - WSL/Linux: 'sudo service docker start'
 #   - Windows (PowerShell/CMD): just run Docker Desktop
-# 2. Make sure you have the variables in your .env
+# 2. Optionally set MONGO_DOCKER_HOST_PORT in .env (default: 27017).
 # 3. Run 'docker-compose up -d'.
 
 x-mongodb-healthcheck-script: &mongodb-healthcheck-script |-
@@ -26,9 +30,7 @@ services:
     image: mongodb/mongodb-community-server
     command: ['--replSet', 'rs0', '--bind_ip_all']
     ports:
-      - '${MONGO_PORT}:27017'
-    environment:
-      MONGO_INITDB_DATABASE: ${MONGO_DB}
+      - '${MONGO_DOCKER_HOST_PORT:-27017}:27017'
     volumes:
       - mongodb-data:/data/db
       - mongodb-config:/data/configdb

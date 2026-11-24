@@ -4,7 +4,8 @@ This document explains how `gigs-together-api` is structured and where the main 
 
 ## Overview
 
-The application is a modular NestJS monolith. Each domain lives in its own Nest module, while shared infrastructure is wired in the root module.
+The application is a modular NestJS monolith. Each domain lives in its own Nest module, while shared infrastructure is
+wired in the root module.
 
 High-level flow:
 
@@ -85,7 +86,8 @@ Responsibilities:
 
 - owns GigCandidate submission and moderation workflows
 - keeps candidate lifecycle feedback in `GigCandidateFeedbackService`
-- keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file validation and storage to `GigPosterService`
+- keeps candidate-specific poster selection and defaulting in `gig-candidate/gig-candidate-poster`, which delegates file
+  validation and storage to `GigPosterService`
 - keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
 - validates draft Community assignments and carries them into approved Gigs
 - uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
@@ -222,9 +224,8 @@ Main files:
 - `src/modules/location/locality/`
 - `src/modules/location/venue/`
 
-Physical locations use the hierarchy `ISO country code → Locality → Venue`. A Locality is
-a named geographic context and is not required to be a city; a Venue is a
-concrete physical event location. Region is deliberately not an entity or
+Physical locations use the hierarchy `ISO country code → Locality → Venue`. A Locality is a named geographic context and
+is not required to be a city; a Venue is a concrete physical event location. Region is deliberately not an entity or
 catalog in the project.
 
 #### `CommunityModule`
@@ -249,12 +250,10 @@ Main files:
 - `src/modules/community/community.service.ts`
 - `src/modules/community/community.schema.ts`
 
-Community is an event audience rather than a physical boundary. Gigs and
-GigCandidates reference one or more Communities independently from their Venues:
-`Gig / GigCandidate → Community[]`.
+Community is an event audience rather than a physical boundary. Gigs and GigCandidates reference one or more Communities
+independently from their Venues: `Gig / GigCandidate → Community[]`.
 
-Detailed ownership, target models, and rollout constraints are documented in
-[Location Architecture](./LOCATIONS.md).
+Detailed ownership, target models, and rollout constraints are documented in [Location Architecture](./LOCATIONS.md).
 
 ### Integration and infrastructure modules
 
@@ -277,7 +276,7 @@ Main files:
 - `src/modules/alerting/alert-delivery.ts`
 - `src/modules/alerting/telegram-alert-delivery.service.ts`
 
-The active alert catalog and alerting conventions are documented in [`ALERTING.md`](../ALERTING.md).
+The active alert catalog and alerting conventions are documented in [Alerting](../monitoring/ALERTING.md).
 
 #### `TelegramBotClientModule`
 
@@ -302,8 +301,10 @@ Responsibilities:
 - uses `TelegramBotClientModule` for low-level Telegram Bot API calls
 - uses cache for Telegram-related operations
 - can interact with bucket storage
-- validates Web App `initData` and Telegram OIDC ID tokens, then exchanges them for application JWTs (with `AuthModule` services)
-- imports `AuthModule` and `AdminModule` for token signing and admin checks; does **not** re-export `AuthModule` (consumers import `AuthModule` explicitly when they need JWT guards or services)
+- validates Web App `initData` and Telegram OIDC ID tokens, then exchanges them for application JWTs (with `AuthModule`
+  services)
+- imports `AuthModule` and `AdminModule` for token signing and admin checks; does **not** re-export `AuthModule`
+  (consumers import `AuthModule` explicitly when they need JWT guards or services)
 
 Main files:
 
@@ -334,7 +335,8 @@ Responsibilities:
 - HttpOnly cookie helpers for browser sessions
 - `POST /v1/auth/refresh` and `POST /v1/auth/logout`
 - guards: optional access JWT (`AccessJwtAuthGuard`), authenticated user required (`AuthenticatedUserGuard`)
-- re-exports `AdminModule` so modules that only import `AuthModule` still receive admin checks where JWT services need them
+- re-exports `AdminModule` so modules that only import `AuthModule` still receive admin checks where JWT services need
+  them
 
 Main files:
 
@@ -344,7 +346,8 @@ Main files:
 - `src/modules/auth/auth-cookies.service.ts`
 - `src/modules/auth/auth.controller.ts`
 
-Shared types and mappers used across auth and Telegram (for example `AccessTokenIdentityPayload`, `verifiedAccessTokenToUser`) live under `src/shared/types` and `src/shared/mappers`.
+Shared types and mappers used across auth and Telegram (for example `AccessTokenIdentityPayload`,
+`verifiedAccessTokenToUser`) live under `src/shared/types` and `src/shared/mappers`.
 
 #### `CalendarModule`
 
@@ -391,9 +394,8 @@ Typical path:
 4. the application service reads through its repository and returns an application result
 5. the controller maps that result into the versioned response DTO
 
-For the Gig feed, both HTTP mappings are pure functions in
-`src/modules/gig/gig-feed/gig-feed.mapper.ts`; `GigFeedService` does not depend
-on versioned response DTOs.
+For the Gig feed, both HTTP mappings are pure functions in `src/modules/gig/gig-feed/gig-feed.mapper.ts`;
+`GigFeedService` does not depend on versioned response DTOs.
 
 Examples:
 
@@ -448,4 +450,5 @@ The codebase is organized around a few practical boundaries:
 - external systems are abstracted behind dedicated services instead of being called directly from controllers
 - Mongo models are registered per module rather than globally
 
-This keeps responsibilities local and makes it easier to extend the project without turning `AppModule` into a business-logic container.
+This keeps responsibilities local and makes it easier to extend the project without turning `AppModule` into a
+business-logic container.

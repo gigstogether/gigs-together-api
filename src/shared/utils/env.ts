@@ -27,6 +27,18 @@ export function getRequiredConfigString(
   return value;
 }
 
+/**
+ * Classifies the configured runtime without changing ConfigModule's env-file selection.
+ * The legacy `prod` alias is retained for backward compatibility with existing npm
+ * scripts and .env.prod deployments. Prefer `production` for new runtime settings;
+ * remove the alias only after those scripts and deployments have been migrated.
+ */
+export function isProductionEnvironment(configService: ConfigService): boolean {
+  const nodeEnv = getConfigString(configService, 'NODE_ENV')?.toLowerCase();
+
+  return nodeEnv === 'production' || nodeEnv === 'prod';
+}
+
 export function getConfigPositiveSafeInteger(
   configService: ConfigService,
   variableName: string,

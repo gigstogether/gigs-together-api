@@ -4,6 +4,7 @@ import {
   getConfigPositiveSafeInteger,
   getConfigString,
   getRequiredConfigString,
+  isProductionEnvironment,
 } from './env';
 
 describe('getConfigString', () => {
@@ -54,6 +55,26 @@ describe('getRequiredConfigString', () => {
       getRequiredConfigString(configService, 'TEST_REQUIRED_CONFIG_STRING'),
     ).toThrowError('TEST_REQUIRED_CONFIG_STRING is not configured.');
   });
+});
+
+describe('isProductionEnvironment', () => {
+  it.each(['production', 'prod', ' PRODUCTION ', ' PROD '])(
+    'should return true when NODE_ENV is %s',
+    (nodeEnv) => {
+      const configService = new ConfigService({ NODE_ENV: nodeEnv });
+
+      expect(isProductionEnvironment(configService)).toBe(true);
+    },
+  );
+
+  it.each([undefined, '', '   ', 'dev', 'development', 'test', 'staging'])(
+    'should return false when NODE_ENV is %j',
+    (nodeEnv) => {
+      const configService = new ConfigService({ NODE_ENV: nodeEnv });
+
+      expect(isProductionEnvironment(configService)).toBe(false);
+    },
+  );
 });
 
 describe('getConfigPositiveSafeInteger', () => {
