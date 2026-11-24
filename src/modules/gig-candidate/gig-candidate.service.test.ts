@@ -1101,8 +1101,8 @@ describe('GigCandidateService', () => {
         },
         context: {
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
+          localityName: 'Barcelona',
+          countryIso: 'ES',
           publicId: `gc-${created.id}`,
         },
       });
@@ -2424,9 +2424,6 @@ describe('GigCandidateService', () => {
         publicId: gig.publicId,
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
@@ -3262,9 +3259,6 @@ function buildGigApprovalResult(
     publicId: 'radiohead-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'Barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     source: {
       type: GigSourceType.User,

@@ -26,9 +26,6 @@ export interface UpdateGigByPublicIdRecordParams {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPoster;
 }

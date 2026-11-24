@@ -25,6 +25,7 @@ import type {
   UpdateGigModerationPostAfterEditParams,
   UpdateGigModerationPostPayload,
 } from './telegram-gig.service.types';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 @Injectable()
 export class TelegramGigService {
@@ -35,6 +36,7 @@ export class TelegramGigService {
     private readonly telegramGigComposer: TelegramGigComposerService,
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramService: TelegramService,
+    private readonly venueService: VenueService,
   ) {}
 
   readonly pickPost: TelegramGigComposerService['pickPost'] =
@@ -65,8 +67,17 @@ export class TelegramGigService {
    * The caller supplies the stored post reference so the exact message is targeted.
    * Updates media when requested; otherwise updates the caption or text.
    */
-  editPost(params: EditGigPostParams): Promise<TelegramGigPostEditResult> {
-    const composed = this.telegramGigComposer.composePostEdit(params);
+  async editPost(
+    params: EditGigPostParams,
+  ): Promise<TelegramGigPostEditResult> {
+    const venueNames =
+      params.post.type === PostType.Main
+        ? await this.getVenueNames(params.gig)
+        : [];
+    const composed = this.telegramGigComposer.composePostEdit({
+      ...params,
+      venueNames,
+    });
     return this.executePostEdit(composed, params.posterFile);
   }
 
@@ -143,8 +154,9 @@ export class TelegramGigService {
   async sendMainPost(
     gig: PlainGig,
   ): Promise<TelegramGigPostSendResult | undefined> {
+    const venueNames = await this.getVenueNames(gig);
     const composedMainPost: TGSendPhoto =
-      this.telegramGigComposer.composeMainPost(gig);
+      this.telegramGigComposer.composeMainPost({ gig, venueNames });
     const message = await this.telegramBotClient.sendPhoto(
       composedMainPost,
       gig.id,
@@ -215,6 +227,17 @@ export class TelegramGigService {
       );
       return undefined;
     }
+  }
+
+  private async getVenueNames(gig: PlainGig): Promise<string[]> {
+    const [venueSelection] = await this.venueService.getVenueSelections([
+      gig.venueIds,
+    ]);
+    if (venueSelection === undefined) {
+      throw new Error(`Venue selection for Gig ${gig.id} must exist`);
+    }
+
+    return venueSelection.venues.map((venue) => venue.name);
   }
 
   private mapPostSendResult(message: TGMessage): TelegramGigPostSendResult {

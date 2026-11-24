@@ -34,6 +34,7 @@ import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { PostEditKind } from './telegram-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -106,9 +107,6 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     isVisible: false,
     version: 4,
@@ -148,6 +146,12 @@ describe('TelegramService', () => {
 
   const mockRemoteImageService = {
     download: vi.fn(),
+  };
+
+  const mockVenueService = {
+    getVenueSelections: vi
+      .fn()
+      .mockResolvedValue([{ venues: [{ name: 'Palau Sant Jordi' }] }]),
   };
 
   function createMinimalTelegramServiceModule(): Promise<TestingModule> {
@@ -206,6 +210,10 @@ describe('TelegramService', () => {
         {
           provide: RemoteImageService,
           useValue: mockRemoteImageService,
+        },
+        {
+          provide: VenueService,
+          useValue: mockVenueService,
         },
         {
           provide: CACHE_MANAGER,
@@ -479,7 +487,7 @@ describe('TelegramService', () => {
       expect(editMessageCaptionSpy).toHaveBeenCalledOnce();
     });
 
-    it('should reject an Intake post for a Gig', () => {
+    it('should reject an Intake post for a Gig', async () => {
       const intakePost: GigPost = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -489,13 +497,13 @@ describe('TelegramService', () => {
       };
       const gig = createGigForTelegramEdit(intakePost);
 
-      expect(() =>
+      await expect(
         telegramGigService.editPost({
           gig,
           post: intakePost,
           isMediaUpdateRequired: false,
         }),
-      ).toThrow('Cannot edit an intake post for a Gig');
+      ).rejects.toThrow('Cannot edit an intake post for a Gig');
     });
   });
 

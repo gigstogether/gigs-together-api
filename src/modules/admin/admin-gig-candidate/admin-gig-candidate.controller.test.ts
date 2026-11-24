@@ -76,9 +76,6 @@ describe('AdminGigCandidateController', () => {
     publicId: 'band-2026-09-20',
     title: 'Band',
     date: Date.UTC(2026, 8, 20),
-    city: 'Barcelona',
-    country: 'ES',
-    venue: 'Venue',
     ticketsUrl: 'https://tickets.example/gig',
     source: {
       type: GigSourceType.User,

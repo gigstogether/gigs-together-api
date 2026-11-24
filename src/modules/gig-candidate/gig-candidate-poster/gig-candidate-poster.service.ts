@@ -70,8 +70,8 @@ export class GigCandidatePosterService {
         file: params.posterFile,
         context: {
           date: gigDraft.date ?? new Date(),
-          city: params.location?.name ?? 'unknown',
-          country: params.location?.countryIso ?? 'unknown',
+          localityName: params.location?.name ?? 'unknown',
+          countryIso: params.location?.countryIso ?? 'unknown',
           publicId: `gc-${params.gigCandidateId}`,
         },
       });

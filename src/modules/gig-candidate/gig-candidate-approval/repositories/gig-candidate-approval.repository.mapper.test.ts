@@ -57,9 +57,6 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         endDate: Date.UTC(2026, 5, 13),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
@@ -85,9 +82,6 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         endDate: Date.UTC(2026, 5, 13),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
@@ -121,9 +115,6 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         endDate: Date.UTC(2026, 5, 13),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
@@ -146,9 +137,6 @@ describe('GigCandidateApprovalRepositoryMapper', () => {
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
         endDate: Date.UTC(2026, 5, 13),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {

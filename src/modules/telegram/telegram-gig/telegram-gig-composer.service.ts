@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
-import type { GigPost, PlainGig } from '../../gig/types/gig.types';
+import type { GigPost } from '../../gig/types/gig.types';
 import {
   CallbackScope,
   encodeCallbackData,
@@ -28,6 +28,7 @@ import type {
   BuildGigModerationCaptionPayload,
   BuildGigModerationReplyMarkupParams,
   ComposeGigPostEditParams,
+  TelegramGigWithVenueNames,
 } from './telegram-gig-composer.service.types';
 import { formatTelegramGigDates } from '../utils/telegram-date';
 
@@ -62,7 +63,9 @@ export class TelegramGigComposerService {
     }
   }
 
-  composeMainPost(gig: PlainGig): TGSendPhoto {
+  composeMainPost(params: TelegramGigWithVenueNames): TGSendPhoto {
+    const { gig } = params;
+
     const chatId = this.telegramService.getMainChannelId();
     if (chatId === undefined) {
       throw new BadRequestException(
@@ -70,7 +73,7 @@ export class TelegramGigComposerService {
       );
     }
 
-    const caption = this.buildCaption(gig);
+    const caption = this.buildCaption(params);
     const moderationPost = this.pickPost(gig.posts, PostType.Moderation);
     const poster =
       moderationPost?.fileId ??
@@ -295,7 +298,7 @@ export class TelegramGigComposerService {
     params: ComposeGigPostEditParams,
   ): TelegramPostEditComposition {
     const { gig, post, isMediaUpdateRequired } = params;
-    const caption = this.buildCaption(gig);
+    const caption = this.buildCaption(params);
 
     if (isMediaUpdateRequired && post.fileId) {
       const mediaReference =
@@ -343,7 +346,9 @@ export class TelegramGigComposerService {
     };
   }
 
-  private buildCaption(gig: PlainGig): string {
+  private buildCaption(params: TelegramGigWithVenueNames): string {
+    const { gig, venueNames } = params;
+
     const url = this.telegramComposer.buildGigPermalink({
       baseUrl: this.telegramService.getAppBaseUrl(),
       publicId: gig.publicId,
@@ -357,7 +362,7 @@ export class TelegramGigComposerService {
       url,
       title: gig.title.trim(),
       dates,
-      venue: gig.venue.trim(),
+      venue: venueNames.join(', '),
       ticketsUrl: gig.ticketsUrl.trim(),
     });
   }

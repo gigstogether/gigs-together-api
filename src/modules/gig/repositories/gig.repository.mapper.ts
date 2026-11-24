@@ -29,9 +29,6 @@ export interface GigLeanDocument {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPoster;
   isVisible: boolean;
@@ -194,9 +191,6 @@ export class GigRepositoryMapper {
       title: doc.title,
       date: doc.date,
       ...(doc.endDate !== undefined ? { endDate: doc.endDate } : {}),
-      city: doc.city,
-      country: doc.country,
-      venue: doc.venue,
       ticketsUrl: doc.ticketsUrl,
       ...(doc.poster !== undefined ? { poster: { ...doc.poster } } : {}),
       isVisible: doc.isVisible,

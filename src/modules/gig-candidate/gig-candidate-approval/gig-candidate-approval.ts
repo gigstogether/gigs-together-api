@@ -28,10 +28,7 @@ interface ValidateRequiredObjectIdArrayParams {
   issues: GigCandidateApprovalIssue[];
 }
 
-export type ValidatedGigCandidateGigDraft = Omit<
-  GigData,
-  'city' | 'country' | 'venue' | 'poster'
-> & {
+export type ValidatedGigCandidateGigDraft = Omit<GigData, 'poster'> & {
   poster: NonNullable<GigData['poster']>;
 };
 

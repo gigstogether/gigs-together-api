@@ -394,12 +394,6 @@ export class GigService {
         existingGig.venueIds,
       ),
     ]);
-    const city = venueSelection.locality.name;
-    const country = venueSelection.locality.countryIso;
-    const venue = venueSelection.venues
-      .map((selectedVenue) => selectedVenue.name)
-      .join(', ');
-
     const dateMs = new Date(gig.date).getTime();
 
     const endDateMs =
@@ -412,8 +406,8 @@ export class GigService {
       file: posterFile,
       context: {
         date: gig.date,
-        city,
-        country,
+        countryIso: venueSelection.locality.countryIso,
+        localityName: venueSelection.locality.name,
         publicId,
       },
     });
@@ -425,9 +419,6 @@ export class GigService {
       venueIds: gig.venueIds,
       title: gig.title,
       date: dateMs,
-      city,
-      country,
-      venue,
       ticketsUrl: gig.ticketsUrl,
     };
     if (endDateMs !== undefined) {

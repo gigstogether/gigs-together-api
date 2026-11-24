@@ -375,9 +375,9 @@ describe('TelegramComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      expect(() => gigComposer.composeMainPost(gig)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        gigComposer.composeMainPost({ gig, venueNames: ['Venue'] }),
+      ).toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
@@ -390,9 +390,9 @@ describe('TelegramComposerService', () => {
         posts: [],
       } as unknown as PlainGig;
 
-      expect(() => gigComposer.composeMainPost(gig)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        gigComposer.composeMainPost({ gig, venueNames: ['Venue'] }),
+      ).toThrow(BadRequestException);
     });
 
     it('should use moderation Telegram file_id as photo when present', () => {
@@ -414,7 +414,10 @@ describe('TelegramComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      const payload = gigComposer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
@@ -437,8 +440,14 @@ describe('TelegramComposerService', () => {
         poster: { bucketPath: 'gigs/show' },
       } as unknown as PlainGig;
 
-      const firstPayload = gigComposer.composeMainPost(gig);
-      const secondPayload = gigComposer.composeMainPost(gig);
+      const firstPayload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
+      const secondPayload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(firstPayload.photo).toBe(
         `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
@@ -461,7 +470,10 @@ describe('TelegramComposerService', () => {
         poster: { externalUrl },
       } as unknown as PlainGig;
 
-      const payload = gigComposer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(payload.photo).toBe(externalUrl);
     });
@@ -493,6 +505,7 @@ describe('TelegramComposerService', () => {
 
       const composition = gigComposer.composePostEdit({
         gig,
+        venueNames: ['Venue'],
         post: mainPost,
         isMediaUpdateRequired: true,
       });
@@ -532,6 +545,7 @@ describe('TelegramComposerService', () => {
 
       const composition = gigComposer.composePostEdit({
         gig,
+        venueNames: ['Venue'],
         post: mainPost,
         isMediaUpdateRequired: true,
         mediaReference: 'moderation-file-id',

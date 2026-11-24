@@ -58,7 +58,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toBeNull();
     },
   );
@@ -72,7 +72,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toBeNull();
     },
   );
@@ -86,7 +86,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toMatchObject({ title: '[DEV STUB] Band' });
     },
   );

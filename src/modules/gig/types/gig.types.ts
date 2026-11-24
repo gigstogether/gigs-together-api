@@ -29,9 +29,6 @@ export interface PlainGig {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPoster;
   isVisible: boolean;
@@ -78,9 +75,6 @@ export interface GigData {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPosterInput;
 }

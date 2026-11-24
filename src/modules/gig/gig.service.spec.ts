@@ -38,9 +38,6 @@ function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     isVisible: true,
     version: 3,
@@ -318,9 +315,6 @@ describe('GigService', () => {
         venueIds: gigInput.venueIds,
         title: gigInput.title,
         date: new Date(gigInput.date).getTime(),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: gigInput.ticketsUrl,
       });
     });
