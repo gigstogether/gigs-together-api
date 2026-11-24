@@ -115,8 +115,9 @@ For local development only, the repo includes a Docker Compose file that runs Mo
 named `rs0`. This supports local multi-document transactions while keeping one MongoDB container. The container
 healthcheck initializes the replica set once and waits until its member becomes writable.
 
-Configure the [Docker-only variables](./docs/configuration/ENVIRONMENT.md#docker-only-local-development-settings) in
-`.env` and match `MONGO_URI` to the local connection example below.
+Optionally override the
+[Docker-only host port](./docs/configuration/ENVIRONMENT.md#docker-only-local-development-settings) in `.env` and match
+`MONGO_URI` to the local connection example below.
 
 Start MongoDB:
 

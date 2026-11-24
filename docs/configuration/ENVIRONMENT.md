@@ -96,13 +96,12 @@ A dash in the Default column means no default.
 
 ## Docker-only local development settings
 
-Only the bundled local Compose setup reads these values. The API and migrations use `MONGO_URI`; its database and host
-port must match.
+Only the bundled local Compose setup reads `MONGO_DOCKER_HOST_PORT`. Use the same host port in `MONGO_URI`; the database
+name is configured only in the URI.
 
-| Variable     | Required                 | Template value  | Purpose                                     |
-| ------------ | ------------------------ | --------------- | ------------------------------------------- |
-| `MONGO_DB`   | For local Docker Compose | `gigs-together` | Container `MONGO_INITDB_DATABASE`.          |
-| `MONGO_PORT` | For local Docker Compose | `27017`         | Host port mapped to container port `27017`. |
+| Variable                 | Required | Default | Purpose                                     |
+| ------------------------ | -------- | ------- | ------------------------------------------- |
+| `MONGO_DOCKER_HOST_PORT` | No       | `27017` | Host port mapped to container port `27017`. |
 
 See [Running MongoDB locally](../../README.md#running-mongodb-locally) for the replica-set URI and startup commands.
 
