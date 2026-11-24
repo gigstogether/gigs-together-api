@@ -432,6 +432,12 @@ colocated `*.test.ts` files must not.
 Dry run is the default. `npm run migrate:up:apply` explicitly sets `DRY_RUN=false`; every migration must check
 `isMigrationDryRun()` and call `finishMigrationDryRun()` so a dry run is not marked as applied.
 
+[//]: # 'TODO'
+
+`ts-migrate-mongoose` loads `.env.local` and mode-specific env files with override enabled, so their `DRY_RUN` can
+replace the npm script's value. Keep `DRY_RUN` out of these files: `DRY_RUN=false` can make a dry-run command apply
+changes.
+
 A successful dry run currently ends with `MigrationDryRunCompleteError`. This is the expected completion signal that
 keeps the migration in the pending state; review the JSON report printed immediately before it.
 
