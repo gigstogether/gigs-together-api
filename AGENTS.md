@@ -6,6 +6,12 @@ This file contains repository-wide guidance for AI coding agents and human contr
 
 Apply these rules to the whole repository unless a more specific instruction exists closer to the relevant files.
 
+## Documentation and Instructions
+
+- Write documentation and agent instructions for human readers as well as agents. Lead with the purpose, essential requirements, and required actions; use the shortest form that preserves necessary context.
+- Include details only when they help the reader understand, configure, operate, or change the feature. Omit repetition, generic advice, and peripheral implementation details while preserving important rationale and safety constraints.
+- Keep one authoritative description per topic and link to it. Keep documentation edits focused; expand their scope only when requested or needed for correctness. Keep detailed procedures in their owning sections.
+
 ## Code Style
 
 - Prefer correctness and maintainability over implementation speed.
