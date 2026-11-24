@@ -54,6 +54,7 @@ Apply these rules to the whole repository unless a more specific instruction exi
 - After source code changes (`*.ts`, `*.js`, `*.json`), run `npm run lint:fix` and `npx tsc --noEmit` before finishing the task without asking the user.
 - If necessary for the task, it's allowed to run relevant tests without asking the user.
 - Do not run lint or `tsc` after documentation-only or comment-only changes (for example `*.md`).
+- After editing Markdown files (`*.md`), run `npx prettier --write <edited-md-files>` with the repository configuration on only the Markdown files edited in the task, without asking for confirmation.
 
 ## Secrets Access Policy
 
