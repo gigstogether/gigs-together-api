@@ -5,6 +5,7 @@ import {
   getConfigPositiveSafeInteger,
   getConfigString,
   getRequiredConfigString,
+  isProductionEnvironment,
 } from '@shared/utils/env';
 
 /** Default access JWT TTL: 3_600 s = 1 h = 60 min. */
@@ -73,8 +74,7 @@ function createCookieConfig(
 }
 
 export function createAuthConfig(configService: ConfigService): AuthConfig {
-  const isProduction =
-    getConfigString(configService, 'NODE_ENV')?.toLowerCase() === 'prod';
+  const isProduction = isProductionEnvironment(configService);
 
   return {
     accessSecret: getRequiredConfigString(configService, 'JWT_SECRET'),

@@ -1,10 +1,10 @@
-import type { PlainGig } from '../../gig/types/gig.types';
 import type {
   TGChatId,
   TGSendMediaGroup,
   TGSendMessage,
   TGSendPhoto,
 } from '../telegram-bot-client/types/message.types';
+import type { TelegramGigWithVenueNames } from '../telegram-gig/telegram-gig-composer.service.types';
 
 export enum WeeklyDigestSendKind {
   SendMessage = 'sendMessage',
@@ -14,7 +14,7 @@ export enum WeeklyDigestSendKind {
 
 export interface ComposeWeeklyDigestParams {
   chatId: TGChatId;
-  gigs: PlainGig[];
+  gigs: TelegramGigWithVenueNames[];
 }
 
 export interface WeeklyDigestMediaItemContext {

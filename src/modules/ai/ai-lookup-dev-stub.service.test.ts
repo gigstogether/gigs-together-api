@@ -19,11 +19,14 @@ describe('AiLookupDevStubService', () => {
   }
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T12:00:00.000Z'));
     vi.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('should return a stub gig when the stub flag is enabled', () => {
@@ -33,25 +36,66 @@ describe('AiLookupDevStubService', () => {
     });
 
     expect(
-      service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+      service.getStubGig({ name: 'Band', location: 'Barcelona' }),
     ).toMatchObject({
       title: '[DEV STUB] Band',
-      city: 'barcelona',
-      country: 'ES',
-      venue: 'Sala Razzmatazz (Barcelona)',
       ticketsUrl: 'https://example.com/dev-stub',
       posterUrl: 'https://cdn.example/default.jpg',
+      locationHint: {
+        locality: 'barcelona',
+        country: 'ES',
+        venue: 'Sala Razzmatazz (Barcelona)',
+      },
     });
   });
 
-  it('should not return a stub gig in production', () => {
-    const service = createService({
-      NODE_ENV: 'production',
-      AI_LOOKUP_DEV_STUB: 'true',
-    });
+  it.each(['production', 'prod', ' PRODUCTION ', ' PROD '])(
+    'should not return a stub gig when NODE_ENV is %s and the flag is enabled',
+    (nodeEnv) => {
+      const service = createService({
+        NODE_ENV: nodeEnv,
+        AI_LOOKUP_DEV_STUB: 'true',
+      });
+
+      expect(
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
+      ).toBeNull();
+    },
+  );
+
+  it.each(['production', 'prod'])(
+    'should not return a stub gig when NODE_ENV is %s and a keyword matches',
+    (nodeEnv) => {
+      const service = createService({
+        NODE_ENV: nodeEnv,
+        AI_LOOKUP_DEV_STUB_KEYWORD: 'band',
+      });
+
+      expect(
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
+      ).toBeNull();
+    },
+  );
+
+  it.each([undefined, '', '   ', 'dev', 'development', 'test'])(
+    'should return a stub gig when NODE_ENV is %j and the flag is enabled',
+    (nodeEnv) => {
+      const service = createService({
+        NODE_ENV: nodeEnv,
+        AI_LOOKUP_DEV_STUB: 'true',
+      });
+
+      expect(
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
+      ).toMatchObject({ title: '[DEV STUB] Band' });
+    },
+  );
+
+  it('should not return a stub gig when neither flag nor keyword is configured', () => {
+    const service = createService();
 
     expect(
-      service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+      service.getStubGig({ name: 'Band', location: 'Barcelona' }),
     ).toBeNull();
   });
 
@@ -61,7 +105,7 @@ describe('AiLookupDevStubService', () => {
     });
 
     expect(
-      service.resolveGigOrNull({
+      service.getStubGig({
         name: 'A test gig',
         location: 'Barcelona',
       }),

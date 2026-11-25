@@ -4,8 +4,8 @@ import { msToYmd } from '@shared/utils/date-formatter';
 import { ADMIN_GIG_CANDIDATE_LIST_DEFAULT_LIMIT } from '@modules/gig-candidate/gig-candidate-list-sort';
 import type {
   CreateAdminGigCandidateParams,
-  GigCandidateDraftLookupResult,
-  UpdateAdminGigCandidateDraftParams,
+  GigCandidateLookupResult,
+  UpdateAdminGigCandidateGigDraftParams,
 } from '@modules/gig-candidate/gig-candidate.service';
 import type { GigPosterFile } from '@modules/gig/types/gig-poster.types';
 import { GIG_TITLE_MAX_LENGTH } from '@modules/gig/gig.constants';
@@ -22,7 +22,7 @@ import type {
   V1AdminCreateGigCandidateRequestBody,
   V1AdminGigCandidateGigDraftRequestBody,
   V1AdminGigCandidateLookupResponseBody,
-  V1AdminUpdateGigCandidateDraftRequestBody,
+  V1AdminUpdateGigCandidateGigDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import type {
   V1AdminGigCandidateProviderReferenceResponseBody,
@@ -41,8 +41,8 @@ interface MapV1AdminCreateGigCandidateRequestParams {
   posterFile?: Express.Multer.File;
 }
 
-interface MapV1AdminUpdateGigCandidateDraftRequestParams {
-  body: V1AdminUpdateGigCandidateDraftRequestBody;
+interface MapV1AdminUpdateGigCandidateGigDraftRequestParams {
+  body: V1AdminUpdateGigCandidateGigDraftRequestBody;
   gigCandidateId: string;
   posterFile?: Express.Multer.File;
 }
@@ -76,9 +76,6 @@ export function mapV1AdminGigCandidateResponse(
       title: gigDraft.title,
       date: msToYmd(gigDraft.date),
       endDate: msToYmd(gigDraft.endDate),
-      city: gigDraft.city,
-      country: gigDraft.country,
-      venue: gigDraft.venue,
       ticketsUrl: gigDraft.ticketsUrl,
       posterUrl: gigCandidate.posterUrl,
     },
@@ -145,11 +142,11 @@ export function mapV1AdminCreateGigCandidateRequest(
   return result;
 }
 
-export function mapV1AdminUpdateGigCandidateDraftRequest(
-  params: MapV1AdminUpdateGigCandidateDraftRequestParams,
-): UpdateAdminGigCandidateDraftParams {
+export function mapV1AdminUpdateGigCandidateGigDraftRequest(
+  params: MapV1AdminUpdateGigCandidateGigDraftRequestParams,
+): UpdateAdminGigCandidateGigDraftParams {
   const mapped = mapV1AdminGigCandidateGigDraftRequest(params.body.gigDraft);
-  const result: UpdateAdminGigCandidateDraftParams = {
+  const result: UpdateAdminGigCandidateGigDraftParams = {
     gigCandidateId: params.gigCandidateId,
     expectedVersion: params.body.expectedVersion,
     gigDraft: mapped.gigDraft,
@@ -163,9 +160,16 @@ export function mapV1AdminUpdateGigCandidateDraftRequest(
 }
 
 export function mapV1AdminGigCandidateLookupResponse(
-  gigDraft: GigCandidateDraftLookupResult | null,
+  lookup: GigCandidateLookupResult | null,
 ): V1AdminGigCandidateLookupResponseBody {
-  return { gigDraft };
+  if (lookup === null) {
+    return { gigDraft: null };
+  }
+
+  return {
+    gigDraft: { ...lookup.gigDraft },
+    locationHint: { ...lookup.locationHint },
+  };
 }
 
 export function mapV1AdminGigCandidatesListResponse(
@@ -190,12 +194,6 @@ function mapV1AdminGigCandidateGigDraftRequest(
   if (date !== undefined && endDate !== undefined && endDate < date) {
     throw new BadRequestException('endDate must be on or after date');
   }
-  const city = optionalTrimmedString(input.city);
-  const country = optionalTrimmedString(input.country)?.toUpperCase();
-  if (country !== undefined && !/^[A-Z]{2}$/.test(country)) {
-    throw new BadRequestException('country must be an ISO 3166-1 alpha-2 code');
-  }
-  const venue = optionalTrimmedString(input.venue);
   const ticketsUrl = optionalUrl(input.ticketsUrl, 'ticketsUrl');
   const posterUrl = optionalUrl(input.posterUrl, 'posterUrl');
 
@@ -213,15 +211,6 @@ function mapV1AdminGigCandidateGigDraftRequest(
   }
   if (endDate !== undefined) {
     gigDraft.endDate = endDate;
-  }
-  if (city !== undefined) {
-    gigDraft.city = city;
-  }
-  if (country !== undefined) {
-    gigDraft.country = country;
-  }
-  if (venue !== undefined) {
-    gigDraft.venue = venue;
   }
   if (ticketsUrl !== undefined) {
     gigDraft.ticketsUrl = ticketsUrl;

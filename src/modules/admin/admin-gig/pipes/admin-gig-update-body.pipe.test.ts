@@ -3,11 +3,10 @@ import { BadRequestException } from '@nestjs/common';
 import { AdminGigUpdateBodyPipe } from './admin-gig-update-body.pipe';
 
 const gig = {
+  communityIds: ['507f1f77bcf86cd799439022'],
+  venueIds: ['507f1f77bcf86cd799439033'],
   title: 'Radiohead',
   date: '2026-06-12',
-  city: 'Barcelona',
-  country: 'ES',
-  venue: 'Palau Sant Jordi',
   ticketsUrl: 'https://tickets.example/radiohead',
 };
 
@@ -57,10 +56,10 @@ describe('AdminGigUpdateBodyPipe', () => {
   it('should reject a Gig with a missing required field', () => {
     expect(() =>
       pipe.transform({
-        gig: { ...gig, venue: undefined },
+        gig: { ...gig, venueIds: undefined },
         expectedVersion: 2,
       }),
-    ).toThrow('venue must be a string');
+    ).toThrow('venueIds must be an array of strings');
   });
 
   it('should reject unsupported legacy Gig input', () => {

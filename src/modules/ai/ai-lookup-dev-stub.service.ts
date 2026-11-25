@@ -1,25 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { GigFormInput } from '../gig/types/gig.types';
-import { getConfigBoolean, getConfigString } from '@shared/utils/env';
-import type { AiGigLookupParams } from './ai-lookup.types';
+import {
+  getConfigBoolean,
+  getConfigString,
+  isProductionEnvironment,
+} from '@shared/utils/env';
+import type { AiGigLookupParams, AiGigLookupResult } from './ai-lookup.types';
 
 @Injectable()
 export class AiLookupDevStubService {
   private readonly logger = new Logger(AiLookupDevStubService.name);
   private static readonly DEV_STUB_COUNTRY = 'ES';
-  private static readonly DEV_STUB_CITY = 'barcelona';
+  private static readonly DEV_STUB_LOCALITY = 'barcelona';
   private static readonly DEV_STUB_VENUE = 'Sala Razzmatazz';
   private static readonly DEV_STUB_TICKETS_URL = 'https://example.com/dev-stub';
-  private readonly nodeEnv: string;
+  // Cache the environment classification as part of this singleton's immutable configuration.
+  private readonly isProduction: boolean;
   private readonly isStubEnabled: boolean;
   private readonly stubKeyword: string | undefined;
   private readonly defaultGigPosterUrl: string | undefined;
 
   constructor(configService: ConfigService) {
-    this.nodeEnv = (
-      getConfigString(configService, 'NODE_ENV') ?? 'dev'
-    ).toLowerCase();
+    this.isProduction = isProductionEnvironment(configService);
     this.isStubEnabled =
       getConfigBoolean(configService, 'AI_LOOKUP_DEV_STUB') ?? false;
     this.stubKeyword = getConfigString(
@@ -32,7 +34,7 @@ export class AiLookupDevStubService {
     );
   }
 
-  resolveGigOrNull(params: AiGigLookupParams): GigFormInput | null {
+  getStubGig(params: AiGigLookupParams): AiGigLookupResult | null {
     if (!this.shouldUseStub(params)) {
       return null;
     }
@@ -44,12 +46,8 @@ export class AiLookupDevStubService {
     return this.buildStubGig(params);
   }
 
-  private isNonProductionEnvironment(): boolean {
-    return this.nodeEnv !== 'prod' && this.nodeEnv !== 'production';
-  }
-
   private shouldUseStub(params: AiGigLookupParams): boolean {
-    if (!this.isNonProductionEnvironment()) {
+    if (this.isProduction) {
       return false;
     }
 
@@ -65,7 +63,7 @@ export class AiLookupDevStubService {
     return haystack.includes(this.stubKeyword);
   }
 
-  private buildStubGig(params: AiGigLookupParams): GigFormInput {
+  private buildStubGig(params: AiGigLookupParams): AiGigLookupResult {
     const now = new Date();
     const futureDate = new Date(
       Date.UTC(
@@ -90,11 +88,13 @@ export class AiLookupDevStubService {
     return {
       title,
       date: futureDate.toISOString(),
-      city: AiLookupDevStubService.DEV_STUB_CITY,
-      country: AiLookupDevStubService.DEV_STUB_COUNTRY,
-      venue,
       ticketsUrl: AiLookupDevStubService.DEV_STUB_TICKETS_URL,
       posterUrl: this.defaultGigPosterUrl,
+      locationHint: {
+        locality: AiLookupDevStubService.DEV_STUB_LOCALITY,
+        country: AiLookupDevStubService.DEV_STUB_COUNTRY,
+        venue,
+      },
     };
   }
 }

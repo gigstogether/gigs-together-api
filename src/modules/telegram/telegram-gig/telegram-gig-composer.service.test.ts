@@ -25,9 +25,6 @@ function createGig(): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     poster: { externalUrl: 'https://cdn.example/poster.jpg' },
     isVisible: false,
@@ -98,7 +95,10 @@ describe('TelegramGigComposerService', () => {
       },
     ];
 
-    const result = service.composeMainPost(gig);
+    const result = service.composeMainPost({
+      gig,
+      venueNames: ['Palau Sant Jordi'],
+    });
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -111,7 +111,7 @@ describe('TelegramGigComposerService', () => {
   it('should render a main post caption from required Gig fields', () => {
     const gig = createGig();
 
-    service.composeMainPost(gig);
+    service.composeMainPost({ gig, venueNames: ['Palau Sant Jordi'] });
 
     expect(telegramTemplates.render).toHaveBeenCalledWith(
       TELEGRAM_TEMPLATE_KEYS.mainGigWithLink,
@@ -139,6 +139,7 @@ describe('TelegramGigComposerService', () => {
 
     const result = service.composePostEdit({
       gig,
+      venueNames: ['Palau Sant Jordi'],
       post: mainPost,
       isMediaUpdateRequired: true,
     });

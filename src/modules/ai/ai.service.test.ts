@@ -7,13 +7,13 @@ import { AI_GIG_LOOKUP_PROVIDER } from './providers/ai-gig-lookup.provider';
 import type { AiGigLookupProvider } from './providers/ai-gig-lookup.provider';
 
 describe('AiService', () => {
-  const resolveGigOrNull = vi.fn<AiLookupDevStubService['resolveGigOrNull']>();
+  const getStubGig = vi.fn<AiLookupDevStubService['getStubGig']>();
   const lookupGig = vi.fn<AiGigLookupProvider['lookupGig']>();
   let service: AiService;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    resolveGigOrNull.mockReturnValue(null);
+    getStubGig.mockReturnValue(null);
     lookupGig.mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
@@ -21,7 +21,7 @@ describe('AiService', () => {
         AiService,
         {
           provide: AiLookupDevStubService,
-          useValue: { resolveGigOrNull },
+          useValue: { getStubGig },
         },
         {
           provide: AI_GIG_LOOKUP_PROVIDER,
@@ -44,12 +44,14 @@ describe('AiService', () => {
     const stubGig = {
       title: 'Stub Gig',
       date: '2099-12-01T19:00:00.000Z',
-      city: 'barcelona',
-      country: 'ES',
-      venue: 'Venue',
       ticketsUrl: 'https://tickets.example',
+      locationHint: {
+        locality: 'barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     };
-    resolveGigOrNull.mockReturnValue(stubGig);
+    getStubGig.mockReturnValue(stubGig);
 
     await expect(
       service.lookupGig({ name: 'Band', location: 'Barcelona' }),

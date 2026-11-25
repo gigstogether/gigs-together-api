@@ -1,26 +1,31 @@
 import { msToYmd } from '@shared/utils/date-formatter';
 import type {
-  GigFormData,
   GigSourceForAdminView,
   PlainGig,
 } from '@modules/gig/types/gig.types';
 import { GigSourceType } from '@modules/gig/types/gig-source-type.enum';
 import { isGigSourceMessengerUser } from '@modules/gig/gig-source.guards';
 import type { UserSourceProfile } from '../admin-shared/admin-user-source-profile';
+import type { VenueSelection } from '@modules/location/venue/venue.service';
+import type { V1AdminGigResponseBody } from './types/requests/v1-admin-gigs-list-response';
 
 export interface MapGigToFormData {
-  readonly gig: PlainGig;
-  readonly userSourceProfile: UserSourceProfile;
-  readonly posterUrl?: string;
-  readonly mainPostUrl?: string;
-  readonly mainPostDate?: number;
-  readonly moderationPostUrl?: string;
-  readonly moderationPostDate?: number;
+  gig: PlainGig;
+  venueSelection: VenueSelection;
+  userSourceProfile: UserSourceProfile;
+  posterUrl?: string;
+  mainPostUrl?: string;
+  mainPostDate?: number;
+  moderationPostUrl?: string;
+  moderationPostDate?: number;
 }
 
-export function mapGigToFormData(params: MapGigToFormData): GigFormData {
+export function mapGigToFormData(
+  params: MapGigToFormData,
+): V1AdminGigResponseBody {
   const {
     gig,
+    venueSelection,
     userSourceProfile,
     posterUrl,
     mainPostUrl,
@@ -37,14 +42,27 @@ export function mapGigToFormData(params: MapGigToFormData): GigFormData {
   const ticketsUrl = (gig.ticketsUrl ?? '').trim();
   const source = mapGigSource(gig, userSourceProfile);
 
+  const locality: V1AdminGigResponseBody['locality'] = {
+    id: venueSelection.locality.id,
+    countryIso: venueSelection.locality.countryIso,
+    name: venueSelection.locality.name,
+  };
+  if (venueSelection.locality.qualifier !== undefined) {
+    locality.qualifier = venueSelection.locality.qualifier;
+  }
+
   return {
     publicId: gig.publicId,
+    communityIds: gig.communityIds,
+    venueIds: gig.venueIds,
+    locality,
+    venues: venueSelection.venues.map((venue) => ({
+      id: venue.id,
+      name: venue.name,
+    })),
     title: gig.title,
     date,
     endDate: msToYmd(gig.endDate),
-    city: gig.city,
-    country: gig.country,
-    venue: gig.venue,
     ticketsUrl,
     posterUrl,
     isVisible: gig.isVisible,

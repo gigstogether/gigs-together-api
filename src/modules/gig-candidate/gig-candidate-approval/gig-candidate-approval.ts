@@ -3,7 +3,7 @@ import type {
   GigCandidateSource,
 } from '../types/gig-candidate.types';
 import type {
-  GigCandidateDraft,
+  GigCandidateGigDraft,
   GigData,
   GigSource,
   GigSourceMessengerUser,
@@ -28,10 +28,7 @@ interface ValidateRequiredObjectIdArrayParams {
   issues: GigCandidateApprovalIssue[];
 }
 
-export type ValidatedGigCandidateDraft = Omit<
-  GigData,
-  'city' | 'country' | 'venue' | 'poster'
-> & {
+export type ValidatedGigCandidateGigDraft = Omit<GigData, 'poster'> & {
   poster: NonNullable<GigData['poster']>;
 };
 
@@ -45,9 +42,9 @@ export class GigCandidateApprovalValidationError extends Error {
   }
 }
 
-export function validateGigCandidateDraftForApproval(
-  gigDraft: GigCandidateDraft,
-): ValidatedGigCandidateDraft {
+export function validateGigCandidateGigDraftForApproval(
+  gigDraft: GigCandidateGigDraft,
+): ValidatedGigCandidateGigDraft {
   const issues: GigCandidateApprovalIssue[] = [];
   const communityIds = validateRequiredObjectIdArray({
     values: gigDraft.communityIds,
@@ -118,7 +115,7 @@ export function validateGigCandidateDraftForApproval(
     throw new GigCandidateApprovalValidationError(issues);
   }
 
-  const validatedDraft: ValidatedGigCandidateDraft = {
+  const validatedDraft: ValidatedGigCandidateGigDraft = {
     communityIds,
     venueIds,
     title,

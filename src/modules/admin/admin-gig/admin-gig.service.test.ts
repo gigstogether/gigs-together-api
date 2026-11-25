@@ -13,6 +13,7 @@ import type { BuildPostUrlPayload } from '@modules/telegram/telegram-composer.se
 import { UserService } from '@modules/user/user.service';
 import { UserRole } from '@modules/user/types/user-role.enum';
 import { AdminGigService } from './admin-gig.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
@@ -22,9 +23,6 @@ function buildPlainGig(overrides: Partial<PlainGig> = {}): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://example.com/tickets',
     isVisible: false,
     version: 3,
@@ -64,6 +62,7 @@ describe('AdminGigService', () => {
     resolveMainPostUrl: vi.fn(),
   };
   const userServiceMock = { findActiveUsersByIds: vi.fn() };
+  const venueServiceMock = { getVenueSelections: vi.fn() };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -92,6 +91,27 @@ describe('AdminGigService', () => {
         ),
     );
     telegramGigServiceMock.resolveMainPostUrl.mockResolvedValue(undefined);
+    venueServiceMock.getVenueSelections.mockImplementation(
+      (venueIdGroups: string[][]) =>
+        Promise.resolve(
+          venueIdGroups.map((venueIds) => ({
+            locality: {
+              id: '507f1f77bcf86cd799439044',
+              countryIso: 'ES',
+              name: 'Barcelona',
+              aliases: [],
+              timeZone: 'Europe/Madrid',
+            },
+            venues: venueIds.map((id) => ({
+              id,
+              localityId: '507f1f77bcf86cd799439044',
+              name: 'Palau Sant Jordi',
+              aliases: [],
+              isActive: true,
+            })),
+          })),
+        ),
+    );
     telegramComposerMock.buildPostUrl.mockImplementation(
       (payload: BuildPostUrlPayload): string | undefined => {
         if ('chatUsername' in payload && payload.chatUsername) {
@@ -115,6 +135,7 @@ describe('AdminGigService', () => {
         { provide: TelegramComposerService, useValue: telegramComposerMock },
         { provide: TelegramGigService, useValue: telegramGigServiceMock },
         { provide: UserService, useValue: userServiceMock },
+        { provide: VenueService, useValue: venueServiceMock },
       ],
     }).compile();
     service = module.get(AdminGigService);

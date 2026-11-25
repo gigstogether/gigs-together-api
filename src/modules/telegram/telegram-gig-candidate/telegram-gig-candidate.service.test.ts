@@ -33,8 +33,6 @@ function createGigCandidate(): GigCandidate {
       communityIds: ['507f1f77bcf86cd799439011'],
       title: 'Band',
       date: 1_700_000_000_000,
-      city: 'Barcelona',
-      country: 'ES',
     },
     version: 1,
     status: GigCandidateStatus.New,

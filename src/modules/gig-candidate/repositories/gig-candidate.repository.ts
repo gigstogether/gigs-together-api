@@ -3,7 +3,10 @@ import type {
   GigCandidatePost,
   GigCandidateSource,
 } from '../types/gig-candidate.types';
-import type { GigCandidateDraft, GigData } from '@modules/gig/types/gig.types';
+import type {
+  GigCandidateGigDraft,
+  GigData,
+} from '@modules/gig/types/gig.types';
 import type { GigCandidateStatus } from '../types/gig-candidate-status.enum';
 import type {
   AdminGigCandidateListSortBy,
@@ -17,14 +20,14 @@ export interface CreateGigCandidateParams {
   status: GigCandidateStatus.New | GigCandidateStatus.Reviewing;
   source: GigCandidateSource;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
 }
 
-export interface UpdateGigCandidateDraftParams {
+export interface UpdateGigCandidateGigDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
 }
 
 export interface SendGigCandidateToModerationRecordParams {
@@ -66,8 +69,8 @@ export interface GigCandidateRepository {
 
   createGigCandidate(params: CreateGigCandidateParams): Promise<GigCandidate>;
 
-  updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftParams,
+  updateGigCandidateGigDraft(
+    params: UpdateGigCandidateGigDraftParams,
   ): Promise<GigCandidate | null>;
 
   sendGigCandidateToModeration(

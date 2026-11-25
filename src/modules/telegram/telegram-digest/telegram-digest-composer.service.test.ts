@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { ConfigService } from '@nestjs/config';
-import type { PlainGig } from '../../gig/types/gig.types';
+import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { BucketService } from '../../bucket/bucket.service';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
@@ -22,6 +22,7 @@ import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
 import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramService } from '../telegram.service';
+import type { TelegramGigWithVenueNames } from '../telegram-gig/telegram-gig-composer.service.types';
 
 const TELEGRAM_POSTER_CACHE_BUST = 1_790_013_012_000;
 
@@ -191,7 +192,7 @@ describe('TelegramDigestComposerService', () => {
 
   it('should reuse a moderation file id before resolving a poster URL', () => {
     const gig = createDigestGigs()[0];
-    gig.posts = [
+    gig.gig.posts = [
       {
         to: Messenger.Telegram,
         type: PostType.Moderation,
@@ -216,7 +217,7 @@ describe('TelegramDigestComposerService', () => {
 
   it('should compose text when no posters resolve', () => {
     const gig = createDigestGigs()[0];
-    delete gig.poster;
+    delete gig.gig.poster;
 
     const plan = composer.composeWeeklyDigest({
       chatId: '-1005',
@@ -237,7 +238,7 @@ describe('TelegramDigestComposerService', () => {
       'https://cdn.example/poster.jpg',
     );
     const gig = createDigestGigs()[0];
-    gig.title = 'X'.repeat(1_100);
+    gig.gig.title = 'X'.repeat(1_100);
 
     const plan = composer.composeWeeklyDigest({
       chatId: '-1006',
@@ -255,27 +256,61 @@ describe('TelegramDigestComposerService', () => {
   });
 });
 
-function createDigestGigs(): PlainGig[] {
+function createDigestGigs(): TelegramGigWithVenueNames[] {
   return [
     {
-      id: 'a',
-      publicId: 'alpha-2026-01-01',
-      title: 'Alpha',
-      date: 10,
-      venue: 'Alpha Hall',
-      ticketsUrl: 'https://tickets.example/alpha',
-      posts: [],
-      poster: { bucketPath: 'gigs/a.jpg' },
+      gig: {
+        id: 'a',
+        communityIds: ['community-a'],
+        venueIds: ['venue-a'],
+        publicId: 'alpha-2026-01-01',
+        title: 'Alpha',
+        date: 10,
+        ticketsUrl: 'https://tickets.example/alpha',
+        posts: [],
+        poster: { bucketPath: 'gigs/a.jpg' },
+        isVisible: true,
+        version: 1,
+        source: {
+          type: GigSourceType.Provider,
+          provider: {
+            name: 'test',
+            externalEventId: 'alpha',
+            sourceUrl: 'https://example.com/alpha',
+            fetchedAt: new Date(0),
+          },
+        },
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      },
+      venueNames: ['Alpha Hall'],
     },
     {
-      id: 'b',
-      publicId: 'beta-2026-01-02',
-      title: 'Beta',
-      date: 20,
-      venue: 'Beta Hall',
-      ticketsUrl: 'https://tickets.example/beta',
-      posts: [],
-      poster: { bucketPath: 'gigs/b.jpg' },
+      gig: {
+        id: 'b',
+        communityIds: ['community-b'],
+        venueIds: ['venue-b'],
+        publicId: 'beta-2026-01-02',
+        title: 'Beta',
+        date: 20,
+        ticketsUrl: 'https://tickets.example/beta',
+        posts: [],
+        poster: { bucketPath: 'gigs/b.jpg' },
+        isVisible: true,
+        version: 1,
+        source: {
+          type: GigSourceType.Provider,
+          provider: {
+            name: 'test',
+            externalEventId: 'beta',
+            sourceUrl: 'https://example.com/beta',
+            fetchedAt: new Date(0),
+          },
+        },
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      },
+      venueNames: ['Beta Hall'],
     },
-  ] as unknown as PlainGig[];
+  ];
 }

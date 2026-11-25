@@ -2,10 +2,16 @@ import type { GigId, GigPost, PlainGig } from '../../gig/types/gig.types';
 
 export interface ComposeGigPostEditParams {
   gig: PlainGig;
+  venueNames: string[];
   post: GigPost;
   isMediaUpdateRequired: boolean;
   // Telegram accepts either a public URL or a bot-scoped file_id as replacement media.
   mediaReference?: string;
+}
+
+export interface TelegramGigWithVenueNames {
+  gig: PlainGig;
+  venueNames: string[];
 }
 
 export interface BuildGigModerationReplyMarkupParams {

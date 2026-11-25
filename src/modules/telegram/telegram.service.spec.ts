@@ -34,6 +34,7 @@ import { GigCandidateStatus } from '../gig-candidate/types/gig-candidate-status.
 import type { GigCandidate } from '../gig-candidate/types/gig-candidate.types';
 import { PostEditKind } from './telegram-composer.service.types';
 import { RemoteImageService } from '../remote-image/remote-image.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 type MockPostTemplates = Pick<TelegramTemplateService, 'getText' | 'render'>;
 
@@ -106,9 +107,6 @@ function createGigForTelegramEdit(post: GigPost): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: new Date('2026-06-12T12:00:00.000Z').getTime(),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     isVisible: false,
     version: 4,
@@ -148,6 +146,12 @@ describe('TelegramService', () => {
 
   const mockRemoteImageService = {
     download: vi.fn(),
+  };
+
+  const mockVenueService = {
+    getVenueSelections: vi
+      .fn()
+      .mockResolvedValue([{ venues: [{ name: 'Palau Sant Jordi' }] }]),
   };
 
   function createMinimalTelegramServiceModule(): Promise<TestingModule> {
@@ -206,6 +210,10 @@ describe('TelegramService', () => {
         {
           provide: RemoteImageService,
           useValue: mockRemoteImageService,
+        },
+        {
+          provide: VenueService,
+          useValue: mockVenueService,
         },
         {
           provide: CACHE_MANAGER,
@@ -479,7 +487,7 @@ describe('TelegramService', () => {
       expect(editMessageCaptionSpy).toHaveBeenCalledOnce();
     });
 
-    it('should reject an Intake post for a Gig', () => {
+    it('should reject an Intake post for a Gig', async () => {
       const intakePost: GigPost = {
         to: Messenger.Telegram,
         type: PostType.Intake,
@@ -489,13 +497,13 @@ describe('TelegramService', () => {
       };
       const gig = createGigForTelegramEdit(intakePost);
 
-      expect(() =>
+      await expect(
         telegramGigService.editPost({
           gig,
           post: intakePost,
           isMediaUpdateRequired: false,
         }),
-      ).toThrow('Cannot edit an intake post for a Gig');
+      ).rejects.toThrow('Cannot edit an intake post for a Gig');
     });
   });
 
@@ -818,8 +826,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: 1_700_000_000_000,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 0,
         status: GigCandidateStatus.New,
@@ -864,8 +870,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: 1_700_000_000_000,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { externalUrl: 'https://cdn.example/poster.jpg' },
         },
         version: 0,
@@ -930,8 +934,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: 1_700_000_000_000,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { externalUrl: 'https://cdn.example/poster.jpg' },
         },
         version: 2,
@@ -984,8 +986,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: 1_700_000_000_000,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { externalUrl: 'https://cdn.example/poster.jpg' },
         },
         version: 2,
@@ -1039,8 +1039,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: 1_700_000_000_000,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { externalUrl: 'https://cdn.example/poster.jpg' },
         },
         version: 2,
@@ -1205,8 +1203,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 1,
         status: GigCandidateStatus.Rejected,
@@ -1268,8 +1264,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 3,
         status: GigCandidateStatus.Reviewing,
@@ -1331,8 +1325,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         version: 3,
@@ -1403,8 +1395,6 @@ describe('TelegramService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Updated Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/gig-candidate.jpg' },
         },
         version: 4,

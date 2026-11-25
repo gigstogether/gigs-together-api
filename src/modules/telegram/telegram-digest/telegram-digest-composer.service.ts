@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import type { PlainGig } from '../../gig/types/gig.types';
 import { PostType } from '@shared/types/post-type.enum';
 import { TELEGRAM_MEDIA_GROUP_MAX_ITEMS } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
@@ -18,6 +17,7 @@ import type {
 import { WeeklyDigestSendKind } from './telegram-digest-composer.types';
 import { TelegramGigComposerService } from '../telegram-gig/telegram-gig-composer.service';
 import { TelegramService } from '../telegram.service';
+import type { TelegramGigWithVenueNames } from '../telegram-gig/telegram-gig-composer.service.types';
 
 export const TELEGRAM_DIGEST_CAPTION_MAX_CHARS = 1024;
 
@@ -57,7 +57,7 @@ export class TelegramDigestComposerService {
 
     const caption = this.composeWeeklyDigestCaption(gigs);
     const firstChunk = gigs.slice(0, TELEGRAM_MEDIA_GROUP_MAX_ITEMS);
-    const digestMediaItems = firstChunk.flatMap((gig) => {
+    const digestMediaItems = firstChunk.flatMap(({ gig }) => {
       const mediaReference = this.getDigestMediaReference(gig);
       if (mediaReference === undefined || mediaReference === '') {
         return [];
@@ -115,7 +115,9 @@ export class TelegramDigestComposerService {
     };
   }
 
-  private composeWeeklyDigestCaption(gigs: PlainGig[]): string {
+  private composeWeeklyDigestCaption(
+    gigs: TelegramGigWithVenueNames[],
+  ): string {
     const { plain, html } = this.composeWeeklyDigestText(gigs);
 
     if (plain.length <= TELEGRAM_DIGEST_CAPTION_MAX_CHARS) {
@@ -136,7 +138,9 @@ export class TelegramDigestComposerService {
     return `${body.trimEnd()}${ellipsis}`;
   }
 
-  private composeWeeklyDigestText(gigs: PlainGig[]): ComposedDigestText {
+  private composeWeeklyDigestText(
+    gigs: TelegramGigWithVenueNames[],
+  ): ComposedDigestText {
     const formatter = new Intl.DateTimeFormat(TELEGRAM_DATE_LOCALE, {
       weekday: 'short',
       month: 'short',
@@ -155,7 +159,7 @@ export class TelegramDigestComposerService {
       TELEGRAM_TEMPLATE_KEYS.weeklyDigestTicketsLabel,
     );
 
-    const formattedGigs = gigs.map((gig) => {
+    const formattedGigs = gigs.map(({ gig, venueNames }) => {
       const dateLabel = formatter.format(new Date(gig.date));
       const endDateLabel = gig.endDate
         ? formatter.format(new Date(gig.endDate))
@@ -183,7 +187,7 @@ export class TelegramDigestComposerService {
       return {
         dates: datesLabel,
         title: gig.title,
-        venue: gig.venue,
+        venue: venueNames.join(', '),
         ticketsLabel,
         titleLine,
         ticketsLine,
@@ -215,7 +219,9 @@ export class TelegramDigestComposerService {
     };
   }
 
-  private getDigestMediaReference(gig: PlainGig): string | undefined {
+  private getDigestMediaReference(
+    gig: TelegramGigWithVenueNames['gig'],
+  ): string | undefined {
     const moderationPost = this.telegramGigComposer.pickPost(
       gig.posts,
       PostType.Moderation,
