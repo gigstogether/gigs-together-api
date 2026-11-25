@@ -4,12 +4,12 @@ import { Messenger } from '@shared/types/messenger.enum';
 import {
   GigCandidateApprovalValidationError,
   mapGigCandidateSourceToGigSource,
-  validateGigCandidateDraftForApproval,
+  validateGigCandidateGigDraftForApproval,
 } from './gig-candidate-approval';
 
-describe('validateGigCandidateDraftForApproval', () => {
+describe('validateGigCandidateGigDraftForApproval', () => {
   it('should accept a one-character title', () => {
-    const gigData = validateGigCandidateDraftForApproval({
+    const gigData = validateGigCandidateGigDraftForApproval({
       communityIds: ['507f1f77bcf86cd799439011'],
       venueIds: ['507f1f77bcf86cd799439012'],
       title: 'B',
@@ -24,7 +24,7 @@ describe('validateGigCandidateDraftForApproval', () => {
 
   it('should reject a title longer than 300 characters', () => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'A'.repeat(301),
@@ -42,7 +42,7 @@ describe('validateGigCandidateDraftForApproval', () => {
 
   it('should return complete normalized Gig data', () => {
     expect(
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',
@@ -68,7 +68,7 @@ describe('validateGigCandidateDraftForApproval', () => {
     },
   ])('should reject invalid Community assignments %#', ({ communityIds }) => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds,
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',
@@ -96,7 +96,7 @@ describe('validateGigCandidateDraftForApproval', () => {
     },
   ])('should reject invalid Venue assignments %#', ({ venueIds }) => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         venueIds,
         title: 'Radiohead',
@@ -115,7 +115,7 @@ describe('validateGigCandidateDraftForApproval', () => {
 
   it('should return structured issues for incomplete and invalid fields', () => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         title: '',
         date: Number.NaN,
@@ -138,7 +138,7 @@ describe('validateGigCandidateDraftForApproval', () => {
 
   it('should reject approval when Venue assignments or ticketsUrl are missing', () => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
@@ -155,7 +155,7 @@ describe('validateGigCandidateDraftForApproval', () => {
 
   it('should reject approval when poster is missing', () => {
     expect(() =>
-      validateGigCandidateDraftForApproval({
+      validateGigCandidateGigDraftForApproval({
         communityIds: ['507f1f77bcf86cd799439011'],
         venueIds: ['507f1f77bcf86cd799439012'],
         title: 'Radiohead',

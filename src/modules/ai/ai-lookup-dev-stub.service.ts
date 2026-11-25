@@ -1,18 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { GigFormInput } from '../gig/types/gig.types';
 import {
   getConfigBoolean,
   getConfigString,
   isProductionEnvironment,
 } from '@shared/utils/env';
-import type { AiGigLookupParams } from './ai-lookup.types';
+import type { AiGigLookupParams, AiGigLookupResult } from './ai-lookup.types';
 
 @Injectable()
 export class AiLookupDevStubService {
   private readonly logger = new Logger(AiLookupDevStubService.name);
   private static readonly DEV_STUB_COUNTRY = 'ES';
-  private static readonly DEV_STUB_CITY = 'barcelona';
+  private static readonly DEV_STUB_LOCALITY = 'barcelona';
   private static readonly DEV_STUB_VENUE = 'Sala Razzmatazz';
   private static readonly DEV_STUB_TICKETS_URL = 'https://example.com/dev-stub';
   // Cache the environment classification as part of this singleton's immutable configuration.
@@ -35,7 +34,7 @@ export class AiLookupDevStubService {
     );
   }
 
-  resolveGigOrNull(params: AiGigLookupParams): GigFormInput | null {
+  getStubGig(params: AiGigLookupParams): AiGigLookupResult | null {
     if (!this.shouldUseStub(params)) {
       return null;
     }
@@ -64,7 +63,7 @@ export class AiLookupDevStubService {
     return haystack.includes(this.stubKeyword);
   }
 
-  private buildStubGig(params: AiGigLookupParams): GigFormInput {
+  private buildStubGig(params: AiGigLookupParams): AiGigLookupResult {
     const now = new Date();
     const futureDate = new Date(
       Date.UTC(
@@ -89,11 +88,13 @@ export class AiLookupDevStubService {
     return {
       title,
       date: futureDate.toISOString(),
-      city: AiLookupDevStubService.DEV_STUB_CITY,
-      country: AiLookupDevStubService.DEV_STUB_COUNTRY,
-      venue,
       ticketsUrl: AiLookupDevStubService.DEV_STUB_TICKETS_URL,
       posterUrl: this.defaultGigPosterUrl,
+      locationHint: {
+        locality: AiLookupDevStubService.DEV_STUB_LOCALITY,
+        country: AiLookupDevStubService.DEV_STUB_COUNTRY,
+        venue,
+      },
     };
   }
 }

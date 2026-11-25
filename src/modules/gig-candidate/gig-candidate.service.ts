@@ -17,7 +17,7 @@ import type { TelegramGigCandidatePostSendResult } from '../telegram/telegram-gi
 import { mapPreparedGigPosterToTelegramInputFile } from '../telegram/utils/telegram-input-file.mapper';
 import { AiService } from '../ai/ai.service';
 import { GIG_TITLE_MAX_LENGTH } from '../gig/gig.constants';
-import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
+import type { GigCandidateGigDraft } from '@modules/gig/types/gig.types';
 import { CommunityService } from '@modules/community/community.service';
 import { LocalityService } from '@modules/location/locality/locality.service';
 import { VenueService } from '@modules/location/venue/venue.service';
@@ -55,7 +55,7 @@ import {
 } from './gig-candidate-state-machine';
 import { GigCandidateFeedbackService } from './gig-candidate-feedback.service';
 import { GigCandidatePosterService } from './gig-candidate-poster/gig-candidate-poster.service';
-import type { PrepareGigCandidateDraftPosterParams } from './gig-candidate-poster/gig-candidate-poster.service';
+import type { PrepareGigCandidateGigDraftPosterParams } from './gig-candidate-poster/gig-candidate-poster.service';
 import { isGigCandidateSourceMessengerUser } from './gig-candidate-source.guards';
 
 export interface FindGigCandidatesParams {
@@ -68,7 +68,7 @@ export interface FindGigCandidatesParams {
 export interface CreateAdminGigCandidateParams {
   userId: string;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
@@ -88,29 +88,37 @@ export interface MessengerGigCandidateImage {
   contentType: SupportedImageContentType;
 }
 
-export interface UpdateAdminGigCandidateDraftParams {
+export interface UpdateAdminGigCandidateGigDraftParams {
   gigCandidateId: string;
   expectedVersion: number;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterUrl?: string;
   posterFile?: GigPosterFile;
 }
 
-export interface LookupGigCandidateDraftParams {
+export interface LookupGigDetailsParams {
   title: string;
   location: string;
 }
 
-export interface GigCandidateDraftLookupResult {
+export interface GigCandidateLookupGigDraft {
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   posterUrl?: string;
+}
+
+export interface GigCandidateLocationHint {
+  locality: string;
+  country: string;
+  venue: string;
+}
+
+export interface GigCandidateLookupResult {
+  gigDraft: GigCandidateLookupGigDraft;
+  locationHint: GigCandidateLocationHint;
 }
 
 export interface SendGigCandidateToModerationParams {
@@ -124,11 +132,11 @@ export interface RejectGigCandidateParams {
   rejectedByUserId: string;
 }
 
-export interface UpdateGigCandidateDraftApplicationParams {
+export interface UpdateGigCandidateGigDraftApplicationParams {
   gigCandidateId: string;
   expectedVersion: number;
   localityId?: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   posterFile?: PreparedGigPosterFile;
 }
 
@@ -162,6 +170,11 @@ interface AdminGigCandidateLocationAssignment {
   locality?: Locality;
   localityId?: string;
   venueIds?: string[];
+}
+
+interface PreparedAdminGigCandidateGigDraft {
+  gigDraft: GigCandidateGigDraft;
+  location: AdminGigCandidateLocationAssignment;
 }
 
 interface ParsedCreateGigCandidateFields {
@@ -379,9 +392,10 @@ export class GigCandidateService {
       source.userId = params.userId;
     }
 
-    // TODO: This is temporary while suggestions come from a single city chat.
-    //  Derive both the location and Community assignments from the source chat
-    //  when multi-city chats are supported.
+    // TODO: This is temporary while suggestions come from a single Community
+    //  chat. Derive the Community assignment from the source chat when more
+    //  chats are supported. The source Community does not determine the
+    //  physical Locality of the suggested Gig.
     const community = await this.communityService.findByRoute({
       countryIso: 'ES',
       communitySlug: 'barcelona',
@@ -398,8 +412,6 @@ export class GigCandidateService {
       source,
       gigDraft: {
         communityIds: [community.id],
-        city: 'Barcelona',
-        country: 'ES',
       },
     });
   }
@@ -431,22 +443,11 @@ export class GigCandidateService {
     params: CreateAdminGigCandidateParams,
   ): Promise<GigCandidate> {
     const gigCandidateId = this.gigCandidateRepository.createId();
-    const communityIds = await this.requireActiveCommunityIds(
-      params.gigDraft.communityIds,
-    );
-    const location = await this.getAdminLocationAssignment(
+    const { gigDraft, location } = await this.prepareAdminGigCandidateGigDraft(
+      params.gigDraft,
       params.localityId,
-      params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateDraft = {
-      ...params.gigDraft,
-      communityIds,
-    };
-    delete gigDraft.venueIds;
-    if (location.venueIds !== undefined) {
-      gigDraft.venueIds = location.venueIds;
-    }
-    const posterParams: PrepareGigCandidateDraftPosterParams = {
+    const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId,
       gigDraft,
       posterUrl: params.posterUrl,
@@ -490,8 +491,8 @@ export class GigCandidateService {
     return withModerationPost;
   }
 
-  async updateAdminGigCandidateDraft(
-    params: UpdateAdminGigCandidateDraftParams,
+  async updateAdminGigCandidateGigDraft(
+    params: UpdateAdminGigCandidateGigDraftParams,
   ): Promise<GigCandidate> {
     const command = GigCandidateCommand.UpdateDraft;
     this.assertExpectedVersionIsValid(
@@ -513,22 +514,11 @@ export class GigCandidateService {
       command,
     );
 
-    const communityIds = await this.requireActiveCommunityIds(
-      params.gigDraft.communityIds,
-    );
-    const location = await this.getAdminLocationAssignment(
+    const { gigDraft, location } = await this.prepareAdminGigCandidateGigDraft(
+      params.gigDraft,
       params.localityId,
-      params.gigDraft.venueIds,
     );
-    const gigDraft: GigCandidateDraft = {
-      ...params.gigDraft,
-      communityIds,
-    };
-    delete gigDraft.venueIds;
-    if (location.venueIds !== undefined) {
-      gigDraft.venueIds = location.venueIds;
-    }
-    const posterParams: PrepareGigCandidateDraftPosterParams = {
+    const posterParams: PrepareGigCandidateGigDraftPosterParams = {
       gigCandidateId: currentGigCandidate.id,
       gigDraft,
       posterUrl: params.posterUrl,
@@ -545,7 +535,7 @@ export class GigCandidateService {
     const preparedPoster =
       await this.gigCandidatePosterService.prepareDraftPoster(posterParams);
 
-    return this.updateGigCandidateDraft({
+    return this.updateGigCandidateGigDraft({
       gigCandidateId: params.gigCandidateId,
       expectedVersion: params.expectedVersion,
       localityId: location.localityId,
@@ -554,14 +544,33 @@ export class GigCandidateService {
     });
   }
 
-  async lookupGigCandidateDraft(
-    params: LookupGigCandidateDraftParams,
-  ): Promise<GigCandidateDraftLookupResult | null> {
-    const gigDraft = await this.aiService.lookupGig({
+  async lookupGigDetails(
+    params: LookupGigDetailsParams,
+  ): Promise<GigCandidateLookupResult | null> {
+    const lookup = await this.aiService.lookupGig({
       name: params.title,
       location: params.location,
     });
-    return gigDraft ? { ...gigDraft } : null;
+    if (lookup === null) {
+      return null;
+    }
+
+    const gigDraft: GigCandidateLookupGigDraft = {
+      title: lookup.title,
+      date: lookup.date,
+      ticketsUrl: lookup.ticketsUrl,
+    };
+    if (lookup.endDate !== undefined) {
+      gigDraft.endDate = lookup.endDate;
+    }
+    if (lookup.posterUrl !== undefined) {
+      gigDraft.posterUrl = lookup.posterUrl;
+    }
+
+    return {
+      gigDraft,
+      locationHint: { ...lookup.locationHint },
+    };
   }
 
   async sendGigCandidateToModeration(
@@ -710,8 +719,8 @@ export class GigCandidateService {
     );
   }
 
-  async updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftApplicationParams,
+  async updateGigCandidateGigDraft(
+    params: UpdateGigCandidateGigDraftApplicationParams,
   ): Promise<GigCandidate> {
     const { posterFile, ...repositoryParams } = params;
     const command = GigCandidateCommand.UpdateDraft;
@@ -734,7 +743,7 @@ export class GigCandidateService {
     );
 
     const updated =
-      await this.gigCandidateRepository.updateGigCandidateDraft(
+      await this.gigCandidateRepository.updateGigCandidateGigDraft(
         repositoryParams,
       );
     if (updated) {
@@ -770,10 +779,10 @@ export class GigCandidateService {
     }
 
     const id = this.gigCandidateRepository.createId();
-    const communityIds = await this.requireActiveCommunityIds([
+    const communityIds = await this.communityService.requireActiveCommunityIds([
       gig.communityId,
     ]);
-    const gigDraft: GigCandidateDraft = {
+    const gigDraft: GigCandidateGigDraft = {
       communityIds,
       title: gig.title,
       date: dateMs,
@@ -850,43 +859,6 @@ export class GigCandidateService {
     return result;
   }
 
-  private async requireActiveCommunityIds(
-    communityIds: readonly string[],
-  ): Promise<string[]> {
-    if (communityIds.length === 0) {
-      throw new BadRequestException(
-        'communityIds must contain at least one Community id',
-      );
-    }
-    const normalizedCommunityIds = communityIds.map((communityId) => {
-      if (!MONGO_ID_RE.test(communityId)) {
-        throw new BadRequestException(
-          'communityIds must contain valid Community ids',
-        );
-      }
-      return communityId.toLowerCase();
-    });
-    if (
-      new Set(normalizedCommunityIds).size !== normalizedCommunityIds.length
-    ) {
-      throw new BadRequestException('communityIds must not contain duplicates');
-    }
-
-    const communities = await Promise.all(
-      normalizedCommunityIds.map((communityId) =>
-        this.communityService.findById(communityId),
-      ),
-    );
-    if (
-      communities.some((community) => community === null || !community.isActive)
-    ) {
-      throw new BadRequestException(
-        'communityIds must reference active Communities',
-      );
-    }
-    return normalizedCommunityIds;
-  }
-
   private async getAdminLocationAssignment(
     rawLocalityId: string | undefined,
     rawVenueIds: string[] | undefined,
@@ -930,6 +902,29 @@ export class GigCandidateService {
       locality: venueSelection.locality,
       venueIds: venueSelection.venues.map((venue) => venue.id),
     };
+  }
+
+  private async prepareAdminGigCandidateGigDraft(
+    sourceGigDraft: GigCandidateGigDraft,
+    localityId: string | undefined,
+  ): Promise<PreparedAdminGigCandidateGigDraft> {
+    const communityIds = await this.communityService.requireActiveCommunityIds(
+      sourceGigDraft.communityIds,
+    );
+    const location = await this.getAdminLocationAssignment(
+      localityId,
+      sourceGigDraft.venueIds,
+    );
+    const gigDraft: GigCandidateGigDraft = {
+      ...sourceGigDraft,
+      communityIds,
+    };
+    delete gigDraft.venueIds;
+    if (location.venueIds !== undefined) {
+      gigDraft.venueIds = location.venueIds;
+    }
+
+    return { gigDraft, location };
   }
 
   private parseAndValidateCreateBody(

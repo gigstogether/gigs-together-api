@@ -271,6 +271,23 @@ describe('VenueService', () => {
     ]);
   });
 
+  it('should retain an inactive Venue already assigned during an update', async () => {
+    const inactiveVenue = { ...VENUE, isActive: false };
+    findByIdsMock.mockResolvedValue([inactiveVenue]);
+
+    await expect(
+      service.getVenueSelectionForUpdate([VENUE_ID], [VENUE_ID]),
+    ).resolves.toEqual({ locality: LOCALITY, venues: [inactiveVenue] });
+  });
+
+  it('should reject assigning a new inactive Venue during an update', async () => {
+    findByIdsMock.mockResolvedValue([{ ...VENUE, isActive: false }]);
+
+    await expect(
+      service.getVenueSelectionForUpdate([VENUE_ID], []),
+    ).rejects.toThrow('New venueIds must reference active Venues');
+  });
+
   it('should return no Venue selections when no Venue id groups are provided', async () => {
     await expect(service.getVenueSelections([])).resolves.toEqual([]);
     expect(findByIdsMock).not.toHaveBeenCalled();

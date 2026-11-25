@@ -36,14 +36,16 @@ describe('AiLookupDevStubService', () => {
     });
 
     expect(
-      service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+      service.getStubGig({ name: 'Band', location: 'Barcelona' }),
     ).toMatchObject({
       title: '[DEV STUB] Band',
-      city: 'barcelona',
-      country: 'ES',
-      venue: 'Sala Razzmatazz (Barcelona)',
       ticketsUrl: 'https://example.com/dev-stub',
       posterUrl: 'https://cdn.example/default.jpg',
+      locationHint: {
+        locality: 'barcelona',
+        country: 'ES',
+        venue: 'Sala Razzmatazz (Barcelona)',
+      },
     });
   });
 
@@ -56,7 +58,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toBeNull();
     },
   );
@@ -70,7 +72,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toBeNull();
     },
   );
@@ -84,7 +86,7 @@ describe('AiLookupDevStubService', () => {
       });
 
       expect(
-        service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+        service.getStubGig({ name: 'Band', location: 'Barcelona' }),
       ).toMatchObject({ title: '[DEV STUB] Band' });
     },
   );
@@ -93,7 +95,7 @@ describe('AiLookupDevStubService', () => {
     const service = createService();
 
     expect(
-      service.resolveGigOrNull({ name: 'Band', location: 'Barcelona' }),
+      service.getStubGig({ name: 'Band', location: 'Barcelona' }),
     ).toBeNull();
   });
 
@@ -103,7 +105,7 @@ describe('AiLookupDevStubService', () => {
     });
 
     expect(
-      service.resolveGigOrNull({
+      service.getStubGig({
         name: 'A test gig',
         location: 'Barcelona',
       }),

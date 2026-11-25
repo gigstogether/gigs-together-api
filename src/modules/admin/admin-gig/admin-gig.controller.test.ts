@@ -78,11 +78,10 @@ describe('AdminGigController', () => {
 
   it('should update the Gig via gig service', async () => {
     const gig = {
+      communityIds: ['507f1f77bcf86cd799439022'],
+      venueIds: ['507f1f77bcf86cd799439033'],
       title: 'Radiohead',
       date: '2026-06-12',
-      city: 'barcelona',
-      country: 'ES',
-      venue: 'Palau Sant Jordi',
       ticketsUrl: 'https://tickets.example',
     };
     gigService.updateGigByPublicId.mockResolvedValue({ publicId: 'gig-42' });

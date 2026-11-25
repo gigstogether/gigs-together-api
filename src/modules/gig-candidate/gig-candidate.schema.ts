@@ -86,18 +86,6 @@ export class GigCandidateGigDraft {
   endDate?: number;
 
   @Prop({ type: String, required: false })
-  city?: string;
-
-  /**
-   * ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US".
-   */
-  @Prop({ type: String, required: false })
-  country?: string;
-
-  @Prop({ type: String, required: false })
-  venue?: string;
-
-  @Prop({ type: String, required: false })
   ticketsUrl?: string;
 
   @Prop({ type: GigPosterSchema, required: false })

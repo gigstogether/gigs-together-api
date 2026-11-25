@@ -11,6 +11,8 @@ import type { TelegramDigestSendErrorParams } from './telegram-digest.error';
 import { TelegramBotClient } from '../telegram-bot-client/telegram-bot.client';
 import { TelegramComposerService } from '../telegram-composer.service';
 import { TelegramService } from '../telegram.service';
+import { VenueService } from '@modules/location/venue/venue.service';
+import type { TelegramGigWithVenueNames } from '../telegram-gig/telegram-gig-composer.service.types';
 
 export interface WeeklyDigestPostResult {
   postUrl: string;
@@ -39,6 +41,7 @@ export class TelegramDigestService {
     private readonly telegramDigestComposer: TelegramDigestComposerService,
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramService: TelegramService,
+    private readonly venueService: VenueService,
   ) {}
 
   async sendWeeklyDigestPost(
@@ -54,7 +57,11 @@ export class TelegramDigestService {
 
     let plan: WeeklyDigestSendPlan | undefined;
     try {
-      plan = this.telegramDigestComposer.composeWeeklyDigest({ chatId, gigs });
+      const gigsWithVenueNames = await this.getGigsWithVenueNames(gigs);
+      plan = this.telegramDigestComposer.composeWeeklyDigest({
+        chatId,
+        gigs: gigsWithVenueNames,
+      });
 
       const postResult = await this.dispatchWeeklyDigestPlan(plan);
       if (postResult === undefined) {
@@ -67,6 +74,26 @@ export class TelegramDigestService {
     } catch (e: unknown) {
       throw this.createSendError(e, plan);
     }
+  }
+
+  private async getGigsWithVenueNames(
+    gigs: PlainGig[],
+  ): Promise<TelegramGigWithVenueNames[]> {
+    const venueSelections = await this.venueService.getVenueSelections(
+      gigs.map((gig) => gig.venueIds),
+    );
+
+    return gigs.map((gig, index) => {
+      const venueSelection = venueSelections[index];
+      if (venueSelection === undefined) {
+        throw new Error(`Venue selection for Gig ${gig.id} must exist`);
+      }
+
+      return {
+        gig,
+        venueNames: venueSelection.venues.map((venue) => venue.name),
+      };
+    });
   }
 
   private createSendError(

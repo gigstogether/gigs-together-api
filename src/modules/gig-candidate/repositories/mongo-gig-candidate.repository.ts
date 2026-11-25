@@ -13,7 +13,7 @@ import type {
   GigCandidateRepository,
   RejectGigCandidateRecordParams,
   SendGigCandidateToModerationRecordParams,
-  UpdateGigCandidateDraftParams,
+  UpdateGigCandidateGigDraftParams,
   UpdateGigCandidateModerationPostFileIdParams,
 } from './gig-candidate.repository';
 import {
@@ -100,8 +100,8 @@ export class MongoGigCandidateRepository implements GigCandidateRepository {
     );
   }
 
-  async updateGigCandidateDraft(
-    params: UpdateGigCandidateDraftParams,
+  async updateGigCandidateGigDraft(
+    params: UpdateGigCandidateGigDraftParams,
   ): Promise<GigCandidateDomain | null> {
     if (
       !Types.ObjectId.isValid(params.gigCandidateId) ||

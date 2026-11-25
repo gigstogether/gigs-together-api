@@ -138,7 +138,7 @@ describe('MongoGigCandidateRepository', () => {
     });
   });
 
-  describe('updateGigCandidateDraft', () => {
+  describe('updateGigCandidateGigDraft', () => {
     it('should update only Reviewing gigDraft at expected version and increment version', async () => {
       const gigCandidateId = '507f1f77bcf86cd799439099';
       const source = {
@@ -162,7 +162,7 @@ describe('MongoGigCandidateRepository', () => {
         }),
       );
 
-      const result = await repository.updateGigCandidateDraft({
+      const result = await repository.updateGigCandidateGigDraft({
         gigCandidateId,
         expectedVersion: 1,
         gigDraft: {
@@ -215,7 +215,7 @@ describe('MongoGigCandidateRepository', () => {
         }),
       );
 
-      const result = await repository.updateGigCandidateDraft({
+      const result = await repository.updateGigCandidateGigDraft({
         gigCandidateId,
         expectedVersion: 1,
         localityId,
@@ -240,7 +240,7 @@ describe('MongoGigCandidateRepository', () => {
 
     it('should reject simultaneous Locality and Venue assignments before updating', async () => {
       await expect(
-        repository.updateGigCandidateDraft({
+        repository.updateGigCandidateGigDraft({
           gigCandidateId: '507f1f77bcf86cd799439099',
           expectedVersion: 1,
           localityId: '507f1f77bcf86cd799439012',
@@ -254,7 +254,7 @@ describe('MongoGigCandidateRepository', () => {
     });
 
     it('should return null without writing when expected version is invalid', async () => {
-      const result = await repository.updateGigCandidateDraft({
+      const result = await repository.updateGigCandidateGigDraft({
         gigCandidateId: '507f1f77bcf86cd799439099',
         expectedVersion: -1,
         gigDraft: { communityIds: ['507f1f77bcf86cd799439011'] },

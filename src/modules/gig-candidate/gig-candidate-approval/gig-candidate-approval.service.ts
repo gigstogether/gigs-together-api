@@ -22,7 +22,7 @@ import {
 import { GigService } from '../../gig/gig.service';
 import { VenueService } from '@modules/location/venue/venue.service';
 import type { VenueSelection } from '@modules/location/venue/venue.service';
-import type { GigCalendarSource, GigData } from '../../gig/types/gig.types';
+import type { GigCalendarSource } from '../../gig/types/gig.types';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
 import { formatTelegramErrorMessage } from '../../telegram/utils/telegram-error';
 import { GigCandidateFeedbackService } from '../gig-candidate-feedback.service';
@@ -41,9 +41,8 @@ import type { GigCandidate } from '../types/gig-candidate.types';
 import {
   mapGigCandidateSourceToGigSource,
   requireApprovedGigId,
-  validateGigCandidateDraftForApproval,
+  validateGigCandidateGigDraftForApproval,
 } from './gig-candidate-approval';
-import type { ValidatedGigCandidateDraft } from './gig-candidate-approval';
 
 const GIG_CALENDAR_EVENT_CREATION_FAILED_ALERT = {
   code: 'gigCalendarEventCreationFailed',
@@ -141,13 +140,13 @@ export class GigCandidateApprovalService {
     }
 
     this.assertExpectedVersionMatches(gigCandidate, params.expectedVersion);
-    const validatedDraft = validateGigCandidateDraftForApproval(
+    const validatedDraft = validateGigCandidateGigDraftForApproval(
       gigCandidate.gigDraft,
     );
     const venueSelection = await this.venueService.getActiveVenueSelection(
       validatedDraft.venueIds,
     );
-    const gigData = this.buildGigData(validatedDraft, venueSelection);
+    const gigData = validatedDraft;
     const gigId = transaction.createGigId();
     const publicId = await this.generateUniqueGigPublicId(
       gigData.title,
@@ -199,23 +198,6 @@ export class GigCandidateApprovalService {
       yyyyMmDd: new Date(date).toISOString().slice(0, 10),
       isPublicIdTaken: (publicId) => transaction.isGigPublicIdTaken(publicId),
     });
-  }
-
-  /**
-   * Legacy compatibility: Gig persistence still stores denormalized location
-   * strings. Venue and Locality catalogs are their authoritative source until
-   * those legacy fields are removed from the Gig storage contract.
-   */
-  private buildGigData(
-    draft: ValidatedGigCandidateDraft,
-    venueSelection: VenueSelection,
-  ): GigData {
-    return {
-      ...draft,
-      city: venueSelection.locality.name,
-      country: venueSelection.locality.countryIso,
-      venue: venueSelection.venues.map((venue) => venue.name).join(', '),
-    };
   }
 
   private async runPostCommitActions(

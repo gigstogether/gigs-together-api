@@ -375,9 +375,9 @@ describe('TelegramComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      expect(() => gigComposer.composeMainPost(gig)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        gigComposer.composeMainPost({ gig, venueNames: ['Venue'] }),
+      ).toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when gig has no moderation file_id or poster URL', () => {
@@ -390,9 +390,9 @@ describe('TelegramComposerService', () => {
         posts: [],
       } as unknown as PlainGig;
 
-      expect(() => gigComposer.composeMainPost(gig)).toThrow(
-        BadRequestException,
-      );
+      expect(() =>
+        gigComposer.composeMainPost({ gig, venueNames: ['Venue'] }),
+      ).toThrow(BadRequestException);
     });
 
     it('should use moderation Telegram file_id as photo when present', () => {
@@ -414,7 +414,10 @@ describe('TelegramComposerService', () => {
         ],
       } as unknown as PlainGig;
 
-      const payload = gigComposer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(payload.photo).toBe('file-id-abc');
       expect(payload.chat_id).toBe('-1001');
@@ -437,8 +440,14 @@ describe('TelegramComposerService', () => {
         poster: { bucketPath: 'gigs/show' },
       } as unknown as PlainGig;
 
-      const firstPayload = gigComposer.composeMainPost(gig);
-      const secondPayload = gigComposer.composeMainPost(gig);
+      const firstPayload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
+      const secondPayload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(firstPayload.photo).toBe(
         `https://cdn.example/poster.jpg?tgcb=${TELEGRAM_POSTER_CACHE_BUST}`,
@@ -461,7 +470,10 @@ describe('TelegramComposerService', () => {
         poster: { externalUrl },
       } as unknown as PlainGig;
 
-      const payload = gigComposer.composeMainPost(gig);
+      const payload = gigComposer.composeMainPost({
+        gig,
+        venueNames: ['Venue'],
+      });
 
       expect(payload.photo).toBe(externalUrl);
     });
@@ -493,6 +505,7 @@ describe('TelegramComposerService', () => {
 
       const composition = gigComposer.composePostEdit({
         gig,
+        venueNames: ['Venue'],
         post: mainPost,
         isMediaUpdateRequired: true,
       });
@@ -532,6 +545,7 @@ describe('TelegramComposerService', () => {
 
       const composition = gigComposer.composePostEdit({
         gig,
+        venueNames: ['Venue'],
         post: mainPost,
         isMediaUpdateRequired: true,
         mediaReference: 'moderation-file-id',
@@ -563,8 +577,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: new Date('2026-08-01T00:00:00.000Z').getTime(),
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/2026/es/barcelona/gc-1' },
         },
         version: 0,
@@ -665,8 +677,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 0,
         status: GigCandidateStatus.New,
@@ -806,8 +816,6 @@ describe('TelegramComposerService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         version: 2,
@@ -843,8 +851,6 @@ describe('TelegramComposerService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 2,
         status: GigCandidateStatus.Reviewing,
@@ -985,8 +991,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Radiohead',
           date: new Date('2026-08-01T00:00:00.000Z').getTime(),
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         version: 2,
@@ -1017,8 +1021,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/x' },
         },
         version: 2,
@@ -1084,8 +1086,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Updated Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 4,
         status: GigCandidateStatus.Reviewing,
@@ -1141,8 +1141,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Updated Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/gig-candidate.jpg' },
         },
         version: 4,
@@ -1202,8 +1200,6 @@ describe('TelegramComposerService', () => {
             communityIds: ['507f1f77bcf86cd799439011'],
             title: 'Suggested Band',
             date: 1,
-            city: 'Barcelona',
-            country: 'ES',
             poster: { bucketPath: 'gigs/x' },
           },
           version: 0,
@@ -1326,8 +1322,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 1,
         status: GigCandidateStatus.Rejected,
@@ -1380,8 +1374,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 3,
         status: GigCandidateStatus.Reviewing,
@@ -1442,8 +1434,6 @@ describe('TelegramComposerService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Suggested Band',
           date: 1,
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/default.jpg' },
         },
         version: 3,

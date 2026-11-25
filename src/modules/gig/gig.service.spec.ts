@@ -24,18 +24,20 @@ import type {
   GigPosterFile,
   PreparedGigPosterFile,
 } from './types/gig-poster.types';
+import { CommunityService } from '@modules/community/community.service';
+import { VenueService } from '@modules/location/venue/venue.service';
+
+const COMMUNITY_ID = '507f1f77bcf86cd799439022';
+const VENUE_ID = '507f1f77bcf86cd799439033';
 
 function buildGig(overrides: Partial<PlainGig> = {}): PlainGig {
   return {
     id: '507f1f77bcf86cd799439011',
-    communityIds: ['507f1f77bcf86cd799439022'],
-    venueIds: ['507f1f77bcf86cd799439033'],
+    communityIds: [COMMUNITY_ID],
+    venueIds: [VENUE_ID],
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     isVisible: true,
     version: 3,
@@ -79,6 +81,8 @@ describe('GigService', () => {
   const updateGigModerationPost = vi.fn();
   const revalidateGigFeeds = vi.fn();
   const getPublicFileUrl = vi.fn();
+  const requireActiveCommunityIds = vi.fn();
+  const getVenueSelectionForUpdate = vi.fn();
 
   async function createService(
     configService: ConfigService,
@@ -100,6 +104,14 @@ describe('GigService', () => {
         {
           provide: GigFeedRevalidationService,
           useValue: { revalidateGigFeeds },
+        },
+        {
+          provide: CommunityService,
+          useValue: { requireActiveCommunityIds },
+        },
+        {
+          provide: VenueService,
+          useValue: { getVenueSelectionForUpdate },
         },
         { provide: ConfigService, useValue: configService },
       ],
@@ -126,6 +138,28 @@ describe('GigService', () => {
     gigRepository.findVisibleDates.mockResolvedValue([]);
     uploadPoster.mockResolvedValue(undefined);
     editGigPostsBestEffort.mockResolvedValue({});
+    gigRepository.findByPublicId.mockResolvedValue(buildGig());
+    requireActiveCommunityIds.mockImplementation((communityIds: string[]) =>
+      Promise.resolve(communityIds),
+    );
+    getVenueSelectionForUpdate.mockResolvedValue({
+      locality: {
+        id: '507f1f77bcf86cd799439044',
+        countryIso: 'ES',
+        name: 'Barcelona',
+        aliases: [],
+        timeZone: 'Europe/Madrid',
+      },
+      venues: [
+        {
+          id: VENUE_ID,
+          localityId: '507f1f77bcf86cd799439044',
+          name: 'Palau Sant Jordi',
+          aliases: [],
+          isActive: true,
+        },
+      ],
+    });
 
     service = await createService(
       new ConfigService({ EXTERNAL_POSTER_URL_FALLBACK_ENABLED: '' }),
@@ -255,11 +289,10 @@ describe('GigService', () => {
 
   describe('updateGigByPublicId', () => {
     const gigInput = {
+      communityIds: [COMMUNITY_ID],
+      venueIds: [VENUE_ID],
       title: 'Radiohead',
       date: '2026-06-12',
-      city: 'barcelona',
-      country: 'ES',
-      venue: 'Palau Sant Jordi',
       ticketsUrl: 'https://tickets.example/radiohead',
     };
 
@@ -278,11 +311,10 @@ describe('GigService', () => {
       expect(gigRepository.updateByPublicId).toHaveBeenCalledWith({
         publicId: updated.publicId,
         expectedVersion: 3,
+        communityIds: gigInput.communityIds,
+        venueIds: gigInput.venueIds,
         title: gigInput.title,
         date: new Date(gigInput.date).getTime(),
-        city: gigInput.city,
-        country: gigInput.country,
-        venue: gigInput.venue,
         ticketsUrl: gigInput.ticketsUrl,
       });
     });
