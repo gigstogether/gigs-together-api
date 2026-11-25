@@ -55,6 +55,7 @@ Responsibilities:
 
 - owns gig persistence and public gig APIs
 - owns explicit Gig-to-Community relationships
+- owns explicit Gig-to-Venue relationships and catalog-enriched location responses
 - owns Community-filtered Gig feed queries, response mapping, and frontend cache revalidation under `gig/gig-feed`
 - exposes `GigService`, `GigFeedService`, and `GigFeedRevalidationService`
 - owns Gig poster validation, download, and storage through `GigPosterService` under `gig/gig-poster`
@@ -67,6 +68,7 @@ Dependencies:
 - `AuthModule`
 - `TelegramModule`
 - `CommunityModule`
+- `LocationModule`
 - local `Gig` Mongoose model
 
 Main files:
@@ -78,6 +80,7 @@ Main files:
 - `src/modules/gig/gig-feed/gig-feed.service.ts`
 - `src/modules/gig/gig-feed/gig-feed.mapper.ts`
 - `src/modules/gig/gig-feed/gig-feed-revalidation.service.ts`
+- `src/modules/gig/gig-calendar/gig-calendar.service.ts`
 - `src/modules/gig/gig-poster/gig-poster.service.ts`
 
 #### `GigCandidateModule`
@@ -90,6 +93,7 @@ Responsibilities:
   validation and storage to `GigPosterService`
 - keeps the atomic candidate-to-Gig approval flow under `gig-candidate/gig-candidate-approval`
 - validates draft Community assignments and carries them into approved Gigs
+- validates temporary Locality and final Venue assignments and carries Venue IDs into approved Gigs
 - uses `GigFeedRevalidationService` from `GigModule` after a candidate becomes a Gig
 
 Dependencies:
@@ -101,6 +105,7 @@ Dependencies:
 - `UserModule`
 - `AuthModule`
 - `CommunityModule`
+- `LocationModule`
 - local `GigCandidate` Mongoose model
 
 Main files:
@@ -226,14 +231,17 @@ Main files:
 
 Physical locations use the hierarchy `ISO country code → Locality → Venue`. A Locality is a named geographic context and
 is not required to be a city; a Venue is a concrete physical event location. Region is deliberately not an entity or
-catalog in the project.
+catalog in the project. Gig and GigCandidate persistence uses catalog IDs rather than embedded location strings. The
+legacy location fields and translation namespaces are removed only after a validating cleanup dry run; any orphaned
+legacy City or Country collections are a separate manual deployment cleanup. See [Location Architecture](./LOCATIONS.md)
+for the required sequence.
 
 #### `CommunityModule`
 
 Responsibilities:
 
 - owns the editorial Community catalog, persistence, and public API
-- resolves Communities by ID or route for feed assignment and delivery use cases
+- loads Communities by ID or route for feed assignment and delivery use cases
 - validates Community country references through the Location application boundary
 - will own future geography-to-Community suggestion rules and orchestration
 - keeps Community audiences independent from physical geographic boundaries
@@ -253,7 +261,7 @@ Main files:
 Community is an event audience rather than a physical boundary. Gigs and GigCandidates reference one or more Communities
 independently from their Venues: `Gig / GigCandidate → Community[]`.
 
-Detailed ownership, target models, and rollout constraints are documented in [Location Architecture](./LOCATIONS.md).
+Detailed ownership, models, and rollout constraints are documented in [Location Architecture](./LOCATIONS.md).
 
 ### Integration and infrastructure modules
 
@@ -429,6 +437,9 @@ MongoDB is the primary datastore. Schemas are declared close to their domains:
 - localities in `src/modules/location/locality/locality.schema.ts`
 - Venues in `src/modules/location/venue/venue.schema.ts`
 - Communities in `src/modules/community/community.schema.ts`
+
+Country codes are static application reference data rather than MongoDB entities. City and Country collections are not
+part of the current persistence model.
 
 This keeps schema ownership aligned with the module that owns the use case.
 

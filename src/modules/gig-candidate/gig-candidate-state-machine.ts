@@ -3,7 +3,7 @@ import { GigCandidateStatus } from './types/gig-candidate-status.enum';
 export enum GigCandidateCommand {
   SendToModeration = 'sendGigCandidateToModeration',
   Reject = 'rejectGigCandidate',
-  UpdateDraft = 'updateGigCandidateDraft',
+  UpdateDraft = 'updateGigCandidateGigDraft',
   Approve = 'approveGigCandidate',
 }
 

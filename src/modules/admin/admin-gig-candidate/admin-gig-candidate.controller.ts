@@ -31,14 +31,14 @@ import {
   mapV1AdminGigCandidateResponse,
   mapV1AdminGigCandidatesListResponse,
   mapV1AdminGigCandidatesQuery,
-  mapV1AdminUpdateGigCandidateDraftRequest,
+  mapV1AdminUpdateGigCandidateGigDraftRequest,
 } from './admin-gig-candidate.mapper';
 import { AdminGigCandidateConflictFilter } from './filters/admin-gig-candidate-conflict.filter';
 import { AdminGigCandidateApprovalValidationFilter } from './filters/admin-gig-candidate-approval-validation.filter';
 import {
   AdminGigCandidateApproveBodyPipe,
   AdminGigCandidateCreateBodyPipe,
-  AdminGigCandidateDraftUpdateBodyPipe,
+  AdminGigCandidateGigDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
   AdminGigCandidateSendToModerationBodyPipe,
@@ -50,7 +50,7 @@ import type {
   V1AdminGigCandidateLookupResponseBody,
   V1AdminRejectGigCandidateRequestBody,
   V1AdminSendGigCandidateToModerationRequestBody,
-  V1AdminUpdateGigCandidateDraftRequestBody,
+  V1AdminUpdateGigCandidateGigDraftRequestBody,
 } from './types/requests/v1-admin-gig-candidate-requests';
 import { V1AdminGigCandidatesGetQueryDto } from './types/requests/v1-admin-gig-candidates-get-query';
 import type {
@@ -108,13 +108,12 @@ export class AdminGigCandidateController {
   @Version('1')
   @Post('lookup')
   @HttpCode(HttpStatus.OK)
-  async lookupGigCandidateDraft(
+  async lookupGigDetails(
     @Body(AdminGigCandidateLookupBodyPipe)
     body: V1AdminGigCandidateLookupRequestBody,
   ): Promise<V1AdminGigCandidateLookupResponseBody> {
-    const gigDraft =
-      await this.gigCandidateService.lookupGigCandidateDraft(body);
-    return mapV1AdminGigCandidateLookupResponse(gigDraft);
+    const lookup = await this.gigCandidateService.lookupGigDetails(body);
+    return mapV1AdminGigCandidateLookupResponse(lookup);
   }
 
   @Version('1')
@@ -130,15 +129,15 @@ export class AdminGigCandidateController {
   @Patch(':id/gig-draft')
   @UseInterceptors(GigCandidatePosterFileInterceptor)
   @UseFilters(AdminGigCandidateConflictFilter)
-  async updateGigCandidateDraft(
+  async updateGigCandidateGigDraft(
     @Param('id') id: string,
     @UploadedFile() posterFile: Express.Multer.File | undefined,
-    @Body(AdminGigCandidateDraftUpdateBodyPipe)
-    body: V1AdminUpdateGigCandidateDraftRequestBody,
+    @Body(AdminGigCandidateGigDraftUpdateBodyPipe)
+    body: V1AdminUpdateGigCandidateGigDraftRequestBody,
   ): Promise<V1AdminGigCandidateResponseBody> {
     const gigCandidate =
-      await this.gigCandidateService.updateAdminGigCandidateDraft(
-        mapV1AdminUpdateGigCandidateDraftRequest({
+      await this.gigCandidateService.updateAdminGigCandidateGigDraft(
+        mapV1AdminUpdateGigCandidateGigDraftRequest({
           body,
           gigCandidateId: id,
           posterFile,

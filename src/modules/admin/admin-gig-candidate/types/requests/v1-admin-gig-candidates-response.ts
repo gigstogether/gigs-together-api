@@ -65,9 +65,6 @@ interface V1AdminGigCandidateGigDraftResponseBody {
   title?: string;
   date?: string;
   endDate?: string;
-  city?: string;
-  country?: string;
-  venue?: string;
   ticketsUrl?: string;
   posterUrl?: string;
 }

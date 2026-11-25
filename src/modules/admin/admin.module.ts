@@ -20,7 +20,7 @@ import { AdminGigCandidateConflictFilter } from './admin-gig-candidate/filters/a
 import {
   AdminGigCandidateApproveBodyPipe,
   AdminGigCandidateCreateBodyPipe,
-  AdminGigCandidateDraftUpdateBodyPipe,
+  AdminGigCandidateGigDraftUpdateBodyPipe,
   AdminGigCandidateLookupBodyPipe,
   AdminGigCandidateRejectBodyPipe,
   AdminGigCandidateSendToModerationBodyPipe,
@@ -64,7 +64,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     AdminGigCandidateService,
     AdminGigCandidateCreateBodyPipe,
     AdminGigCandidateApproveBodyPipe,
-    AdminGigCandidateDraftUpdateBodyPipe,
+    AdminGigCandidateGigDraftUpdateBodyPipe,
     AdminGigCandidateLookupBodyPipe,
     AdminGigCandidateRejectBodyPipe,
     AdminGigCandidateSendToModerationBodyPipe,

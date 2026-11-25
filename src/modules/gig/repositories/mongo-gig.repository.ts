@@ -115,11 +115,12 @@ export class MongoGigRepository implements GigRepository {
   ): Promise<PlainGig | null> {
     const update: UpdateQuery<GigDocument> = {
       $set: {
+        communityIds: GigRepositoryMapper.toStoredCommunityIds(
+          params.communityIds,
+        ),
+        venueIds: GigRepositoryMapper.toStoredVenueIds(params.venueIds),
         title: params.title,
         date: params.date,
-        city: params.city,
-        country: params.country,
-        venue: params.venue,
         ticketsUrl: params.ticketsUrl,
       },
       $inc: { version: 1 },

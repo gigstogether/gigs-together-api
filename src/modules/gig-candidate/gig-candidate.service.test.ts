@@ -53,7 +53,7 @@ describe('GigCandidateService', () => {
     appendGigCandidatePostIfAbsent: ReturnType<typeof vi.fn>;
     sendGigCandidateToModeration: ReturnType<typeof vi.fn>;
     rejectGigCandidate: ReturnType<typeof vi.fn>;
-    updateGigCandidateDraft: ReturnType<typeof vi.fn>;
+    updateGigCandidateGigDraft: ReturnType<typeof vi.fn>;
     updateGigCandidateModerationPostFileId: ReturnType<typeof vi.fn>;
   } = {
     createId: vi.fn(),
@@ -63,7 +63,7 @@ describe('GigCandidateService', () => {
     appendGigCandidatePostIfAbsent: vi.fn(),
     sendGigCandidateToModeration: vi.fn(),
     rejectGigCandidate: vi.fn(),
-    updateGigCandidateDraft: vi.fn(),
+    updateGigCandidateGigDraft: vi.fn(),
     updateGigCandidateModerationPostFileId: vi.fn(),
   };
 
@@ -123,6 +123,7 @@ describe('GigCandidateService', () => {
   const communityServiceMock = {
     findById: vi.fn(),
     findByRoute: vi.fn(),
+    requireActiveCommunityIds: vi.fn(),
   };
 
   const localityServiceMock = {
@@ -232,6 +233,12 @@ describe('GigCandidateService', () => {
       timeZone: 'Europe/Madrid',
       isActive: true,
     });
+    communityServiceMock.requireActiveCommunityIds.mockImplementation(
+      (communityIds: string[]) =>
+        Promise.resolve(
+          communityIds.map((communityId) => communityId.toLowerCase()),
+        ),
+    );
     communityServiceMock.findByRoute.mockResolvedValue({
       id: '507f1f77bcf86cd799439011',
       countryIso: 'ES',
@@ -302,7 +309,7 @@ describe('GigCandidateService', () => {
   });
 
   describe('createMessengerGigCandidate', () => {
-    it('should create an anonymous messenger candidate with Barcelona location defaults', async () => {
+    it('should create an anonymous messenger candidate without a physical location assignment', async () => {
       const gigCandidate = buildGigCandidate({
         source: {
           type: GigSourceType.User,
@@ -315,8 +322,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -349,8 +354,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       expect(communityServiceMock.findByRoute).toHaveBeenCalledWith({
@@ -376,8 +379,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -423,8 +424,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
     });
@@ -509,8 +508,6 @@ describe('GigCandidateService', () => {
         },
         gigDraft: {
           communityIds: ['507f1f77bcf86cd799439011'],
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(gigCandidate.id);
@@ -957,8 +954,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'B',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
         version: 0,
         status: GigCandidateStatus.New,
@@ -1049,8 +1044,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
           poster: { bucketPath: 'gigs/ug' },
         },
         version: 0,
@@ -1108,8 +1101,8 @@ describe('GigCandidateService', () => {
         },
         context: {
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
+          localityName: 'Barcelona',
+          countryIso: 'ES',
           publicId: `gc-${created.id}`,
         },
       });
@@ -1156,8 +1149,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -1202,8 +1193,6 @@ describe('GigCandidateService', () => {
           communityIds: ['507f1f77bcf86cd799439011'],
           title: 'Band',
           date: Date.parse('2026-08-01T00:00:00.000Z'),
-          city: 'Barcelona',
-          country: 'ES',
         },
       });
       gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
@@ -1546,14 +1535,11 @@ describe('GigCandidateService', () => {
     });
 
     it('should reject an inactive Community before creating an admin GigCandidate', async () => {
-      communityServiceMock.findById.mockResolvedValue({
-        id: '507f1f77bcf86cd799439011',
-        countryIso: 'ES',
-        slug: 'barcelona',
-        nameTranslationKey: 'barcelona.name',
-        timeZone: 'Europe/Madrid',
-        isActive: false,
-      });
+      communityServiceMock.requireActiveCommunityIds.mockRejectedValueOnce(
+        new BadRequestException(
+          'communityIds must reference active Communities',
+        ),
+      );
 
       await expect(
         service.createAdminGigCandidate({
@@ -1579,13 +1565,18 @@ describe('GigCandidateService', () => {
     ])(
       'should reject invalid Community assignments %# before creating an admin GigCandidate',
       async ({ communityIds }) => {
+        communityServiceMock.requireActiveCommunityIds.mockRejectedValueOnce(
+          new BadRequestException('Invalid Community assignments'),
+        );
         await expect(
           service.createAdminGigCandidate({
             userId: '507f1f77bcf86cd799439088',
             gigDraft: { communityIds, title: 'Band' },
           }),
         ).rejects.toThrow(BadRequestException);
-        expect(communityServiceMock.findById).not.toHaveBeenCalled();
+        expect(
+          communityServiceMock.requireActiveCommunityIds,
+        ).toHaveBeenCalledWith(communityIds);
         expect(gigPosterServiceMock.upload).not.toHaveBeenCalled();
         expect(
           gigCandidateRepositoryMock.createGigCandidate,
@@ -1788,7 +1779,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('updateAdminGigCandidateDraft', () => {
+  describe('updateAdminGigCandidateGigDraft', () => {
     it('should preserve stored poster when update has no new poster input', async () => {
       const poster = { bucketPath: 'gigCandidate/poster.jpg' };
       const reviewing = buildGigCandidate({
@@ -1809,12 +1800,12 @@ describe('GigCandidateService', () => {
         },
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
 
       await expect(
-        service.updateAdminGigCandidateDraft({
+        service.updateAdminGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -1824,7 +1815,7 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(updated);
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).toHaveBeenCalledWith({
         gigCandidateId: reviewing.id,
         expectedVersion: 0,
@@ -1878,7 +1869,7 @@ describe('GigCandidateService', () => {
         posterFile: { ...posterFile, filename: 'poster.jpg' },
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
       telegramServiceMock.editGigCandidatePost.mockResolvedValue({
@@ -1895,7 +1886,7 @@ describe('GigCandidateService', () => {
       );
 
       await expect(
-        service.updateAdminGigCandidateDraft({
+        service.updateAdminGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -1926,24 +1917,37 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('lookupGigCandidateDraft', () => {
+  describe('lookupGigDetails', () => {
     it('should return AI lookup data without writing GigCandidate state', async () => {
       const lookupResult = {
         title: 'Band',
         date: '2026-09-20',
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Venue',
         ticketsUrl: 'https://tickets.example/gig',
+        locationHint: {
+          locality: 'Barcelona',
+          country: 'ES',
+          venue: 'Venue',
+        },
       };
       aiServiceMock.lookupGig.mockResolvedValue(lookupResult);
 
       await expect(
-        service.lookupGigCandidateDraft({
+        service.lookupGigDetails({
           title: 'Band',
           location: 'Barcelona, ES',
         }),
-      ).resolves.toEqual(lookupResult);
+      ).resolves.toEqual({
+        gigDraft: {
+          title: 'Band',
+          date: '2026-09-20',
+          ticketsUrl: 'https://tickets.example/gig',
+        },
+        locationHint: {
+          locality: 'Barcelona',
+          country: 'ES',
+          venue: 'Venue',
+        },
+      });
       expect(aiServiceMock.lookupGig).toHaveBeenCalledWith({
         name: 'Band',
         location: 'Barcelona, ES',
@@ -1952,7 +1956,7 @@ describe('GigCandidateService', () => {
         gigCandidateRepositoryMock.createGigCandidate,
       ).not.toHaveBeenCalled();
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).not.toHaveBeenCalled();
     });
   });
@@ -2351,9 +2355,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2423,9 +2424,6 @@ describe('GigCandidateService', () => {
         publicId: gig.publicId,
         title: 'Radiohead',
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
-        venue: 'Palau Sant Jordi',
         ticketsUrl: 'https://tickets.example/radiohead',
         poster: { bucketPath: 'posters/radiohead.jpg' },
         source: {
@@ -2474,9 +2472,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2568,9 +2563,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2644,9 +2636,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2687,9 +2676,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -2722,9 +2708,6 @@ describe('GigCandidateService', () => {
           venueIds: ['507f1f77bcf86cd799439012'],
           title: 'Radiohead',
           date: Date.UTC(2026, 5, 12),
-          city: 'Barcelona',
-          country: 'ES',
-          venue: 'Palau Sant Jordi',
           ticketsUrl: 'https://tickets.example/radiohead',
           poster: { bucketPath: 'posters/radiohead.jpg' },
         },
@@ -3075,7 +3058,7 @@ describe('GigCandidateService', () => {
     });
   });
 
-  describe('updateGigCandidateDraft', () => {
+  describe('updateGigCandidateGigDraft', () => {
     it('should conditionally update Reviewing gigDraft', async () => {
       const moderationPost: GigCandidate['posts'][number] = {
         to: Messenger.Telegram,
@@ -3099,12 +3082,12 @@ describe('GigCandidateService', () => {
         posts: [moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -3114,7 +3097,7 @@ describe('GigCandidateService', () => {
         }),
       ).resolves.toEqual(updated);
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).toHaveBeenCalledWith({
         gigCandidateId: reviewing.id,
         expectedVersion: 0,
@@ -3150,7 +3133,7 @@ describe('GigCandidateService', () => {
         posts: [moderationPost],
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         updated,
       );
       telegramServiceMock.editGigCandidatePost.mockResolvedValue({
@@ -3164,7 +3147,7 @@ describe('GigCandidateService', () => {
       vi.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -3190,7 +3173,7 @@ describe('GigCandidateService', () => {
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 1,
           gigDraft: {
@@ -3204,7 +3187,7 @@ describe('GigCandidateService', () => {
         reason: 'versionConflict',
       });
       expect(
-        gigCandidateRepositoryMock.updateGigCandidateDraft,
+        gigCandidateRepositoryMock.updateGigCandidateGigDraft,
       ).not.toHaveBeenCalled();
     });
 
@@ -3213,12 +3196,12 @@ describe('GigCandidateService', () => {
         status: GigCandidateStatus.Reviewing,
       });
       gigCandidateRepositoryMock.findById.mockResolvedValue(reviewing);
-      gigCandidateRepositoryMock.updateGigCandidateDraft.mockResolvedValue(
+      gigCandidateRepositoryMock.updateGigCandidateGigDraft.mockResolvedValue(
         null,
       );
 
       await expect(
-        service.updateGigCandidateDraft({
+        service.updateGigCandidateGigDraft({
           gigCandidateId: reviewing.id,
           expectedVersion: 0,
           gigDraft: {
@@ -3276,9 +3259,6 @@ function buildGigApprovalResult(
     publicId: 'radiohead-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'Barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     source: {
       type: GigSourceType.User,

@@ -9,16 +9,13 @@ import type {
   V1AdminGigCandidateLookupRequestBody,
   V1AdminRejectGigCandidateRequestBody,
   V1AdminSendGigCandidateToModerationRequestBody,
-  V1AdminUpdateGigCandidateDraftRequestBody,
+  V1AdminUpdateGigCandidateGigDraftRequestBody,
 } from '../types/requests/v1-admin-gig-candidate-requests';
 
 const OPTIONAL_GIG_DRAFT_STRING_FIELDS = [
   'title',
   'date',
   'endDate',
-  'city',
-  'country',
-  'venue',
   'ticketsUrl',
   'posterUrl',
 ] as const;
@@ -151,18 +148,18 @@ export class AdminGigCandidateCreateBodyPipe implements PipeTransform<
 }
 
 @Injectable()
-export class AdminGigCandidateDraftUpdateBodyPipe implements PipeTransform<
+export class AdminGigCandidateGigDraftUpdateBodyPipe implements PipeTransform<
   unknown,
-  V1AdminUpdateGigCandidateDraftRequestBody
+  V1AdminUpdateGigCandidateGigDraftRequestBody
 > {
-  transform(bodyRaw: unknown): V1AdminUpdateGigCandidateDraftRequestBody {
+  transform(bodyRaw: unknown): V1AdminUpdateGigCandidateGigDraftRequestBody {
     const body = parseBody(bodyRaw);
     assertOnlyFields(
       body,
       ['expectedVersion', 'localityId', 'gigDraft'],
       'body',
     );
-    const parsed: V1AdminUpdateGigCandidateDraftRequestBody = {
+    const parsed: V1AdminUpdateGigCandidateGigDraftRequestBody = {
       expectedVersion: parseExpectedVersion(body.expectedVersion),
       gigDraft: parseGigDraft(body.gigDraft),
     };

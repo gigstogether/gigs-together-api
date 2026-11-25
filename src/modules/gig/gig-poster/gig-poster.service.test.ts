@@ -55,8 +55,8 @@ describe('GigPosterService', () => {
       },
       context: {
         date: '2026-09-17',
-        country: 'ES',
-        city: 'Barcelona',
+        countryIso: 'ES',
+        localityName: 'Barcelona',
         publicId: 'gc-1',
       },
     });
@@ -76,8 +76,8 @@ describe('GigPosterService', () => {
       },
       context: {
         date: '2026-09-17',
-        country: 'ES',
-        city: 'Barcelona',
+        countryIso: 'ES',
+        localityName: 'Barcelona',
         publicId: 'gc-1',
       },
     });
@@ -95,8 +95,8 @@ describe('GigPosterService', () => {
         },
         context: {
           date: '2026-09-17',
-          country: 'ES',
-          city: 'Barcelona',
+          countryIso: 'ES',
+          localityName: 'Barcelona',
           publicId: 'gc-1',
         },
       }),
@@ -129,8 +129,8 @@ describe('GigPosterService', () => {
         },
         context: {
           date: '2026-09-17',
-          country: 'ES',
-          city: 'Barcelona',
+          countryIso: 'ES',
+          localityName: 'Barcelona',
           publicId: 'gc-1',
         },
       }),
@@ -157,8 +157,8 @@ describe('GigPosterService', () => {
       },
       context: {
         date: '2026-09-17',
-        country: 'ES',
-        city: 'Barcelona',
+        countryIso: 'ES',
+        localityName: 'Barcelona',
         publicId: 'gc-1',
       },
     });
@@ -191,8 +191,8 @@ describe('GigPosterService', () => {
       },
       context: {
         date: '2026-09-17',
-        country: 'ES',
-        city: 'Barcelona',
+        countryIso: 'ES',
+        localityName: 'Barcelona',
         publicId: 'gc-1',
       },
     });
@@ -233,8 +233,8 @@ describe('GigPosterService', () => {
         url: 'https://images.example/download/poster',
         context: {
           date: '2026-09-17',
-          country: 'ES',
-          city: 'Barcelona',
+          countryIso: 'ES',
+          localityName: 'Barcelona',
           publicId: 'gc-1',
         },
       }),
@@ -269,8 +269,8 @@ describe('GigPosterService', () => {
         url: 'invalid-url',
         context: {
           date: '2026-09-17',
-          country: 'ES',
-          city: 'Barcelona',
+          countryIso: 'ES',
+          localityName: 'Barcelona',
           publicId: 'gc-1',
         },
       }),
@@ -287,8 +287,8 @@ describe('GigPosterService', () => {
         url: 'https://images.example/not-an-image',
         context: {
           date: '2026-09-17',
-          country: 'ES',
-          city: 'Barcelona',
+          countryIso: 'ES',
+          localityName: 'Barcelona',
           publicId: 'gc-1',
         },
       }),

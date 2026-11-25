@@ -176,18 +176,6 @@ export class Gig {
   endDate?: number;
 
   @Prop({ type: String })
-  city: string; // city code
-
-  /**
-   * ISO 3166-1 alpha-2 code (uppercase), e.g. "ES", "US".
-   */
-  @Prop({ type: String })
-  country: string;
-
-  @Prop({ type: String })
-  venue: string; // venue name
-
-  @Prop({ type: String })
   ticketsUrl: string;
 
   @Prop({

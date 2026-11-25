@@ -21,6 +21,7 @@ import { TelegramInitDataAuthService } from './telegram-auth/telegram-init-data-
 import { TelegramAccessExchangeService } from './telegram-auth/telegram-access-exchange.service';
 import { TelegramOidcAuthService } from './telegram-auth/telegram-oidc-auth.service';
 import { UserModule } from '../user/user.module';
+import { LocationModule } from '../location/location.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { UserModule } from '../user/user.module';
     AuthModule,
     UserModule,
     TranslationModule,
+    LocationModule,
   ],
   controllers: [TelegramAuthController],
   providers: [

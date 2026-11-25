@@ -12,6 +12,7 @@ const COMMUNITY = {
   timeZone: 'Europe/Madrid',
   isActive: true,
 };
+const COMMUNITY_ID = '507f1f77bcf86cd799439011';
 
 describe('CommunityService', () => {
   let service: CommunityService;
@@ -114,6 +115,42 @@ describe('CommunityService', () => {
     await expect(service.findActive()).resolves.toEqual([COMMUNITY]);
     expect(findActiveMock).toHaveBeenCalledOnce();
   });
+
+  it('should validate and normalize active Community assignments', async () => {
+    findByIdsMock.mockResolvedValue([
+      { ...COMMUNITY, id: COMMUNITY_ID, isActive: true },
+    ]);
+
+    await expect(
+      service.requireActiveCommunityIds([COMMUNITY_ID.toUpperCase()]),
+    ).resolves.toEqual([COMMUNITY_ID]);
+    expect(findByIdsMock).toHaveBeenCalledWith([COMMUNITY_ID]);
+  });
+
+  it('should reject Community assignments that are missing or inactive', async () => {
+    findByIdsMock.mockResolvedValue([]);
+
+    await expect(
+      service.requireActiveCommunityIds([COMMUNITY_ID]),
+    ).rejects.toThrow('communityIds must reference active Communities');
+  });
+
+  it.each([
+    { communityIds: [], message: 'at least one Community id' },
+    { communityIds: ['invalid'], message: 'valid Community ids' },
+    {
+      communityIds: [COMMUNITY_ID, COMMUNITY_ID.toUpperCase()],
+      message: 'must not contain duplicates',
+    },
+  ])(
+    'should reject invalid Community assignments %#',
+    async ({ communityIds, message }) => {
+      await expect(
+        service.requireActiveCommunityIds(communityIds),
+      ).rejects.toThrow(message);
+      expect(findByIdsMock).not.toHaveBeenCalled();
+    },
+  );
 
   it('should reject a stored Community outside the Country catalog', async () => {
     findActiveMock.mockResolvedValue([

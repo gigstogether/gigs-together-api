@@ -34,6 +34,12 @@ function createGigCandidateDocument(venueIds?: Types.ObjectId[]) {
 }
 
 describe('GigCandidateSchema', () => {
+  it('should not define legacy location fields in GigCandidate drafts', () => {
+    expect(GigCandidateSchema.path('gigDraft.city')).toBeUndefined();
+    expect(GigCandidateSchema.path('gigDraft.country')).toBeUndefined();
+    expect(GigCandidateSchema.path('gigDraft.venue')).toBeUndefined();
+  });
+
   it('should preserve an omitted Venue assignment as undefined', async () => {
     const document = createGigCandidateDocument();
 

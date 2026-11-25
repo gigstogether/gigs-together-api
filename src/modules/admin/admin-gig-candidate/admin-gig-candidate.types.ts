@@ -7,7 +7,7 @@ import type {
   GigCandidateSourceProvider,
   GigCandidateSourceUser,
 } from '@modules/gig-candidate/types/gig-candidate.types';
-import type { GigCandidateDraft } from '@modules/gig/types/gig.types';
+import type { GigCandidateGigDraft } from '@modules/gig/types/gig.types';
 import type { GigCandidateStatus } from '@modules/gig-candidate/types/gig-candidate-status.enum';
 
 export interface GetAdminGigCandidatesParams {
@@ -39,7 +39,7 @@ export interface AdminGigCandidateDetails {
   id: string;
   source: GigCandidateSourceForAdminView;
   location?: GigCandidateLocation;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   version: number;
   posterUrl?: string;
   status: GigCandidateStatus;

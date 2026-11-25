@@ -13,6 +13,7 @@ import type { PlainTemplateParams } from '../telegram-template.service';
 import { TelegramTemplateService } from '../telegram-template.service';
 import { TelegramGigService } from './telegram-gig.service';
 import { TelegramService } from '../telegram.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 function createGig(): PlainGig {
   return {
@@ -22,9 +23,6 @@ function createGig(): PlainGig {
     publicId: 'radiohead-barcelona-2026-06-12',
     title: 'Radiohead',
     date: Date.UTC(2026, 5, 12),
-    city: 'barcelona',
-    country: 'ES',
-    venue: 'Palau Sant Jordi',
     ticketsUrl: 'https://tickets.example/radiohead',
     poster: { externalUrl: 'https://cdn.example/poster.jpg' },
     isVisible: false,
@@ -69,6 +67,14 @@ describe('TelegramGigService', () => {
     ),
   };
 
+  const venueService = {
+    getVenueSelections: vi.fn().mockResolvedValue([
+      {
+        venues: [{ name: 'Palau Sant Jordi' }],
+      },
+    ]),
+  };
+
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -86,6 +92,10 @@ describe('TelegramGigService', () => {
         {
           provide: TelegramService,
           useValue: telegramService,
+        },
+        {
+          provide: VenueService,
+          useValue: venueService,
         },
       ],
     }).compile();

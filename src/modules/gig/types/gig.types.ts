@@ -29,9 +29,6 @@ export interface PlainGig {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPoster;
   isVisible: boolean;
@@ -78,15 +75,19 @@ export interface GigData {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: GigPosterInput;
 }
 
-export type GigCandidateDraft = Partial<GigData> &
-  Pick<GigData, 'communityIds'>;
+export interface GigCandidateGigDraft {
+  communityIds: string[];
+  venueIds?: string[];
+  title?: string;
+  date?: number;
+  endDate?: number;
+  ticketsUrl?: string;
+  poster?: GigPosterInput;
+}
 
 interface GigSourceUserIdentifiedOrigin {
   type: GigSourceUserOriginType.Form | GigSourceUserOriginType.Admin;
@@ -149,31 +150,11 @@ export interface GigCalendarSource {
 }
 
 export interface GigFormInput {
+  communityIds: string[];
+  venueIds: string[];
   title: string;
   date: string;
   endDate?: string;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   posterUrl?: string;
-}
-
-export interface GigFormData {
-  publicId: string;
-  title: string;
-  date: string; // YYYY-MM-DD
-  endDate?: string; // YYYY-MM-DD
-  city: string;
-  country: string;
-  venue: string;
-  ticketsUrl: string;
-  posterUrl?: string;
-  isVisible: boolean;
-  version: number;
-  source: GigSourceForAdminView;
-  mainPostUrl?: string;
-  mainPostDate?: number;
-  moderationPostUrl?: string;
-  moderationPostDate?: number;
 }

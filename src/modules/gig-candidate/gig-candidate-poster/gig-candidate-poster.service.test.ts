@@ -54,9 +54,8 @@ describe('GigCandidatePosterService', () => {
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
       },
+      location: { name: 'Barcelona', countryIso: 'ES' },
       posterFile,
       shouldUseDefaultPoster: false,
     });
@@ -66,8 +65,8 @@ describe('GigCandidatePosterService', () => {
       file: posterFile,
       context: {
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
+        localityName: 'Barcelona',
+        countryIso: 'ES',
         publicId: 'gc-candidate-id',
       },
     });
@@ -75,8 +74,6 @@ describe('GigCandidatePosterService', () => {
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
         date: Date.UTC(2026, 5, 12),
-        city: 'Barcelona',
-        country: 'ES',
         poster: {
           bucketPath: 'gigs/2026/es/barcelona/gc-candidate-id',
         },
@@ -133,8 +130,8 @@ describe('GigCandidatePosterService', () => {
       file: undefined,
       context: {
         date: expect.any(Date),
-        city: 'unknown',
-        country: 'unknown',
+        localityName: 'unknown',
+        countryIso: 'unknown',
         publicId: 'gc-candidate-id',
       },
     });

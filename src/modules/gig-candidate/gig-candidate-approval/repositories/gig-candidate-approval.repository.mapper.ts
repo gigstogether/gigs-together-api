@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import type { GigStoredSource } from '@modules/gig/gig.schema';
 import { GigRepositoryMapper } from '@modules/gig/repositories/gig.repository.mapper';
-import type { GigCandidateDraft, GigData } from '@modules/gig/types/gig.types';
+import type { GigCandidateGigDraft } from '@modules/gig/types/gig.types';
 import type { GigCandidatePost } from '../../types/gig-candidate.types';
 import type {
   CreateGigAfterApprovalParams,
@@ -10,7 +10,7 @@ import type {
 
 export interface ApprovedGigCandidateStateFields {
   id: string;
-  gigDraft: GigCandidateDraft;
+  gigDraft: GigCandidateGigDraft;
   gigId?: string;
   approvedAt?: Date;
   approvedByUserId?: string;
@@ -25,9 +25,6 @@ export interface GigApprovalResultLeanDocument {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: { bucketPath?: string; externalUrl?: string };
   source: unknown;
@@ -43,9 +40,6 @@ export interface GigCreationPersistenceData {
   title: string;
   date: number;
   endDate?: number;
-  city: string;
-  country: string;
-  venue: string;
   ticketsUrl: string;
   poster?: { bucketPath?: string; externalUrl?: string };
   source: GigStoredSource;
@@ -69,14 +63,11 @@ export class GigCandidateApprovalRepositoryMapper {
       );
     }
 
-    const requiredFields: Array<keyof GigData> = [
+    const requiredFields: Array<keyof GigCandidateGigDraft> = [
       'communityIds',
       'venueIds',
       'title',
       'date',
-      'city',
-      'country',
-      'venue',
       'ticketsUrl',
     ];
     const missingFields = requiredFields.filter(
@@ -101,9 +92,6 @@ export class GigCandidateApprovalRepositoryMapper {
       publicId: params.publicId,
       title: params.title,
       date: params.date,
-      city: params.city,
-      country: params.country,
-      venue: params.venue,
       ticketsUrl: params.ticketsUrl,
       source: GigRepositoryMapper.toStoredSource(params.source),
       version: 0,
@@ -140,9 +128,6 @@ export class GigCandidateApprovalRepositoryMapper {
       publicId: gig.publicId,
       title: gig.title,
       date: gig.date,
-      city: gig.city,
-      country: gig.country,
-      venue: gig.venue,
       ticketsUrl: gig.ticketsUrl,
       source: GigRepositoryMapper.fromStoredSource(gig.source),
       version: gig.version,

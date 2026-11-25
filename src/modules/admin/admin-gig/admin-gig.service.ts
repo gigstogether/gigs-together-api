@@ -5,9 +5,10 @@ import { ADMIN_GIG_LIST_DEFAULT_LIMIT } from '@modules/gig/types/admin-gig-list-
 import type { V1AdminGigsGetQueryDto } from './types/requests/v1-admin-gigs-get-query';
 import type {
   V1AdminGigListItem,
+  V1AdminGigResponseBody,
   V1AdminGigsListResponseBody,
 } from './types/requests/v1-admin-gigs-list-response';
-import type { GigFormData, PlainGig } from '@modules/gig/types/gig.types';
+import type { PlainGig } from '@modules/gig/types/gig.types';
 import { GigSourceType } from '@modules/gig/types/gig-source-type.enum';
 import { PostType } from '@shared/types/post-type.enum';
 import { TelegramComposerService } from '@modules/telegram/telegram-composer.service';
@@ -15,6 +16,8 @@ import { TelegramGigService } from '@modules/telegram/telegram-gig/telegram-gig.
 import { UserService } from '@modules/user/user.service';
 import type { User } from '@modules/user/types/user.types';
 import { getUserSourceProfile } from '../admin-shared/admin-user-source-profile';
+import { VenueService } from '@modules/location/venue/venue.service';
+import type { VenueSelection } from '@modules/location/venue/venue.service';
 
 @Injectable()
 export class AdminGigService {
@@ -23,6 +26,7 @@ export class AdminGigService {
     private readonly telegramComposer: TelegramComposerService,
     private readonly telegramGigService: TelegramGigService,
     private readonly userService: UserService,
+    private readonly venueService: VenueService,
   ) {}
 
   async getGigsList(
@@ -35,28 +39,46 @@ export class AdminGigService {
     });
     const activeSourceUsersById =
       await this.getActiveSourceUsersById(plainGigs);
+    const venueSelections = await this.venueService.getVenueSelections(
+      plainGigs.map((gig) => gig.venueIds),
+    );
 
     const gigs: V1AdminGigListItem[] = [];
-    for (const plainGig of plainGigs) {
-      const gig = await this.resolveGig(plainGig, activeSourceUsersById);
+    for (const [index, plainGig] of plainGigs.entries()) {
+      const venueSelection = venueSelections[index];
+      if (venueSelection === undefined) {
+        throw new Error('Loaded Venue selection must exist');
+      }
+      const gig = await this.getGigFormData(
+        plainGig,
+        venueSelection,
+        activeSourceUsersById,
+      );
       gigs.push(this.mapFormDataToListItem(gig));
     }
 
     return { gigs };
   }
 
-  async getGigByPublicId(publicId: string): Promise<GigFormData> {
+  async getGigByPublicId(publicId: string): Promise<V1AdminGigResponseBody> {
     const plainGig = await this.gigService.getGigByPublicId(publicId);
     const activeSourceUsersById = await this.getActiveSourceUsersById([
       plainGig,
     ]);
-    return this.resolveGig(plainGig, activeSourceUsersById);
+    const [venueSelection] = await this.venueService.getVenueSelections([
+      plainGig.venueIds,
+    ]);
+    if (venueSelection === undefined) {
+      throw new Error('Loaded Venue selection must exist');
+    }
+    return this.getGigFormData(plainGig, venueSelection, activeSourceUsersById);
   }
 
-  private async resolveGig(
+  private async getGigFormData(
     gig: PlainGig,
+    venueSelection: VenueSelection,
     activeSourceUsersById: ReadonlyMap<string, User>,
-  ): Promise<GigFormData> {
+  ): Promise<V1AdminGigResponseBody> {
     const posterUrl = this.gigService.resolveGigPosterPublicUrl(gig.poster);
     const user =
       gig.source.type === GigSourceType.User && gig.source.userId !== undefined
@@ -82,6 +104,7 @@ export class AdminGigService {
 
     return mapGigToFormData({
       gig,
+      venueSelection,
       userSourceProfile,
       posterUrl,
       mainPostUrl,
@@ -104,20 +127,23 @@ export class AdminGigService {
     return new Map(users.map((user) => [user.id, user]));
   }
 
-  private mapFormDataToListItem(formData: GigFormData): V1AdminGigListItem {
+  private mapFormDataToListItem(
+    formData: V1AdminGigResponseBody,
+  ): V1AdminGigListItem {
     const ticketsUrl = formData.ticketsUrl.trim();
 
     return {
       publicId: formData.publicId,
+      communityIds: formData.communityIds,
+      venueIds: formData.venueIds,
+      locality: formData.locality,
+      venues: formData.venues,
       title: formData.title,
       isVisible: formData.isVisible,
       version: formData.version,
       source: formData.source,
       date: formData.date,
       endDate: formData.endDate,
-      city: formData.city,
-      country: formData.country,
-      venue: formData.venue,
       posterUrl: formData.posterUrl,
       ticketsUrl: ticketsUrl.length > 0 ? ticketsUrl : undefined,
       mainPostUrl: formData.mainPostUrl,

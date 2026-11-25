@@ -22,8 +22,8 @@ interface UploadPosterPayload {
   file?: GigPosterFile;
   context: {
     date: string | number | Date;
-    country: string;
-    city: string;
+    countryIso: string;
+    localityName: string;
     publicId: string;
   };
 }
@@ -108,16 +108,16 @@ export class GigPosterService {
     const year = this.getUtcYear(context.date);
     // TODO
     const TEMP_BARCELONA = 'barcelona';
-    const city =
-      context.city.toLowerCase() === TEMP_BARCELONA
+    const locality =
+      context.localityName.toLowerCase() === TEMP_BARCELONA
         ? TEMP_BARCELONA
         : 'unknown';
     // Last segment is publicId only (no file extension); Content-Type is set on upload.
     const key = [
       this.bucketPrefix,
       year,
-      context.country.toLowerCase(),
-      city,
+      context.countryIso.toLowerCase(),
+      locality,
       context.publicId,
     ].join('/');
     return this.bucketService.upload({

@@ -95,9 +95,6 @@ describe('GigCandidateApprovalService', () => {
     publicId: 'radiohead-madrid-2026-10-30',
     title: 'Radiohead',
     date: Date.parse('2026-10-30T20:00:00.000Z'),
-    city: 'Madrid',
-    country: 'ES',
-    venue: 'La Riviera',
     ticketsUrl: 'https://example.com/tickets',
     isVisible: true,
     version: 0,
@@ -264,7 +261,7 @@ describe('GigCandidateApprovalService', () => {
     expect(approvalTransactionMock.createGigId).not.toHaveBeenCalled();
   });
 
-  it('should build legacy Gig location fields from the Venue catalog', async () => {
+  it('should persist the selected Venue IDs when approving a candidate', async () => {
     const reviewingGigCandidate: GigCandidate = {
       id: 'gig-candidate-id',
       status: GigCandidateStatus.Reviewing,
@@ -302,19 +299,16 @@ describe('GigCandidateApprovalService', () => {
       approvedByUserId: 'admin-user-id',
     });
 
-    const expectedLegacyLocation = {
+    const expectedVenueAssignment = {
       venueIds: ['507f1f77bcf86cd799439012'],
-      city: 'Madrid',
-      country: 'ES',
-      venue: 'La Riviera',
     };
     expect(approvalTransactionMock.approveGigCandidate).toHaveBeenCalledWith(
       expect.objectContaining({
-        gigDraft: expect.objectContaining(expectedLegacyLocation),
+        gigDraft: expect.objectContaining(expectedVenueAssignment),
       }),
     );
     expect(approvalTransactionMock.createGig).toHaveBeenCalledWith(
-      expect.objectContaining(expectedLegacyLocation),
+      expect.objectContaining(expectedVenueAssignment),
     );
   });
 

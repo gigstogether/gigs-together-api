@@ -76,9 +76,6 @@ describe('AdminGigCandidateController', () => {
     publicId: 'band-2026-09-20',
     title: 'Band',
     date: Date.UTC(2026, 8, 20),
-    city: 'Barcelona',
-    country: 'ES',
-    venue: 'Venue',
     ticketsUrl: 'https://tickets.example/gig',
     source: {
       type: GigSourceType.User,
@@ -90,24 +87,28 @@ describe('AdminGigCandidateController', () => {
   };
   const gigCandidateService = {
     createAdminGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
-    updateAdminGigCandidateDraft: vi.fn().mockResolvedValue(gigCandidate),
+    updateAdminGigCandidateGigDraft: vi.fn().mockResolvedValue(gigCandidate),
     rejectGigCandidate: vi.fn().mockResolvedValue(gigCandidate),
     sendGigCandidateToModeration: vi.fn().mockResolvedValue(gigCandidate),
-    lookupGigCandidateDraft: vi.fn().mockResolvedValue({
-      title: 'Band',
-      date: '2026-09-20',
-      city: 'Barcelona',
-      country: 'ES',
-      venue: 'Venue',
-      ticketsUrl: 'https://tickets.example/gig',
+    lookupGigDetails: vi.fn().mockResolvedValue({
+      gigDraft: {
+        title: 'Band',
+        date: '2026-09-20',
+        ticketsUrl: 'https://tickets.example/gig',
+      },
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     }),
   } satisfies Pick<
     GigCandidateService,
     | 'createAdminGigCandidate'
-    | 'updateAdminGigCandidateDraft'
+    | 'updateAdminGigCandidateGigDraft'
     | 'rejectGigCandidate'
     | 'sendGigCandidateToModeration'
-    | 'lookupGigCandidateDraft'
+    | 'lookupGigDetails'
   >;
   const gigCandidateApprovalService = {
     approveGigCandidate: vi.fn().mockResolvedValue(gigApprovalResult),
@@ -223,7 +224,7 @@ describe('AdminGigCandidateController', () => {
   });
 
   it('should update the GigCandidate draft at the expected version', async () => {
-    await controller.updateGigCandidateDraft(details.id, undefined, {
+    await controller.updateGigCandidateGigDraft(details.id, undefined, {
       expectedVersion: 0,
       gigDraft: {
         communityIds: ['507f1f77bcf86cd799439011'],
@@ -232,7 +233,7 @@ describe('AdminGigCandidateController', () => {
     });
 
     expect(
-      gigCandidateService.updateAdminGigCandidateDraft,
+      gigCandidateService.updateAdminGigCandidateGigDraft,
     ).toHaveBeenCalledWith({
       gigCandidateId: details.id,
       expectedVersion: 0,
@@ -287,14 +288,19 @@ describe('AdminGigCandidateController', () => {
 
   it('should return a side-effect-free lookup response', async () => {
     await expect(
-      controller.lookupGigCandidateDraft({
+      controller.lookupGigDetails({
         title: 'Band',
         location: 'Barcelona, ES',
       }),
     ).resolves.toEqual({
       gigDraft: expect.objectContaining({ title: 'Band' }),
+      locationHint: {
+        locality: 'Barcelona',
+        country: 'ES',
+        venue: 'Venue',
+      },
     });
-    expect(gigCandidateService.lookupGigCandidateDraft).toHaveBeenCalledWith({
+    expect(gigCandidateService.lookupGigDetails).toHaveBeenCalledWith({
       title: 'Band',
       location: 'Barcelona, ES',
     });

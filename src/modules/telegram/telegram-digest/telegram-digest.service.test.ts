@@ -8,6 +8,7 @@ import { TGInputMediaType } from '../telegram-bot-client/types/message.types';
 import { TelegramDigestService } from './telegram-digest.service';
 import { TelegramDigestSendError } from './telegram-digest.error';
 import { TelegramService } from '../telegram.service';
+import { VenueService } from '@modules/location/venue/venue.service';
 
 const mediaGroupPlan: WeeklyDigestSendPlan = {
   kind: WeeklyDigestSendKind.SendMediaGroup,
@@ -47,6 +48,9 @@ describe('TelegramDigestService', () => {
   const telegramService = {
     getMainChannelId: vi.fn().mockReturnValue('-1001'),
   };
+  const venueService = {
+    getVenueSelections: vi.fn().mockResolvedValue([]),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -62,6 +66,7 @@ describe('TelegramDigestService', () => {
           useValue: telegramComposer,
         },
         { provide: TelegramService, useValue: telegramService },
+        { provide: VenueService, useValue: venueService },
       ],
     }).compile();
 

@@ -421,7 +421,7 @@ export class TelegramGigCandidateComposerService {
     const originalMessageSection =
       originalMessage === undefined ? '' : `${DIVIDER}${originalMessage}`;
     const hasGigDraftCaptionContent =
-      [gigDraft.title, gigDraft.venue, gigDraft.ticketsUrl].some(
+      [gigDraft.title, gigDraft.ticketsUrl].some(
         (value) => value !== undefined && value.trim() !== '',
       ) ||
       params.location !== undefined ||
@@ -495,7 +495,7 @@ export class TelegramGigCandidateComposerService {
       gigDraft.date === undefined
         ? MISSING_CAPTION_FIELD_PLACEHOLDER
         : formatTelegramGigDates(gigDraft.date, gigDraft.endDate);
-    const locationText = this.getLocationText(gigDraft.venue, location);
+    const locationText = this.getLocationText(location);
 
     return this.telegramTemplates.render(
       TELEGRAM_TEMPLATE_KEYS.mainGigWithoutLink,
@@ -508,16 +508,11 @@ export class TelegramGigCandidateComposerService {
     );
   }
 
-  /**
-   * Legacy compatibility: candidates stored before catalog assignments may
-   * only have gigDraft.venue. Remove this fallback after those records are gone.
-   */
   private getLocationText(
-    legacyVenue: string | undefined,
     location: GigCandidateLocation | undefined,
   ): string | undefined {
     if (location === undefined) {
-      return legacyVenue;
+      return undefined;
     }
 
     const localityName = location.locality.qualifier
