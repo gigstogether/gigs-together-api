@@ -149,7 +149,7 @@ export interface PublicGigCandidateInput {
   localityId: string;
   venueIds?: string[];
   title: string;
-  date: string;
+  date?: string;
   endDate?: string;
   ticketsUrl?: string;
   posterUrl?: string;
@@ -182,7 +182,7 @@ interface ParsedCreateGigCandidateFields {
   localityId: string;
   venueIds?: string[];
   title: string;
-  date: string;
+  date?: string;
   endDate?: string;
   ticketsUrl?: string;
   posterUrl?: string;
@@ -772,10 +772,13 @@ export class GigCandidateService {
     const { gig: rawGig, user, posterFile } = params;
     const gig = this.parseAndValidateCreateBody(rawGig);
 
-    const dateMs = this.parseRequiredDateMs(gig.date, 'date');
+    let dateMs: number | undefined;
+    if (gig.date !== undefined) {
+      dateMs = this.parseDateMs(gig.date, 'date');
+    }
     let endDateMs: number | undefined;
     if (gig.endDate !== undefined) {
-      endDateMs = this.parseRequiredDateMs(gig.endDate, 'endDate');
+      endDateMs = this.parseDateMs(gig.endDate, 'endDate');
     }
 
     const id = this.gigCandidateRepository.createId();
@@ -785,8 +788,10 @@ export class GigCandidateService {
     const gigDraft: GigCandidateGigDraft = {
       communityIds,
       title: gig.title,
-      date: dateMs,
     };
+    if (dateMs !== undefined) {
+      gigDraft.date = dateMs;
+    }
     if (endDateMs !== undefined) {
       gigDraft.endDate = endDateMs;
     }
@@ -939,8 +944,8 @@ export class GigCandidateService {
         `title must contain at most ${GIG_TITLE_MAX_LENGTH} characters`,
       );
     }
-    const date = this.requireNonEmptyString(raw.date, 'date');
-    if (!DATE_YMD_RE.test(date)) {
+    const date = this.optionalNonEmptyString(raw.date);
+    if (date !== undefined && !DATE_YMD_RE.test(date)) {
       throw new BadRequestException('date must be in YYYY-MM-DD format');
     }
 
@@ -949,7 +954,12 @@ export class GigCandidateService {
       throw new BadRequestException('endDate must be in YYYY-MM-DD format');
     }
 
-    if (endDate !== undefined && endDate < date) {
+    if (endDate !== undefined && date === undefined) {
+      throw new BadRequestException(
+        'date is required when endDate is provided',
+      );
+    }
+    if (endDate !== undefined && date !== undefined && endDate < date) {
       throw new BadRequestException('endDate must be on or after date');
     }
 
@@ -973,8 +983,10 @@ export class GigCandidateService {
       communityId,
       localityId,
       title,
-      date,
     };
+    if (date !== undefined) {
+      parsed.date = date;
+    }
     if (venueIds !== undefined) {
       parsed.venueIds = venueIds;
     }
@@ -1033,7 +1045,7 @@ export class GigCandidateService {
     return trimmed === '' ? undefined : trimmed;
   }
 
-  private parseRequiredDateMs(ymd: string, field: string): number {
+  private parseDateMs(ymd: string, field: string): number {
     const parsed = new Date(`${ymd}T00:00:00.000Z`);
     const ms = parsed.getTime();
     if (!Number.isFinite(ms) || parsed.toISOString().slice(0, 10) !== ymd) {
