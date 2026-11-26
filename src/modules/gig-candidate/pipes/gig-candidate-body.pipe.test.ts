@@ -39,6 +39,18 @@ describe('GigCandidateBodyPipe', () => {
     });
   });
 
+  it('should accept gig without date', () => {
+    const result = pipe.transform({
+      gig: {
+        communityId: '507f1f77bcf86cd799439011',
+        localityId: '507f1f77bcf86cd799439012',
+        title: 'Band',
+      },
+    });
+
+    expect(result.gig).not.toHaveProperty('date');
+  });
+
   it('should throw when gig is missing', () => {
     expect(() => pipe.transform({})).toThrow(BadRequestException);
   });

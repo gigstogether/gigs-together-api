@@ -3,7 +3,7 @@ export interface V1CreateGigCandidateRequestBodyGig {
   localityId: string;
   venueIds?: string[];
   title: string;
-  date: string;
+  date?: string;
   endDate?: string;
   ticketsUrl?: string;
   posterUrl?: string;

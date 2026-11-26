@@ -716,6 +716,56 @@ describe('GigCandidateService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('should create a public Gig Candidate without date', async () => {
+      const created = buildGigCandidate({
+        localityId: '507f1f77bcf86cd799439012',
+        gigDraft: {
+          communityIds: ['507f1f77bcf86cd799439011'],
+          title: 'Band',
+        },
+      });
+      gigCandidateRepositoryMock.createId.mockReturnValue(created.id);
+      gigCandidateRepositoryMock.createGigCandidate.mockResolvedValue(created);
+      telegramServiceMock.sendGigCandidateIntakePost.mockResolvedValue(
+        undefined,
+      );
+
+      await service.createPublicGigCandidate({
+        gig: {
+          communityId: '507f1f77bcf86cd799439011',
+          localityId: '507f1f77bcf86cd799439012',
+          title: 'Band',
+        },
+        user: {
+          userId: '66a000000000000000000000001',
+          tgUser: { id: 1, first_name: 'A' },
+          isAdmin: false,
+        },
+      });
+
+      const createParams =
+        gigCandidateRepositoryMock.createGigCandidate.mock.calls[0]?.[0];
+      expect(createParams?.gigDraft).not.toHaveProperty('date');
+    });
+
+    it('should reject End Date without Date', async () => {
+      await expect(
+        service.createPublicGigCandidate({
+          gig: {
+            communityId: '507f1f77bcf86cd799439011',
+            localityId: '507f1f77bcf86cd799439012',
+            title: 'Band',
+            endDate: '2026-08-02',
+          },
+          user: {
+            userId: '66a000000000000000000000001',
+            tgUser: { id: 1, first_name: 'A' },
+            isAdmin: false,
+          },
+        }),
+      ).rejects.toThrow(/date is required when endDate is provided/);
+    });
+
     it('should reject a Venue outside the selected Locality', async () => {
       venueServiceMock.getActiveVenueSelection.mockResolvedValueOnce({
         locality: {
