@@ -53,9 +53,12 @@ export class GigCandidateBodyPipe implements PipeTransform<
       communityId: this.readRequiredString(value, 'communityId'),
       localityId: this.readRequiredString(value, 'localityId'),
       title: this.readOptionalString(value, 'title') ?? '',
-      date: this.readOptionalString(value, 'date') ?? '',
     };
 
+    const date = this.readOptionalString(value, 'date');
+    if (date !== undefined) {
+      gig.date = date;
+    }
     if (value.venueIds !== undefined) {
       gig.venueIds = this.readOptionalStringArray(value, 'venueIds');
     }
