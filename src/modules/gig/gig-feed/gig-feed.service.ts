@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import {
   BadRequestException,
   Inject,
@@ -5,10 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { GigCalendarSource, PlainGig } from '../types/gig.types';
-import {
-  GIG_CALENDAR_TEXT_LOCALE,
-  GigCalendarService,
-} from '../gig-calendar/gig-calendar.service';
+import { GigCalendarService } from '../gig-calendar/gig-calendar.service';
 import { startOfTodayMs } from '../types/requests/v1-gig-date-range.shared';
 import { decodeGigCursorOrThrow, encodeGigCursor } from '../utils/gig-cursor';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
@@ -155,7 +153,7 @@ export class GigFeedService {
       }
       const calendarPayload = this.gigCalendarService.toCalendarEvent({
         gig: calendarSource,
-        locale: GIG_CALENDAR_TEXT_LOCALE,
+        locale: DEFAULT_LOCALE_ISO,
       });
       const calendarUrl =
         this.calendarService.getCreateCalendarEventUrl(calendarPayload);

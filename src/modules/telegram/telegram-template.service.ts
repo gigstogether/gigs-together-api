@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { TranslationCacheService } from '../translation/translation-cache.service';
-import { TranslationTemplateService } from '../translation/translation-template.service';
-import type { PlainTemplateParams } from '../translation/types/translation-template.types';
-import type { TranslationBundleEntry } from '../translation/types/translation.types';
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
+import { TranslationCacheService } from '@modules/translation/translation-cache.service';
+import { TranslationTemplateService } from '@modules/translation/translation-template.service';
+import type { PlainTemplateParams } from '@modules/translation/types/translation-template.types';
+import type { TranslationBundleEntry } from '@modules/translation/types/translation.types';
 import type { TelegramTemplateKey } from './telegram-template-keys';
 
-export type { PlainTemplateParams } from '../translation/types/translation-template.types';
-
-export const TELEGRAM_TEMPLATE_DEFAULT_LOCALE = 'en';
+export type { PlainTemplateParams } from '@modules/translation/types/translation-template.types';
 
 export const TELEGRAM_TEMPLATE_NAMESPACE = 'telegram';
 
@@ -20,7 +19,7 @@ export class TelegramTemplateService {
 
   getText(
     key: TelegramTemplateKey,
-    locale: string = TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
+    locale: string = DEFAULT_LOCALE_ISO,
   ): string {
     const entry = this.getEntry(key, locale);
     return entry.value;
@@ -29,7 +28,7 @@ export class TelegramTemplateService {
   render(
     key: TelegramTemplateKey,
     params: PlainTemplateParams,
-    locale: string = TELEGRAM_TEMPLATE_DEFAULT_LOCALE,
+    locale: string = DEFAULT_LOCALE_ISO,
   ): string {
     const entry = this.getEntry(key, locale);
     return this.translationTemplateService.render({ entry, params });

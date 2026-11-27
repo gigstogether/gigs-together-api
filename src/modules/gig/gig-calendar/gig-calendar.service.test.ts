@@ -1,9 +1,7 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { Logger } from '@nestjs/common';
 import type { GigCalendarSource } from '../types/gig.types';
-import {
-  GIG_CALENDAR_TEXT_LOCALE,
-  GigCalendarService,
-} from './gig-calendar.service';
+import { GigCalendarService } from './gig-calendar.service';
 
 function buildGigCalendarSource(
   overrides: Partial<GigCalendarSource> = {},
@@ -36,7 +34,7 @@ describe('GigCalendarService', () => {
   it('should preserve local event time without a UTC suffix', () => {
     const result = service.toCalendarEvent({
       gig: buildGigCalendarSource(),
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
 
     expect(result).toEqual({
@@ -52,7 +50,7 @@ describe('GigCalendarService', () => {
   it('should use the final local day for a multi-day event', () => {
     const result = service.toCalendarEvent({
       gig: buildGigCalendarSource({ endDate: Date.UTC(2026, 5, 14) }),
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
 
     expect(result.endLocalDateTime).toBe('2026-06-14T22:00:00');
@@ -62,7 +60,7 @@ describe('GigCalendarService', () => {
     expect(() =>
       service.toCalendarEvent({
         gig: buildGigCalendarSource({ date: Number.NaN }),
-        locale: GIG_CALENDAR_TEXT_LOCALE,
+        locale: DEFAULT_LOCALE_ISO,
       }),
     ).toThrow('Gig date must be a valid timestamp');
   });
@@ -77,7 +75,7 @@ describe('GigCalendarService', () => {
         },
         venues: [{ name: 'Venue One' }, { name: 'Venue Two' }],
       }),
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
 
     expect(result).toEqual(
@@ -102,11 +100,11 @@ describe('GigCalendarService', () => {
 
     const firstResult = service.toCalendarEvent({
       gig,
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
     const secondResult = service.toCalendarEvent({
       gig,
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
 
     expect([firstResult.location, secondResult.location]).toEqual([

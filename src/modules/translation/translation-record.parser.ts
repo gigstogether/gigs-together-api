@@ -1,4 +1,5 @@
 import { isRecord } from '@shared/utils/is-record';
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import {
   isValidTranslationKey,
   isValidTranslationNamespace,
@@ -105,7 +106,7 @@ export function parseTranslationBundleEntry(
   }
 
   return toTranslationBundleEntry(
-    parseTranslationRecord({ ...value, locale: 'en' }),
+    parseTranslationRecord({ ...value, locale: DEFAULT_LOCALE_ISO }),
   );
 }
 

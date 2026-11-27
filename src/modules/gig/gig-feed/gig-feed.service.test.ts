@@ -1,13 +1,11 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { CalendarService } from '../../calendar/calendar.service';
 import { TelegramGigService } from '../../telegram/telegram-gig/telegram-gig.service';
-import {
-  GIG_CALENDAR_TEXT_LOCALE,
-  GigCalendarService,
-} from '../gig-calendar/gig-calendar.service';
+import { GigCalendarService } from '../gig-calendar/gig-calendar.service';
 import { GigService } from '../gig.service';
 import { GigFeedService } from './gig-feed.service';
 import { GIG_REPOSITORY } from '../repositories/gig.repository';
@@ -214,7 +212,7 @@ describe('GigFeedService', () => {
         venues: [{ name: 'Palau Sant Jordi' }],
         ticketsUrl: gig.ticketsUrl,
       },
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
   });
 

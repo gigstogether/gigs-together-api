@@ -167,8 +167,8 @@ array. The endpoint returns active Communities only, so `isActive` is intentiona
 ## Community Administration
 
 `/admin/communities` manages the current Community fields through create and edit dialogs. Names are selected from
-existing English `community` translation records maintained in Text content. Activating a Community requires a
-non-empty, active, plain-text name; an inactive Community may be saved before its translation is ready.
+existing `community` translation records in the default language maintained in Text content. Activating a Community
+requires a non-empty, active, plain-text name; an inactive Community may be saved before its translation is ready.
 
 The authenticated admin API exposes:
 
@@ -184,8 +184,8 @@ routes through the existing frontend revalidation integration.
 Updates also return `409` if the checked Community snapshot changes before the database write.
 
 `CommunityService` validates the active name through `TranslationService.findRecord`, which reads the exact namespace,
-locale, and key from storage. The required name locale comes from `DEFAULT_LOCALE_ISO` in the Locale module. Other
-existing locale defaults remain separate until their later consolidation.
+locale, and key from storage. The required name locale comes from `DEFAULT_LOCALE_ISO` in the Locale module, which also
+owns the default for locale selection, translations, Telegram templates, and Calendar text.
 
 `AdminCommunityService` coordinates cache revalidation after Community writes. Collection queries stay in their owning
 repositories.

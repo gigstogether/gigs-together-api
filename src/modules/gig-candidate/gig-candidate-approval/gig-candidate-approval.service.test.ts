@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { Logger, NotFoundException } from '@nestjs/common';
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -11,10 +12,7 @@ import { CalendarService } from '@modules/calendar/calendar.service';
 import type { CalendarEvent } from '@modules/calendar/calendar.types';
 import { VenueService } from '@modules/location/venue/venue.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
-import {
-  GIG_CALENDAR_TEXT_LOCALE,
-  GigCalendarService,
-} from '../../gig/gig-calendar/gig-calendar.service';
+import { GigCalendarService } from '@modules/gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { GigSourceType } from '../../gig/types/gig-source-type.enum';
 import { GigSourceUserOriginType } from '../../gig/types/gig-source-user-origin-type.enum';
@@ -227,7 +225,7 @@ describe('GigCandidateApprovalService', () => {
         venues: [{ name: 'La Riviera' }],
         ticketsUrl: approvedGig.ticketsUrl,
       },
-      locale: GIG_CALENDAR_TEXT_LOCALE,
+      locale: DEFAULT_LOCALE_ISO,
     });
   });
 

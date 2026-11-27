@@ -12,10 +12,8 @@ import type {
   UpdateLocaleByIsoParams,
   UpdateLocalesOrderParams,
 } from './types/locale.types';
-import {
-  LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS,
-  LOCALE_DEFAULT_ISO,
-} from './locale-cache.constants';
+import { LOCALE_ACTIVE_CACHE_DEFAULT_TTL_MS } from './locale-cache.constants';
+import { DEFAULT_LOCALE_ISO } from './locale.constants';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { getConfigPositiveSafeInteger } from '@shared/utils/env';
@@ -33,7 +31,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
 
   private activeLocales: readonly SupportedLocale[] = [
     {
-      iso: LOCALE_DEFAULT_ISO,
+      iso: DEFAULT_LOCALE_ISO,
       nativeName: 'English',
       isActive: true,
       order: 0,
@@ -76,7 +74,7 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
 
   getActiveLocaleIsos(): readonly string[] {
     if (this.activeLocales.length === 0) {
-      return [LOCALE_DEFAULT_ISO];
+      return [DEFAULT_LOCALE_ISO];
     }
 
     return this.activeLocales.map((locale) => locale.iso);
@@ -85,12 +83,12 @@ export class LocaleService implements OnModuleInit, OnModuleDestroy {
   resolveLocale(acceptLanguageRaw?: string): string {
     const requested = LocaleService.normalizeAcceptLanguage(acceptLanguageRaw);
     if (!requested) {
-      return LOCALE_DEFAULT_ISO;
+      return DEFAULT_LOCALE_ISO;
     }
 
     return this.getActiveLocaleIsos().includes(requested)
       ? requested
-      : LOCALE_DEFAULT_ISO;
+      : DEFAULT_LOCALE_ISO;
   }
 
   static parseLocaleIsoParam(isoRaw: string): string {

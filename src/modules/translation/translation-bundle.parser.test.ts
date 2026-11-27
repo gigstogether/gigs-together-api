@@ -1,12 +1,20 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { Logger } from '@nestjs/common';
 import {
   buildNamespaceLocaleRegistry,
   buildTranslationCacheIndex,
   parseTranslationBundleEntry,
   TELEGRAM_TEMPLATE_NAMESPACE,
-  TRANSLATION_CACHE_DEFAULT_LOCALE,
 } from './translation-bundle.parser';
 import type { TranslationRecord } from './types/translation.types';
+
+vi.mock('@modules/locale/locale.constants', () => ({
+  DEFAULT_LOCALE_ISO: 'fr',
+}));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('parseTranslationBundleEntry', () => {
   it('should parse a valid translation record without namespace restriction', () => {
@@ -93,7 +101,7 @@ describe('buildNamespaceLocaleRegistry', () => {
           isActive: true,
         },
       ],
-      TELEGRAM_TEMPLATE_NAMESPACE,
+      'telegram',
       logger,
     );
 
@@ -134,11 +142,14 @@ describe('buildTranslationCacheIndex', () => {
     expect(index.has('')).toBe(false);
   });
 
-  it('should allow telegram default locale entries from any namespace builder path', () => {
+  it('should accept Telegram translations in the application default locale', () => {
+    const logError = vi
+      .spyOn(logger, 'error')
+      .mockImplementation(() => undefined);
     const index = buildTranslationCacheIndex(
       [
         {
-          locale: TRANSLATION_CACHE_DEFAULT_LOCALE,
+          locale: DEFAULT_LOCALE_ISO,
           namespace: TELEGRAM_TEMPLATE_NAMESPACE,
           key: 'weeklyDigest.empty',
           value: 'No gigs.',
@@ -153,8 +164,33 @@ describe('buildTranslationCacheIndex', () => {
     expect(
       index
         .get(TELEGRAM_TEMPLATE_NAMESPACE)
-        ?.get(TRANSLATION_CACHE_DEFAULT_LOCALE)
+        ?.get(DEFAULT_LOCALE_ISO)
         ?.get('weeklyDigest.empty')?.value,
     ).toBe('No gigs.');
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  it('should report a missing application default when Telegram translations only use another locale', () => {
+    const logError = vi
+      .spyOn(logger, 'error')
+      .mockImplementation(() => undefined);
+    buildTranslationCacheIndex(
+      [
+        {
+          locale: 'es',
+          namespace: TELEGRAM_TEMPLATE_NAMESPACE,
+          key: 'weeklyDigest.empty',
+          value: 'No hay conciertos.',
+          format: 'plain',
+          kind: 'text',
+          isActive: true,
+        },
+      ],
+      logger,
+    );
+
+    expect(logError).toHaveBeenCalledWith(
+      `Translations for namespace "telegram" and default locale "${DEFAULT_LOCALE_ISO}" are missing.`,
+    );
   });
 });

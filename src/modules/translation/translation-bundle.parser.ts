@@ -1,4 +1,5 @@
 import type { Logger } from '@nestjs/common';
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { parseTranslationRecord } from './translation-record.parser';
 export { parseTranslationBundleEntry } from './translation-record.parser';
 import type {
@@ -10,8 +11,6 @@ import type {
   NamespaceLocaleRegistry,
   TranslationCacheIndex,
 } from './types/translation-cache.types';
-
-export const TRANSLATION_CACHE_DEFAULT_LOCALE = 'en';
 
 export const TELEGRAM_TEMPLATE_NAMESPACE = 'telegram';
 
@@ -111,10 +110,10 @@ export function buildNamespaceLocaleRegistry(
   }
 
   if (namespace === TELEGRAM_TEMPLATE_NAMESPACE) {
-    const defaultLocaleEntries = byLocale.get(TRANSLATION_CACHE_DEFAULT_LOCALE);
+    const defaultLocaleEntries = byLocale.get(DEFAULT_LOCALE_ISO);
     if (defaultLocaleEntries === undefined || defaultLocaleEntries.size === 0) {
       logger.error(
-        `Translations for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}" and default locale "${TRANSLATION_CACHE_DEFAULT_LOCALE}" are missing.`,
+        `Translations for namespace "${TELEGRAM_TEMPLATE_NAMESPACE}" and default locale "${DEFAULT_LOCALE_ISO}" are missing.`,
       );
     }
   }

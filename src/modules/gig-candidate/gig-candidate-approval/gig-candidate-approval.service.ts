@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE_ISO } from '@modules/locale/locale.constants';
 import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Messenger } from '@shared/types/messenger.enum';
 import { PostType } from '@shared/types/post-type.enum';
@@ -15,10 +16,7 @@ import {
 import { CalendarEventCreationError } from '@modules/calendar/calendar.errors';
 import { CalendarService } from '@modules/calendar/calendar.service';
 import { GigFeedRevalidationService } from '../../gig/gig-feed/gig-feed-revalidation.service';
-import {
-  GIG_CALENDAR_TEXT_LOCALE,
-  GigCalendarService,
-} from '../../gig/gig-calendar/gig-calendar.service';
+import { GigCalendarService } from '@modules/gig/gig-calendar/gig-calendar.service';
 import { GigService } from '../../gig/gig.service';
 import { VenueService } from '@modules/location/venue/venue.service';
 import type { VenueSelection } from '@modules/location/venue/venue.service';
@@ -235,7 +233,7 @@ export class GigCandidateApprovalService {
       await this.calendarService.addEvent(
         this.gigCalendarService.toCalendarEvent({
           gig: calendarSource,
-          locale: GIG_CALENDAR_TEXT_LOCALE,
+          locale: DEFAULT_LOCALE_ISO,
         }),
       );
     } catch (e) {

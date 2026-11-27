@@ -2,9 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CalendarEvent } from '@modules/calendar/calendar.types';
 import type { GigCalendarSource } from '../types/gig.types';
 
-// Shared Calendar event text currently uses one explicit locale; callers can supply a dynamic locale later.
-export const GIG_CALENDAR_TEXT_LOCALE = 'en';
-
 export interface ToGigCalendarEventParams {
   gig: GigCalendarSource;
   locale: string;
