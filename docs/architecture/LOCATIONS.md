@@ -89,6 +89,9 @@ The tuple `countryIso + name + qualifier` is unique using case-insensitive colla
 `countryIso` and search canonical names, qualifiers, and aliases. The `countryIso` relationship is immutable in the
 current update contract. Localities referenced by Venues cannot be deleted.
 
+Locality deletion is currently disabled with `501 Not Implemented` while Venue and Community reference handling and
+atomic coverage cleanup are being designed.
+
 ## Venue
 
 `Venue` is a reusable catalog entity representing a concrete physical event location. It is the single model for clubs,

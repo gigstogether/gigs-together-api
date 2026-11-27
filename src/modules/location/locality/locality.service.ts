@@ -4,10 +4,9 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { CountryService } from '../country/country.service';
-import { VENUE_REPOSITORY } from '../venue/repositories/venue.repository';
-import type { VenueRepository } from '../venue/repositories/venue.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
 import type { LocalityRepository } from './repositories/locality.repository';
@@ -49,8 +48,6 @@ export class LocalityService {
     @Inject(LOCALITY_REPOSITORY)
     private readonly localityRepository: LocalityRepository,
     private readonly countryService: CountryService,
-    @Inject(VENUE_REPOSITORY)
-    private readonly venueRepository: VenueRepository,
   ) {}
 
   async createLocality(params: CreateLocalityParams): Promise<Locality> {
@@ -191,22 +188,28 @@ export class LocalityService {
     }
   }
 
-  async deleteLocality(id: string): Promise<void> {
-    const hasVenues = await this.venueRepository.existsByLocalityId(id);
+  deleteLocality(_id: string): Promise<void> {
+    // TODO: Implement Locality deletion with Venue and Community reference checks and atomic coverage cleanup.
+    return Promise.reject(
+      new NotImplementedException('Locality deletion is not implemented yet'),
+    );
 
-    if (hasVenues) {
-      throw new ConflictException(
-        'Locality with id "' + id + '" is referenced by Venues',
-      );
-    }
-
-    const isDeleted = await this.localityRepository.deleteById(id);
-
-    if (!isDeleted) {
-      throw new NotFoundException(
-        'Locality with id "' + id + '" does not exist',
-      );
-    }
+    // Previous implementation: restore async and VenueRepository injection before enabling.
+    // const hasVenues = await this.venueRepository.existsByLocalityId(_id);
+    //
+    // if (hasVenues) {
+    //   throw new ConflictException(
+    //     'Locality with id "' + _id + '" is referenced by Venues',
+    //   );
+    // }
+    //
+    // const isDeleted = await this.localityRepository.deleteById(_id);
+    //
+    // if (!isDeleted) {
+    //   throw new NotFoundException(
+    //     'Locality with id "' + _id + '" does not exist',
+    //   );
+    // }
   }
 
   private normalizeLocalityData(

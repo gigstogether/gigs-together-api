@@ -2,11 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  NotImplementedException,
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { CountryService } from '../country/country.service';
-import { VENUE_REPOSITORY } from '../venue/repositories/venue.repository';
 import { LocalityNameConflictError } from './locality.errors';
 import { LocalityService } from './locality.service';
 import { LOCALITY_REPOSITORY } from './repositories/locality.repository';
@@ -32,12 +32,10 @@ describe('LocalityService', () => {
   const updateMock = vi.fn();
   const deleteByIdMock = vi.fn();
   const hasCountryMock = vi.fn();
-  const existsByLocalityIdMock = vi.fn();
 
   beforeEach(async () => {
     vi.clearAllMocks();
     hasCountryMock.mockReturnValue(true);
-    existsByLocalityIdMock.mockResolvedValue(false);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,10 +54,6 @@ describe('LocalityService', () => {
         {
           provide: CountryService,
           useValue: { hasCountry: hasCountryMock },
-        },
-        {
-          provide: VENUE_REPOSITORY,
-          useValue: { existsByLocalityId: existsByLocalityIdMock },
         },
       ],
     }).compile();
@@ -261,19 +255,23 @@ describe('LocalityService', () => {
     expect(findByIdMock).not.toHaveBeenCalled();
   });
 
-  it('should delete an existing Locality', async () => {
-    deleteByIdMock.mockResolvedValue(true);
+  it('should report that deletion is not implemented when requested', async () => {
+    const deletion = service.deleteLocality(LOCALITY_ID);
 
-    await expect(service.deleteLocality(LOCALITY_ID)).resolves.toBeUndefined();
-    expect(deleteByIdMock).toHaveBeenCalledWith(LOCALITY_ID);
+    await expect(deletion).rejects.toBeInstanceOf(NotImplementedException);
+    await expect(deletion).rejects.toMatchObject({
+      message: 'Locality deletion is not implemented yet',
+      status: 501,
+    });
   });
 
-  it('should reject deletion of a Locality referenced by Venues', async () => {
-    existsByLocalityIdMock.mockResolvedValue(true);
+  it('should leave stored Localities unchanged when deletion is requested', async () => {
+    deleteByIdMock.mockResolvedValue(true);
 
     await expect(service.deleteLocality(LOCALITY_ID)).rejects.toBeInstanceOf(
-      ConflictException,
+      NotImplementedException,
     );
     expect(deleteByIdMock).not.toHaveBeenCalled();
+    expect(findByIdMock).not.toHaveBeenCalled();
   });
 });
