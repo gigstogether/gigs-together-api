@@ -164,6 +164,35 @@ GET /v1/communities
 The response exposes `nameTranslationNamespace: "community"` once at the catalog level and contains a `communities`
 array. The endpoint returns active Communities only, so `isActive` is intentionally omitted from the wire contract.
 
+## Community Administration
+
+`/admin/communities` manages the current Community fields through create and edit dialogs. Names are selected from
+existing English `community` translation records maintained in Text content. Activating a Community requires a
+non-empty, active, plain-text name; an inactive Community may be saved before its translation is ready.
+
+The authenticated admin API exposes:
+
+- `GET /v1/admin/communities` — all Communities, including inactive entries
+- `GET /v1/admin/communities/:id` — one Community
+- `POST /v1/admin/communities` — create a Community (`201`)
+- `PATCH /v1/admin/communities/:id` — change country, slug, name translation key, time zone, or active state
+
+Duplicate country/slug pairs return `409`. Deactivation removes Communities from the public catalog and prevents new
+assignments while retaining historical references. Community writes invalidate the public catalog and all Community feed
+routes through the existing frontend revalidation integration.
+
+Updates also return `409` if the checked Community snapshot changes before the database write.
+
+`CommunityService` validates the active name through `TranslationService.findRecord`, which reads the exact namespace,
+locale, and key from storage. The required name locale comes from `DEFAULT_LOCALE_ISO` in the Locale module. Other
+existing locale defaults remain separate until their later consolidation.
+
+`AdminCommunityService` coordinates cache revalidation after Community writes. Collection queries stay in their owning
+repositories.
+
+TODO: Add Community deletion in a separate change, including Gig and GigCandidate reference checks and protection
+against concurrent assignments.
+
 ## Community Assignments
 
 A Gig may appear in one or more Community feeds. Assignments are stored at:

@@ -89,6 +89,28 @@ describe('GigFeedRevalidationService', () => {
     });
   });
 
+  it('should refresh the catalog and both old and new paths when Community routes change', async () => {
+    service = await createService({
+      APP_BASE_URL: 'https://gigs.example',
+      FEED_REVALIDATE_SECRET: 'secret',
+    });
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+    await service.revalidateCommunityCatalog([
+      BARCELONA_COMMUNITY,
+      { ...BARCELONA_COMMUNITY, slug: 'new-barcelona' },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://gigs.example/api/revalidate/feed',
+      expect.objectContaining({
+        body: JSON.stringify({
+          paths: ['/feed/es/barcelona', '/feed/es/new-barcelona'],
+          isCommunityCatalogChanged: true,
+        }),
+      }),
+    );
+    expect(findCommunitiesByIdsMock).not.toHaveBeenCalled();
+  });
+
   describe('revalidateGigFeeds', () => {
     it('should skip request when revalidation env is not configured', async () => {
       await service.revalidateGigFeeds({

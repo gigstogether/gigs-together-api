@@ -11,6 +11,7 @@ import type { DigestPostStateRepository } from './repositories/digest-post-state
 /** Monday 12:00 local (minute 0, hour 12, weekday Monday). */
 export const DIGEST_POST_CRON_EXPRESSION = '0 12 * * 1';
 
+// TODO: After the full transition to the Community architecture, use the time zone of the Community receiving the digest.
 export const DIGEST_POST_TIMEZONE = 'Europe/Madrid';
 
 /**

@@ -24,6 +24,12 @@ export interface FindAllTranslationsParams {
   readonly locale?: string;
 }
 
+export interface FindTranslationRecordParams {
+  namespace: string;
+  locale: string;
+  key: string;
+}
+
 export interface UpsertTranslationRecordParams {
   readonly namespace: string;
   readonly locale: string;
@@ -45,6 +51,10 @@ export interface ActiveTranslationRecordsResult {
 }
 
 export interface TranslationRepository {
+  findRecord(
+    params: FindTranslationRecordParams,
+  ): Promise<StoredTranslationRecord | null>;
+
   findActiveByNamespace(
     params: FindActiveByNamespaceParams,
   ): Promise<ActiveTranslationRecordsResult>;

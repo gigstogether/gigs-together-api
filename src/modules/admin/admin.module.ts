@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CommunityModule } from '@modules/community/community.module';
+import { AdminCommunityController } from './admin-community/admin-community.controller';
+import { AdminCommunityService } from './admin-community/admin-community.service';
 import { AuthModule } from '@modules/auth/auth.module';
 import { BucketModule } from '@modules/bucket/bucket.module';
 import { DigestModule } from '@modules/digest/digest.module';
@@ -36,6 +39,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
 /** Admin UI API composition root for domain-oriented administration features. */
 @Module({
   imports: [
+    CommunityModule,
     AuthModule,
     DigestModule,
     GigModule,
@@ -48,6 +52,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     BucketModule,
   ],
   controllers: [
+    AdminCommunityController,
     AdminDashboardController,
     AdminDigestController,
     AdminFeedController,
@@ -59,6 +64,7 @@ import { AdminTranslationController } from './admin-translation/admin-translatio
     AdminTranslationController,
   ],
   providers: [
+    AdminCommunityService,
     AdminDashboardService,
     AdminGigService,
     AdminGigCandidateService,

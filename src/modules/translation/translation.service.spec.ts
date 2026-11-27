@@ -5,6 +5,7 @@ import { LocaleService } from '../locale/locale.service';
 import { TranslationCacheService } from './translation-cache.service';
 import { TranslationRevalidateService } from './translation-revalidate.service';
 import { TranslationService } from './translation.service';
+import type { StoredTranslationRecord } from './types/translation-record.types';
 import type { TranslationRepository } from './repositories/translation.repository';
 import { TRANSLATION_REPOSITORY } from './repositories/translation.repository';
 
@@ -17,6 +18,7 @@ describe('TranslationService', () => {
   const listNamespacesMock = vi.fn();
   const getNamespaceEntriesMock = vi.fn();
   const findByNamespaceMock = vi.fn();
+  const findRecordMock = vi.fn<TranslationRepository['findRecord']>();
   const findAllMock = vi.fn();
   const listDistinctNamespacesMock = vi.fn();
   const upsertRecordMock = vi.fn();
@@ -24,6 +26,7 @@ describe('TranslationService', () => {
   const revalidateAfterWriteMock = vi.fn();
 
   const translationRepository: TranslationRepository = {
+    findRecord: findRecordMock,
     findByNamespace: findByNamespaceMock,
     findAll: findAllMock,
     listDistinctNamespaces: listDistinctNamespacesMock,
@@ -38,6 +41,7 @@ describe('TranslationService', () => {
     listNamespacesMock.mockReset();
     getNamespaceEntriesMock.mockReset();
     findByNamespaceMock.mockReset();
+    findRecordMock.mockReset();
     findAllMock.mockReset();
     listDistinctNamespacesMock.mockReset();
     upsertRecordMock.mockReset();
@@ -239,6 +243,69 @@ describe('TranslationService', () => {
         'country',
         'about',
       ]);
+    });
+  });
+
+  describe('findRecord', () => {
+    const params = {
+      namespace: 'community',
+      locale: 'en',
+      key: 'barcelona.name',
+    };
+    const record: StoredTranslationRecord = {
+      id: '64f1a2b3c4d5e6f7a8b9c0d1',
+      ...params,
+      value: 'Barcelona',
+      format: 'plain',
+      kind: 'text',
+      isActive: true,
+    };
+
+    it('should normalize identifiers when finding one stored translation', async () => {
+      findRecordMock.mockResolvedValue(record);
+      await expect(
+        service.findRecord({
+          namespace: ' community ',
+          locale: ' EN ',
+          key: ' barcelona.name ',
+        }),
+      ).resolves.toEqual(record);
+      expect(findRecordMock).toHaveBeenCalledWith(params);
+      expect(findByNamespaceMock).not.toHaveBeenCalled();
+      expect(getNamespaceEntriesMock).not.toHaveBeenCalled();
+    });
+
+    it('should return null when the exact translation is missing', async () => {
+      findRecordMock.mockResolvedValue(null);
+      await expect(service.findRecord(params)).resolves.toBeNull();
+    });
+
+    it.each([
+      { input: { namespace: ' ' }, message: 'namespace must not be empty' },
+      {
+        input: { namespace: 'bad_namespace' },
+        message: 'namespace has invalid format',
+      },
+      {
+        input: { locale: 'invalid-locale' },
+        message: 'iso has invalid format',
+      },
+      { input: { key: ' ' }, message: 'key must not be empty' },
+      { input: { key: 'bad_key' }, message: 'key has invalid format' },
+    ])(
+      'should reject invalid lookup identifiers when $message',
+      ({ input, message }) => {
+        const find = () => service.findRecord({ ...params, ...input });
+        expect(find).toThrow(BadRequestException);
+        expect(find).toThrow(message);
+        expect(findRecordMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should propagate a storage failure when lookup cannot complete', async () => {
+      const failure = new Error('Storage unavailable');
+      findRecordMock.mockRejectedValue(failure);
+      await expect(service.findRecord(params)).rejects.toBe(failure);
     });
   });
 

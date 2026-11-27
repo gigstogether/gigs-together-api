@@ -50,6 +50,12 @@ interface ListTranslationRecordsParams {
   readonly locale?: string;
 }
 
+export interface FindTranslationRecordParams {
+  namespace: string;
+  locale: string;
+  key: string;
+}
+
 @Injectable()
 export class TranslationService {
   constructor(
@@ -153,6 +159,16 @@ export class TranslationService {
     return this.translationRepository.findByNamespace({
       namespace,
       locale,
+    });
+  }
+
+  findRecord(
+    params: FindTranslationRecordParams,
+  ): Promise<StoredTranslationRecord | null> {
+    return this.translationRepository.findRecord({
+      namespace: TranslationService.parseNamespaceParam(params.namespace),
+      locale: LocaleService.parseLocaleIsoParam(params.locale),
+      key: TranslationService.parseKeyParam(params.key),
     });
   }
 

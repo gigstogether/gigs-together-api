@@ -4,6 +4,7 @@ import type { TestingModule } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { Community } from '../community.schema';
 import { MongoCommunityRepository } from './mongo-community.repository';
+import { CommunityRouteConflictError } from '../community.errors';
 
 const COMMUNITY_ID = '690a1fdb17f0a7771e9c1c21';
 const SECOND_COMMUNITY_ID = '690a1fdb17f0a7771e9c1c22';
@@ -29,8 +30,12 @@ describe('MongoCommunityRepository', () => {
 
   const findMock = vi.fn();
   const findOneMock = vi.fn();
+  const createMock = vi.fn();
+  const updateMock = vi.fn();
 
   beforeEach(async () => {
+    createMock.mockReset();
+    updateMock.mockReset();
     findMock.mockReset();
     findOneMock.mockReset();
 
@@ -39,12 +44,107 @@ describe('MongoCommunityRepository', () => {
         MongoCommunityRepository,
         {
           provide: getModelToken(Community.name),
-          useValue: { find: findMock, findOne: findOneMock },
+          useValue: {
+            find: findMock,
+            findOne: findOneMock,
+            create: createMock,
+            findOneAndUpdate: updateMock,
+          },
         },
       ],
     }).compile();
 
     repository = module.get<MongoCommunityRepository>(MongoCommunityRepository);
+  });
+
+  it('should return a domain Community when creating a record', async () => {
+    createMock.mockResolvedValue({ toObject: () => COMMUNITY_DOCUMENT });
+    await expect(
+      repository.create({
+        countryIso: 'ES',
+        slug: 'barcelona',
+        nameTranslationKey: 'barcelona.name',
+        timeZone: 'Europe/Madrid',
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ id: COMMUNITY_ID });
+  });
+
+  it('should preserve a non-enumerable cause when the country and slug collide', async () => {
+    const upstream = { code: 11000, message: 'Duplicate key' };
+    createMock.mockRejectedValue(upstream);
+    const creation = repository.create({
+      countryIso: 'ES',
+      slug: 'barcelona',
+      nameTranslationKey: 'barcelona.name',
+      timeZone: 'Europe/Madrid',
+      isActive: true,
+    });
+    await expect(creation).rejects.toBeInstanceOf(CommunityRouteConflictError);
+    await expect(creation).rejects.toHaveProperty('cause', upstream);
+  });
+
+  it('should include inactive records when reading all Communities', async () => {
+    findMock.mockReturnValue({
+      sort: () => ({
+        lean: () => ({
+          exec: () =>
+            Promise.resolve([{ ...COMMUNITY_DOCUMENT, isActive: false }]),
+        }),
+      }),
+    });
+    await expect(repository.findAll()).resolves.toMatchObject([
+      { isActive: false },
+    ]);
+    expect(findMock).toHaveBeenCalledWith({}, COMMUNITY_PROJECTION);
+  });
+
+  it('should update the existing record when a Community is edited', async () => {
+    updateMock.mockReturnValue({
+      lean: () => ({
+        exec: () => Promise.resolve({ ...COMMUNITY_DOCUMENT, isActive: false }),
+      }),
+    });
+    await expect(
+      repository.update({
+        id: COMMUNITY_ID,
+        expected: COMMUNITY_DOCUMENT,
+        data: {
+          countryIso: 'ES',
+          slug: 'barcelona',
+          nameTranslationKey: 'barcelona.name',
+          timeZone: 'Europe/Madrid',
+          isActive: false,
+        },
+      }),
+    ).resolves.toMatchObject({ isActive: false });
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nameTranslationKey: 'barcelona.name',
+        isActive: true,
+      }),
+      expect.any(Object),
+      expect.any(Object),
+    );
+  });
+
+  it('should report a missing record when the Community disappears during an update', async () => {
+    updateMock.mockReturnValue({
+      lean: () => ({ exec: () => Promise.resolve(null) }),
+    });
+    await expect(
+      repository.update({
+        id: COMMUNITY_ID,
+        expected: COMMUNITY_DOCUMENT,
+        data: {
+          countryIso: 'ES',
+          slug: 'barcelona',
+          nameTranslationKey: 'barcelona.name',
+          timeZone: 'Europe/Madrid',
+          isActive: false,
+        },
+      }),
+    ).resolves.toBeNull();
   });
 
   it('should find a Community by id', async () => {

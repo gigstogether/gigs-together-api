@@ -3,17 +3,20 @@ import { Test } from '@nestjs/testing';
 import type { TestingModule } from '@nestjs/testing';
 import { Translation } from '../translation.schema';
 import { MongoTranslationRepository } from './mongo-translation.repository';
+import { InvalidTranslationDocumentError } from '../translation.errors';
 
 describe('MongoTranslationRepository', () => {
   let repository: MongoTranslationRepository;
 
   const translationFindMock = vi.fn();
+  const translationFindOneMock = vi.fn();
   const translationDistinctMock = vi.fn();
   const translationUpdateOneMock = vi.fn();
   const translationFindOneAndUpdateMock = vi.fn();
 
   beforeEach(async () => {
     translationFindMock.mockReset();
+    translationFindOneMock.mockReset();
     translationDistinctMock.mockReset();
     translationUpdateOneMock.mockReset();
     translationFindOneAndUpdateMock.mockReset();
@@ -25,6 +28,7 @@ describe('MongoTranslationRepository', () => {
           provide: getModelToken(Translation.name),
           useValue: {
             find: translationFindMock,
+            findOne: translationFindOneMock,
             distinct: translationDistinctMock,
             updateOne: translationUpdateOneMock,
             findOneAndUpdate: translationFindOneAndUpdateMock,
@@ -36,6 +40,84 @@ describe('MongoTranslationRepository', () => {
     repository = module.get<MongoTranslationRepository>(
       MongoTranslationRepository,
     );
+  });
+
+  describe('findRecord', () => {
+    const params = {
+      namespace: 'community',
+      locale: 'en',
+      key: 'barcelona.name',
+    };
+    const document = {
+      _id: '64f1a2b3c4d5e6f7a8b9c0d1',
+      ...params,
+      value: 'Barcelona',
+      format: 'plain',
+      kind: 'text',
+      isActive: true,
+    };
+
+    it.each([true, false])(
+      'should return the exact record when its active state is %s',
+      async (isActive) => {
+        translationFindOneMock.mockReturnValue({
+          lean: () => ({
+            exec: () => Promise.resolve({ ...document, isActive }),
+          }),
+        });
+        await expect(repository.findRecord(params)).resolves.toEqual({
+          id: document._id,
+          ...params,
+          value: 'Barcelona',
+          format: 'plain',
+          kind: 'text',
+          isActive,
+        });
+        expect(translationFindOneMock).toHaveBeenCalledWith(params, {
+          _id: 1,
+          namespace: 1,
+          locale: 1,
+          key: 1,
+          value: 1,
+          format: 1,
+          kind: 1,
+          isActive: 1,
+        });
+        expect(translationFindMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('should return null when the exact record does not exist', async () => {
+      translationFindOneMock.mockReturnValue({
+        lean: () => ({ exec: () => Promise.resolve(null) }),
+      });
+      await expect(repository.findRecord(params)).resolves.toBeNull();
+    });
+
+    it('should reject a malformed stored record when mapping the lookup result', async () => {
+      translationFindOneMock.mockReturnValue({
+        lean: () => ({
+          exec: () => Promise.resolve({ ...document, isActive: 'true' }),
+        }),
+      });
+      const lookup = repository.findRecord(params);
+      await expect(lookup).rejects.toBeInstanceOf(
+        InvalidTranslationDocumentError,
+      );
+      await expect(lookup).rejects.toMatchObject({
+        documentId: document._id,
+        key: params.key,
+        issues: [{ field: 'isActive', reason: 'must be a boolean' }],
+      });
+    });
+
+    it('should propagate a storage failure when querying the record', async () => {
+      const failure = new Error('Storage unavailable');
+      translationFindOneMock.mockReturnValue({
+        lean: () => ({ exec: () => Promise.reject(failure) }),
+      });
+      await expect(repository.findRecord(params)).rejects.toBe(failure);
+    });
   });
 
   describe('findActiveByNamespace', () => {

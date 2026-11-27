@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { LocationModule } from '@modules/location/location.module';
+import { TranslationModule } from '@modules/translation/translation.module';
 import { CommunityController } from './community.controller';
 import { Community, CommunitySchema } from './community.schema';
 import { CommunityService } from './community.service';
@@ -10,6 +11,7 @@ import { MongoCommunityRepository } from './repositories/mongo-community.reposit
 @Module({
   imports: [
     LocationModule,
+    TranslationModule,
     MongooseModule.forFeature([
       { name: Community.name, schema: CommunitySchema },
     ]),

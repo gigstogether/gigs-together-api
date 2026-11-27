@@ -15,6 +15,7 @@ import type {
   FindActiveByNamespaceParams,
   FindAllTranslationsParams,
   FindByNamespaceParams,
+  FindTranslationRecordParams,
   SetTranslationActiveByIdParams,
   TranslationRepository,
   UpsertTranslationRecordParams,
@@ -50,6 +51,26 @@ export class MongoTranslationRepository implements TranslationRepository {
     @InjectModel(Translation.name)
     private readonly translationModel: Model<TranslationDocument>,
   ) {}
+
+  async findRecord(
+    params: FindTranslationRecordParams,
+  ): Promise<StoredTranslationRecord | null> {
+    const doc = await this.translationModel
+      .findOne(
+        {
+          namespace: params.namespace,
+          locale: params.locale,
+          key: params.key,
+        },
+        STORED_TRANSLATION_RECORD_PROJECTION,
+      )
+      .lean<TranslationRecordLeanDocument>()
+      .exec();
+
+    return doc === null
+      ? null
+      : TranslationRepositoryMapper.toStoredTranslationRecord(doc);
+  }
 
   async findActiveByNamespace(
     params: FindActiveByNamespaceParams,

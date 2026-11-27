@@ -241,6 +241,8 @@ for the required sequence.
 Responsibilities:
 
 - owns the editorial Community catalog, persistence, and public API
+- owns Community creation, reads, updates, and active-name validation through `TranslationService`;
+  `AdminCommunityService` coordinates administrative writes with frontend cache revalidation
 - loads Communities by ID or route for feed assignment and delivery use cases
 - validates Community country references through the Location application boundary
 - will own future geography-to-Community suggestion rules and orchestration
@@ -249,6 +251,7 @@ Responsibilities:
 Dependencies:
 
 - `LocationModule`
+- `TranslationModule`
 - local `Community` Mongoose model
 
 Main files:

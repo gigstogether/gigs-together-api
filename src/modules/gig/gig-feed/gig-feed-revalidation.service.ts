@@ -16,11 +16,24 @@ interface BuildGigFeedPathParams {
 
 interface RevalidateGigFeedsParams {
   communityIds?: string[];
+  communityRoutes?: CommunityFeedRoute[];
+  isCommunityCatalogChanged?: boolean;
+}
+
+interface CommunityFeedRoute {
+  countryIso: string;
+  slug: string;
 }
 
 interface PostGigFeedRevalidationRequestParams {
   url: string;
-  paths: readonly string[] | undefined;
+  paths: string[] | undefined;
+  isCommunityCatalogChanged?: boolean;
+}
+
+interface GigFeedRevalidationRequestBody {
+  paths?: string[];
+  isCommunityCatalogChanged?: boolean;
 }
 
 @Injectable()
@@ -50,6 +63,16 @@ export class GigFeedRevalidationService {
     }
   }
 
+  revalidateCommunityCatalog(communities: Community[]): Promise<void> {
+    return this.revalidateGigFeeds({
+      communityRoutes: communities.map((community) => ({
+        countryIso: community.countryIso,
+        slug: community.slug,
+      })),
+      isCommunityCatalogChanged: true,
+    });
+  }
+
   async revalidateGigFeedsOrThrow(
     params: RevalidateGigFeedsParams,
   ): Promise<void> {
@@ -71,8 +94,29 @@ export class GigFeedRevalidationService {
       );
     }
 
+    if (
+      params.communityIds !== undefined &&
+      params.communityRoutes !== undefined
+    ) {
+      throw new Error(
+        'Provide either Community ids or route snapshots for feed revalidation',
+      );
+    }
+
     const url = new URL('/api/revalidate/feed', this.appBaseUrl).toString();
-    let paths: readonly string[] | undefined;
+    let paths: string[] | undefined;
+    if (params.communityRoutes !== undefined) {
+      paths = [
+        ...new Set(
+          params.communityRoutes.map((community) =>
+            this.buildGigFeedPath({
+              countryIso: community.countryIso,
+              communitySlug: community.slug,
+            }),
+          ),
+        ),
+      ];
+    }
     if (params.communityIds !== undefined) {
       if (params.communityIds.length === 0) {
         throw new Error(
@@ -92,7 +136,11 @@ export class GigFeedRevalidationService {
       );
     }
 
-    await this.postGigFeedRevalidationRequest({ url, paths });
+    const request: PostGigFeedRevalidationRequestParams = { url, paths };
+    if (params.isCommunityCatalogChanged !== undefined) {
+      request.isCommunityCatalogChanged = params.isCommunityCatalogChanged;
+    }
+    await this.postGigFeedRevalidationRequest(request);
   }
 
   buildGigFeedPath(params: BuildGigFeedPathParams): string {
@@ -125,6 +173,10 @@ export class GigFeedRevalidationService {
       return;
     }
     const { url, paths } = params;
+    const body: GigFeedRevalidationRequestBody = {};
+    if (paths !== undefined) body.paths = paths;
+    if (params.isCommunityCatalogChanged !== undefined)
+      body.isCommunityCatalogChanged = params.isCommunityCatalogChanged;
 
     let res: Response;
     try {
@@ -134,7 +186,7 @@ export class GigFeedRevalidationService {
           'content-type': 'application/json',
           'x-revalidate-secret': this.revalidationSecret,
         },
-        body: JSON.stringify(paths === undefined ? {} : { paths }),
+        body: JSON.stringify(body),
       });
     } catch (e) {
       this.logger.warn(
